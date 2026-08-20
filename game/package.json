@@ -1,0 +1,59 @@
+{
+	"name": "kitchen-defense",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "npm run type-check && npm run build-only",
+		"build-only": "vite build",
+		"preview": "vite preview",
+		"type-check": "vue-tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
+	},
+	"prettier": {
+		"semi": false,
+		"singleQuote": true,
+		"useTabs": true,
+		"printWidth": 120,
+		"arrowParens": "avoid",
+		"vueIndentScriptAndStyle": true,
+		"singleAttributePerLine": true,
+		"tabWidth": 4,
+		"htmlWhitespaceSensitivity": "ignore",
+		"endOfLine": "lf"
+	},
+	"dependencies": {
+		"@fortawesome/fontawesome-svg-core": "^7.3.1",
+		"@fortawesome/free-solid-svg-icons": "^7.3.1",
+		"@fortawesome/vue-fontawesome": "^3.3.3",
+		"@vueuse/core": "^14.4.0",
+		"axios": "^1.19.0",
+		"pinia": "^4.0.3",
+		"vue": "^3.5.41",
+		"vue-i18n": "^11.4.8",
+		"vue-router": "^5.2.0",
+		"zod": "^4.4.3"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/node": "^26.2.0",
+		"@vitejs/plugin-vue": "^6.0.8",
+		"@vue/eslint-config-prettier": "^10.2.0",
+		"@vue/eslint-config-typescript": "^14.9.0",
+		"eslint": "^10.8.1",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-vue": "^10.10.0",
+		"prettier": "^3.9.6",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.67.0",
+		"vite": "^8.2.1",
+		"vitest": "^4.1.11",
+		"vue-tsc": "^3.3.10"
+	}
+}

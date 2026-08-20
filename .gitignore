@@ -30,7 +30,6 @@ coverage
 *.sw?
 
 .env
-package-lock.json
 
 # E2E
 e2e/.env.test
