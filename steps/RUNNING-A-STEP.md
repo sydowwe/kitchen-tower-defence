@@ -138,10 +138,11 @@ destroys the only list of what still needs a human to look at it.
 
 **3. Fix what the step file got wrong**, per *While building* above.
 
-**4. Commit.** `Step N: <what changed>` on a branch named `step-N-<slug>`. One branch per step, one
-commit per part of a split step, so a step can be abandoned without unpicking it from another. Don't
-merge or push unless asked — the commit prefix is what makes `git log --grep "^Step"` a usable
-ledger, so keep it exact.
+**4. Commit.** `Step N: <what changed>`, straight onto the current branch — one commit per part of a
+split step. No branch per step: steps are built one at a time, never in parallel, so a topic branch
+buys nothing and abandoning a step is a `git reset`, not an unpicked merge. Don't merge or push
+unless asked — the commit prefix is what makes `git log --grep "^Step"` a usable ledger, so keep it
+exact.
 
 **5. Hand over the feel checks.** The last output of the session is a numbered list of what to look
 at, with `npm run dev` running if anything visual changed. This is what makes the feel criteria real

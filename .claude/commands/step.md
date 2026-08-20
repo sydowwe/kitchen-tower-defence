@@ -43,6 +43,6 @@ report the actual output if any fails. Do not describe the step as done with a f
 - Tick the acceptance checkboxes in the step file that are **objectively verified**. Leave the
   feel-based ones (`looks like a place`, `feels good`, `unambiguous at 3× speed`) unticked — those
   are mine to judge, and ticking them for me destroys the only record of what still needs looking at.
-- Commit as `Step $1: <what changed>` on a branch named `step-$1-<slug>`. Do not merge or push.
+- Commit as `Step $1: <what changed>` on the current branch — no topic branch. Do not merge or push.
 - Then hand me: the four command results, the unticked feel criteria as a numbered list of things to
   look at, and `npm run dev` if there is anything visual to see.
