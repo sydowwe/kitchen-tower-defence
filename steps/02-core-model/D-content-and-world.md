@@ -63,11 +63,12 @@ A minimal placeholder map def is enough — step 3 authors real maps.
 
 ## Acceptance
 
-- [ ] Neither content file needed a new behaviour kind, a new schema field, or a change to `matrix.ts`.
-- [ ] All `nameKey`/`descriptionKey` values have entries in `ui/locales/en.ts`, and the build fails
+- [x] Neither content file needed a new behaviour kind, a new schema field, or a change to `matrix.ts`.
+      (Confirmed against commit `7ba6069`: it touches neither `behaviours.ts`, `schema.ts` nor `matrix.ts`.)
+- [x] All `nameKey`/`descriptionKey` values have entries in `ui/locales/en.ts`, and the build fails
       if one is missing.
-- [ ] `createWorld()` returns a fully-typed world that survives a JSON round-trip unchanged.
-- [ ] All content validates at boot; a deliberately broken tower def throws with its id.
+- [x] `createWorld()` returns a fully-typed world that survives a JSON round-trip unchanged.
+- [x] All content validates at boot; a deliberately broken tower def throws with its id.
 - [ ] `npm run test`, `npm run lint` and `npm run type-check` are green, and the game still shows
       step 1's bouncing emoji — nothing visual changed.
 

@@ -113,11 +113,11 @@ signature it will keep (`(world: World) => void`, plus the drained batch for the
 
 ## Acceptance
 
-- [ ] `core/rng.ts` imports nothing; `core/types.ts` imports only `rng.ts`; `core/commands.ts`
+- [x] `core/rng.ts` imports nothing; `core/types.ts` imports only `rng.ts`; `core/commands.ts`
       imports only `types.ts`.
-- [ ] No type in `types.ts` has a method.
-- [ ] Every name in the documented system order has a file in `core/systems/`.
-- [ ] `npm run test`, `npm run lint` and `npm run type-check` are green.
+- [x] No type in `types.ts` has a method.
+- [x] Every name in the documented system order has a file in `core/systems/`.
+- [x] `npm run test`, `npm run lint` and `npm run type-check` are green.
 
 ## Do not
 

@@ -29,8 +29,8 @@ catches the mistake.
 
 ## Step acceptance
 
-- [ ] `createWorld()` returns a fully-typed world that survives `JSON.parse(JSON.stringify(w))` unchanged.
-- [ ] All content validates at boot; a deliberately broken tower def throws with its id in the message.
+- [x] `createWorld()` returns a fully-typed world that survives `JSON.parse(JSON.stringify(w))` unchanged.
+- [x] All content validates at boot; a deliberately broken tower def throws with its id in the message.
 - [ ] Tests pass. The game still shows step 1's bouncing emoji — nothing visual changed.
 
 ## Do not

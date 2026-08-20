@@ -38,7 +38,8 @@ Eight reference documents plus 23 step files. Each step file in `../steps` is a 
 | [CONTENT.md](CONTENT.md) | All v1 tower/enemy stat tables, damage matrix, status effects, installations, night schedule | Whenever a step adds content |
 | [PERSISTENCE.md](PERSISTENCE.md) | Ports/adapters/composables, localStorage now, .NET 10 backend later | Before step 20, and before writing any code that saves anything |
 | [steps/](steps/) | 23 executable prompts | One at a time, in order |
-| [steps/CONVENTIONS.md](../steps/CONVENTIONS.md) | How a step file is built, and the rules that make the format work | Only when writing *new* steps (24+) |
+| [steps/RUNNING-A-STEP.md](../steps/RUNNING-A-STEP.md) | Pre-flight check before building a step: is it stale, self-contradictory, or too wide for one session — and what to do about each | Every time you pick up a step, before writing code |
+| [steps/CONVENTIONS.md](../steps/CONVENTIONS.md) | How a step file is built — its sections, and the rules that make the format work | Only when *writing* a step file: a new one (24+), or the part files of a split. Never when building one |
 
 ### Reference — read when relevant
 

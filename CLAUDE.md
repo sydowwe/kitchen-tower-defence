@@ -6,6 +6,10 @@ pathfinding anywhere in the codebase), you pay for towers with crumbs collected 
 and the fridge's food is your health bar. It is a browser game — Canvas 2D for the board, Vue 3 for
 the HUD and menus, all entities drawn as emoji.
 
+[analytic-docs/](analytic-docs/) holds the design and planning docs for this project — check it for
+useful context beyond what's linked below (e.g. DECISION-LOG.md, OPEN-QUESTIONS.md,
+ORIGINAL-BRIEF.md, PERSISTENCE.md, ROADMAP-POST-V1.md).
+
 **Read before designing anything:**
 
 - [analytic-docs/DECISIONS.md](analytic-docs/DECISIONS.md) — what the game is, and what it deliberately is not.
@@ -16,6 +20,12 @@ the HUD and menus, all entities drawn as emoji.
 
 Do not restate design decisions in code comments or in step files. There is exactly one source of
 truth per decision; point at it.
+
+**If you have just been handed a step to build**, run the pre-flight check in
+[steps/RUNNING-A-STEP.md](steps/RUNNING-A-STEP.md) first. The steps were written before any code
+existed; some describe a repo that has since moved, contradict themselves, or are wider than one
+session. That doc says how to tell, and what to do instead of building. It costs a minute and the
+common answer is "build it as written".
 
 ---
 

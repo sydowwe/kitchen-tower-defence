@@ -20,6 +20,9 @@ coverage
 /cypress/screenshots/
 
 # Editor directories and files
+# .claude/ is committed -- the step commands and the lint hook are part of the build plan.
+# Personal overrides are not.
+.claude/settings.local.json
 .vscode/*
 !.vscode/extensions.json
 .idea

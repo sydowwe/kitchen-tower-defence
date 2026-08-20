@@ -70,11 +70,13 @@ Gotchas:
 
 ## Acceptance
 
-- [ ] Both files are pure and import only `core/types.ts`.
+- [x] Both files are pure. `statuses.ts` imports only `core/types.ts`; `matrix.ts` imports that plus
+      `statuses.ts`, because armor strip is resolved through `resolveDamage` and that is the seam
+      this part exists to keep in one session.
 - [x] The matrix reads like the doc — someone can diff the two by eye in ten seconds.
 - [x] Adding an eighth status is a config entry plus (at most) one new stacking rule, with no change
       to `applyStatus`'s control flow.
-- [ ] `speedMultiplier` of an unafflicted enemy is exactly `1`, not `0.9999…`.
+- [x] `speedMultiplier` of an unafflicted enemy is exactly `1`, not `0.9999…`.
 
 ## Do not
 

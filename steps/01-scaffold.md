@@ -50,7 +50,7 @@ An empty but correct skeleton: the project builds, a canvas renders emoji at 60f
 ## Acceptance
 
 - [ ] `npm run dev` shows 400 emoji at a locked 60fps; 3× visibly triples motion without changing per-tick behaviour.
-- [ ] `npm run test` passes; `npm run lint` fails if you add `Math.random()` to a file in `core/`.
+- [x] `npm run test` passes; `npm run lint` fails if you add `Math.random()` to a file in `core/`.
 - [ ] `CLAUDE.md` exists and a fresh reader could infer the layering rules from it alone.
 
 ## Do not
