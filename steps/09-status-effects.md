@@ -13,7 +13,7 @@ Two reusable systems — **timed modifiers on an enemy** and **non-single-target
 
 1. **Wire up the status system.** Step 2 defined the effects and their stacking rules as pure functions; nothing applies them yet. Add:
    - `statusEffects` to the tick order (already stubbed in `sim.ts`) — ticks durations, applies per-tick damage for Burn and Poison, expires effects.
-   - A `applyStatus` behaviour modifier that any attack can carry: `attack({ ..., applies: [{ status: 'slow', duration: 2.0 }] })`.
+   - An `applies` field that any attack can carry: `attack({ ..., applies: ['slow'] })`. Extend the `attack`/`coneAttack`/`aura`/`pushback` schemas in `core/content/schema.ts` to match — 2B left the field out because nothing read it yet. Duration and stacking come from the `StatusDef`, which already carries both as tick counts; add a per-application override only if a tower actually needs one, or the two numbers will drift.
    - Per-tick DoT damage must route through `resolveDamage` with the *source's* damage type, so a burn from a fire tower is still fire damage against the tag matrix. This is the single most commonly-botched detail in this system.
 
 2. **Hitbox shapes** (`core/systems/hitbox.ts`). Three query functions sharing the step 6 range-query seam:
@@ -21,7 +21,7 @@ Two reusable systems — **timed modifiers on an enemy** and **non-single-target
    - `cone(origin, direction, radius, halfAngleDeg)` — the tower aims at its chosen target, then hits everything inside the cone. Default half-angle 30°.
    - `line(from, to, width)` — unused in v1, but cheap now and several Act III towers want it.
 
-3. **New behaviours**: `coneAttack` and `aoeAttack`, both composed from `attack` plus a shape. A tower definition should be able to say "cone, 3 tiles, chemical, applies poison" in one object.
+3. **Wire the shapes to the behaviours that already exist.** `coneAttack` has been a descriptor since step 2B — give it an interpreter that queries `cone`. There is **no `aoeAttack` kind and there should not be one**: instant AoE is `attack` with `splashRadiusTiles > 0`, resolved through `circle`. A tower definition should be able to say "cone, 3 tiles, chemical, applies poison" in one object.
 
 4. **Towers** (`../analytic-docs/CONTENT.md` §1):
    - **Spray Bottle** — 120, cone 3 tiles, 3 impact + 2/s poison, chemical, both targets. The first real crowd answer.

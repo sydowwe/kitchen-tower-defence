@@ -59,12 +59,20 @@ descriptor union, which is the reason these two files are built in one sitting.
 
 ## Acceptance
 
-- [ ] Types are inferred from the schemas — there is no hand-written `interface TowerDef`.
-- [ ] Validation is stripped from a production build (verify it is inside a `DEV` branch).
-- [ ] A tower def is a list of behaviour descriptors and nothing else — no `class`, no `extends`.
-- [ ] Vocabulary checkpoint: sketch a second, imaginary DPS tower on paper. If expressing it would
+- [x] Types are inferred from the schemas — there is no hand-written `interface TowerDef`.
+- [x] Validation is stripped from a production build (verify it is inside a `DEV` branch).
+- [x] A tower def is a list of behaviour descriptors and nothing else — no `class`, and no `extends`
+      for behaviour. (An `interface TowerDefOf<Id> extends TowerDef` that narrows the id for
+      typing is not inheritance and is fine; step 2D added one.)
+- [x] Vocabulary checkpoint: sketch a second, imaginary DPS tower on paper. If expressing it would
       need a *new* behaviour kind rather than different numbers, the vocabulary is wrong and it is
       cheaper to fix here than in step 12.
+      *Sketched three and ran them through the real schema rather than judging them on paper: a
+      lobbed splashing chemical turret (numbers on `attack`), a point-blank burst on the track
+      (`attack` + `charge` + a radius-0.5 `aura`, which is also what Cardboard Box T3's reflect
+      is), and a shot that pierces along a straight line — the one shape no kind carries, and no
+      v1 tower is it. The full CONTENT.md §1 roster and its eight T3 upgrades fit the twelve kinds;
+      what they still want is fields owned by later steps, never a thirteenth kind.*
 
 ## Do not
 
