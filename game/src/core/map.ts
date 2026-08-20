@@ -200,6 +200,7 @@ export function loadMap(source: MapSource): MapDef {
 			waypoints: path.waypoints.map(waypoint => ({ x: waypoint.x, y: waypoint.y })),
 			lengthTiles: path.lengthTiles,
 		})),
+		trackWidthTiles,
 		flags,
 		fridge: { tile: { x: source.fridge.tile.x, y: source.fridge.tile.y }, glyph: source.fridge.glyph },
 		decor: (source.decor ?? []).map(entry => ({ glyph: entry.glyph, tile: { x: entry.tile.x, y: entry.tile.y } })),

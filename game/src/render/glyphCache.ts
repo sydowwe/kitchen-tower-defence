@@ -85,6 +85,30 @@ export function getGlyph(emoji: string, sizePx: number): HTMLCanvasElement {
 	return canvas
 }
 
+/**
+ * Blits a cached glyph centred on (x, y) in the logical units of a context already scaled by `dpr`.
+ *
+ * The `dpr` is a parameter rather than `window.devicePixelRatio` because there are two contexts
+ * with two of them: the live canvas, and the offscreen terrain bake. Both need the same
+ * divide-then-round, and two copies of it drift.
+ */
+export function blitGlyph(
+	ctx: CanvasRenderingContext2D,
+	dpr: number,
+	emoji: string,
+	sizePx: number,
+	x: number,
+	y: number,
+): void {
+	const glyph = getGlyph(emoji, sizePx)
+	const width = glyph.width / dpr
+	const height = glyph.height / dpr
+	// Snap to whole device pixels: sub-pixel emoji is blurry and costs more to composite.
+	const left = Math.round((x - width / 2) * dpr) / dpr
+	const top = Math.round((y - height / 2) * dpr) / dpr
+	ctx.drawImage(glyph, left, top, width, height)
+}
+
 /** Rasterise ahead of time, so the first frame of a night is not the one paying for forty glyphs. */
 export function preload(glyphs: readonly GlyphRequest[]): void {
 	for (const glyph of glyphs) {

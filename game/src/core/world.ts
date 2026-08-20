@@ -45,6 +45,7 @@ function cloneMapDef(map: MapDef): MapDef {
 			waypoints: path.waypoints.map(waypoint => ({ x: waypoint.x, y: waypoint.y })),
 			lengthTiles: path.lengthTiles,
 		})),
+		trackWidthTiles: map.trackWidthTiles,
 		flags: [...map.flags],
 		fridge: { tile: { x: map.fridge.tile.x, y: map.fridge.tile.y }, glyph: map.fridge.glyph },
 		decor: map.decor.map(entry => ({ glyph: entry.glyph, tile: { x: entry.tile.x, y: entry.tile.y } })),

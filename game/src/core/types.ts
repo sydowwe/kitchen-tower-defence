@@ -126,6 +126,13 @@ export interface MapDef {
 	/** Two or three from night 10 onward, authored to merge before the fridge. */
 	paths: Path[]
 	/**
+	 * Authored width of every path on this map, defaulted at load. Derived here rather than left in
+	 * the JSON because it is the one number the rasterised `TRACK` flags and the drawn track both
+	 * read: a renderer that took its stroke width from anywhere else could draw a track that does
+	 * not sit on the tiles the simulation calls track.
+	 */
+	trackWidthTiles: number
+	/**
 	 * Row-major, `widthTiles * heightTiles` long, one `TileFlags` bitfield per tile with `TRACK`
 	 * already rasterised in. The single runtime truth for what is buildable, blocked and track --
 	 * the authored char grid does not survive into `MapDef` at all.

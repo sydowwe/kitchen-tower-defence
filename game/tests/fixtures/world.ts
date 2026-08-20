@@ -39,6 +39,7 @@ export function createTestWorld(): World {
 					lengthTiles: 1,
 				},
 			],
+			trackWidthTiles: 1,
 			// Buildable then blocked-and-track, so both branches of `canPlace` have a tile here.
 			flags: [TileFlags.BUILDABLE, TileFlags.BUILDABLE | TileFlags.TRACK],
 			fridge: { tile: { x: 1, y: 0 }, glyph: '🗄️' },

@@ -22,6 +22,7 @@
 <script setup lang="ts">
 	import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
 	import { createLoop, type Loop, type Speed } from '@/loop.ts'
+	import { getMapDef } from '@/core/content/index.ts'
 	import { createRenderer, LOGICAL_HEIGHT, LOGICAL_WIDTH, type Renderer } from '@/render/index.ts'
 	import DebugOverlay from '@/ui/components/DebugOverlay.vue'
 
@@ -42,13 +43,8 @@
 		paused: boolean
 	}
 
-	interface Scene {
-		update(): void
-		draw(renderer: Renderer): void
-		readonly entityCount: number
-	}
-
-	const DEMO_ENTITIES = 400
+	/** The only map there is until step 3C authors the real one. */
+	const MAP_ID = 'counter'
 
 	const board = useTemplateRef<HTMLCanvasElement>('board')
 
@@ -63,7 +59,6 @@
 
 	let renderer: Renderer | null = null
 	let loop: Loop | null = null
-	let scene: Scene | null = null
 
 	function onResize(): void {
 		renderer?.resize()
@@ -83,54 +78,35 @@
 		}
 	}
 
-	async function loadScene(): Promise<Scene | null> {
-		// The bouncing-emoji load test is dev-only scaffolding. The dynamic import inside the DEV
-		// branch is what keeps `dev/` out of a production bundle entirely.
-		if (!import.meta.env.DEV) {
-			return null
-		}
-		const demo = await import('@/dev/demo/bouncers.ts')
-		const bouncers = demo.createBouncers(DEMO_ENTITIES)
-		return {
-			update() {
-				demo.updateBouncers(bouncers)
-			},
-			draw(target: Renderer) {
-				demo.drawBouncers(bouncers, target)
-			},
-			entityCount: bouncers.length,
-		}
-	}
-
-	onMounted(async () => {
+	onMounted(() => {
 		if (board.value === null) {
 			return
 		}
 		const activeRenderer = createRenderer(board.value)
 		renderer = activeRenderer
+		activeRenderer.setMap(getMapDef(MAP_ID))
 
 		const activeLoop = createLoop({
 			tick() {
-				scene?.update()
+				// Step 5 runs the simulation here.
 			},
 			draw() {
-				activeRenderer.clear()
-				scene?.draw(activeRenderer)
+				// Null world: there is nothing simulated behind the board yet, so the frame is the
+				// baked map and an empty entity pass. Step 5 hands it a real one.
+				activeRenderer.drawFrame(null)
 			},
 			publish() {
 				snapshot.value = {
 					fps: activeLoop.fps,
 					tickCount: activeLoop.tickCount,
 					simSeconds: activeLoop.simSeconds,
-					entityCount: scene?.entityCount ?? 0,
+					entityCount: 0,
 					speed: activeLoop.speed,
 					paused: activeLoop.paused,
 				}
 			},
 		})
 		loop = activeLoop
-
-		scene = await loadScene()
 
 		window.addEventListener('resize', onResize)
 		window.addEventListener('keydown', onKeyDown)
@@ -143,7 +119,6 @@
 		loop?.stop()
 		loop = null
 		renderer = null
-		scene = null
 	})
 </script>
 

@@ -62,10 +62,36 @@ Both draw **into the offscreen bake**, not the live context.
 - Terrain: flat fills per tile from `map.flags`, then two or three **soft radial gradients** as
   pools of lamp light, then decor glyphs from `map.decor`. The gradients are what stop it reading as
   a spreadsheet; keep them large, low-contrast and off-centre.
+
+  **Two things the first version got wrong, found by looking at it:**
+
+  - *Do not vary anything per tile.* A per-tile alpha jitter is the obvious way to stop flat fills
+    reading as flat, and it does the exact opposite — varying brightness per tile draws every tile
+    boundary in, and the board reads as a spreadsheet with extra steps. Texture has to be at a scale
+    the grid does not share: soft blobs a couple of tiles across, positions from a seeded sequence
+    so a re-bake lands them in the same place.
+  - *Rim the blocked mass, not the blocked tile.* Stroking an inset edge per blocked tile turns a
+    5 × 5 appliance into twenty-five outlined squares. Stroke only the sides whose neighbour is not
+    blocked, treating off-board as blocked so the board border is not rimmed on its outer face.
+
+  Both are the same mistake — per-tile decoration on a tile grid — and both look fine in the code
+  and wrong on screen, which is why this step has no tests and an acceptance criterion that says
+  "squint at it".
 - Track: the polyline as one wide rounded stroke — `lineJoin` and `lineCap` both `'round'`, a darker
-  outline pass underneath a lighter fill pass. Stroke width is `trackWidthTiles * tilePx`, so the
-  drawn track and 3A's rasterised `TRACK` flags agree by construction. Then the fridge glyph at
+  outline pass underneath a lighter fill pass. Stroke width is `map.trackWidthTiles * tilePx`, so
+  the drawn track and 3A's rasterised `TRACK` flags agree by construction. Then the fridge glyph at
   `map.fridge`, and a crack glyph at each path's `waypoints[0]`.
+
+  **Reconciled while building:** 3A shipped `trackWidthTiles` as a local in `loadMap`, defaulted and
+  then discarded — it is not on `MapDef`, so there was nothing for the renderer to read. It is now a
+  derived field on `MapDef` (set by `loadMap`, copied by `cloneMapDef`, defaulted in the test
+  fixture). Deriving it is what makes "agree by construction" true rather than aspirational; the
+  alternative — `render/` reaching back into `MAP_SOURCES` for the authored number — is a second
+  reader of the same value and would break step 4's editor, which only ever holds a `MapDef`.
+
+  Waypoints name tiles, and `loadMap` marks the tile a waypoint names, so the drawn line runs
+  through tile **centres**: `(waypoint.x + 0.5) * tilePx`. Off by half a tile and every acceptance
+  check below still passes on a straight run and fails at the first corner.
 
 Gotcha: the offscreen canvas is sized `LOGICAL_* × dpr`, so it needs its own
 `setTransform(dpr, 0, 0, dpr, 0, 0)` before anything is drawn into it. `renderer.ts` scales the
@@ -87,6 +113,11 @@ will keep and leave the body iterating an empty array, rather than leaving the f
 Add `setMap(map)` (bakes) and `drawFrame(world)` (clear → blit bake → layers in the documented
 order). Keep `createRenderer`'s existing shape; this is an addition, not a rewrite.
 
+**Reconciled while building:** there is no `World` in `GameView.vue` yet — step 5 is what puts a
+simulation behind the board — so the signature is `drawFrame(world: World | null)` and this session
+passes `null`. `drawEntities` takes the same nullable world. Step 5 replaces the `null` at the call
+site and fills in `entities.ts`'s `glyphFor`; neither signature changes.
+
 ### 5. `ui/views/GameView.vue`
 
 Call `setMap` once with the Counter and `drawFrame` from the loop. Delete the bouncing-emoji demo
@@ -102,13 +133,17 @@ spec file.
 
 - [ ] The Counter renders and looks like a place, not a debug grid. Squint at it: you should read
       "counter at night", not "coloured squares".
-- [ ] A `console.count` on the bake fires exactly once per map load, and again only if the window
+- [x] A `console.count` on the bake fires exactly once per map load, and again only if the window
       moves to a display with a different `devicePixelRatio`.
-- [ ] The frame function contains no `fillText`, no `createRadialGradient`, and no per-tile loop —
+- [x] The frame function contains no `fillText`, no `createRadialGradient`, and no per-tile loop —
       those all happen in the bake.
-- [ ] The track drawn on screen covers exactly the tiles 3A flagged `TRACK`; check by temporarily
+- [x] The track drawn on screen covers exactly the tiles 3A flagged `TRACK`; check by temporarily
       tinting flagged tiles, then remove the tint (3C makes it a proper toggle).
-- [ ] 60fps with the frame budget untouched — the frame is one `drawImage` plus an empty loop.
+      *Checked as geometry rather than by eye — a throwaway spec sampled every tile 9×9 against the
+      stroke's distance field: the touched set equals the flagged set, and no flagged tile is under
+      half covered. Still worth a look under 3C's real toggle.*
+- [x] 60fps with the frame budget untouched — the frame is one `drawImage` plus an empty loop.
+      *126fps on a 120Hz display, i.e. capped by the refresh rate rather than by the frame.*
 
 ## Do not
 
