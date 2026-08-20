@@ -1,52 +1,58 @@
 # Step 4 — Map editor (dev route)
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is two sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index — it exists to say what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, step 3's map format (`core/content/schema.ts`).
-**Prereq:** step 3.
+**Prereq:** step 3, all three parts.
 
 ## Goal
 
-Stop authoring maps by guessing coordinates. Half a day of work here turns each of the remaining five maps from an hour of blind JSON editing into ten minutes, and makes retuning a track after playtesting trivial instead of dreaded.
+Stop authoring maps by guessing coordinates. Half a day of work here turns each of the remaining
+five maps from an hour of blind JSON editing into ten minutes, and makes retuning a track after
+playtesting trivial instead of dreaded.
 
-You are building this **early on purpose** — every map after `counter.json` gets made with it, and step 21 authors five maps in one sitting.
+You are building this **early on purpose** — every map after `counter.json` gets made with it, and
+step 21 authors five maps in one sitting.
 
-## Build
+## Parts
 
-A dev-only route at `/editor`, tree-shaken out of production builds (`import.meta.env.DEV` guard on the route registration, editor code under `src/dev/editor/`).
+Each part names its own `Read first:` sections, so a session only loads the docs it needs.
 
-1. **Canvas + grid.** Reuse the step 3 renderer for terrain and track so the editor shows exactly what the game will show. Overlay a tile grid with coordinate labels.
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](04-map-editor/A-document-and-validation.md) | The document, validation and JSON | `dev/editor/document.ts`, `validate.ts`, `serialize.ts`, `tests/editor.spec.ts` |
+| [B](04-map-editor/B-canvas-and-tools.md) | The tool | `dev/editor/EditorView.vue`, `overlay.ts`, `preview.ts`, `panels/`, `dev/tileCoords.ts` |
 
-2. **Tile painting.** Brush tool with selectable flag (`buildable` / `blocked` / `decor`) and adjustable brush size. Click-drag paints. Right-click erases to buildable.
+Strictly in order. B never mutates a map itself — it turns pointer events into calls on A's
+document, and draws the problems A reports.
 
-3. **Path editing.**
-   - Click on empty canvas appends a waypoint to the active path.
-   - Drag an existing waypoint to move it; right-click deletes it.
-   - Insert a waypoint mid-path by clicking on a segment.
-   - Multiple paths, each with its own colour, an active-path selector, and add/delete-path buttons.
-   - Live readout of each path's total length in tiles — you'll balance against this number constantly.
+A carries **all** of the step's tests, because it holds the two things that can be silently wrong:
+an export that `loadMap` will reject three days later, and the thresholds every map from step 21 on
+is judged against. B has none, per `../analytic-docs/ARCHITECTURE.md` §7 — and because vitest runs
+`environment: 'node'` (`game/vite.config.ts`), so nothing B builds is reachable from a spec anyway.
+That constraint is also why the split falls where it does: everything testable is DOM-free, and
+everything DOM-shaped is untestable.
 
-4. **Spawns and fridge.** Place the fridge (one per map). Each path's start waypoint implicitly defines its spawn; show it with the crack glyph and let it be nudged.
+## The seam that can't move
 
-5. **Decor.** Pick an emoji from a palette, click to place, right-click to remove.
+**The authored `MapSource` is the editor's document, and every mutation goes through A's
+`EditorDoc`.** Move the line so that B keeps its own editable structure and you get two
+implementations of undo, two answers to what `lengthTiles` is worth mid-drag, and a round-trip that
+is lossless only by coincidence.
 
-6. **Validation panel**, live:
-   - every path must terminate within 1 tile of the fridge — **warn** otherwise
-   - warn on paths shorter than 20 tiles or longer than 60
-   - warn if fewer than 25% of tiles are buildable
-   - warn if any path segment is longer than 6 tiles (the polyline will read as a straight corridor)
-   - on multi-path maps, report where paths converge and how much shared final stretch exists — `../analytic-docs/DECISIONS.md` §3 wants them to merge
-
-7. **Import / export.** Load any existing map from `core/content/maps/` into the editor. Export writes formatted JSON to the clipboard **and** triggers a file download with the right filename. Round waypoint coordinates to 2 decimals on export so diffs stay readable.
-
-8. **Playtest button.** Launches the current in-memory map in the real game at the current night, without saving. This is the feature that makes the editor worth building — iterate the track shape against actual play.
-
-## Acceptance
+## Step acceptance
 
 - [ ] You can build a complete, valid, playable map from an empty grid in under ten minutes.
-- [ ] Round-trip is lossless: import `counter.json`, export immediately, and the file is semantically identical.
+- [ ] Round-trip is lossless: import `counter.json`, export immediately, and the file is
+      semantically identical — same flags, same track tile set, same decor.
 - [ ] The production bundle contains no editor code — verify in the build output.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
-Over-build this. No undo/redo stack beyond a simple 20-step history, no layers, no tile autotiling, no asset browser. It's a tool for one user.
+Over-build this. No undo/redo beyond A's 20-step history, no layers, no tile autotiling, no asset
+browser, no dev-server endpoint that writes files into the repo. It's a tool for one user.
+
+Do not author the other five maps — step 21 owns Sink, Pantry, Stove, Table and Floor, and it wants
+them made with the finished tool. Do not put a simulation behind the board: enemies are step 5 and
+towers are step 6, so B's preview button shows the map, not a night.
