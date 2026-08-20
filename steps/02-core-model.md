@@ -1,52 +1,33 @@
 # Step 2 — Core data model and content pipeline
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is four sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index — it exists to say what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/ARCHITECTURE.md` §3–4, `../analytic-docs/CONTENT.md` §1, §3, §4.
 **Prereq:** step 1.
 
 ## Goal
 
-The shape of the entire game, with one tower and one enemy as proof. Nothing moves yet. Get this right and the next fifteen steps are mostly filling in config.
+The shape of the entire game, with one tower and one enemy as proof. Nothing moves yet. Get this
+right and the next fifteen steps are mostly filling in config.
 
-## Build
+## Parts
 
-1. **`core/rng.ts`** — mulberry32. `createRng(seed)` returning `{ next(): number, int(max): number, pick<T>(arr): T, chance(p): boolean, fork(): Rng }`. Serialisable state so a world can be snapshotted.
+Each part names its own `Read first:` sections, so a session only loads the docs it needs.
 
-2. **`core/types.ts`** — the entity model. Plain objects, no classes, no methods:
-   - `Enemy`: `id, defId, pathId, distance, hp, maxHp, statuses[], tags[], speed, stolenItems[], flags`
-   - `Tower`: `id, defId, tile, hp, maxHp, tier, targetingMode, cooldown, state (for charge machines), totalInvested`
-   - `Projectile`, `Crumb`, `TileState`, `FoodItem`, `Wave`, `NightState`
-   - `World`: entities in arrays plus an `id → index` map, `tick`, `rng`, `crumbs`, `groceryMoney`, `noise`, `map`, `night`, `difficulty`, `events[]`
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](02-core-model/A-skeleton.md) | Skeleton | `core/rng.ts`, `core/types.ts`, `core/commands.ts`, `core/sim.ts`, `core/systems/` |
+| [B](02-core-model/B-content-pipeline.md) | Content pipeline | `core/content/schema.ts`, `core/content/behaviours.ts` |
+| [C](02-core-model/C-damage-and-statuses.md) | Damage and statuses | `core/content/matrix.ts`, `core/content/statuses.ts` |
+| [D](02-core-model/D-content-and-world.md) | Content and world | `core/content/towers.ts`, `enemies.ts`, `core/world.ts` |
 
-   `World` must be a plain serialisable object. No functions stored on it.
+A comes first. B and C both need A and are independent of each other — either order. D needs all three.
 
-3. **`core/commands.ts`** — a discriminated union of player intents: `PlaceTower`, `SellTower`, `UpgradeTower`, `SetTargetingMode`, `CollectCrumb`, `CallWaveEarly`, `SetSpeed`. Plus a queue with `enqueue`/`drain`. **The UI's only write path.**
+The groupings are the point: B's two files have to agree on what a behaviour descriptor looks like,
+and C's armor-strip rule spans both of its files, so splitting either pair costs you the test that
+catches the mistake.
 
-4. **`core/sim.ts`** — `tick(world, commands)`. Drains commands, then runs systems in a **fixed, documented order**. Write the order out as a comment now, since ordering bugs here are miserable later:
-   `commands → spawn → status → movement → targeting → combat → projectiles → tiles → crumbs → noise → economy → resolve (deaths, leaks, win/lose) → events`
-   Stub every system as a no-op function in `core/systems/` with the right signature.
-
-5. **`core/content/schema.ts`** — zod schemas for `TowerDef`, `EnemyDef`, `MapDef`, `NightDef`, `StatusDef`, `InstallationDef`. Validate all content at module load in dev; throw loudly with the offending id.
-
-6. **Behaviour composition** (`core/content/behaviours.ts`). Define the vocabulary from `../analytic-docs/ARCHITECTURE.md` §4 as typed factory functions returning discriminated-union behaviour descriptors — **data, not closures**, so towers stay serialisable and testable. Implement only `attack` now; the rest are typed stubs.
-
-7. **`core/content/matrix.ts`** — the full damage-type × tag table from `../analytic-docs/CONTENT.md` §3, and `resolveDamage(base, damageType, enemy): number` applying **multiplicative** tag stacking then status modifiers. Pure function.
-
-8. **`core/content/statuses.ts`** — all seven effects from `../analytic-docs/CONTENT.md` §4 with their stacking rules, plus `applyStatus`, `tickStatuses`, `speedMultiplier(enemy)`, `damageTakenMultiplier(enemy)`.
-
-9. **Content**: `towers.ts` with **Salt Shaker only**, `enemies.ts` with **Ant only**, both full and schema-valid.
-
-10. **`core/world.ts`** — `createWorld({ seed, mapId, nightId, difficulty })`.
-
-## Tests (these matter — write them properly)
-
-- RNG: same seed → identical 1000-number sequence; `fork()` doesn't disturb the parent.
-- Damage matrix: a swarm+bug ant takes 1.5× chemical; a hypothetical armored+slime enemy takes `0.4 × 1.0` physical and `1.0 × 1.5` chemical — **assert the multiplication explicitly**, it's the thing most likely to silently become an average or a max later.
-- Statuses: burn stacks to exactly 3 and no further; slow refreshes rather than stacking; freeze suppresses slow re-application; armor strip moves `armored` physical from 0.4 to 0.7.
-- Commands: enqueued during a tick are drained at the *next* tick boundary, never mid-tick.
-
-## Acceptance
+## Step acceptance
 
 - [ ] `createWorld()` returns a fully-typed world that survives `JSON.parse(JSON.stringify(w))` unchanged.
 - [ ] All content validates at boot; a deliberately broken tower def throws with its id in the message.
@@ -54,4 +35,5 @@ The shape of the entire game, with one tower and one enemy as proof. Nothing mov
 
 ## Do not
 
-Implement movement, rendering of entities, or any system beyond stubs. This step is types, data, and pure functions.
+Implement movement, rendering of entities, or any system beyond stubs. This step is types, data, and
+pure functions.

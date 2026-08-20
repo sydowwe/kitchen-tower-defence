@@ -52,6 +52,26 @@ One or two sentences naming what belongs to a later step.
 
 ---
 
+## Splitting a step into parts
+
+A step that is genuinely one milestone but too wide for one session — step 2 is the example — becomes
+`NN-title.md` (an index) plus `NN-title/` holding one part file per **session**. Each part is a
+complete step file in its own right: its own `Read first:` with only the sections *that part* needs,
+its own Build, Tests, Acceptance and `Do not`. That's the whole point — the session building the
+damage matrix should never load the tower schema.
+
+Group by **shared reading list and shared assertions**, not one part per Build item. Files that have
+to agree with each other (a schema and the vocabulary it validates) or that share a test (armor strip
+asserted through `resolveDamage`) belong in the same session; splitting them costs you the test that
+catches the mistake. Two to four files per part is the usual size.
+
+The index carries the step's goal, the part table, the dependency order between parts, and the
+step-level acceptance criteria. It is not something you paste as a prompt.
+
+Prefer a single file. Split only when the parts have genuinely disjoint reading lists.
+
+---
+
 ## Sizing
 
 Target one focused session per step — roughly 350–500 words of prompt, two to four files touched, one new system plus the content that exercises it.
