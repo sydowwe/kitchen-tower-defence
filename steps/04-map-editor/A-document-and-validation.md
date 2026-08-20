@@ -86,6 +86,11 @@ onto the undo stack and drop the oldest entry past 20. Cloning per edit rather t
 right trade here: a `MapSource` is fourteen strings and a handful of waypoints, and the alternative
 is an undo system with its own bugs.
 
+An edit is applied **atomically**: the new `MapDef` is built before anything is committed, so a
+mutator that produces a map `loadMap` cannot read at all — an illegal tile char, a short row — throws
+and leaves the document exactly as it was, rather than half-applying and losing the map. That is
+narrower than the tolerance rule below, which is about maps that load but are unfinished.
+
 `snapshot(): EditorSnapshot` returns a small **plain** object — revision counter, problems, per-path
 `{ id, lengthTiles }`, buildable percentage, `canUndo` / `canRedo`. 4B publishes it into a
 `shallowRef` and never puts `EditorDoc` itself into Vue's reactivity: `MapDef.flags` is 336 numbers
@@ -126,6 +131,14 @@ Also export a convergence report for multi-path maps: where the lanes meet and h
 shared final stretch they have. `DECISIONS.md` §3 wants them merged, and step 21 asserts the shared
 stretch is at least 6 tiles — so return the number, not a boolean.
 
+One entry per **pair** of lanes, and each entry carries the two `pathIds`: a three-lane map produces
+three entries, and without the ids 4B cannot tell which pair failed to merge. `mergeTile` is the
+first tile of the shared stretch, or — when the lanes share nothing — the first path's final tile,
+which is where they were supposed to have met. Convergence walks each path's **centre line**
+(waypoints rounded to tiles), not the rasterised `TRACK` band: a one-tile track marks both
+neighbours wherever a sample lands on a tile boundary, and two lanes running one tile apart would
+report as merged.
+
 **Gotcha with a live example:** the Counter's longest segments are `(0,11)→(6,11)` and `(6,6)→(12,6)`,
 both exactly 6.0 tiles. Write the check as `> 6` and the shipped map is clean; write `>= 6` and the
 only authored map in the repo fails its own validator on day one, which is the exact outcome 3C's
@@ -144,7 +157,8 @@ preserve their absence rather than materialising `"decor": []`.
 
 Also export `emptyMap(id: string): MapSource` — 24 × 14, a `#` border, buildable inside, one
 two-waypoint path and a fridge. It is what 4B's "new map" button starts from and what the
-under-ten-minutes acceptance is measured from.
+under-ten-minutes acceptance is measured from. It is deliberately *not* warning-free — its single
+21-tile segment is a straight corridor, which is the validator saying what to do first.
 
 ## Tests
 
@@ -170,11 +184,11 @@ under-ten-minutes acceptance is measured from.
 
 ## Acceptance
 
-- [ ] `src/dev/editor/` imports nothing from `vue`, and touches no browser global — the suite runs
+- [x] `src/dev/editor/` imports nothing from `vue`, and touches no browser global — the suite runs
       under `environment: 'node'`, which is the proof.
-- [ ] A document driven through a hundred random edits never throws, and `loadMap` accepts it at
+- [x] A document driven through a hundred random edits never throws, and `loadMap` accepts it at
       every step.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 4B
 
@@ -189,10 +203,14 @@ dev/editor/document.ts    createDocument(source: MapSource): EditorDoc
                           EditorDoc.edit(mutate: (draft: MapSource) => void): void
                           EditorDoc.undo(): void   redo(): void
                           EditorDoc.snapshot(): EditorSnapshot    // plain, for a shallowRef
+                          measurePolyline(waypoints): number      // what loadMap will measure
+                          recomputeLengths(source): void          // decision 2, in one place
 dev/editor/validate.ts    validateEditorMap(source: MapSource, map: MapDef): Problem[]
                           Problem { severity: 'error' | 'warn'; message: string;
                                     pathId?: string; waypointIndex?: number; tile?: Vec2 }
-                          convergenceOf(map: MapDef): { mergeTile: Vec2; sharedTiles: number }[]
+                          buildablePercent(map: MapDef): number   // the one count, snapshot + warning
+                          convergenceOf(map: MapDef): Convergence[]
+                          Convergence { pathIds: [string, string]; mergeTile: Vec2; sharedTiles: number }
 dev/editor/serialize.ts   toJson(source: MapSource): string
                           fromJson(text: string): { source: MapSource } | { problems: Problem[] }
                           emptyMap(id: string): MapSource
