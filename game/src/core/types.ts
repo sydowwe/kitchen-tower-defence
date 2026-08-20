@@ -85,17 +85,39 @@ export interface Vec2 {
 /**
  * An authored polyline. An enemy is `{ pathId, distance }` and its position is a sample along this
  * -- there is no pathfinding anywhere in the codebase (analytic-docs/DECISIONS.md section 3).
+ *
+ * Waypoints are **tile coordinates, integers landing on tile centres** -- the same space `Vec2`
+ * uses everywhere else. `waypoints[0]` is the spawn point; there is no separate `spawns` array.
  */
 export interface Path {
 	id: string
 	waypoints: Vec2[]
-	/** Total length in tiles. Cached because sampling needs it every tick for every enemy. */
+	/**
+	 * Total length in tiles. Cached because sampling needs it every tick for every enemy, and
+	 * cross-checked against the waypoints by `loadMap` so the two truths cannot drift apart.
+	 */
 	lengthTiles: number
 }
 
+/** Where a tower may stand. A barricade goes *on* the track; everything else goes beside it. */
+export type Placement = 'off_path' | 'path_only'
+
+/** The fridge: where leaked enemies arrive, and the only authored glyph that is not an entity. */
+export interface MapFridge {
+	tile: Vec2
+	glyph: string
+}
+
+/** Scenery. Drawn by step 3B, read by nothing in the simulation. */
+export interface MapDecor {
+	glyph: string
+	tile: Vec2
+}
+
 /**
- * The authored map. Deliberately minimal: step 3 authors the real ones and step 2B validates this
- * shape with zod.
+ * The runtime map -- what `World` holds, derived by `loadMap` from the authored JSON in
+ * `core/content/maps/`. The authored shape is `MapSource` in `core/content/schema.ts`; this one is
+ * never written by hand.
  */
 export interface MapDef {
 	id: DefId
@@ -103,10 +125,17 @@ export interface MapDef {
 	heightTiles: number
 	/** Two or three from night 10 onward, authored to merge before the fridge. */
 	paths: Path[]
-	/** Row-major, `widthTiles * heightTiles` long. True where a tower may be placed off-path. */
-	buildable: boolean[]
-	/** Where leaked enemies arrive. Tile coordinates. */
-	fridge: Vec2
+	/**
+	 * Row-major, `widthTiles * heightTiles` long, one `TileFlags` bitfield per tile with `TRACK`
+	 * already rasterised in. The single runtime truth for what is buildable, blocked and track --
+	 * the authored char grid does not survive into `MapDef` at all.
+	 *
+	 * Plain `number[]` and not a typed array on purpose: a `Uint8Array` does not survive
+	 * `JSON.parse(JSON.stringify(world))` deeply equal, and `tests/world.spec.ts` asserts it does.
+	 */
+	flags: number[]
+	fridge: MapFridge
+	decor: MapDecor[]
 }
 
 // --- entities ---------------------------------------------------------------------------------

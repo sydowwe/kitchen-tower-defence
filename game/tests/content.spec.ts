@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ant, ENEMIES } from '@/core/content/enemies.ts'
-import { MAPS } from '@/core/content/maps/index.ts'
+import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContent } from '@/core/content/schema.ts'
@@ -26,7 +26,11 @@ function attackOf(behaviours: readonly { kind: string }[]): AttackBehaviour {
 
 describe('the authored content', () => {
 	it('validates in full, every collection at once', () => {
-		expect(() => validateContent({ towers: TOWERS, enemies: ENEMIES, maps: MAPS, nights: NIGHTS })).not.toThrow()
+		// `MAP_SOURCES`, not `MAPS`: what is authored and validated is the JSON, and `MAPS` is what
+		// `loadMap` derives from it.
+		expect(() =>
+			validateContent({ towers: TOWERS, enemies: ENEMIES, maps: MAP_SOURCES, nights: NIGHTS }),
+		).not.toThrow()
 	})
 
 	it('names every def with an i18n key that has an English entry', () => {

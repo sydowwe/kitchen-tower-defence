@@ -31,6 +31,11 @@ describe('createWorld', () => {
 		const world = createWorld(options())
 
 		expect(roundTrip(world)).toEqual(world)
+		// Spelled out because `map.flags` is the field most likely to be "optimised" into a
+		// Uint8Array one day, and a typed array round-trips into `{ "0": 1, "1": 3 }` -- which
+		// `toEqual` above would happily accept as equal to the array it came from.
+		expect(Array.isArray(roundTrip(world).map.flags)).toBe(true)
+		expect(roundTrip(world).map.flags).toEqual(world.map.flags)
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {
@@ -67,9 +72,10 @@ describe('createWorld', () => {
 
 	it('gives the world its own copy of the map, so a night modifier cannot corrupt the def', () => {
 		const world = createWorld(options())
-		world.map.buildable[0] = false
+		const before = world.map.flags[0]
+		world.map.flags[0] = 0
 
-		expect(createWorld(options()).map.buildable[0]).toBe(true)
+		expect(createWorld(options()).map.flags[0]).toBe(before)
 	})
 
 	it('throws with the id in the message for an unknown map, night or difficulty', () => {

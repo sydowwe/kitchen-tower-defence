@@ -1,3 +1,4 @@
+import { TileFlags } from '@/core/map.ts'
 import { createRngState } from '@/core/rng.ts'
 import type { World } from '@/core/types.ts'
 
@@ -28,9 +29,20 @@ export function createTestWorld(): World {
 			id: 'test',
 			widthTiles: 2,
 			heightTiles: 1,
-			paths: [{ id: 'a', waypoints: [{ x: 0, y: 0 }], lengthTiles: 0 }],
-			buildable: [true, false],
-			fridge: { x: 1, y: 0 },
+			paths: [
+				{
+					id: 'a',
+					waypoints: [
+						{ x: 0, y: 0 },
+						{ x: 1, y: 0 },
+					],
+					lengthTiles: 1,
+				},
+			],
+			// Buildable then blocked-and-track, so both branches of `canPlace` have a tile here.
+			flags: [TileFlags.BUILDABLE, TileFlags.BUILDABLE | TileFlags.TRACK],
+			fridge: { tile: { x: 1, y: 0 }, glyph: '🗄️' },
+			decor: [],
 		},
 		night: {
 			nightId: 'test',

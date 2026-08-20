@@ -36,7 +36,7 @@ edit this file, don't leave it lying.
 
 1. **Maps are JSON**, one file per map in `core/content/maps/`, imported and validated in
    `index.ts`. Step 4's editor exports JSON; a TS module would mean the editor emitting source code.
-   Needs `resolveJsonModule` in `game/tsconfig.json`.
+   ~~Needs `resolveJsonModule` in `game/tsconfig.json`.~~ Step 1 already set it.
 2. **The authored grid is `tiles: string[]`** — one string per row, `widthTiles` chars long. Legal
    chars are `.` buildable, `#` blocked, `~` decor. **`T` is not a legal char**: the schema rejects
    it. Track is derived from the polyline, which is the whole point — a hand-painted track can
@@ -71,9 +71,14 @@ waypoints: Vec2[], lengthTiles }], fridge: { tile: Vec2, glyph }, decor: [{ glyp
 `MapDef`: `{ id, widthTiles, heightTiles, paths, flags: number[], fridge, decor }`.
 
 `TileFlags` as a const bitfield (`BUILDABLE`, `BLOCKED`, `DECOR`, `TRACK`) plus a
-`canPlace(flags, tile, placement)` helper reading `'off_path' | 'path_only'` — the same union
+`canPlace(map, tile, placement)` helper reading `'off_path' | 'path_only'` — the same union
 `schema.ts` already validates on towers. Put the helper here, in `core/`, so step 6 and step 4's
 editor can't each invent their own answer.
+
+Both live in `core/map.ts` alongside `loadMap`, matching the handoff contract below — this line used
+to say `canPlace(flags, …)`, but reading a row-major grid needs `widthTiles`, so the whole `MapDef`
+goes in. The `Placement` union moves onto `core/types.ts` and `schema.ts` pins its enum to it, the
+same way it pins every other vocabulary.
 
 Schema-level invariants, each with the offending id in the message:
 
@@ -116,8 +121,13 @@ the debug overlay to look at. Getting it beautiful now means judging it by readi
 ### 5. Update the callers
 
 `core/content/maps/index.ts` (import the JSON, validate in dev, `loadMap` at module load, export
-`MAPS: MapDef[]`), `core/world.ts` (`cloneMapDef` copies `flags`), and the specs that assert on the
-old placeholder.
+`MAPS: MapDef[]` and `MAP_SOURCES: MapSource[]`), `core/world.ts` (`cloneMapDef` copies `flags`),
+and the specs that assert on the old placeholder.
+
+`core/content/index.ts` drops `maps` from its own `validateContentInDev` call: the map check has to
+run *before* `loadMap` derives from it, and zod's message names the offending field where
+`loadMap`'s can only name the map. So maps validate themselves in `maps/index.ts`, and
+`Content.maps` is `MapSource[]`, not `MapDef[]`.
 
 ## Tests
 
@@ -137,13 +147,13 @@ old placeholder.
 
 ## Acceptance
 
-- [ ] No `Uint8Array`, `Float64Array` or `Map` anywhere on `World`.
-- [ ] `core/` still imports nothing but itself and zod; `core/map.ts` and `core/path.ts` know
+- [x] No `Uint8Array`, `Float64Array` or `Map` anywhere on `World`.
+- [x] `core/` still imports nothing but itself and zod; `core/map.ts` and `core/path.ts` know
       nothing about pixels.
-- [ ] Deleting a waypoint from `counter.json` changes which tiles are `TRACK` — the derivation is
+- [x] Deleting a waypoint from `counter.json` changes which tiles are `TRACK` — the derivation is
       live, not baked into the file.
 - [ ] `npm run test`, `npm run lint` and `npm run type-check` are green, and the game still shows
-      step 1's bouncing emoji.
+      step 1's bouncing emoji. *(all four commands green including `build`; the emoji is a look.)*
 
 ## Hands to 3B and 3C
 
@@ -154,10 +164,14 @@ change it here too.
 core/map.ts    loadMap(source: MapSource): MapDef
                TileFlags  // BUILDABLE | BLOCKED | DECOR | TRACK
                canPlace(map: MapDef, tile: Vec2, placement: Placement): boolean
+               flagsAt(map: MapDef, tile: Vec2): number   // 0 off the board; what makes canPlace safe
 core/path.ts   samplePath(path: Path, distance: number): { x: number; y: number; angle: number }
                totalLength(path: Path): number
                remainingToFridge(path: Path, distance: number): number
 ```
+
+Waypoints and `fridge.tile` are **tile coordinates with integers on tile centres**, the same space
+`Vec2` uses everywhere else. 3B maps that to pixels; nothing in `core/` does.
 
 ## Do not
 

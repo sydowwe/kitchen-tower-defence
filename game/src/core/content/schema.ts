@@ -5,9 +5,9 @@
  *
  * **The schemas are the declaration.** Every def type below is `z.infer`red, never hand-written as
  * an interface next to the schema -- two declarations of the same shape drift, and the one that
- * drifts is always the one without the runtime check behind it. The exception is `MapDef`, which
- * `core/types.ts` already declares because `World` holds one: there the schema is pinned to that
- * interface with `satisfies`, so there is still exactly one declaration.
+ * drifts is always the one without the runtime check behind it. `MapDef` in `core/types.ts` is not
+ * a second declaration of `mapSource`: it is the *derived* runtime shape `loadMap` produces, and
+ * nothing hand-writes one.
  *
  * **Everything here is dev-only at runtime.** The schemas are built *inside* `contentSchemas()`
  * rather than as module constants, so that a production build -- where `import.meta.env.DEV` is
@@ -33,7 +33,7 @@ import type {
 	DamageType,
 	DifficultyId,
 	EnemyTag,
-	MapDef,
+	Placement,
 	StatusKind,
 	TargetingMode,
 	TileEffectKind,
@@ -65,6 +65,15 @@ const MAX_WAVE_DELAY_TICKS = 7200
 
 /** The board is 24 x 14 tiles (analytic-docs/CONTENT.md section 1), so nothing reaches further. */
 const MAX_TILES = 24
+
+/** `.` buildable, `#` blocked, `~` decor. `T` is deliberately not here -- see the `mapSource` note. */
+const LEGAL_TILE_CHARS = '.#~'
+
+/** Below this, two waypoints are a double-click rather than a segment. */
+const MIN_WAYPOINT_GAP_TILES = 0.1
+
+/** How far a path's last waypoint may sit from the fridge tile. */
+const MAX_FRIDGE_GAP_TILES = 1
 
 function defId() {
 	return z.string().regex(DEF_ID, 'not a def id: expected camelCase, e.g. saltShaker')
@@ -155,6 +164,9 @@ const TOWER_ROLES = [
 ] as const
 
 const TARGET_CLASSES = ['ground', 'air', 'both'] as const
+
+/** A barricade goes *on* the track; everything else goes beside it. `core/map.ts` reads it. */
+const PLACEMENTS = ['off_path', 'path_only'] as const satisfies readonly Placement[]
 
 // --- the schemas ------------------------------------------------------------------------------
 
@@ -272,7 +284,7 @@ export function contentSchemas() {
 		cost: z.number().int().min(1).max(10_000),
 		maxHp: z.number().int().min(1).max(10_000),
 		/** A barricade goes *on* the track; everything else goes beside it. */
-		placement: z.enum(['off_path', 'path_only']),
+		placement: z.enum(PLACEMENTS),
 		/** Added to the noise meter per shot. 0 for everything that is not loud. */
 		noise: z.number().min(0).max(20),
 		defaultTargetingMode: targetingMode,
@@ -300,40 +312,108 @@ export function contentSchemas() {
 	})
 
 	// --- maps ---------------------------------------------------------------------------------
+	// This validates the **authored** map -- the JSON in core/content/maps/. What `World` holds is
+	// `MapDef`, which `loadMap` derives from it: the char grid becomes a flag bitfield and the
+	// track is rasterised out of the polyline. So the schema is inferred like every other def here,
+	// and `MapDef` stays hand-declared in core/types.ts because `World` holds one.
 
 	const vec2 = z.object({ x: z.number(), y: z.number() })
 
 	const path = z.object({
 		id: defId(),
 		waypoints: z.array(vec2).min(2),
+		/** Authored, and cross-checked against the waypoints by `loadMap` (step 3A, decision 6). */
 		lengthTiles: z.number().positive(),
 	})
 
 	/**
-	 * Pinned to the `MapDef` interface in `core/types.ts` with `satisfies` rather than inferred,
-	 * because `World` holds a map and that interface is what everything else already reads.
+	 * One string per row, `widthTiles` chars long. **`T` is not a legal character**: track is
+	 * derived from the polyline and never hand-painted, or the two can disagree with each other and
+	 * with `path_only` placement (analytic-docs/DECISIONS.md section 3).
 	 */
-	const map = z
+	const mapSource = z
 		.object({
 			id: defId(),
 			widthTiles: z.number().int().min(1).max(64),
 			heightTiles: z.number().int().min(1).max(64),
+			/** `.` buildable, `#` blocked, `~` decor. */
+			tiles: z.array(z.string()),
+			/** Authored per map: a six-lane kitchen floor and a narrow counter want different tracks. */
+			trackWidthTiles: z.number().min(0.1).max(8).optional(),
 			paths: z.array(path).min(1),
-			buildable: z.array(z.boolean()),
-			fridge: vec2,
+			fridge: z.object({ tile: vec2, glyph: glyph() }),
+			decor: z.array(z.object({ glyph: glyph(), tile: vec2 })).optional(),
 		})
-		.refine(value => value.buildable.length === value.widthTiles * value.heightTiles, {
-			error: 'buildable must be row-major and widthTiles * heightTiles long',
-			path: ['buildable'],
+		// One superRefine rather than a chain of .refine calls, so a map with four problems reports
+		// four lines instead of the first one and three restarts.
+		.superRefine((value, ctx) => {
+			function problem(message: string, path: (string | number)[]) {
+				ctx.addIssue({ code: 'custom', message, path })
+			}
+
+			if (value.tiles.length !== value.heightTiles) {
+				problem(`expected ${value.heightTiles} rows, got ${value.tiles.length}`, ['tiles'])
+			}
+
+			value.tiles.forEach((row, y) => {
+				if (row.length !== value.widthTiles) {
+					problem(`row ${y} is ${row.length} chars, expected ${value.widthTiles}`, ['tiles', y])
+				}
+				const illegal = [...row].filter(char => !LEGAL_TILE_CHARS.includes(char))
+				if (illegal.length > 0) {
+					problem(`row ${y} has illegal chars '${[...new Set(illegal)].join('')}'; expected . # ~`, [
+						'tiles',
+						y,
+					])
+				}
+			})
+
+			function inside(point: { x: number; y: number }): boolean {
+				return (
+					point.x >= 0 && point.x <= value.widthTiles - 1 && point.y >= 0 && point.y <= value.heightTiles - 1
+				)
+			}
+
+			if (!inside(value.fridge.tile)) {
+				problem('fridge is outside the map', ['fridge', 'tile'])
+			}
+
+			value.decor?.forEach((entry, index) => {
+				if (!inside(entry.tile)) {
+					problem('decor is outside the map', ['decor', index, 'tile'])
+				}
+			})
+
+			value.paths.forEach((entry, index) => {
+				entry.waypoints.forEach((waypoint, w) => {
+					if (!inside(waypoint)) {
+						problem(`path '${entry.id}' waypoint ${w} is outside the map`, ['paths', index, 'waypoints', w])
+					}
+					// A coincident pair produces a NaN angle and breaks the binary search's
+					// invariant, and it is exactly what a double-click in step 4's editor makes.
+					const previous = entry.waypoints[w - 1]
+					if (
+						previous !== undefined &&
+						Math.hypot(waypoint.x - previous.x, waypoint.y - previous.y) < MIN_WAYPOINT_GAP_TILES
+					) {
+						problem(
+							`path '${entry.id}' waypoints ${w - 1} and ${w} are less than ${MIN_WAYPOINT_GAP_TILES} tiles apart`,
+							['paths', index, 'waypoints', w],
+						)
+					}
+				})
+
+				// Every lane ends at the fridge -- that is what makes it the health bar rather than
+				// one of several places an enemy might stop.
+				const last = entry.waypoints[entry.waypoints.length - 1]
+				if (
+					last !== undefined &&
+					Math.hypot(last.x - value.fridge.tile.x, last.y - value.fridge.tile.y) > MAX_FRIDGE_GAP_TILES
+				) {
+					problem(`path '${entry.id}' does not end at the fridge`, ['paths', index, 'waypoints'])
+				}
+			})
 		})
-		.refine(
-			value =>
-				value.fridge.x >= 0 &&
-				value.fridge.x < value.widthTiles &&
-				value.fridge.y >= 0 &&
-				value.fridge.y < value.heightTiles,
-			{ error: 'fridge is outside the map', path: ['fridge'] },
-		) satisfies z.ZodType<MapDef>
 
 	// --- nights -------------------------------------------------------------------------------
 
@@ -425,7 +505,7 @@ export function contentSchemas() {
 		behaviour,
 		tower,
 		enemy,
-		map,
+		mapSource,
 		night,
 		status,
 		installation,
@@ -437,6 +517,8 @@ export type ContentSchemas = ReturnType<typeof contentSchemas>
 export type TowerRole = z.infer<ContentSchemas['towerRole']>
 export type TowerDef = z.infer<ContentSchemas['tower']>
 export type EnemyDef = z.infer<ContentSchemas['enemy']>
+/** The authored map. `loadMap` in `core/map.ts` turns one of these into the `MapDef` a world holds. */
+export type MapSource = z.infer<ContentSchemas['mapSource']>
 export type NightDef = z.infer<ContentSchemas['night']>
 export type StatusDef = z.infer<ContentSchemas['status']>
 export type InstallationDef = z.infer<ContentSchemas['installation']>
@@ -457,7 +539,7 @@ export interface RawContent {
 export interface Content {
 	towers: TowerDef[]
 	enemies: EnemyDef[]
-	maps: MapDef[]
+	maps: MapSource[]
 	nights: NightDef[]
 	statuses: StatusDef[]
 	installations: InstallationDef[]
@@ -536,7 +618,7 @@ export function validateContent(raw: RawContent): Content {
 	const content: Content = {
 		towers: validateCollection('tower', schemas.tower, raw.towers, problems),
 		enemies: validateCollection('enemy', schemas.enemy, raw.enemies, problems),
-		maps: validateCollection('map', schemas.map, raw.maps, problems),
+		maps: validateCollection('map', schemas.mapSource, raw.maps, problems),
 		nights: validateCollection('night', schemas.night, raw.nights, problems),
 		statuses: validateCollection('status', schemas.status, raw.statuses, problems),
 		installations: validateCollection('installation', schemas.installation, raw.installations, problems),

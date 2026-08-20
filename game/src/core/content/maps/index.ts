@@ -1,42 +1,24 @@
 /**
- * The map roster.
+ * The map roster: one JSON file per map, validated and loaded here.
  *
- * One placeholder, deliberately: step 3 authors the six real 24 x 14 kitchens
- * (analytic-docs/CONTENT.md section 6) with the map editor, one file per map in this directory.
- * What lives here is only enough for `createWorld` to build a valid world and for a test to walk a
- * straight line.
+ * JSON rather than a TS module because step 4's editor exports maps -- and an editor that has to
+ * emit source code is a code generator (step 3A, decision 1).
+ *
+ * The dev-time validation happens **here** rather than in `core/content/index.ts` with everything
+ * else, because it has to run before `loadMap` does: zod's message names the field, `loadMap`'s
+ * names only the map. `core/content/index.ts` therefore leaves `maps` out of its own boot check.
  */
 
+import { loadMap } from '@/core/map.ts'
+import { validateContentInDev } from '@/core/content/schema.ts'
+import type { MapSource } from '@/core/content/schema.ts'
 import type { MapDef } from '@/core/types.ts'
+import counter from '@/core/content/maps/counter.json'
 
-/**
- * Six by four tiles, one straight lane along row 2 from the left edge to the fridge.
- *
- * The `buildable` grid is written out row by row rather than generated, so it reads as the picture
- * it is: the track row is unbuildable, everything else is free.
- */
-export const counter: MapDef = {
-	id: 'counter',
-	widthTiles: 6,
-	heightTiles: 4,
-	paths: [
-		{
-			id: 'crack',
-			waypoints: [
-				{ x: 0, y: 2 },
-				{ x: 5, y: 2 },
-			],
-			lengthTiles: 5,
-		},
-	],
-	// prettier-ignore
-	buildable: [
-		true, true, true, true, true, true,
-		true, true, true, true, true, true,
-		false, false, false, false, false, false,
-		true, true, true, true, true, true,
-	],
-	fridge: { x: 5, y: 2 },
-}
+/** The authored maps, exactly as they sit on disk. Step 4's editor round-trips these. */
+export const MAP_SOURCES = [counter] as MapSource[]
 
-export const MAPS = [counter]
+validateContentInDev({ maps: MAP_SOURCES })
+
+/** What `World` holds: char grid resolved to flags, track rasterised out of the polyline. */
+export const MAPS: MapDef[] = MAP_SOURCES.map(loadMap)

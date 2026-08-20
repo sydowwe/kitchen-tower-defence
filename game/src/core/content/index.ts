@@ -26,16 +26,19 @@ export * from '@/core/content/matrix.ts'
 export * from '@/core/content/nights.ts'
 export * from '@/core/content/statuses.ts'
 export * from '@/core/content/towers.ts'
-export { MAPS } from '@/core/content/maps/index.ts'
-export type { EnemyDef, InstallationDef, NightDef, TowerDef, TowerRole } from '@/core/content/schema.ts'
+export { MAP_SOURCES, MAPS } from '@/core/content/maps/index.ts'
+export type { EnemyDef, InstallationDef, MapSource, NightDef, TowerDef, TowerRole } from '@/core/content/schema.ts'
 
 /**
  * `statuses` and `installations` are absent on purpose. The status *defs* are runtime tables keyed
  * by `StatusKind` in `core/content/statuses.ts`, not an authored collection; installations are
  * step 20's. Both slots of `RawContent` are optional and stay empty until there is something in the
  * schema's shape to check.
+ *
+ * `maps` is absent for a different reason: `core/content/maps/index.ts` validates its own sources,
+ * because that check has to run before `loadMap` derives a `MapDef` from them.
  */
-validateContentInDev({ towers: TOWERS, enemies: ENEMIES, maps: MAPS, nights: NIGHTS })
+validateContentInDev({ towers: TOWERS, enemies: ENEMIES, nights: NIGHTS })
 
 function lookup<T extends { id: DefId }>(kind: string, entries: readonly T[], id: DefId): T {
 	const found = entries.find(entry => entry.id === id)

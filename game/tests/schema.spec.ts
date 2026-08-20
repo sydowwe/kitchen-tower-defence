@@ -3,7 +3,7 @@ import type { z } from 'zod'
 import { attack } from '@/core/content/behaviours.ts'
 import type { Behaviour } from '@/core/content/behaviours.ts'
 import { ContentValidationError, contentSchemas, validateContent } from '@/core/content/schema.ts'
-import type { ContentSchemas, TowerDef } from '@/core/content/schema.ts'
+import type { ContentSchemas, MapSource, TowerDef } from '@/core/content/schema.ts'
 import type { DamageType, EnemyTag, StatusKind, TargetingMode, TileEffectKind } from '@/core/types.ts'
 
 /**
@@ -49,6 +49,31 @@ function validTower(): TowerDef {
 		behaviours: [
 			attack({ damage: 5, damageType: 'physical', cooldownTicks: 60, rangeTiles: 3, targets: 'ground' }),
 		],
+	}
+}
+
+/**
+ * A 4 x 2 map that passes everything, so each map assertion below breaks exactly one invariant.
+ * `Partial<MapSource>` rather than the real thing, because half the point is feeding it bad values.
+ */
+function validMapSource(overrides: Partial<MapSource> = {}): Partial<MapSource> {
+	return {
+		id: 'counter',
+		widthTiles: 4,
+		heightTiles: 2,
+		tiles: ['....', '....'],
+		paths: [
+			{
+				id: 'main',
+				waypoints: [
+					{ x: 0, y: 0 },
+					{ x: 3, y: 1 },
+				],
+				lengthTiles: 3.1622776601683795,
+			},
+		],
+		fridge: { tile: { x: 3, y: 1 }, glyph: '🗄️' },
+		...overrides,
 	}
 }
 
@@ -143,29 +168,57 @@ describe('validateContent', () => {
 })
 
 describe('the other def schemas', () => {
-	it('requires a map buildable grid of exactly widthTiles * heightTiles', () => {
-		const map = {
-			id: 'counter',
-			widthTiles: 4,
-			heightTiles: 2,
+	it('rejects a tiles grid with a T in it, because track is derived and never painted', () => {
+		const [problem] = problemsFrom(() => validateContent({ maps: [validMapSource({ tiles: ['.T..', '....'] })] }))
+
+		expect(problem).toContain("map 'counter'")
+		expect(problem).toContain("illegal chars 'T'")
+	})
+
+	it('rejects a short row and a wrong row count, naming the row', () => {
+		const problems = problemsFrom(() => validateContent({ maps: [validMapSource({ tiles: ['...', '....'] })] }))
+
+		expect(problems.join('\n')).toContain('row 0 is 3 chars, expected 4')
+	})
+
+	it('rejects two coincident waypoints, which is what an editor double-click produces', () => {
+		const map = validMapSource({
 			paths: [
 				{
 					id: 'main',
 					waypoints: [
 						{ x: 0, y: 0 },
-						{ x: 3, y: 0 },
+						{ x: 0, y: 0 },
+						{ x: 3, y: 1 },
 					],
-					lengthTiles: 3,
+					lengthTiles: 3.1622776601683795,
 				},
 			],
-			buildable: new Array(7).fill(true),
-			fridge: { x: 3, y: 1 },
-		}
+		})
 
 		const [problem] = problemsFrom(() => validateContent({ maps: [map] }))
 
 		expect(problem).toContain("map 'counter'")
-		expect(problem).toContain('buildable')
+		expect(problem).toContain("path 'main' waypoints 0 and 1 are less than 0.1 tiles apart")
+	})
+
+	it('rejects a path that does not end at the fridge', () => {
+		const map = validMapSource({
+			paths: [
+				{
+					id: 'main',
+					waypoints: [
+						{ x: 0, y: 0 },
+						{ x: 0, y: 1 },
+					],
+					lengthTiles: 1,
+				},
+			],
+		})
+
+		const [problem] = problemsFrom(() => validateContent({ maps: [map] }))
+
+		expect(problem).toContain("path 'main' does not end at the fridge")
 	})
 
 	it('requires a timed status to have a duration, and an untimed one not to', () => {

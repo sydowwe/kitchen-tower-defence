@@ -7,6 +7,8 @@
 
 export * from '@/core/commands.ts'
 export * from '@/core/content/index.ts'
+export * from '@/core/map.ts'
+export * from '@/core/path.ts'
 export * from '@/core/rng.ts'
 export * from '@/core/sim.ts'
 export * from '@/core/types.ts'
