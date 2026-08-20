@@ -8,7 +8,7 @@ Split step **$1** into part files. This session produces **prompts, not code**.
 ## 1. Load
 
 Read `CLAUDE.md`, `steps/RUNNING-A-STEP.md`, `steps/CONVENTIONS.md`, and the step file for $1. Read
-`steps/03-map-and-renderer.md` and its three part files as the reference for what good output looks
+`../../steps/00-done/03-map-and-renderer.md` and its three part files as the reference for what good output looks
 like.
 
 ## 2. Read the repo the step will actually run against

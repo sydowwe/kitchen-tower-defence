@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/CONTENT.md` §3–4.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §3–4.
 **Prereq:** step 2A. (Independent of 2B.)
 
 ## Goal
@@ -15,7 +15,7 @@ and bookkeeping — nothing here touches the world.
 
 ### 1. `core/content/matrix.ts`
 
-The full damage-type × tag table from `../../analytic-docs/CONTENT.md` §3, transcribed exactly.
+The full damage-type × tag table from `../../../analytic-docs/CONTENT.md` §3, transcribed exactly.
 
 `resolveDamage(base, damageType, enemy): number` — applies **multiplicative** tag stacking, then
 status modifiers. Pure: no world, no rng, no mutation of the enemy.
@@ -31,7 +31,7 @@ Gotchas:
 
 ### 2. `core/content/statuses.ts`
 
-The seven effects from `../../analytic-docs/CONTENT.md` §4, each with its stacking rule declared as
+The seven effects from `../../../analytic-docs/CONTENT.md` §4, each with its stacking rule declared as
 data on the status def (`stack: 'refresh' | 'stackTo(n)' | …`) rather than as a branch inside
 `applyStatus`.
 

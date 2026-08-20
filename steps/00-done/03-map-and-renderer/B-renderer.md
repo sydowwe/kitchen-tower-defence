@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §6,
-`../../analytic-docs/DECISIONS.md` §1 (tone) and §2 *Art: emoji sprites*.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §6,
+`../../../analytic-docs/DECISIONS.md` §1 (tone) and §2 *Art: emoji sprites*.
 **Prereq:** step 3A.
 
 ## Goal

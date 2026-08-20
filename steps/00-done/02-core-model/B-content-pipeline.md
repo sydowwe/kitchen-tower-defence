@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §4, `../../analytic-docs/CONTENT.md` §1–2.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §4, `../../../analytic-docs/CONTENT.md` §1–2.
 **Prereq:** step 2A.
 
 ## Goal
@@ -32,7 +32,7 @@ Notes:
 
 ### 2. `core/content/behaviours.ts`
 
-The vocabulary from `../../analytic-docs/ARCHITECTURE.md` §4 (`attack`, `coneAttack`, `aura`,
+The vocabulary from `../../../analytic-docs/ARCHITECTURE.md` §4 (`attack`, `coneAttack`, `aura`,
 `income`, `collect`, `charge`, `barricade`, `bait`, `suppress`, `pushback`, `tileEffect`, `reveal`)
 as typed factory functions returning **discriminated-union behaviour descriptors**.
 

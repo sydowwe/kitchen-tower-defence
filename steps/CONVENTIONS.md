@@ -1,6 +1,6 @@
 # How to write a step file
 
-The format of the 23 existing steps, written down so steps 24+ match instead of drifting. Read two or three existing steps alongside this — [09](09-status-effects.md) is a representative mid-project one, [14](14-tile-state.md) is a good example of a pure-substrate step, [19](19-theft.md) of a milestone step, and [03](03-map-and-renderer.md) of a step split into parts that rewrites code an earlier step shipped.
+The format of the 23 existing steps, written down so steps 24+ match instead of drifting. Read two or three existing steps alongside this — [09](09-status-effects.md) is a representative mid-project one, [14](14-tile-state.md) is a good example of a pure-substrate step, [19](19-theft.md) of a milestone step, and [03](00-done/03-map-and-renderer.md) of a step split into parts that rewrites code an earlier step shipped.
 
 ---
 

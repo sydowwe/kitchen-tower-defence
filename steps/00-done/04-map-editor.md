@@ -20,16 +20,16 @@ Each part names its own `Read first:` sections, so a session only loads the docs
 
 | Part | Session | Builds |
 | --- | --- | --- |
-| [A](04-map-editor/A-document-and-validation.md) | The document, validation and JSON | `dev/editor/document.ts`, `validate.ts`, `serialize.ts`, `tests/editor.spec.ts` |
-| [B](04-map-editor/B-canvas-and-tools.md) | The tool | `dev/editor/EditorView.vue`, `overlay.ts`, `preview.ts`, `panels/`, `dev/tileCoords.ts` |
+| [A](../04-map-editor/A-document-and-validation.md) | The document, validation and JSON | `dev/editor/document.ts`, `validate.ts`, `serialize.ts`, `tests/editor.spec.ts` |
+| [B](../04-map-editor/B-canvas-and-tools.md) | The tool | `dev/editor/EditorView.vue`, `overlay.ts`, `preview.ts`, `panels/`, `dev/tileCoords.ts` |
 
 Strictly in order. B never mutates a map itself — it turns pointer events into calls on A's
 document, and draws the problems A reports.
 
 A carries **all** of the step's tests, because it holds the two things that can be silently wrong:
 an export that `loadMap` will reject three days later, and the thresholds every map from step 21 on
-is judged against. B has none, per `../analytic-docs/ARCHITECTURE.md` §7 — and because vitest runs
-`environment: 'node'` (`game/vite.config.ts`), so nothing B builds is reachable from a spec anyway.
+is judged against. B has none, per `../../analytic-docs/ARCHITECTURE.md` §7 — and because vitest runs
+`environment: 'node'` (`../../game/vite.config.ts`), so nothing B builds is reachable from a spec anyway.
 That constraint is also why the split falls where it does: everything testable is DOM-free, and
 everything DOM-shaped is untestable.
 

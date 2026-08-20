@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §3,
-`../../analytic-docs/CONTENT.md` §6 (the Counter's three nights).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §3,
+`../../../analytic-docs/CONTENT.md` §6 (the Counter's three nights).
 **Prereq:** steps 3A and 3B.
 
 ## Goal
@@ -27,7 +27,7 @@ canvas, in world space, because everything it shows is a coordinate.
 ## Decisions already made
 
 1. **It lives in `src/dev/debug/`**, not `render/`. `dev/` is the directory that doesn't ship
-   (`CLAUDE.md`, layering rule), and a debug drawing routine in `render/` ends up in the production
+   (`../../../CLAUDE.md`, layering rule), and a debug drawing routine in `render/` ends up in the production
    bundle. `render/layers/overlay.ts` stays empty — that stub belongs to step 6's in-game range
    circles and placement ghost.
 2. **Two files: `dev/debug/state.ts` and `dev/debug/overlay.ts`.** State owns the toggle, the marker

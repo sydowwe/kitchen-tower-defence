@@ -154,7 +154,7 @@ The next session's pre-flight reads the code, which is the only description that
 
 ## Worked example — step 3
 
-The original `03-map-and-renderer.md` failed the check on all three questions: its map format
+The original `00-done/03-map-and-renderer.md` failed the check on all three questions: its map format
 contradicted itself over hand-painted track, it assumed a `MapDef` that step 2 had since shipped
 differently (`buildable: boolean[]`, cloned mutably per world), and it carried five Build items
 across three new systems plus a hand-authoring pass that couldn't be done until the other two

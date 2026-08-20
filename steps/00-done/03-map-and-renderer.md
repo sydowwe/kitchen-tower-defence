@@ -25,7 +25,7 @@ is only finished at the end of C.
 
 A carries **all four of the step's tests** — the format and the sampler share the assertion that a
 rasterised `TRACK` tile set contains every waypoint's tile, and splitting them costs you that test.
-B and C have no tests at all, by `../analytic-docs/ARCHITECTURE.md` §7.
+B and C have no tests at all, by `../../analytic-docs/ARCHITECTURE.md` §7.
 
 The map is authored twice on purpose: A ships a structurally-correct 24 × 14 draft so B has
 something real to draw, and C replaces it with the version that looks like a kitchen. Trying to make

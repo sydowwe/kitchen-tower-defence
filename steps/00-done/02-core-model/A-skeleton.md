@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §2–3, `../../analytic-docs/CONTENT.md` §1–2 (skim the tables for what fields entities need).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §2–3, `../../../analytic-docs/CONTENT.md` §1–2 (skim the tables for what fields entities need).
 **Prereq:** step 1.
 
 ## Goal

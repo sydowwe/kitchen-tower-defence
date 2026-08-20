@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (Salt Shaker row), §2 (Ant row), §9,
-`../../analytic-docs/ARCHITECTURE.md` §3.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (Salt Shaker row), §2 (Ant row), §9,
+`../../../analytic-docs/ARCHITECTURE.md` §3.
 **Prereq:** steps 2A, 2B, 2C.
 
 ## Goal
@@ -17,7 +17,7 @@ testable end to end.
 ### 1. `core/content/towers.ts` and `core/content/enemies.ts`
 
 **Salt Shaker only** and **Ant only**, full and schema-valid, stats and tags exactly as in
-`../../analytic-docs/CONTENT.md` §1–2. The tower is composed of behaviour descriptors from step 2B;
+`../../../analytic-docs/CONTENT.md` §1–2. The tower is composed of behaviour descriptors from step 2B;
 `nameKey` and `descriptionKey`, no English strings.
 
 An index that exposes both collections and runs `validateContent` at module load in dev.
@@ -31,7 +31,7 @@ those is wrong — fix it there rather than bending the def.
 
 - The rng is created from the seed and stored **on** the world, in its serialisable form.
 - Entity arrays start empty; the `id → index` map starts empty and consistent with them.
-- Difficulty comes from `../../analytic-docs/CONTENT.md` §9 and is stored as the tier's id plus its
+- Difficulty comes from `../../../analytic-docs/CONTENT.md` §9 and is stored as the tier's id plus its
   resolved multipliers, so a replay isn't at the mercy of a later balance patch.
 - No `Date.now()`, no `Math.random()`, no DOM. `world.tick` starts at 0.
 

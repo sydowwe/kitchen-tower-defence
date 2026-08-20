@@ -75,10 +75,10 @@ Eight reference documents plus 23 step files. Each step file in `../steps` is a 
 ## Step index
 
 **Phase 0 — Foundation**
-1. [Scaffold, conventions, game loop](../steps/01-scaffold.md)
-2. [Core data model and content pipeline](../steps/02-core-model.md)
-3. [Map format, path sampling, board renderer](../steps/03-map-and-renderer.md)
-4. [Map editor (dev route)](../steps/04-map-editor.md)
+1. [Scaffold, conventions, game loop](../steps/00-done/01-scaffold.md)
+2. [Core data model and content pipeline](../steps/00-done/02-core-model.md)
+3. [Map format, path sampling, board renderer](../steps/00-done/03-map-and-renderer.md)
+4. [Map editor (dev route)](../steps/00-done/04-map-editor.md)
 
 **Phase 1 — Playable loop**
 5. [Waves, spawning, movement, food loss](../steps/05-waves-and-movement.md)

@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §3,
-`../../analytic-docs/CONTENT.md` preamble (the grid line) and §6 (the map roster).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §3,
+`../../../analytic-docs/CONTENT.md` preamble (the grid line) and §6 (the map roster).
 **Prereq:** step 2.
 
 ## Goal
@@ -36,7 +36,7 @@ edit this file, don't leave it lying.
 
 1. **Maps are JSON**, one file per map in `core/content/maps/`, imported and validated in
    `index.ts`. Step 4's editor exports JSON; a TS module would mean the editor emitting source code.
-   ~~Needs `resolveJsonModule` in `game/tsconfig.json`.~~ Step 1 already set it.
+   ~~Needs `resolveJsonModule` in `../../../game/tsconfig.json`.~~ Step 1 already set it.
 2. **The authored grid is `tiles: string[]`** — one string per row, `widthTiles` chars long. Legal
    chars are `.` buildable, `#` blocked, `~` decor. **`T` is not a legal char**: the schema rejects
    it. Track is derived from the polyline, which is the whole point — a hand-painted track can
