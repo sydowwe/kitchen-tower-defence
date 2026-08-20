@@ -25,6 +25,8 @@
 	import { getMapDef } from '@/core/content/index.ts'
 	import { createRenderer, LOGICAL_HEIGHT, LOGICAL_WIDTH, type Renderer } from '@/render/index.ts'
 	import DebugOverlay from '@/ui/components/DebugOverlay.vue'
+	import type { DebugController } from '@/dev/debug/state.ts'
+	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
 
 	/**
 	 * The one place the canvas, the loop and the HUD meet.
@@ -59,6 +61,9 @@
 
 	let renderer: Renderer | null = null
 	let loop: Loop | null = null
+	/** Dev-only: dynamically imported below, so neither module ever enters the production bundle. */
+	let debug: DebugController | null = null
+	let drawOverlay: typeof drawDebugOverlay | null = null
 
 	function onResize(): void {
 		renderer?.resize()
@@ -78,13 +83,25 @@
 		}
 	}
 
-	onMounted(() => {
+	onMounted(async () => {
 		if (board.value === null) {
 			return
 		}
-		const activeRenderer = createRenderer(board.value)
+		const canvasEl = board.value
+		const activeRenderer = createRenderer(canvasEl)
 		renderer = activeRenderer
 		activeRenderer.setMap(getMapDef(MAP_ID))
+
+		if (import.meta.env.DEV) {
+			// Dynamic import keeps dev/debug entirely out of the production bundle -- the same
+			// pattern router.ts uses for the step 4 editor route.
+			const [{ createDebugController }, { drawDebugOverlay: draw }] = await Promise.all([
+				import('@/dev/debug/state.ts'),
+				import('@/dev/debug/overlay.ts'),
+			])
+			debug = createDebugController(canvasEl, () => getMapDef(MAP_ID))
+			drawOverlay = draw
+		}
 
 		const activeLoop = createLoop({
 			tick() {
@@ -94,6 +111,10 @@
 				// Null world: there is nothing simulated behind the board yet, so the frame is the
 				// baked map and an empty entity pass. Step 5 hands it a real one.
 				activeRenderer.drawFrame(null)
+				debug?.update()
+				if (import.meta.env.DEV && debug !== null && debug.state.enabled && drawOverlay !== null) {
+					drawOverlay(activeRenderer.ctx, getMapDef(MAP_ID), debug.state, activeRenderer.tilePx)
+				}
 			},
 			publish() {
 				snapshot.value = {
@@ -119,6 +140,9 @@
 		loop?.stop()
 		loop = null
 		renderer = null
+		debug?.destroy()
+		debug = null
+		drawOverlay = null
 	})
 </script>
 

@@ -94,9 +94,9 @@ a test for the overlay, you're building a feature that belongs in step 4's edito
 - [ ] The Counter looks like a place, not a debug grid, with the overlay **off**.
 - [ ] The marker slides smoothly along the whole track including every corner, with no jump, no
       backwards step and no angle flip at a segment boundary.
-- [ ] Track length is 30–36 tiles, at least 25% of tiles are buildable, no segment exceeds 6 tiles.
+- [x] Track length is 30–36 tiles, at least 25% of tiles are buildable, no segment exceeds 6 tiles.
 - [ ] The hovered-tile readout is exact at all four corners of the board and at any window size.
-- [ ] The production bundle contains no `dev/debug` code — check the build output.
+- [x] The production bundle contains no `dev/debug` code — check the build output.
 - [ ] Sitting and looking at the map, you can point at two or three spots and say "that's where I'd
       put a tower". If you can't, the pockets are in the wrong places — move them now, while it's a
       five-minute edit.

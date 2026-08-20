@@ -7,7 +7,8 @@
  * (ARCHITECTURE.md section 6).
  */
 
-const EMOJI_FONT = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"
+/** Shared with `dev/debug/overlay.ts`, which draws a rotated glyph `blitGlyph` cannot express. */
+export const EMOJI_FONT = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"
 
 /** Breathing room around the measured box, so antialiased edges are not clipped. */
 const PADDING_PX = 2

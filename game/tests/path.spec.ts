@@ -142,12 +142,12 @@ describe('loadMap', () => {
 		}
 	})
 
-	it('rasterises the counter as 32 track tiles, none of them blocked', () => {
+	it('rasterises the counter as 33 track tiles, none of them blocked', () => {
 		const map = loadMap(counter)
 		const track = map.flags.filter(flags => (flags & TileFlags.TRACK) !== 0)
 
-		// The polyline is 31 tiles long and axis-aligned, so it covers 32 tile centres.
-		expect(track).toHaveLength(32)
+		// The polyline is ~31.1 tiles long with one diagonal leg, so it covers 33 tile centres.
+		expect(track).toHaveLength(33)
 		expect(track.every(flags => (flags & TileFlags.BLOCKED) === 0)).toBe(true)
 	})
 
@@ -161,14 +161,14 @@ describe('loadMap', () => {
 		// lengthTiles is deliberately wrong now, so this also proves the tripwire names the path.
 		expect(() => loadMap(shortened)).toThrow(/path 'crack'/)
 
-		// The corner at 5,12 is gone, so the first leg is now a diagonal across the bottom-left.
-		path.lengthTiles = Math.hypot(5 - 0, 8 - 12) + 11 + 5 + 6
+		// The corner at 6,11 is gone, so the first leg is now a diagonal from the crack to 6,6.
+		path.lengthTiles = Math.hypot(6 - 0, 6 - 11) + 6 + 4 + 6 + Math.hypot(22 - 18, 3 - 2)
 		const after = trackTilesOf(loadMap(shortened))
 
 		expect(after).not.toEqual(before)
-		expect(before).toContain('2,12')
-		expect(after).not.toContain('2,12')
-		expect(after).toContain('2,10')
+		expect(before).toContain('4,11')
+		expect(after).not.toContain('4,11')
+		expect(after).toContain('2,9')
 	})
 
 	it('throws with the path id when lengthTiles disagrees with the waypoints by 0.5', () => {
@@ -196,7 +196,7 @@ describe('loadMap', () => {
 		const map = loadMap(counter)
 
 		expect(map.fridge).toEqual({ tile: { x: 22, y: 3 }, glyph: '🗄️' })
-		expect(map.decor).toHaveLength(3)
+		expect(map.decor).toHaveLength(4)
 	})
 })
 
@@ -204,7 +204,7 @@ describe('canPlace', () => {
 	const counter = getMapDef('counter')
 
 	it('puts a barricade on the track and nothing else', () => {
-		const onTrack = { x: 16, y: 3 }
+		const onTrack = { x: 12, y: 6 }
 
 		expect(flagsAt(counter, onTrack) & TileFlags.TRACK).toBe(TileFlags.TRACK)
 		expect(canPlace(counter, onTrack, 'path_only')).toBe(true)
@@ -212,8 +212,8 @@ describe('canPlace', () => {
 	})
 
 	it('puts an off_path tower on a buildable tile beside the track and nowhere else', () => {
-		const beside = { x: 16, y: 2 }
-		const blocked = { x: 10, y: 5 }
+		const beside = { x: 12, y: 7 }
+		const blocked = { x: 9, y: 9 }
 
 		expect(canPlace(counter, beside, 'off_path')).toBe(true)
 		expect(canPlace(counter, beside, 'path_only')).toBe(false)
@@ -223,8 +223,8 @@ describe('canPlace', () => {
 	})
 
 	it('refuses decor, and anything off the board', () => {
-		expect(flagsAt(counter, { x: 3, y: 2 }) & TileFlags.DECOR).toBe(TileFlags.DECOR)
-		expect(canPlace(counter, { x: 3, y: 2 }, 'off_path')).toBe(false)
+		expect(flagsAt(counter, { x: 3, y: 6 }) & TileFlags.DECOR).toBe(TileFlags.DECOR)
+		expect(canPlace(counter, { x: 3, y: 6 }, 'off_path')).toBe(false)
 
 		for (const tile of [
 			{ x: -1, y: 0 },
