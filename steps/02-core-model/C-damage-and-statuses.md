@@ -71,8 +71,8 @@ Gotchas:
 ## Acceptance
 
 - [ ] Both files are pure and import only `core/types.ts`.
-- [ ] The matrix reads like the doc — someone can diff the two by eye in ten seconds.
-- [ ] Adding an eighth status is a config entry plus (at most) one new stacking rule, with no change
+- [x] The matrix reads like the doc — someone can diff the two by eye in ten seconds.
+- [x] Adding an eighth status is a config entry plus (at most) one new stacking rule, with no change
       to `applyStatus`'s control flow.
 - [ ] `speedMultiplier` of an unafflicted enemy is exactly `1`, not `0.9999…`.
 
