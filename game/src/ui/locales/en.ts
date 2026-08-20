@@ -27,6 +27,15 @@ export const en = {
 		sell: 'Sell',
 		upgrade: 'Upgrade',
 	},
+	debug: {
+		fps: 'FPS',
+		ticks: 'Ticks',
+		simTime: 'Sim',
+		entities: 'Entities',
+		speed: 'Speed',
+		paused: 'Paused',
+		hint: 'space pause · 1 2 3 speed',
+	},
 	settings: {
 		title: 'Settings',
 		volume: 'Volume',

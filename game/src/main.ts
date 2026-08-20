@@ -29,8 +29,8 @@ app.use(router)
 registerIcons()
 app.component('FontAwesomeIcon', FontAwesomeIcon)
 
-// TODO(step 1, item 5): construct the world and start the fixed-timestep loop here, before the
-// mount, so the first painted frame already has a simulation behind it.
+// The loop is not started here: it needs the canvas, so `ui/views/GameView.vue` owns its lifetime
+// and stops it on unmount. `loop.ts` holds the only requestAnimationFrame in the app.
 
 // Mounting behind `router.isReady()` means the first paint is the resolved route rather than a
 // blank frame followed by a redirect -- it matters most for `#/editor`, whose component is a

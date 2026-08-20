@@ -14,7 +14,5 @@ export default defineConfig({
 		// renderer bugs are visible, so they are not worth testing.
 		include: ['tests/**/*.spec.ts', 'src/core/**/*.spec.ts'],
 		environment: 'node',
-		// Remove once step 1 item 9 lands the loop test -- from then on an empty run is a mistake.
-		passWithNoTests: true,
 	},
 })
