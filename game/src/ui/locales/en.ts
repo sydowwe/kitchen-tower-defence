@@ -6,6 +6,9 @@
  * (`nameKey: 'tower.saltShaker.name'`), never names: core/ imports nothing, so it cannot translate,
  * and retrofitting forty towers and thirty enemies later is the expensive version of this decision.
  */
+
+import type { EnemyMessages, TowerMessages } from '@/ui/locales/contentKeys.ts'
+
 export const en = {
 	general: {
 		ok: 'OK',
@@ -42,10 +45,21 @@ export const en = {
 		showFps: 'Show FPS',
 	},
 
-	// Filled in by later steps: `tower.*` and `enemy.*` in steps 2 and 6 as the roster is authored,
-	// `night.*` with the night summary in step 8. Keys mirror the ids in core/content/.
-	tower: {},
-	enemy: {},
+	// One entry per def in core/content/, keyed by its id. The `satisfies` is the enforcement: a
+	// tower or enemy authored without an English name fails type-check here rather than rendering
+	// its own key on screen. `night.*` is filled in with the night summary in step 8.
+	tower: {
+		saltShaker: {
+			name: 'Salt Shaker',
+			description: 'Table salt, thrown a handful at a time. Ants will not cross it.',
+		},
+	} satisfies TowerMessages,
+	enemy: {
+		ant: {
+			name: 'Ant',
+			description: 'Small, tireless, and never on its own. It only wants one thing from the fridge.',
+		},
+	} satisfies EnemyMessages,
 	night: {},
 }
 
