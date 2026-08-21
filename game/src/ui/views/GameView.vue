@@ -25,6 +25,7 @@
 	import { getMapDef } from '@/core/content/index.ts'
 	import { createRenderer, LOGICAL_HEIGHT, LOGICAL_WIDTH, type Renderer } from '@/render/index.ts'
 	import DebugOverlay from '@/ui/components/DebugOverlay.vue'
+	import type { MapDef } from '@/core/types.ts'
 	import type { DebugController } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
 
@@ -47,6 +48,16 @@
 
 	/** The only map there is until step 3C authors the real one. */
 	const MAP_ID = 'counter'
+
+	/**
+	 * What the board is showing. Normally the authored map; in dev it is whatever the editor's
+	 * preview slot handed over (step 4B, decision 6).
+	 */
+	let activeMap: MapDef = getMapDef(MAP_ID)
+
+	function currentMap(): MapDef {
+		return activeMap
+	}
 
 	const board = useTemplateRef<HTMLCanvasElement>('board')
 
@@ -88,20 +99,32 @@
 			return
 		}
 		const canvasEl = board.value
-		const activeRenderer = createRenderer(canvasEl)
-		renderer = activeRenderer
-		activeRenderer.setMap(getMapDef(MAP_ID))
 
 		if (import.meta.env.DEV) {
 			// Dynamic import keeps dev/debug entirely out of the production bundle -- the same
 			// pattern router.ts uses for the step 4 editor route.
-			const [{ createDebugController }, { drawDebugOverlay: draw }] = await Promise.all([
+			const [{ createDebugController }, { drawDebugOverlay: draw }, { takePreviewMap }] = await Promise.all([
 				import('@/dev/debug/state.ts'),
 				import('@/dev/debug/overlay.ts'),
+				import('@/dev/editor/preview.ts'),
 			])
-			debug = createDebugController(canvasEl, () => getMapDef(MAP_ID))
+
+			// One-shot: the editor's preview slot is read and cleared here, so a stale preview
+			// cannot hijack this route on the next visit. It shows the board on the real renderer
+			// and nothing else -- step 5 is what makes this a playtest, because that is the step
+			// that puts a simulation behind it.
+			const preview = takePreviewMap()
+			if (preview !== null) {
+				activeMap = preview
+			}
+
+			debug = createDebugController(canvasEl, currentMap)
 			drawOverlay = draw
 		}
+
+		const activeRenderer = createRenderer(canvasEl)
+		renderer = activeRenderer
+		activeRenderer.setMap(activeMap)
 
 		const activeLoop = createLoop({
 			tick() {
@@ -113,7 +136,7 @@
 				activeRenderer.drawFrame(null)
 				debug?.update()
 				if (import.meta.env.DEV && debug !== null && debug.state.enabled && drawOverlay !== null) {
-					drawOverlay(activeRenderer.ctx, getMapDef(MAP_ID), debug.state, activeRenderer.tilePx)
+					drawOverlay(activeRenderer.ctx, activeMap, debug.state, activeRenderer.tilePx)
 				}
 			},
 			publish() {

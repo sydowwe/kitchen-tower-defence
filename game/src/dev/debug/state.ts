@@ -10,7 +10,7 @@
  * identically whether or not someone had the overlay open (step 3C, decision 3).
  */
 
-import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from '@/render/renderer.ts'
+import { isOnBoard, toGridPoint, toTile } from '@/dev/tileCoords.ts'
 import { totalLength } from '@/core/path.ts'
 import type { MapDef, Vec2 } from '@/core/types.ts'
 
@@ -38,8 +38,13 @@ export interface DebugController {
 	destroy(): void
 }
 
-/** True while a text field has focus, so `` ` `` toggling the overlay does not eat a keystroke. */
-function isTypingTarget(target: EventTarget | null): boolean {
+/**
+ * True while a text field has focus, so `` ` `` toggling the overlay does not eat a keystroke.
+ *
+ * Exported because the map editor's shortcuts need exactly the same guard against its own panel
+ * inputs, and two copies of it drift (step 4B).
+ */
+export function isTypingTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) {
 		return false
 	}
@@ -112,22 +117,8 @@ export function createDebugController(canvas: HTMLCanvasElement, getMap: () => M
 
 	function onPointerMove(event: PointerEvent): void {
 		const map = getMap()
-		const tilePx = LOGICAL_WIDTH / map.widthTiles
-
-		const rect = canvas.getBoundingClientRect()
-		const scaleX = LOGICAL_WIDTH / rect.width
-		const scaleY = LOGICAL_HEIGHT / rect.height
-		const logicalX = (event.clientX - rect.left) * scaleX
-		const logicalY = (event.clientY - rect.top) * scaleY
-
-		const tileX = Math.floor(logicalX / tilePx)
-		const tileY = Math.floor(logicalY / tilePx)
-
-		if (tileX < 0 || tileX >= map.widthTiles || tileY < 0 || tileY >= map.heightTiles) {
-			state.hoverTile = null
-			return
-		}
-		state.hoverTile = { x: tileX, y: tileY }
+		const tile = toTile(toGridPoint(canvas, event, map.widthTiles))
+		state.hoverTile = isOnBoard(tile, map.widthTiles, map.heightTiles) ? tile : null
 	}
 
 	function onPointerLeave(): void {
