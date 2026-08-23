@@ -311,6 +311,18 @@ export function contentSchemas() {
 		tags: z.array(enemyTag).min(1),
 	})
 
+	// --- food ---------------------------------------------------------------------------------
+
+	/**
+	 * One kind of thing on a fridge shelf (analytic-docs/CONTENT.md section 7). No stats: what a
+	 * food item does is get taken, and the sting is that it is taken *by name*.
+	 */
+	const food = z.object({
+		id: defId(),
+		nameKey: i18nKey(),
+		glyph: glyph(),
+	})
+
 	// --- maps ---------------------------------------------------------------------------------
 	// This validates the **authored** map -- the JSON in core/content/maps/. What `World` holds is
 	// `MapDef`, which `loadMap` derives from it: the char grid becomes a flag bitfield and the
@@ -510,6 +522,7 @@ export function contentSchemas() {
 		behaviour,
 		tower,
 		enemy,
+		food,
 		mapSource,
 		night,
 		status,
@@ -522,6 +535,7 @@ export type ContentSchemas = ReturnType<typeof contentSchemas>
 export type TowerRole = z.infer<ContentSchemas['towerRole']>
 export type TowerDef = z.infer<ContentSchemas['tower']>
 export type EnemyDef = z.infer<ContentSchemas['enemy']>
+export type FoodDef = z.infer<ContentSchemas['food']>
 /** The authored map. `loadMap` in `core/map.ts` turns one of these into the `MapDef` a world holds. */
 export type MapSource = z.infer<ContentSchemas['mapSource']>
 export type NightDef = z.infer<ContentSchemas['night']>
@@ -534,6 +548,7 @@ export type InstallationDef = z.infer<ContentSchemas['installation']>
 export interface RawContent {
 	towers?: readonly unknown[]
 	enemies?: readonly unknown[]
+	food?: readonly unknown[]
 	maps?: readonly unknown[]
 	nights?: readonly unknown[]
 	statuses?: readonly unknown[]
@@ -544,6 +559,7 @@ export interface RawContent {
 export interface Content {
 	towers: TowerDef[]
 	enemies: EnemyDef[]
+	food: FoodDef[]
 	maps: MapSource[]
 	nights: NightDef[]
 	statuses: StatusDef[]
@@ -623,6 +639,7 @@ export function validateContent(raw: RawContent): Content {
 	const content: Content = {
 		towers: validateCollection('tower', schemas.tower, raw.towers, problems),
 		enemies: validateCollection('enemy', schemas.enemy, raw.enemies, problems),
+		food: validateCollection('food', schemas.food, raw.food, problems),
 		maps: validateCollection('map', schemas.mapSource, raw.maps, problems),
 		nights: validateCollection('night', schemas.night, raw.nights, problems),
 		statuses: validateCollection('status', schemas.status, raw.statuses, problems),

@@ -14,6 +14,7 @@ import {
 	statusSystem,
 	targetingSystem,
 	tilesSystem,
+	waveSystem,
 } from '@/core/systems/index.ts'
 
 /**
@@ -24,6 +25,7 @@ import {
 export type SystemName =
 	| 'commands'
 	| 'spawn'
+	| 'wave'
 	| 'status'
 	| 'movement'
 	| 'targeting'
@@ -50,6 +52,7 @@ interface System {
 const SYSTEMS: readonly System[] = [
 	{ name: 'commands', run: commandsSystem },
 	{ name: 'spawn', run: spawnSystem },
+	{ name: 'wave', run: waveSystem },
 	{ name: 'status', run: statusSystem },
 	{ name: 'movement', run: movementSystem },
 	{ name: 'targeting', run: targetingSystem },
@@ -69,11 +72,15 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
 /**
  * One fixed step of the simulation.
  *
- * Order: commands -> spawn -> status -> movement -> targeting -> combat -> projectiles -> tiles ->
- * crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
+ * Order: commands -> spawn -> wave -> status -> movement -> targeting -> combat -> projectiles ->
+ * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
  *
  * The queue is drained here, once, before anything else runs -- so player input lands at a tick
  * boundary and never mid-tick (analytic-docs/ARCHITECTURE.md section 3).
+ *
+ * **`world.events` is cleared here, at the top**, and not by the system that runs last. See the
+ * note on `GameEvent`: a consumer only gets to look between two ticks, so events have to survive
+ * from the end of one until the start of the next.
  *
  * **`world.tick` increments at the end, after every system has run.** So a system executing during
  * the first tick reads `world.tick === 0`, and after N calls `world.tick === N`: the field counts
@@ -85,6 +92,10 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
  */
 export function tick(world: World, queue: CommandQueue): void {
 	const commands = queue.drain()
+
+	// Truncated rather than replaced, so a consumer holding the array is not left reading a
+	// detached copy of last tick's events forever.
+	world.events.length = 0
 
 	for (const system of SYSTEMS) {
 		system.run(world, commands)

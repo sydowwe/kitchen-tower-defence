@@ -102,10 +102,16 @@ describe('startWave and spawnSystem', () => {
 
 	it('does nothing at all while night.wave is null', () => {
 		const world = worldOn()
+		// A build phase whose countdown outlasts the run, so the wave system neither starts wave 0
+		// nor -- the fixture's night id being synthetic -- throws trying to look one up.
+		world.night.phase = 'building'
+		world.night.countdownTicks = 10_000
+
 		spawnTicksOver(world, 120)
 
 		expect(world.enemies).toHaveLength(0)
 		expect(world.night.phase).toBe('building')
+		expect(world.night.countdownTicks).toBe(9880)
 	})
 })
 
@@ -138,13 +144,15 @@ describe('difficulty scalars', () => {
 describe('lanes', () => {
 	function twoPathWorld(): World {
 		const world = worldOn()
+		// As long as lane 'a', so that neither lane's enemies reach the fridge and get eaten
+		// mid-assertion -- these tests are about who spawns where, not about leaks.
 		world.map.paths.push({
 			id: 'b',
 			waypoints: [
 				{ x: 0, y: 0 },
-				{ x: 1, y: 0 },
+				{ x: 39, y: 0 },
 			],
-			lengthTiles: 1,
+			lengthTiles: 39,
 		})
 		return world
 	}

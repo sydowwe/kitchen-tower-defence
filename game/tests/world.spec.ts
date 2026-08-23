@@ -54,12 +54,18 @@ describe('createWorld', () => {
 		expect(createWorld(options())).toEqual(createWorld(options()))
 	})
 
-	it('differs from another seed only in its rng state', () => {
+	it('differs from another seed in its rng state and in what the fridge was stocked with', () => {
 		const a = createWorld(options({ seed: 1 }))
 		const b = createWorld(options({ seed: 2 }))
 
 		expect(a.rng.state).not.toBe(b.rng.state)
-		expect({ ...a, seed: 0, rng: b.rng }).toEqual({ ...b, seed: 0, rng: b.rng })
+		// The shelf is drawn through `world.rng`, so it is the second thing a seed decides -- and
+		// deliberately so: which items are at risk is part of what makes a night its own. The count
+		// is fixed by the night and the difficulty, so only the defs may differ.
+		expect(a.night.food).toHaveLength(b.night.food.length)
+		expect(a.night.food.map(item => item.defId)).not.toEqual(b.night.food.map(item => item.defId))
+		// Everything else is decided by the arguments, and those are identical.
+		expect({ ...a, seed: 0, rng: b.rng, night: b.night }).toEqual({ ...b, seed: 0, rng: b.rng, night: b.night })
 	})
 
 	it('stores the difficulty tier by id and by its resolved multipliers', () => {

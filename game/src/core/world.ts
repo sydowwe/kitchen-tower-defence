@@ -12,13 +12,18 @@
  * fails three systems into the first tick.
  */
 
-import { getMapDef, getNightDef } from '@/core/content/index.ts'
+import { FOODS, getMapDef, getNightDef } from '@/core/content/index.ts'
 import { resolveDifficulty } from '@/core/content/difficulty.ts'
-import { createRngState } from '@/core/rng.ts'
-import type { DefId, DifficultyId, MapDef, World } from '@/core/types.ts'
+import { bindRng, createRngState } from '@/core/rng.ts'
+import type { Rng } from '@/core/rng.ts'
+import type { DefId, DifficultyId, EntityId, FoodItem, MapDef, World } from '@/core/types.ts'
 
 /** The doc's 1.5/sec (analytic-docs/DECISIONS.md section 8), as the per-tick rate the world holds. */
 const NOISE_DECAY_PER_TICK = 1.5 / 60
+
+/** `18 + floor(nightIndex / 3)` items, scaled by difficulty (analytic-docs/CONTENT.md section 7). */
+const BASE_FOOD_ITEMS = 18
+const NIGHTS_PER_EXTRA_ITEM = 3
 
 export interface CreateWorldOptions {
 	seed: number
@@ -52,6 +57,26 @@ function cloneMapDef(map: MapDef): MapDef {
 	}
 }
 
+/**
+ * Tonight's shelf: eighteen-odd items drawn from twelve defs, so duplicates are expected and each
+ * one is its own entity with its own id.
+ *
+ * Drawn through `world.rng` rather than dealt in order, because which items are at risk is part of
+ * what makes a night its own -- and going through the seeded generator is what keeps that
+ * reproducible. The draw advances the world's rng state, so two seeds open onto different fridges.
+ */
+function stockFridge(rng: Rng, nightIndex: number, foodItemsMult: number, firstItemId: EntityId): FoodItem[] {
+	const count = Math.round((BASE_FOOD_ITEMS + Math.floor(nightIndex / NIGHTS_PER_EXTRA_ITEM)) * foodItemsMult)
+	const items: FoodItem[] = []
+
+	for (let index = 0; index < count; index++) {
+		const def = rng.pick(FOODS)
+		items.push({ id: firstItemId + index, defId: def.id, nameKey: def.nameKey, heldBy: null, lost: false })
+	}
+
+	return items
+}
+
 export function createWorld({ seed, mapId, nightId, difficulty }: CreateWorldOptions): World {
 	const map = getMapDef(mapId)
 	const night = getNightDef(nightId)
@@ -64,10 +89,21 @@ export function createWorld({ seed, mapId, nightId, difficulty }: CreateWorldOpt
 		throw new Error(`night '${night.id}' is authored for map '${night.mapId}', not '${map.id}'`)
 	}
 
+	// The night opens on a countdown rather than waiting to be told to start (decision 10 of
+	// steps/05-waves-and-movement/B-wave-flow-and-food.md): a `'building'` phase that waits forever
+	// is a night that never starts if the key handler that calls the first wave has a typo.
+	const firstWave = night.waves[0]
+	if (firstWave === undefined) {
+		throw new Error(`night '${night.id}' has no waves`)
+	}
+
+	const rng = createRngState(seed)
+	const food = stockFridge(bindRng(rng), night.index, tier.foodItemsMult, 1)
+
 	return {
 		tick: 0,
 		seed,
-		rng: createRngState(seed),
+		rng,
 
 		enemies: [],
 		towers: [],
@@ -77,7 +113,8 @@ export function createWorld({ seed, mapId, nightId, difficulty }: CreateWorldOpt
 		// Empty, and consistent with the empty arrays above. Whoever adds or removes an entity
 		// keeps it that way -- see the note on `EntityIndex` in core/types.ts.
 		index: { enemies: {}, towers: {}, projectiles: {}, crumbPiles: {} },
-		nextEntityId: 1,
+		// The food items took ids 1..food.length, and an id is never reused.
+		nextEntityId: 1 + food.length,
 
 		crumbs: tier.startingCrumbs,
 		groceryMoney: 0,
@@ -89,11 +126,11 @@ export function createWorld({ seed, mapId, nightId, difficulty }: CreateWorldOpt
 			waveIndex: 0,
 			waveCount: night.waves.length,
 			phase: 'building',
-			countdownTicks: 0,
+			countdownTicks: firstWave.countdownTicks,
 			wave: null,
-			// The fridge is stocked at night start by step 5, which owns the item pool and the
-			// `18 + floor(nightIndex / 3)` count (analytic-docs/CONTENT.md section 7).
-			food: [],
+			food,
+			ticksSkippedTotal: 0,
+			clearedThroughWaveIndex: -1,
 		},
 		difficulty: tier,
 

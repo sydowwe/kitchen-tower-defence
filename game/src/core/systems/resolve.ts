@@ -1,10 +1,88 @@
-import type { World } from '@/core/types.ts'
-
 /**
  * The one place entities are removed: deaths, leaks at the fridge, and the win/lose check. Runs
  * last so every earlier system this tick saw a consistent set of arrays.
  *
- * Whatever removes an entity here also rebuilds the affected `world.index` map -- see the comment
- * on `EntityIndex`. Stub: step 5 owns leaks, step 6 deaths, step 19 theft.
+ * Both terminal transitions live here rather than in `waveSystem`, and for the same reason the
+ * removals do: a night is won when the board empties and lost when the fridge does, and this is the
+ * system that empties them. Checking nine systems earlier would report either one a tick late.
+ *
+ * Step 6 owns deaths and step 19 owns thieves that carry food off the map; today an enemy that
+ * reaches the fridge eats there and is removed on the spot.
  */
-export function resolveSystem(_world: World): void {}
+
+import { getEnemyDef } from '@/core/content/index.ts'
+import { totalLength } from '@/core/path.ts'
+import { hasFinishedSpawning } from '@/core/systems/wave.ts'
+import type { Enemy, EntityId, World } from '@/core/types.ts'
+
+/**
+ * Marks the first `count` items still on the shelf as lost and returns their ids.
+ *
+ * The **first** unlost items rather than a random draw, so what leaves the fridge is decided by the
+ * order the night stocked it in and stays the same on a replay. Nothing is spliced out: the
+ * night-end summary lists what you lost by name, which a shortened array cannot answer.
+ */
+function takeFood(world: World, count: number): EntityId[] {
+	const taken: EntityId[] = []
+
+	for (const item of world.night.food) {
+		if (taken.length >= count) {
+			break
+		}
+		if (!item.lost) {
+			item.lost = true
+			taken.push(item.id)
+		}
+	}
+
+	return taken
+}
+
+/** See the note on `EntityIndex`: an index built from stale positions reads out the wrong enemy. */
+function reindexEnemies(world: World): void {
+	world.index.enemies = {}
+	world.enemies.forEach((enemy, position) => {
+		world.index.enemies[enemy.id] = position
+	})
+}
+
+export function resolveSystem(world: World): void {
+	const night = world.night
+
+	if (night.phase === 'won' || night.phase === 'lost') {
+		return
+	}
+
+	const survivors: Enemy[] = []
+
+	for (const enemy of world.enemies) {
+		const path = world.map.paths.find(candidate => candidate.id === enemy.pathId)
+		if (path === undefined || enemy.distance < totalLength(path)) {
+			survivors.push(enemy)
+			continue
+		}
+
+		const stolenItems = takeFood(world, getEnemyDef(enemy.defId).steals)
+		world.events.push({ kind: 'enemyLeaked', enemyId: enemy.id, defId: enemy.defId, stolenItems })
+	}
+
+	if (survivors.length !== world.enemies.length) {
+		world.enemies = survivors
+		reindexEnemies(world)
+	}
+
+	// "The fridge is empty" is every item lost, never a zero length -- see `NightState.food`.
+	if (night.food.every(item => item.lost)) {
+		night.phase = 'lost'
+		world.events.push({ kind: 'nightEnded', won: false })
+		return
+	}
+
+	const wave = night.wave
+	const lastWaveIsOut = wave !== null && night.waveIndex === night.waveCount - 1 && hasFinishedSpawning(wave)
+
+	if (lastWaveIsOut && world.enemies.length === 0) {
+		night.phase = 'won'
+		world.events.push({ kind: 'nightEnded', won: true })
+	}
+}

@@ -267,6 +267,12 @@ export interface TileEffect {
  */
 export interface FoodItem {
 	id: EntityId
+	/**
+	 * Which of `core/content/food.ts` this item is an instance of. Carried rather than derived back
+	 * out of `nameKey`, because the glyph lives on the def and the renderer has to find 🍕 from
+	 * something that survives a key being renamed.
+	 */
+	defId: DefId
 	/** i18n key, never English. `core/` stores keys and `ui/` resolves them. */
 	nameKey: string
 	/** The thief carrying it. Null while it is safe on the shelf or already off the map. */
@@ -314,8 +320,26 @@ export interface NightState {
 	/** Ticks until the next wave starts on its own. Zero outside `countdown`. */
 	countdownTicks: number
 	wave: Wave | null
-	/** Reset every night. This is the health bar (analytic-docs/DECISIONS.md section 6). */
+	/**
+	 * Reset every night. This is the health bar (analytic-docs/DECISIONS.md section 6).
+	 *
+	 * A stolen item is marked `lost`, **never spliced out** -- the night-end summary lists what you
+	 * lost by name, and a spliced array cannot answer that. So "the fridge is empty" is
+	 * `food.every(item => item.lost)` and never `food.length === 0`, which is never true.
+	 */
 	food: FoodItem[]
+	/**
+	 * Ticks of countdown the player skipped by calling waves early, summed over the night. Step 20's
+	 * grocery award reads it and divides by 60 once, at the point it needs seconds.
+	 */
+	ticksSkippedTotal: number
+	/**
+	 * High-water mark for `waveCleared`: every wave up to and including this index has had the event
+	 * emitted. Starts at -1. A mark rather than a set, because waves always start in order and a
+	 * cleared wave never un-clears -- and without it the obvious implementation emits `waveCleared`
+	 * every tick for the rest of the night.
+	 */
+	clearedThroughWaveIndex: number
 }
 
 /**
@@ -349,8 +373,15 @@ export interface Difficulty {
 // --- events -----------------------------------------------------------------------------------
 
 /**
- * What happened during the tick that just ran. Drained by the renderer and the HUD, then cleared by
- * the events system at the end of the next tick -- this is not a log, it is one tick's worth.
+ * What happened during the tick that just ran. This is not a log, it is one tick's worth.
+ *
+ * **Cleared at the *top* of `tick()`**, before any system runs, so the events a tick produced
+ * survive until the start of the next one -- which is exactly the window a consumer runs in. A
+ * system running last could not both publish this tick's events and clear them.
+ *
+ * The consequence for a consumer: at 2x or 3x speed the loop runs several ticks between two frames,
+ * so it has to accumulate after every `tick()` call rather than read `world.events` once a frame.
+ *
  * Later steps add members.
  */
 export type GameEvent =

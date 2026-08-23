@@ -10,6 +10,7 @@
  */
 
 import type { ENEMIES } from '@/core/content/enemies.ts'
+import type { FOODS } from '@/core/content/food.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
 
 /** The two keys every def carries: `<kind>.<id>.name` and `<kind>.<id>.description`. */
@@ -21,3 +22,10 @@ interface Entry {
 export type TowerMessages = Record<(typeof TOWERS)[number]['id'], Entry>
 
 export type EnemyMessages = Record<(typeof ENEMIES)[number]['id'], Entry>
+
+/**
+ * Deliberately **not** `Entry`. A food item has a name and nothing else to say: the night-end
+ * summary lists what you lost by name, and nothing anywhere renders a description of cheese.
+ * Reusing `Entry` here would mean inventing twelve lines of flavour text no screen shows.
+ */
+export type FoodMessages = Record<(typeof FOODS)[number]['id'], { name: string }>

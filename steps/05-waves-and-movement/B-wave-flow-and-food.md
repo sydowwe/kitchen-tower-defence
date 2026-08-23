@@ -47,6 +47,13 @@ union *and* the `SYSTEMS` array), `core/systems/index.ts` (the re-export — `te
 - `tests/world.spec.ts` — *"differs from another seed only in its rng state"*. Once the fridge is
   stocked from `world.rng`, two seeds differ in `night.food` too. Widen the assertion and say so in
   its comment; do not stop using the rng to fix it.
+- `tests/spawn.spec.ts` — **this one was missed when the step was written, and it breaks in two
+  ways.** Its `worldOn()` is the fixture, so (a) the *"does nothing at all while night.wave is
+  null"* test asserts `phase === 'building'`, which the fixture's new `'won'` contradicts — give
+  that one test a `'building'` phase with a countdown longer than the run instead; and (b) the
+  fixture's lane is **one tile long**, so the moment `resolve.ts` exists every ant it spawns walks
+  off the end and is eaten at the fridge mid-assertion. Lengthen the fixture's map and path (40
+  tiles is plenty) and the second lane `twoPathWorld()` pushes.
 
 `tests/fixtures/world.ts` spells out every field on purpose, so a new field on `World` fails
 type-check there. That is the fixture working, not the fixture breaking.
@@ -141,7 +148,13 @@ The whole state machine, and the only place `phase` changes:
   countdown.
 - A wave whose enemies are all gone emits `waveCleared` once, per decision 11. This has to work while
   the *next* wave is on the board, which is the one thing `spawnedInWaveIndex` is for.
-- Last wave spawned out, no enemies alive → `phase = 'won'`, `nightEnded { won: true }`.
+- ~~Last wave spawned out, no enemies alive → `phase = 'won'`, `nightEnded { won: true }`.~~
+  **Built in `resolve.ts` instead, next to the loss check.** As written this contradicted the Tests
+  section: `wave` runs 3rd and `resolve` — the system that *removes* the enemy — runs 12th, so a win
+  decided here is always reported the tick after the board emptied, and "ends `'won'` in the tick the
+  last one is removed" is unreachable. `core/sim.ts`'s own order comment already reads
+  *"resolve (deaths, leaks, win/lose)"*. `waveSystem` still owns the "last wave gets no countdown"
+  half, and exports `hasFinishedSpawning(wave)` for `resolve.ts` to ask.
 - Terminal phases run nothing: `spawn`, `wave`, `movement` and `resolve` all return early on `'won'`
   and `'lost'`, or the night keeps simulating behind the summary screen. Two of those files are 5A's;
   adding the guard to them is yours.
@@ -174,8 +187,11 @@ Then the loss check, in the same system and the same tick: no unlost food → `p
 Read authored numbers off the def or set the world field directly. **Never hard-code night 1's
 tables** — 5C re-tunes them.
 
-- A fridge of 3 items hit by one enemy with `steals: 5` ends with 3 lost items and emits `nightEnded
-  { won: false }` **in the same tick**, and `world.night.food.length` is still 3.
+- A fridge of 3 items hit by **five Ants** ends with 3 lost items and emits `nightEnded { won: false }`
+  **in the same tick**, and `world.night.food.length` is still 3. (Written as "one enemy with
+  `steals: 5`", which nothing in the roster is — Ant and Roach both steal 1, and enemy defs are not
+  injectable the way a `NightDef` is. Five enemies stealing one each puts the same five steals
+  against the same three items, which is the assertion that mattered.)
 - Calling a wave early with `countdownTicks = 7 * 60` awards exactly 14 crumbs and adds exactly 420
   to `ticksSkippedTotal`. With `countdownTicks = 0` it awards 0 and does not double-start a wave.
 - `CallWaveEarly` during `'wave'` changes nothing at all — not crumbs, not `waveIndex`.
@@ -184,15 +200,22 @@ tables** — 5C re-tunes them.
   last one is removed, not the tick after.
 - `waveCleared` for wave 0 is emitted **exactly once**, on a world where wave 1 is already spawning —
   drive it far enough to prove the event does not repeat on every subsequent tick.
-- Two worlds from the same seed, ticked 3000 times with an identical command log, have identical
-  `night.food` (ids, defIds and `lost` flags) and identical `tick` at which they ended.
+- Two worlds from the same seed, **played out to `nightEnded`** with an identical command log, have
+  identical `night.food` (ids, defIds and `lost` flags), an identical event log, and an identical
+  `tick` at which they ended. (Written as "ticked 3000 times", which is short of the end — an
+  unattended night 1 loses its eighteenth food item somewhere past tick 3800, so 3000 ticks would
+  have compared two nights that had not ended and made "the tick at which they ended" vacuous.)
 
 ## Hands to the next part
 
 ```
 core/systems/wave.ts      waveSystem(world: World): void
                           nightClock(waveIndex: number, waveCount: number): { hour: number; minute: number }
-core/content/food.ts      FOODS, getFoodDef(id: DefId): FoodDef   // { id, nameKey, glyph }
+                          hasFinishedSpawning(wave: Wave): boolean
+core/systems/resolve.ts   leaks, and both terminal transitions ('won' and 'lost')
+core/content/food.ts      FOODS: FoodDef[]                        // { id, nameKey, glyph }
+core/content/index.ts     getFoodDef(id: DefId): FoodDef          // beside the other four lookups,
+                                                                  // sharing `lookup`
 core/types.ts             FoodItem.defId: DefId
                           NightState.ticksSkippedTotal: number, NightState.clearedThroughWaveIndex: number
 core/sim.ts               tick() clears world.events before the systems run
@@ -200,11 +223,11 @@ core/sim.ts               tick() clears world.events before the systems run
 
 ## Acceptance
 
-- [ ] A headless run of night 1 from `createWorld` to `nightEnded` needs no input and no renderer,
+- [x] A headless run of night 1 from `createWorld` to `nightEnded` needs no input and no renderer,
       and the event sequence is identical on two runs from the same seed.
-- [ ] Nothing outside `core/systems/wave.ts` writes `night.phase`, except the loss check in
-      `resolve.ts`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] Nothing outside `core/systems/wave.ts` writes `night.phase`, except the **win and loss checks**
+      in `resolve.ts` — see the amended bullet in Build §3.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

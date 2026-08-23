@@ -4,9 +4,11 @@ import { SYSTEM_ORDER, tick } from '@/core/sim.ts'
 import { createTestWorld } from './fixtures/world.ts'
 
 /**
- * Step 2A's systems are all no-ops, so these assertions are about the frame the rest of the
- * simulation hangs on: the tick counter, the order the systems run in, and the fact that a tick
- * over an empty world changes nothing else.
+ * These assertions are about the frame the rest of the simulation hangs on: the tick counter, the
+ * order the systems run in, and the fact that a tick over an empty world changes nothing else.
+ *
+ * The fixture's night is already over and terminal phases run nothing, which is what keeps "changes
+ * nothing else" a statement about `tick` rather than about how much the night systems happen to do.
  */
 
 describe('tick', () => {
@@ -33,7 +35,7 @@ describe('tick', () => {
 		expect(queue.length).toBe(0)
 	})
 
-	it('mutates nothing but world.tick while every system is a stub', () => {
+	it('mutates nothing but world.tick while the night is over', () => {
 		const world = createTestWorld()
 		const before = structuredClone(world)
 
@@ -64,6 +66,7 @@ describe('system order', () => {
 		expect(SYSTEM_ORDER).toEqual([
 			'commands',
 			'spawn',
+			'wave',
 			'status',
 			'movement',
 			'targeting',

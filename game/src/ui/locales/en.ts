@@ -7,7 +7,7 @@
  * and retrofitting forty towers and thirty enemies later is the expensive version of this decision.
  */
 
-import type { EnemyMessages, TowerMessages } from '@/ui/locales/contentKeys.ts'
+import type { EnemyMessages, FoodMessages, TowerMessages } from '@/ui/locales/contentKeys.ts'
 
 export const en = {
 	general: {
@@ -64,6 +64,21 @@ export const en = {
 			description: 'Fast, flat and unbothered by the light. It is across the counter before you decide.',
 		},
 	} satisfies EnemyMessages,
+	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.
+	food: {
+		pizzaSlice: { name: 'Slice of Pizza' },
+		cheese: { name: 'Cheese' },
+		apple: { name: 'Apple' },
+		milk: { name: 'Milk' },
+		cake: { name: 'Cake' },
+		bread: { name: 'Bread' },
+		grapes: { name: 'Grapes' },
+		eggs: { name: 'Eggs' },
+		chocolate: { name: 'Chocolate' },
+		carrot: { name: 'Carrot' },
+		chicken: { name: 'Chicken' },
+		butter: { name: 'Butter' },
+	} satisfies FoodMessages,
 	night: {},
 }
 

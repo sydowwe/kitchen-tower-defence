@@ -132,6 +132,11 @@ function spawnEnemy(world: World, spawn: WaveSpawn, waveIndex: number): void {
  * skipped, and then the second drifts by one tick per wave for the rest of the night.
  */
 export function spawnSystem(world: World): void {
+	// Terminal phases run nothing, or the night keeps simulating behind the summary screen.
+	if (world.night.phase === 'won' || world.night.phase === 'lost') {
+		return
+	}
+
 	const wave = world.night.wave
 	if (wave === null) {
 		return

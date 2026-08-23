@@ -17,6 +17,11 @@ import { speedMultiplier } from '@/core/content/statuses.ts'
 import type { World } from '@/core/types.ts'
 
 export function movementSystem(world: World): void {
+	// Terminal phases run nothing, or the night keeps simulating behind the summary screen.
+	if (world.night.phase === 'won' || world.night.phase === 'lost') {
+		return
+	}
+
 	for (const enemy of world.enemies) {
 		enemy.distance += enemy.speed * speedMultiplier(enemy)
 	}

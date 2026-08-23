@@ -12,22 +12,32 @@
  */
 
 import { ENEMIES } from '@/core/content/enemies.ts'
+import { FOODS } from '@/core/content/food.ts'
 import { MAPS } from '@/core/content/maps/index.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContentInDev } from '@/core/content/schema.ts'
 import { TOWERS } from '@/core/content/towers.ts'
-import type { EnemyDef, NightDef, TowerDef } from '@/core/content/schema.ts'
+import type { EnemyDef, FoodDef, NightDef, TowerDef } from '@/core/content/schema.ts'
 import type { DefId, MapDef } from '@/core/types.ts'
 
 export * from '@/core/content/behaviours.ts'
 export * from '@/core/content/difficulty.ts'
 export * from '@/core/content/enemies.ts'
+export * from '@/core/content/food.ts'
 export * from '@/core/content/matrix.ts'
 export * from '@/core/content/nights.ts'
 export * from '@/core/content/statuses.ts'
 export * from '@/core/content/towers.ts'
 export { MAP_SOURCES, MAPS } from '@/core/content/maps/index.ts'
-export type { EnemyDef, InstallationDef, MapSource, NightDef, TowerDef, TowerRole } from '@/core/content/schema.ts'
+export type {
+	EnemyDef,
+	FoodDef,
+	InstallationDef,
+	MapSource,
+	NightDef,
+	TowerDef,
+	TowerRole,
+} from '@/core/content/schema.ts'
 
 /**
  * `statuses` and `installations` are absent on purpose. The status *defs* are runtime tables keyed
@@ -38,7 +48,7 @@ export type { EnemyDef, InstallationDef, MapSource, NightDef, TowerDef, TowerRol
  * `maps` is absent for a different reason: `core/content/maps/index.ts` validates its own sources,
  * because that check has to run before `loadMap` derives a `MapDef` from them.
  */
-validateContentInDev({ towers: TOWERS, enemies: ENEMIES, nights: NIGHTS })
+validateContentInDev({ towers: TOWERS, enemies: ENEMIES, food: FOODS, nights: NIGHTS })
 
 function lookup<T extends { id: DefId }>(kind: string, entries: readonly T[], id: DefId): T {
 	const found = entries.find(entry => entry.id === id)
@@ -54,6 +64,10 @@ export function getTowerDef(id: DefId): TowerDef {
 
 export function getEnemyDef(id: DefId): EnemyDef {
 	return lookup('enemy', ENEMIES, id)
+}
+
+export function getFoodDef(id: DefId): FoodDef {
+	return lookup('food', FOODS, id)
 }
 
 export function getMapDef(id: DefId): MapDef {
