@@ -55,7 +55,9 @@ edit this file, don't leave it lying.
    glyph is not simulation — it must not exist in `World`, or a replay would carry animation frames.
    Export a `resetEffects()` and call it on restart, or items keep flying out of the previous night.
    `drawEffects` needs `tilePx` and `dpr`, which only `renderer.ts` has, so it is called from inside
-   `drawFrame` and `pushEvents(events)` is the only seam `GameView.vue` touches.
+   `drawFrame` and `pushEvents(events, world)` is the only seam `GameView.vue` touches. *(Built with
+   `world` as a second argument: the event carries stolen **ids**, and turning one into a glyph and a
+   shelf slot means reading `world.night.food` — see Build 3.)*
 6. **The dev text goes in `dev/nightHud.ts`, not `render/`.** `render/` ships; this is scaffolding
    that step 8 deletes. Draw it from the same `import.meta.env.DEV` dynamic-import block
    `GameView.vue` already uses for the debug overlay, and keep it always-on rather than behind the
@@ -94,7 +96,7 @@ first frame. `renderer.tilePx` is 0 until `setMap` has run, so preload after it,
 
 ### 3. `render/layers/effects.ts`
 
-`pushEvents(events)`, `drawEffects(ctx, …)`, `resetEffects()`. On `enemyLeaked`, one flying glyph per
+`pushEvents(events, world)`, `drawEffects(ctx, …)`, `resetEffects()`. On `enemyLeaked`, one flying glyph per
 stolen id — `getFoodDef(item.defId).glyph`, arcing from the shelf off the top of the board over
 ~0.6s, fading. Cap the live list so a 40-item leak cannot stall a frame.
 
@@ -150,6 +152,11 @@ The number that makes this legible: the track is 31.12 tiles, so an Ant is on sc
 Roach for ~17s. A 12s inter-wave countdown therefore overlaps waves by roughly two thirds of a
 crossing, which is what you are actually tuning.
 
+*What the pass settled:* the clump came from the spawn window, not the countdown — 4 ants at 60-tick
+spacing fill in 3s and then the count sits flat for the whole 12s countdown. Every wave now spawns
+over about as long as the gap that follows it (wider counts, 6–8s countdowns), and `waves[0]`'s
+countdown dropped to 6s because it is also the run-up before wave 1. See the header of `nights.ts`.
+
 ## Tests
 
 **None.** `ARCHITECTURE.md` §7: renderer bugs are visible, and the acceptance list below is the
@@ -157,15 +164,24 @@ instrumentation. Do not add a spec for `dev/nightHud.ts` to feel covered.
 
 ## Acceptance
 
-- [ ] Night 1 plays out unattended from a fresh load: six waves of ants walk the Counter, empty the
-      fridge, and the night ends `lost` with no input at all.
-- [ ] `r` restarts to an identical opening — same ants, same food, same order — and the
-      `[render] terrain bake` count goes up by exactly one.
-- [ ] The clock reads 2:00am on wave 1 and 6:00am on the final wave.
-- [ ] Same seed, same result: run it twice, log the events, diff them.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [ ] Night 1 plays out unattended from a fresh load: wave after wave of ants walks the Counter,
+      empties the fridge, and the night ends `lost` with no input at all. *(Written as "six waves".
+      It cannot be: eighteen items against one steal each means the fridge is empty during wave 5 of
+      6, and nothing kills an ant until step 6. Reaching wave 6 unattended would mean a night 1 whose
+      first five waves cannot finish the fridge — a different, worse tuning.)*
+- [x] `r` restarts to an identical opening — same ants, same food, same order — and the
+      `[render] terrain bake` count goes up by exactly one. *(Bake 1 → 2 on `r`, watched in the
+      console; the opening is identical by construction — a fixed seed, and `tests/night.spec.ts`
+      asserts one seed reproduces the whole event log.)*
+- [x] The clock reads 2:00am on wave 1 and 6:00am on the final wave. *(`nightClock(0, 6)` and
+      `nightClock(5, 6)`, asserted in `tests/night.spec.ts`; night 1 has six waves.)*
+- [x] Same seed, same result: run it twice, log the events, diff them. *(`tests/night.spec.ts`,
+      "produces the same events at the same ticks on a second run of the same seed and log".)*
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 - [ ] The frame at 3× with ~60 ants on the board holds 60fps, and `render/` still contains no
-      `fillText` — the only text on the canvas comes from `dev/`.
+      `fillText` — the only text on the canvas comes from `dev/`. *(The fps half is unwatched. The
+      `fillText` half holds: the only one left in `render/` is `glyphCache`'s rasteriser, which is
+      what fills the cache the layers blit from, and no layer draws text.)*
 - [ ] A queue of ants on the track stays countable — you can see there are six, not "some".
 - [ ] Losing an item reads as a *theft*: you see which item left, and you can name it afterwards.
 - [ ] Night 1's ramp feels like a ramp, at 1× and at 3×.

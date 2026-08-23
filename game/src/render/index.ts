@@ -7,4 +7,14 @@ export {
 	glyphCacheSize,
 	type GlyphRequest,
 } from '@/render/glyphCache.ts'
-export { drawTerrain, drawTrack, drawEntities } from '@/render/layers/index.ts'
+export {
+	drawTerrain,
+	drawTrack,
+	drawEntities,
+	drawFridge,
+	drawEffects,
+	pushEvents,
+	resetEffects,
+	preloadEnemyGlyphs,
+	preloadFoodGlyphs,
+} from '@/render/layers/index.ts'

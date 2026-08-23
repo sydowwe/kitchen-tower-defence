@@ -92,6 +92,11 @@ export function getGlyph(emoji: string, sizePx: number): HTMLCanvasElement {
  * The `dpr` is a parameter rather than `window.devicePixelRatio` because there are two contexts
  * with two of them: the live canvas, and the offscreen terrain bake. Both need the same
  * divide-then-round, and two copies of it drift.
+ *
+ * `flipX` mirrors the glyph about its own centre, which is how an enemy heading left is drawn: every
+ * enemy in the roster is side-on, and rotating one to follow a vertical run of track reads as a dead
+ * bug (step 5C, decision 3). It lives here rather than in the caller so there is one copy of the
+ * device-pixel rounding above, not two.
  */
 export function blitGlyph(
 	ctx: CanvasRenderingContext2D,
@@ -100,6 +105,7 @@ export function blitGlyph(
 	sizePx: number,
 	x: number,
 	y: number,
+	flipX = false,
 ): void {
 	const glyph = getGlyph(emoji, sizePx)
 	const width = glyph.width / dpr
@@ -107,7 +113,17 @@ export function blitGlyph(
 	// Snap to whole device pixels: sub-pixel emoji is blurry and costs more to composite.
 	const left = Math.round((x - width / 2) * dpr) / dpr
 	const top = Math.round((y - height / 2) * dpr) / dpr
-	ctx.drawImage(glyph, left, top, width, height)
+
+	if (!flipX) {
+		ctx.drawImage(glyph, left, top, width, height)
+		return
+	}
+
+	ctx.save()
+	ctx.translate(left + width / 2, 0)
+	ctx.scale(-1, 1)
+	ctx.drawImage(glyph, -width / 2, top, width, height)
+	ctx.restore()
 }
 
 /** Rasterise ahead of time, so the first frame of a night is not the one paying for forty glyphs. */

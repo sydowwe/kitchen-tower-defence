@@ -1,5 +1,5 @@
 import { blitGlyph } from '@/render/glyphCache.ts'
-import { drawEntities, drawTerrain, drawTrack } from '@/render/layers/index.ts'
+import { drawEffects, drawEntities, drawFridge, drawTerrain, drawTrack } from '@/render/layers/index.ts'
 import { BACKGROUND } from '@/render/palette.ts'
 import type { MapDef, World } from '@/core/types.ts'
 
@@ -132,8 +132,11 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// `entities` is in the bake; everything after it is a later step's, and is named here so
 		// none of them can quietly insert itself in the wrong place.
 		//
-		//   terrain -> track -> tile effects -> crumbs -> towers -> enemies -> projectiles
-		//   -> particles -> overlay
+		//   terrain -> track -> tile effects -> crumbs -> towers -> fridge -> enemies
+		//   -> projectiles -> particles -> overlay
+		//
+		// The fridge's shelf sits between towers and enemies so an ant standing at the fridge is
+		// drawn over the shelf it is robbing (step 5C, decision 4).
 
 		ensureBake()
 		clear()
@@ -146,9 +149,14 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// tile effects: step 15
 		// crumbs: step 7
 		// towers: step 6
+		if (world !== null) {
+			drawFridge(ctx, world, tilePx, dpr)
+		}
 		drawEntities(ctx, world, tilePx, dpr)
 		// projectiles: step 6
-		// particles: step 12
+		// particles -- the theft animation. Its events come in through `pushEvents` before the
+		// frame; this is where they are aged and drawn.
+		drawEffects(ctx, tilePx, dpr)
 		// overlay: step 3C
 	}
 

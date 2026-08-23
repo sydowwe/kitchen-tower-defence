@@ -44,3 +44,11 @@ export const TRACK_FILL = '#4c3f35'
 /** The centre and the far edge of a pool of lamp light. Low contrast on purpose. */
 export const LAMP_CORE = 'rgba(245, 198, 107, 0.2)'
 export const LAMP_EDGE = 'rgba(245, 198, 107, 0)'
+
+/** What is left of an enemy's health, and the socket it sits in. Only drawn on a damaged enemy. */
+export const HP_BAR_BACK = 'rgba(8, 10, 18, 0.8)'
+export const HP_BAR_FILL = '#7ad67a'
+
+/** The panel the fridge's remaining items sit on, so a row of glyphs reads as a shelf and not as litter. */
+export const SHELF_BACKDROP = 'rgba(12, 16, 28, 0.55)'
+export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'
