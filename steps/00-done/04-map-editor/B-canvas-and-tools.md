@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §3.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §3.
 **Prereq:** step 4A.
 
 ## Goal
@@ -55,7 +55,7 @@ edit this file, don't leave it lying.
    — the failure mode is an offset that is invisible at the centre of the board and a full tile at
    the corners, and one copy of that bug is enough. The editor needs the **fractional** tile position
    for waypoints; flooring belongs at the brush, not in the helper.
-5. **`dev/` is exempt from the i18n rule.** `CLAUDE.md`'s no-user-facing-literal rule exists so forty
+5. **`dev/` is exempt from the i18n rule.** `../../../CLAUDE.md`'s no-user-facing-literal rule exists so forty
    towers and thirty enemies don't need retrofitting; the editor ships to nobody and has one user.
    Plain English strings in the panels, no keys, no catalogue entries.
 6. **Preview hands the map over through `dev/editor/preview.ts`**, a one-shot `sessionStorage` slot

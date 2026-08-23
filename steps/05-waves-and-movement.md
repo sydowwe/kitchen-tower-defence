@@ -1,57 +1,61 @@
 # Step 5 — Waves, spawning, movement, food loss
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is three sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index — it exists to say what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/DECISIONS.md` §5–6, `../analytic-docs/CONTENT.md` §2, §6, §7.
-**Prereq:** step 4.
+**Prereq:** step 4, both parts.
 
 ## Goal
 
-Ants march from the crack to the fridge and steal your food. No defences yet — this is the loop you're about to defend against.
+Ants march from the crack to the fridge and steal your food. No defences yet — this is the loop you
+are about to defend against, and the first time the board has a simulation behind it rather than a
+picture on it.
 
-## Build
+## Parts
 
-1. **Night and wave definitions** (`core/content/nights.ts`). A night is:
-   ```
-   { id, mapId, waveCount, modifier?, unlocks: { towers[], enemies[] },
-     waves: [ { entries: [{ enemyId, count, spacingTicks, startDelayTicks, pathId? }] } ] }
-   ```
-   Author nights 1–3 only. Difficulty scalars are applied at runtime by the spawn system, **never baked into the data**.
+Each part names its own `Read first:` sections, so a session only loads the docs it needs.
 
-2. **Spawn system** (`core/systems/spawn.ts`). Walks the active wave's entries, spawning on schedule. When a wave has no entries left and no enemies from it remain alive, mark the wave complete. If `pathId` is omitted, distribute enemies across the map's paths round-robin.
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](05-waves-and-movement/A-spawning-and-movement.md) | Nights 1–3, spawning, movement | `core/content/nights.ts`, the Roach, `core/systems/spawn.ts`, `movement.ts`, `tests/spawn.spec.ts` |
+| [B](05-waves-and-movement/B-wave-flow-and-food.md) | Wave flow, the fridge, win and loss | `core/systems/wave.ts`, `resolve.ts`, `commands.ts`, `core/content/food.ts`, `tests/night.spec.ts` |
+| [C](05-waves-and-movement/C-enemies-on-screen.md) | Enemies, the shelf, the night on screen | `render/layers/entities.ts`, `fridge.ts`, `effects.ts`, `ui/views/GameView.vue`, `dev/nightHud.ts` |
 
-3. **Wave flow** (`core/systems/wave.ts`), per `../analytic-docs/DECISIONS.md` §5:
-   - After a wave's last enemy *spawns*, start an `interWaveCountdown` (default 12s).
-   - The `CallWaveEarly` command starts the next wave immediately and grants **2 crumbs per second skipped** (`../analytic-docs/CONTENT.md` §8 uses the same accumulator for the end-of-night bonus, so track `secondsSkippedTotal` on the night state).
-   - The clock display is `2:00am + (waveIndex / waveCount) × 4 hours`. It is a *derived value*, not a timer — do not give it its own state.
-   - Waves may overlap: calling early while the previous wave is still on the board is legal and is the main tempo decision in the game.
+Strictly in order. B decides *when* a wave starts; A decides *what* it spawns and how it moves. C
+draws what the two of them produce and is the first part with a world behind the canvas.
 
-4. **Movement system** (`core/systems/movement.ts`). For each enemy: `distance += speed × speedMultiplier(enemy) × TICK`, position from `samplePath`. Nothing else — no steering, no collision, no separation. Enemies overlap freely and that's correct for this genre.
+A and B each carry their own tests — the split is exactly where the assertions split. A owns spawn
+timing, movement arithmetic and difficulty scaling; B owns the wave state machine, the early-call
+award and the win/lose conditions. **C has no tests at all**, per
+`../analytic-docs/ARCHITECTURE.md` §7: everything it builds is pixels, and vitest runs
+`environment: 'node'` so none of it is reachable from a spec anyway.
 
-5. **Food and leaks** (`core/systems/resolve.ts`).
-   - At night start, draw `18 + floor(nightIndex/3)` named items (`../analytic-docs/CONTENT.md` §7) from the pool into `world.fridge.items`, scaled by difficulty.
-   - An enemy reaching `totalLength` removes `steals` items **by name**, emits a `FoodStolen` event naming them, and is removed.
-   - Fridge empty → `NightLost`. All waves complete and no enemies alive → `NightWon`.
-   - Both emit events; nothing in `core/` handles presentation.
+The wave tables are authored twice on purpose. A ships nights 1–3 as a structurally correct ramp
+built from `../analytic-docs/CONTENT.md` §6, so B has something real to drive and C has something
+real to watch. C re-tunes night 1 **after** watching it play out unattended, which is the first
+moment anyone can judge whether the ramp reads as a ramp. Tuning it in A means tuning it blind.
 
-6. **Rendering.** Draw enemies as glyphs, facing along the path angle, with a small HP bar above any enemy below full health. Draw the fridge with its remaining items visible as a little shelf of glyphs — this is the health bar and it must be legible at a glance. Animate an item flying off the shelf on theft.
+## The seam that can't move
 
-7. **Temporary dev controls** until step 8 exists: keyboard `n` calls the next wave, `r` restarts the night, on-screen text for wave number, clock, and food count.
+**A owns one wave's contents; B owns the night's structure.** `startWave(world, night, index)` builds
+the runtime `Wave` — difficulty scalars, path distribution, spawn schedule — and `spawnSystem` walks
+it. Everything about *when* that gets called (the inter-wave countdown, `CallWaveEarly`, the clock,
+"all waves done") is B's and is not spawn's business.
 
-## Tests
+Move the line and you get two answers to "is this wave over": one in the spawn schedule and one in
+the wave machine, disagreeing on the tick a wave with a slow trailing entry finishes. That
+disagreement is invisible until a night ends one wave early.
 
-- A wave with `{count: 10, spacingTicks: 30}` spawns exactly 10 enemies at exactly 30-tick intervals.
-- An ant with `speed: 1.0` covers exactly 1 tile of arc length per 60 ticks.
-- Difficulty scalars change spawned counts and HP but never mutate the night definition object.
-- Fridge with 3 items, hit by an enemy with `steals: 5`, ends at 0 and emits `NightLost` in the same tick.
-- Calling a wave early with 7s remaining awards exactly 14 crumbs.
+## Step acceptance
 
-## Acceptance
-
-- [ ] Night 1 plays out unattended: six waves of ants walk the Counter, eat all your food, and you lose.
+- [ ] Night 1 plays out unattended: six waves of ants walk the Counter, eat all your food, and you
+      lose.
 - [ ] The clock reads 2:00am on wave 1 and 6:00am on the final wave.
 - [ ] Same seed, same result, every time — run it twice and diff the event log.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
-Build towers, targeting, or crumbs. Enemies are invincible this step.
+Build towers, targeting, projectiles or crumbs — steps 6 and 7. Enemies are invincible for the whole
+of this step, which is the point: it is the unopposed loop. Do not build the real HUD (step 8) —
+C's on-screen text is a dev-only scaffold and lives in `dev/`.

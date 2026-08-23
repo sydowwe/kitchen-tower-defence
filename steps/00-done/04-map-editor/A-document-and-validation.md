@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §3.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §3.
 **Prereq:** step 3 (all three parts).
 
 ## Goal
@@ -23,9 +23,9 @@ Nothing is drawn this session. 4B builds the tool that drives all of it.
 | `core/content/maps/index.ts` | `MAP_SOURCES` (the authored JSON as it sits on disk) and `MAPS` (`MAP_SOURCES.map(loadMap)`) |
 | `core/content/maps/counter.json` | the Counter, authored by hand in 3C. Your fixture |
 | `tests/path.spec.ts` | step 3's suite, asserting against `counter.json`. Do not fold your tests into it |
-| `game/vite.config.ts` | vitest `include` is `tests/**/*.spec.ts` and `src/core/**/*.spec.ts`, `environment: 'node'` |
+| `../../../game/vite.config.ts` | vitest `include` is `tests/**/*.spec.ts` and `src/core/**/*.spec.ts`, `environment: 'node'` |
 
-Two consequences of that last row. Your spec goes in `game/tests/editor.spec.ts` — a spec next to
+Two consequences of that last row. Your spec goes in `../../../game/tests/editor.spec.ts` — a spec next to
 the code in `src/dev/` is not collected and will silently never run. And there is no DOM in the test
 environment, so nothing in this part may touch `document`, `window` or a canvas. That is the whole
 reason this half is separable.
@@ -162,7 +162,7 @@ under-ten-minutes acceptance is measured from. It is deliberately *not* warning-
 
 ## Tests
 
-`game/tests/editor.spec.ts`.
+`../../../game/tests/editor.spec.ts`.
 
 - `fromJson(toJson(counter))` produces a source whose `loadMap` output has the identical `flags`
   array and the identical `TRACK` tile set as `loadMap(counter)` — the mechanical form of "round-trip
