@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §5 and §6, `../../analytic-docs/CONTENT.md` §7 and §9.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §5 and §6, `../../../analytic-docs/CONTENT.md` §7 and §9.
 **Prereq:** step 5A.
 
 ## Goal
@@ -87,7 +87,7 @@ edit this file, don't leave it lying.
    tick's. The consumer has to accumulate after every `tick()` call. Say so in 5C's file if you touch
    the rule.
 6. **`ticksSkippedTotal: number` on `NightState`, not `secondsSkippedTotal`.** Durations in `core/`
-   are tick counts (`CLAUDE.md`); step 20's grocery formula divides by 60 once, at the point it needs
+   are tick counts (`../../../CLAUDE.md`); step 20's grocery formula divides by 60 once, at the point it needs
    seconds. The award itself is `floor(countdownTicks / 60) * 2` crumbs — `DECISIONS.md` §5 says
    "proportional to the seconds you skipped" and names no rate, so 2/sec is this file's choice and
    step 22 is what re-prices it.
@@ -121,7 +121,7 @@ edit this file, don't leave it lying.
 The twelve items of `CONTENT.md` §7 as defs: `{ id, nameKey: 'food.<id>.name', glyph }`. Add a `food`
 schema to `contentSchemas()`, a `food` slot to `RawContent`/`Content` and a `validateCollection` line
 to `validateContent`, then pass `FOODS` to `validateContentInDev` — all content is zod-validated at
-boot (`CLAUDE.md`), and a food id with no locale entry should fail at startup like a tower does.
+boot (`../../../CLAUDE.md`), and a food id with no locale entry should fail at startup like a tower does.
 
 Add `FoodMessages` to `contentKeys.ts` the way `EnemyMessages` is derived — but **`Record<id, { name:
 string }>`, not the shared `Entry`.** A food item has a name and no description; reusing `Entry`
@@ -182,7 +182,7 @@ their ids, and is removed. **Whoever removes an entity rebuilds `world.index.ene
 Then the loss check, in the same system and the same tick: no unlost food → `phase = 'lost'`,
 `nightEnded { won: false }`.
 
-## Tests — `game/tests/night.spec.ts`
+## Tests — `../../../game/tests/night.spec.ts`
 
 Read authored numbers off the def or set the world field directly. **Never hard-code night 1's
 tables** — 5C re-tunes them.

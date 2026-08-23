@@ -1,54 +1,57 @@
 # Step 6 — Tower placement, targeting, projectiles, damage
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is three sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index — it exists to say what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/ARCHITECTURE.md` §4, §6, `../analytic-docs/CONTENT.md` §1, §3, §5.
 **Prereq:** step 5.
 
 ## Goal
 
-The salt shaker kills ants. This is the heart of the game and every combat tower for the rest of the project is a variation on what you build here — so build it as a general system, not as a salt shaker.
+The salt shaker kills ants. Every combat tower for the rest of the project is a variation on what
+gets built here, so it is built as a general system and not as a salt shaker: a tower is placed by a
+command, picks a target through a mode, fires on a cooldown, and the hit routes through
+`resolveDamage` with the enemy's tags.
 
-## Build
+## Parts
 
-1. **Placement** (`core/systems/placement.ts`, driven by the `PlaceTower` command).
-   - Validity: tile in bounds, not `BLOCKED`, unoccupied, satisfies the def's `placement` flag (`off_path` / `path_only` / `edge_only`), and affordable.
-   - Deduct cost, record `totalInvested`.
-   - `SellTower` refunds 70% of `totalInvested`, or 50% if a wave is currently in progress (`../analytic-docs/DECISIONS.md` §5).
-   - Return a typed rejection reason on failure so the UI can explain itself.
+Each part names its own `Read first:` sections, so a session only loads the docs it needs.
 
-2. **Range queries** (`core/systems/spatial.ts`). Start naive — iterate all enemies, compare squared distance. Wrap it behind `queryEnemiesInRange(world, center, radius, filter)` so a uniform-grid spatial hash can be dropped in later without touching a single caller. Do not build the hash yet.
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](06-towers-and-combat/A-placement-and-economy.md) | Placement, selling, the economy towers | `core/systems/placement.ts`, `core/systems/commands.ts`, `core/content/towers.ts` |
+| [B](06-towers-and-combat/B-targeting-and-damage.md) | Range, targeting, combat, projectiles, death | `core/systems/spatial.ts`, `targeting.ts`, `combat.ts`, `projectiles.ts`, `resolve.ts` |
+| [C](06-towers-and-combat/C-towers-on-screen.md) | Towers, shots and hits on screen | `render/layers/towers.ts`, `render/layers/effects.ts`, `dev/placement.ts`, `GameView.vue` |
 
-3. **Targeting** (`core/systems/targeting.ts`). All six modes from `../analytic-docs/CONTENT.md` §5. Filters: `ground` / `air` / `both`, plus a `targetable` predicate (step 16's burrowing and step 11's hidden enemies will hook in here — leave the seam).
+Strictly in order. B fires the towers A creates; C draws what B produces and gives you a mouse to
+place them with.
 
-   **`FIRST` and `LAST` compare `remainingToFridge`, not raw `distance`.** On multi-path maps, raw distance makes towers prefer whichever lane is longer, which is a subtle and infuriating bug to find later.
+**A and B both carry tests; C carries none.** A owns the placement and refund assertions, B owns the
+targeting, cooldown and damage assertions, and C is pixels — `../analytic-docs/ARCHITECTURE.md` §7,
+and vitest runs `environment: 'node'` so nothing in C is reachable from a spec anyway. A part with
+no tests is not an under-tested part; do not invent coverage for C.
 
-4. **Attack behaviour** (`core/systems/combat.ts`). Consume the `attack` behaviour descriptor from step 2. Cooldown in ticks, derived from `rate`. On fire: pick a target, spawn a projectile, emit a `TowerFired` event carrying the tower's `noise` value (step 13 consumes it — emit it now, ignore it now).
+The Salt Shaker's `projectileSpeed` is **authored twice on purpose**: B picks a structurally-correct
+number with nothing on screen to judge it by, and C re-tunes it after watching a shot cross the
+board. Same for the hit-flash and damage-number lifetimes. Both parts say so.
 
-5. **Projectiles** (`core/systems/projectiles.ts`). Object-pooled. Travel toward the target's *current* position each tick (homing — simplest and reads well at this scale). On arrival, apply damage via `resolveDamage` from step 2 and despawn. Add a `pierce` field, default 1, since several later towers want it.
+## The seam that can't be split
 
-6. **Death** (`core/systems/resolve.ts`). HP ≤ 0 → emit `EnemyKilled` with position, def, and reward, then remove. Step 7 turns that event into a crumb.
+**A owns turning a `TowerDef` into a `Tower` entity; B owns everything that reads one.** Move the
+line — targeting into A, or placement into B — and B loses its one end-to-end assertion: that a real
+placed tower's shot reaches `resolveDamage` carrying the enemy's *tags*, not just the base number.
+That is the assertion the whole damage matrix silently depends on, and it only exists if one session
+holds both a placed tower and a live enemy.
 
-7. **Content**: add **Toaster Crumb Tray** and **Cookie Jar** as `income` behaviour towers (flat crumbs per second, `../analytic-docs/CONTENT.md` §1). Cookie Jar's "drops 200 crumbs to the enemy side if destroyed" needs tower HP, which arrives in step 10 — leave a `TODO` referencing step 10, don't half-build it.
+## Step acceptance
 
-8. **Rendering.** Towers as glyphs on their tile. Range circle for the hovered or selected tower. Projectiles as small glyphs or dots. A brief hit flash and a damage-number popup on each hit — cheap now, and it's most of what makes the game feel responsive at step 8.
-
-9. **Dev controls**: number keys select a tower type, click places, click a placed tower to select, `x` sells.
-
-## Tests
-
-- `resolveDamage` is actually being called with the enemy's tags — assert an ant takes 1.5× from a chemical source through the full projectile path, not just in isolation.
-- A tower with `rate: 1.0` fires exactly 60 ticks apart, with no drift over 600 ticks.
-- Targeting: with three enemies at different path distances, `FIRST` picks the one closest to the fridge and `LAST` the furthest; on a two-path map, `FIRST` compares remaining distance correctly.
-- Selling mid-wave refunds 50%, selling between waves 70%.
-- Placement rejects: occupied tile, blocked tile, `off_path` tower on a track tile, `path_only` tower off-track, insufficient crumbs.
-
-## Acceptance
-
-- [ ] Four salt shakers placed along the Counter track clear wave 1 of night 1 without a leak.
+- [ ] Four Salt Shakers placed along the Counter track clear wave 1 of night 1 without a leak.
 - [ ] Range circles, hit flashes, and damage numbers all read clearly at 3× speed.
-- [ ] Adding a second DPS tower to `towers.ts` requires **zero** changes to any system file. If it doesn't, the behaviour composition is wrong — fix it now, not in step 9.
+- [ ] Adding a second DPS tower to `core/content/towers.ts` requires **zero** changes to any file in
+      `core/systems/`. If it doesn't, the behaviour composition is wrong — fix it in step 6, not in
+      step 9.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
-Build status effects, cones, auras, or upgrades. One behaviour (`attack`) plus `income`, done properly.
+Build status effects, cones, auras, or upgrades. One behaviour (`attack`) plus the two `income`
+towers as content, done properly.

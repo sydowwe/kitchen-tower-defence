@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/CONTENT.md` §2 and §6, `../../analytic-docs/DECISIONS.md` §3.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §2 and §6, `../../../analytic-docs/DECISIONS.md` §3.
 **Prereq:** step 4B.
 
 ## Goal
@@ -142,7 +142,7 @@ by skipping movement for freshly spawned enemies you get 59 steps, the one-tile 
 1/60 of a tile, and the obvious-looking repair is to loosen the tolerance — which is the thing that
 assertion exists to prevent.
 
-## Tests — `game/tests/spawn.spec.ts`
+## Tests — `../../../game/tests/spawn.spec.ts`
 
 Build the night defs in the spec as literals. **Never assert against `night01`'s authored numbers** —
 5C re-tunes them, and a spec that hard-codes them turns a tuning pass into a red suite.

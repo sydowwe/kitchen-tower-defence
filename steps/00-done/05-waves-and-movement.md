@@ -31,11 +31,11 @@ draws what the two of them produce and is the first part with a world behind the
 A and B each carry their own tests — the split is exactly where the assertions split. A owns spawn
 timing, movement arithmetic and difficulty scaling; B owns the wave state machine, the early-call
 award and the win/lose conditions. **C has no tests at all**, per
-`../analytic-docs/ARCHITECTURE.md` §7: everything it builds is pixels, and vitest runs
+`../../analytic-docs/ARCHITECTURE.md` §7: everything it builds is pixels, and vitest runs
 `environment: 'node'` so none of it is reachable from a spec anyway.
 
 The wave tables are authored twice on purpose. A ships nights 1–3 as a structurally correct ramp
-built from `../analytic-docs/CONTENT.md` §6, so B has something real to drive and C has something
+built from `../../analytic-docs/CONTENT.md` §6, so B has something real to drive and C has something
 real to watch. C re-tunes night 1 **after** watching it play out unattended, which is the first
 moment anyone can judge whether the ramp reads as a ramp. Tuning it in A means tuning it blind.
 
