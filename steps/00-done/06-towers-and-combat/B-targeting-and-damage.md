@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §3 and §5,
-`../../analytic-docs/ARCHITECTURE.md` §4 and §6.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §3 and §5,
+`../../../analytic-docs/ARCHITECTURE.md` §4 and §6.
 **Prereq:** step 6A.
 
 ## Goal

@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the Act I table, *Economy
-rates* and *Selling*), `../../analytic-docs/DECISIONS.md` §5 (the last bullet).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the Act I table, *Economy
+rates* and *Selling*), `../../../analytic-docs/DECISIONS.md` §5 (the last bullet).
 **Prereq:** step 5.
 
 ## Goal

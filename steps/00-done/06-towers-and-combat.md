@@ -26,7 +26,7 @@ Strictly in order. B fires the towers A creates; C draws what B produces and giv
 place them with.
 
 **A and B both carry tests; C carries none.** A owns the placement and refund assertions, B owns the
-targeting, cooldown and damage assertions, and C is pixels — `../analytic-docs/ARCHITECTURE.md` §7,
+targeting, cooldown and damage assertions, and C is pixels — `../../analytic-docs/ARCHITECTURE.md` §7,
 and vitest runs `environment: 'node'` so nothing in C is reachable from a spec anyway. A part with
 no tests is not an under-tested part; do not invent coverage for C.
 
