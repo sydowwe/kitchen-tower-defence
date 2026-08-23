@@ -72,11 +72,12 @@ describe('the Salt Shaker', () => {
 		/** Splash is what the T3 upgrade adds (step 12), not something the base tower has. */
 		expect(shot.splashRadiusTiles).toBe(0)
 		/**
-		 * 0.2 tiles per tick is 12 tiles/sec. The doc has no projectile-speed column, so this is
+		 * 0.1 tiles per tick is 6 tiles/sec, retuned from 6B's 0.2 in step 6C -- the first session
+		 * with a shot on screen to judge. The doc has no projectile-speed column, so this is
 		 * authored in `towers.ts` and pinned here like every other Salt Shaker number. A 0 would
 		 * mean the hit lands the same tick with no projectile at all.
 		 */
-		expect(shot.projectileSpeed).toBeCloseTo(0.2, 10)
+		expect(shot.projectileSpeed).toBeCloseTo(0.1, 10)
 	})
 
 	it('fails validation with its own id in the message when a field is wrong', () => {

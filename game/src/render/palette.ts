@@ -49,6 +49,38 @@ export const LAMP_EDGE = 'rgba(245, 198, 107, 0)'
 export const HP_BAR_BACK = 'rgba(8, 10, 18, 0.8)'
 export const HP_BAR_FILL = '#7ad67a'
 
+/**
+ * The pad a tower stands on. A glyph alone floats over the floor and reads as dropped rather than
+ * installed; a plate under it is what makes a tower furniture and an ant traffic.
+ */
+export const TOWER_PAD = 'rgba(226, 232, 255, 0.09)'
+export const TOWER_PAD_EDGE = 'rgba(226, 232, 255, 0.22)'
+
+/** A shot in flight. Salt, so: brighter than anything it crosses, and small. */
+export const PROJECTILE_SHOT = '#f2f4ff'
+
+/**
+ * The range ring while a build is being aimed. Green and red carry the answer `canPlaceTower` gave
+ * for the tile under the cursor; the neutral one is a placed tower showing its own reach and is
+ * deliberately not either of them -- a selected tower is not a judgement.
+ */
+export const RANGE_VALID = 'rgba(122, 214, 122, 0.85)'
+export const RANGE_VALID_FILL = 'rgba(122, 214, 122, 0.1)'
+export const RANGE_INVALID = 'rgba(232, 106, 96, 0.85)'
+export const RANGE_INVALID_FILL = 'rgba(232, 106, 96, 0.1)'
+export const RANGE_NEUTRAL = 'rgba(226, 232, 255, 0.6)'
+export const RANGE_NEUTRAL_FILL = 'rgba(226, 232, 255, 0.06)'
+
+/**
+ * The expanding ring on a hit, and the number that goes with it.
+ *
+ * A ring at the hit position rather than a tint on the enemy: `blitGlyph` blits a pre-rasterised
+ * bitmap and cannot tint one, and the hit that *killed* the enemy has no glyph left to tint -- the
+ * entities layer will not draw it next frame (step 6C, decision 7).
+ */
+export const HIT_FLASH = 'rgba(255, 244, 214, 0.9)'
+export const DAMAGE_NUMBER = '#ffe9a8'
+
 /** The panel the fridge's remaining items sit on, so a row of glyphs reads as a shelf and not as litter. */
 export const SHELF_BACKDROP = 'rgba(12, 16, 28, 0.55)'
 export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'

@@ -17,4 +17,11 @@ export {
 	resetEffects,
 	preloadEnemyGlyphs,
 	preloadFoodGlyphs,
+	drawTowers,
+	drawProjectiles,
+	drawRangeCircle,
+	drawPlacementTile,
+	preloadTowerGlyphs,
+	towerGlyphSize,
+	type PlacementTone,
 } from '@/render/layers/index.ts'

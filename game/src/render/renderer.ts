@@ -1,5 +1,13 @@
 import { blitGlyph } from '@/render/glyphCache.ts'
-import { drawEffects, drawEntities, drawFridge, drawTerrain, drawTrack } from '@/render/layers/index.ts'
+import {
+	drawEffects,
+	drawEntities,
+	drawFridge,
+	drawProjectiles,
+	drawTerrain,
+	drawTowers,
+	drawTrack,
+} from '@/render/layers/index.ts'
 import { BACKGROUND } from '@/render/palette.ts'
 import type { MapDef, World } from '@/core/types.ts'
 
@@ -148,14 +156,15 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 
 		// tile effects: step 15
 		// crumbs: step 7
-		// towers: step 6
+		drawTowers(ctx, world, tilePx, dpr)
 		if (world !== null) {
 			drawFridge(ctx, world, tilePx, dpr)
 		}
 		drawEntities(ctx, world, tilePx, dpr)
-		// projectiles: step 6
-		// particles -- the theft animation. Its events come in through `pushEvents` before the
-		// frame; this is where they are aged and drawn.
+		drawProjectiles(ctx, world, tilePx)
+		// particles -- the theft animation, plus the flash and the number on every hit. Their
+		// events come in through `pushEvents` before the frame; this is where they are aged and
+		// drawn.
 		drawEffects(ctx, tilePx, dpr)
 		// overlay: step 3C
 	}

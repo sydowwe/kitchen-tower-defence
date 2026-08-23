@@ -20,6 +20,13 @@ const FONT = '13px ui-monospace, monospace'
 const HINT_FONT = '11px ui-monospace, monospace'
 const HINT_COLOR = 'rgba(255, 255, 255, 0.55)'
 
+/**
+ * Every key this route answers to except the debug overlay's own, which live behind its backtick
+ * toggle. It has to be edited in the same breath as the bindings, or the on-screen help lies --
+ * `ui/locales/en.ts`'s `debug.hint` is the other half and carries the speed keys.
+ */
+const HINT = '1-3 tower · click place · x sell · n next wave · r restart'
+
 const MARGIN_PX = 10
 const LINE_HEIGHT_PX = 17
 
@@ -67,5 +74,5 @@ function drawLine(ctx: CanvasRenderingContext2D, text: string, font: string, col
 export function drawNightHud(ctx: CanvasRenderingContext2D, world: World): void {
 	const top = LOGICAL_HEIGHT - MARGIN_PX - LINE_HEIGHT_PX * 2
 	drawLine(ctx, statusLine(world), FONT, TEXT_COLOR, top)
-	drawLine(ctx, 'n next wave · r restart', HINT_FONT, HINT_COLOR, top + LINE_HEIGHT_PX)
+	drawLine(ctx, HINT, HINT_FONT, HINT_COLOR, top + LINE_HEIGHT_PX)
 }

@@ -32,6 +32,7 @@
 		LOGICAL_WIDTH,
 		preloadEnemyGlyphs,
 		preloadFoodGlyphs,
+		preloadTowerGlyphs,
 		pushEvents,
 		resetEffects,
 		type Renderer,
@@ -41,6 +42,7 @@
 	import type { DebugController, isTypingTarget } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
 	import type { drawNightHud } from '@/dev/nightHud.ts'
+	import type { drawPlacementOverlay, PlacementController } from '@/dev/placement.ts'
 
 	/**
 	 * The one place the canvas, the loop, the world and the HUD meet.
@@ -106,6 +108,8 @@
 	let debug: DebugController | null = null
 	let drawOverlay: typeof drawDebugOverlay | null = null
 	let drawHud: typeof drawNightHud | null = null
+	let placement: PlacementController | null = null
+	let drawPlacement: typeof drawPlacementOverlay | null = null
 	/** Null outside dev, which is also how `n` and `r` know they are not available. */
 	let typingGuard: typeof isTypingTarget | null = null
 
@@ -114,9 +118,10 @@
 	}
 
 	/**
-	 * A fresh night on the same seed, plus the two things that are not part of the world: the bake
-	 * (the new world's map is a different object, so it re-fires exactly once) and the theft
-	 * animation, which would otherwise keep flying items out of the night that just ended.
+	 * A fresh night on the same seed, plus the three things that are not part of the world: the bake
+	 * (the new world's map is a different object, so it re-fires exactly once), the transient
+	 * effects, which would otherwise keep flying items out of the night that just ended, and the
+	 * placement selection, whose tower id points at nothing once the world is replaced.
 	 */
 	function restart(): void {
 		const next = createWorld({ seed: SEED, mapId: MAP_ID, nightId: NIGHT_ID, difficulty: 'normal' })
@@ -130,6 +135,7 @@
 		world = next
 		frameEvents.length = 0
 		resetEffects()
+		placement?.clearSelection()
 
 		if (renderer !== null) {
 			renderer.setMap(next.map)
@@ -137,6 +143,7 @@
 			// includes the size, so preloading early rasterises entries nothing ever reads.
 			preloadEnemyGlyphs(renderer.tilePx)
 			preloadFoodGlyphs(renderer.tilePx)
+			preloadTowerGlyphs(renderer.tilePx)
 		}
 	}
 
@@ -152,8 +159,12 @@
 			loop.togglePause()
 			return
 		}
-		if (event.key === '1' || event.key === '2' || event.key === '3') {
-			loop.setSpeed(Number(event.key) as Speed)
+		// Speed is `,` and `.`, not the number keys: 1-9 select a tower, which is where step 8's
+		// hotkey list already puts both (step 6C, decision 1). `dev/placement.ts` owns the numbers,
+		// and both key listeners are live at once.
+		if (event.key === ',' || event.key === '.') {
+			const next = loop.speed + (event.key === '.' ? 1 : -1)
+			loop.setSpeed(Math.min(Math.max(next, 1), 3) as Speed)
 			return
 		}
 
@@ -187,11 +198,13 @@
 				{ drawDebugOverlay: draw },
 				{ takePreviewMap },
 				{ drawNightHud: hud },
+				{ createPlacementController, drawPlacementOverlay: drawPlace },
 			] = await Promise.all([
 				import('@/dev/debug/state.ts'),
 				import('@/dev/debug/overlay.ts'),
 				import('@/dev/editor/preview.ts'),
 				import('@/dev/nightHud.ts'),
+				import('@/dev/placement.ts'),
 			])
 
 			// One-shot: the editor's preview slot is read and cleared here, so a stale preview
@@ -203,6 +216,10 @@
 			drawOverlay = draw
 			drawHud = hud
 			typingGuard = guard
+			// The queue and a getter, never the world itself: everything it does to the simulation
+			// is a command drained at a tick boundary (ARCHITECTURE.md section 3).
+			placement = createPlacementController(canvasEl, queue, () => world)
+			drawPlacement = drawPlace
 		}
 
 		const activeRenderer = createRenderer(canvasEl)
@@ -226,6 +243,9 @@
 				}
 
 				activeRenderer.drawFrame(world)
+				if (import.meta.env.DEV && drawPlacement !== null && placement !== null && world !== null) {
+					drawPlacement(activeRenderer.ctx, world, placement.state, activeRenderer.tilePx, activeRenderer.dpr)
+				}
 				debug?.update()
 				if (import.meta.env.DEV && debug !== null && debug.state.enabled && drawOverlay !== null) {
 					drawOverlay(activeRenderer.ctx, currentMap(), debug.state, activeRenderer.tilePx)
@@ -263,8 +283,11 @@
 		resetEffects()
 		debug?.destroy()
 		debug = null
+		placement?.destroy()
+		placement = null
 		drawOverlay = null
 		drawHud = null
+		drawPlacement = null
 		typingGuard = null
 	})
 </script>

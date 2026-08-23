@@ -16,6 +16,8 @@ const PADDING_PX = 2
 export interface GlyphRequest {
 	emoji: string
 	sizePx: number
+	/** See `getGlyph`. Omitted for emoji, which ignore it. */
+	color?: string
 }
 
 const cache = new Map<string, HTMLCanvasElement>()
@@ -37,7 +39,7 @@ function fontFor(pixelSize: number): string {
 	return `${pixelSize}px ${EMOJI_FONT}`
 }
 
-function rasterise(emoji: string, sizePx: number, dpr: number): HTMLCanvasElement {
+function rasterise(emoji: string, sizePx: number, dpr: number, color: string | undefined): HTMLCanvasElement {
 	const pixelSize = sizePx * dpr
 	const font = fontFor(pixelSize)
 
@@ -64,24 +66,36 @@ function rasterise(emoji: string, sizePx: number, dpr: number): HTMLCanvasElemen
 	context.font = font
 	context.textAlign = 'left'
 	context.textBaseline = 'alphabetic'
+	if (color !== undefined) {
+		context.fillStyle = color
+	}
 	context.fillText(emoji, PADDING_PX + left, PADDING_PX + ascent)
 
 	return canvas
 }
 
 /**
- * The rasterised glyph, memoised on `emoji|sizePx|devicePixelRatio`. The dpr is part of the key
+ * The rasterised glyph, memoised on `emoji|sizePx|devicePixelRatio|color`. The dpr is part of the key
  * because dragging the window to a second monitor changes it, and a glyph baked at 1x looks soft
  * on a 2x display.
+ *
+ * **`emoji` is any string, and `color` is what makes that useful.** A colour emoji font ignores
+ * `fillStyle`, so every existing call here is unaffected by the parameter; what it buys is the
+ * damage numbers of step 6C and the floating `+N` of step 7 going through this cache instead of
+ * `fillText`, which `render/` has nowhere outside `rasterise` above.
+ *
+ * The cost of that is a key space the caller has to keep finite: a caller rasterising *text* must
+ * round it first. `'5'` is one entry forever; `'5.000000001'` is a fresh entry per hit, and the
+ * symptom is memory climbing all night with nothing else visibly wrong.
  */
-export function getGlyph(emoji: string, sizePx: number): HTMLCanvasElement {
+export function getGlyph(emoji: string, sizePx: number, color?: string): HTMLCanvasElement {
 	const dpr = window.devicePixelRatio || 1
-	const key = `${emoji}|${sizePx}|${dpr}`
+	const key = `${emoji}|${sizePx}|${dpr}|${color ?? ''}`
 	const cached = cache.get(key)
 	if (cached !== undefined) {
 		return cached
 	}
-	const canvas = rasterise(emoji, sizePx, dpr)
+	const canvas = rasterise(emoji, sizePx, dpr, color)
 	cache.set(key, canvas)
 	return canvas
 }
@@ -106,8 +120,9 @@ export function blitGlyph(
 	x: number,
 	y: number,
 	flipX = false,
+	color?: string,
 ): void {
-	const glyph = getGlyph(emoji, sizePx)
+	const glyph = getGlyph(emoji, sizePx, color)
 	const width = glyph.width / dpr
 	const height = glyph.height / dpr
 	// Snap to whole device pixels: sub-pixel emoji is blurry and costs more to composite.
@@ -129,7 +144,7 @@ export function blitGlyph(
 /** Rasterise ahead of time, so the first frame of a night is not the one paying for forty glyphs. */
 export function preload(glyphs: readonly GlyphRequest[]): void {
 	for (const glyph of glyphs) {
-		getGlyph(glyph.emoji, glyph.sizePx)
+		getGlyph(glyph.emoji, glyph.sizePx, glyph.color)
 	}
 }
 

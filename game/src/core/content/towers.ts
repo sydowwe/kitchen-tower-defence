@@ -66,12 +66,16 @@ export const saltShaker: TowerDefOf<'saltShaker'> = {
 			rangeTiles: 3,
 			targets: 'ground',
 			/**
-			 * 12 tiles/sec, so a shot crosses the range-3 circle in a quarter of a second. There is
-			 * no projectile-speed column in analytic-docs/CONTENT.md section 1, so the number is
-			 * authored here and asserted in `tests/content.spec.ts` alongside the rest. Step 6C
-			 * re-tunes it after watching a shot cross the board.
+			 * 6 tiles/sec, so a shot crosses the range-3 circle in half a second. There is no
+			 * projectile-speed column in analytic-docs/CONTENT.md section 1, so the number is
+			 * authored here and asserted in `tests/content.spec.ts` alongside the rest.
+			 *
+			 * 6B authored 0.2 with nothing on screen to judge it by. Step 6C put shots on the board
+			 * and 0.2 read as a tracer round: at 12 tiles/sec the grains are gone before the eye
+			 * finds them, and at 3x speed the shot and the hit are the same frame. 0.1 is the value
+			 * a person picked while watching one cross.
 			 */
-			projectileSpeed: 0.2,
+			projectileSpeed: 0.1,
 		}),
 	],
 }

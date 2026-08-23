@@ -37,7 +37,7 @@ export const en = {
 		entities: 'Entities',
 		speed: 'Speed',
 		paused: 'Paused',
-		hint: 'space pause · 1 2 3 speed',
+		hint: 'space pause · , . speed',
 	},
 	settings: {
 		title: 'Settings',
