@@ -19,7 +19,11 @@ Each part names its own `Read first:` sections, so a session only loads the docs
 | --- | --- | --- |
 | [A](05-waves-and-movement/A-spawning-and-movement.md) | Nights 1–3, spawning, movement | `core/content/nights.ts`, the Roach, `core/systems/spawn.ts`, `movement.ts`, `tests/spawn.spec.ts` |
 | [B](05-waves-and-movement/B-wave-flow-and-food.md) | Wave flow, the fridge, win and loss | `core/systems/wave.ts`, `resolve.ts`, `commands.ts`, `core/content/food.ts`, `tests/night.spec.ts` |
-| [C](05-waves-and-movement/C-enemies-on-screen.md) | Enemies, the shelf, the night on screen | `render/layers/entities.ts`, `fridge.ts`, `effects.ts`, `ui/views/GameView.vue`, `dev/nightHud.ts` |
+| [C](05-waves-and-movement/C-enemies-on-screen.md) | Enemies, the shelf, the night on screen | `render/layers/entities.ts`, `fridge.ts`, `effects.ts`, `ui/views/GameView.vue`, `dev/nightHud.ts`, re-tuned nights 1–3 |
+
+B is the only part that touches committed specs: it adds `wave` to `SYSTEM_ORDER` and moves
+`tests/fixtures/world.ts` to a terminal phase so the fixture stops driving a night that does not
+exist. A and C add files and break nothing.
 
 Strictly in order. B decides *when* a wave starts; A decides *what* it spawns and how it moves. C
 draws what the two of them produce and is the first part with a world behind the canvas.

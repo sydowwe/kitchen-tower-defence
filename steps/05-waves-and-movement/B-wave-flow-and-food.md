@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §5 and §6, `../../analytic-docs/CONTENT.md` §7 and §8.
+**Read first:** `CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §5 and §6, `../../analytic-docs/CONTENT.md` §7 and §9.
 **Prereq:** step 5A.
 
 ## Goal
@@ -17,24 +17,33 @@ it watchable.
 | File | What's there now |
 | --- | --- |
 | `core/systems/spawn.ts` | 5A's `startWave(world, night, waveIndex)` and `spawnSystem`. `startWave` sets `waveIndex`, `night.wave`, `phase = 'wave'`, and emits `waveStarted` |
-| `core/types.ts` | `NightState { nightId, waveIndex, waveCount, phase, countdownTicks, wave, food }`, `NightPhase = 'building' \| 'wave' \| 'countdown' \| 'won' \| 'lost'`, `FoodItem { id, nameKey, heldBy, lost }`, `Enemy.spawnedInWaveIndex`, `GameEvent` |
+| `core/types.ts` | `NightState { nightId, waveIndex, waveCount, phase, countdownTicks, wave, food }`, `NightPhase = 'building' \| 'wave' \| 'countdown' \| 'won' \| 'lost'`, `Wave { index, spawns, startedAtTick }` — **no `countdownTicks` on the runtime `Wave`**, `FoodItem { id, nameKey, heldBy, lost }`, `Enemy.spawnedInWaveIndex`, `GameEvent` |
 | `core/systems/resolve.ts`, `events.ts` | no-op stubs. `resolve` runs 12th, `events` 13th and last |
-| `core/systems/commands.ts` | no-op stub; its header already says step 5 owns `CallWaveEarly` |
-| `core/sim.ts` | `SYSTEM_ORDER` as a literal, pinned by `tests/sim.spec.ts` |
-| `core/world.ts` | `createWorld` — `night.food: []` with a comment saying step 5 stocks it, `waveCount = night.waves.length`, `phase: 'building'`, `countdownTicks: 0` |
+| `core/systems/commands.ts` | no-op stub, `(_world, _commands)`; its header already says step 5 owns `CallWaveEarly` |
+| `core/sim.ts` | `SYSTEMS` is the literal array of `{ name, run }`; the `SystemName` union is a second literal above it, and `SYSTEM_ORDER` is derived from `SYSTEMS` |
+| `core/systems/index.ts` | one re-export per system file |
+| `core/world.ts` | `createWorld` — `night.food: []` with a comment saying step 5 stocks it (**that comment is yours to update**), `waveCount = night.waves.length`, `phase: 'building'`, `countdownTicks: 0` |
 | `core/path.ts` | `totalLength(path)`, `remainingToFridge(path, distance)` |
-| `core/content/schema.ts` | `contentSchemas()`, `validateContent`, `RawContent`/`Content` — no `food` slot yet |
-| `ui/locales/contentKeys.ts`, `en.ts` | `TowerMessages`/`EnemyMessages` derived from the def arrays; `en.hud.food` exists |
-| `tests/fixtures/world.ts` | `createTestWorld()` — every `World` field spelled out, `nightId: 'test'`, one food item keyed `'food.cheese'` |
+| `core/content/schema.ts` | `contentSchemas()` returning one schema per kind, `validateContent`, `RawContent`/`Content` — no `food` slot yet. `validateContent` calls `validateCollection` once per kind |
+| `core/content/difficulty.ts` | `foodItemsMult` — cozy 1.3, normal 1, nightmare 0.75 |
+| `ui/locales/contentKeys.ts` | `TowerMessages`/`EnemyMessages`, both `Record<id, Entry>` where `Entry` is `{ name, description }`; `en.hud.food` exists |
+| `tests/fixtures/world.ts` | `createTestWorld()` — every `World` field spelled out, `nightId: 'test'`, `phase: 'building'`, `countdownTicks: 0`, one food item keyed `'food.cheese'` |
 
-**Three specs will break. Plan for them:**
+**Adding `wave` to the order is a three-file edit, by design.** `core/sim.ts` twice (the `SystemName`
+union *and* the `SYSTEMS` array), `core/systems/index.ts` (the re-export — `tests/sim.spec.ts` asserts
+`systems` has a `${name}System` property for every name in `SYSTEM_ORDER`), and the literal in
+`tests/sim.spec.ts`. Put it **after `spawn`**, per decision 3.
 
-- `tests/sim.spec.ts` — *"mutates nothing but world.tick while every system is a stub"*. It stops
-  being true the moment the wave system starts wave 0. Set `night.phase = 'won'` in that one test and
-  rename it; it is asserting that no system runs off on its own, and a finished night still asserts
-  that.
-- `tests/sim.spec.ts` — the `SYSTEM_ORDER` literal. Adding `wave` is a deliberate two-file edit, by
-  design. Put it **after `spawn`**, per decision 3.
+**Specs that will break. Plan for them:**
+
+- `tests/sim.spec.ts` — **three of its four tests call `tick()` on `createTestWorld()`**, whose
+  `nightId` is `'test'` and which opens in `'building'` with `countdownTicks: 0`. The first tick will
+  reach `getNightDef('test')` and throw `unknown night id 'test'`. Fix it **in the fixture**, not in
+  the tests: set `night.phase = 'won'`. Terminal phases run nothing (decision 10), so all four tests
+  keep asserting exactly what they were written to assert — including *"mutates nothing but
+  world.tick"*, which stays literally true. Rename that test and its comment so it says "while the
+  night is over" rather than "while every system is a stub". The fixture is the skeleton for
+  tick-mechanics tests; a world that drives a night is what `night.spec.ts` builds on purpose.
 - `tests/world.spec.ts` — *"differs from another seed only in its rng state"*. Once the fridge is
   stocked from `world.rng`, two seeds differ in `night.food` too. Widen the assertion and say so in
   its comment; do not stop using the rng to fix it.
@@ -72,7 +81,9 @@ edit this file, don't leave it lying.
    the rule.
 6. **`ticksSkippedTotal: number` on `NightState`, not `secondsSkippedTotal`.** Durations in `core/`
    are tick counts (`CLAUDE.md`); step 20's grocery formula divides by 60 once, at the point it needs
-   seconds. The award itself is `floor(countdownTicks / 60) * 2` crumbs.
+   seconds. The award itself is `floor(countdownTicks / 60) * 2` crumbs — `DECISIONS.md` §5 says
+   "proportional to the seconds you skipped" and names no rate, so 2/sec is this file's choice and
+   step 22 is what re-prices it.
 7. **`CallWaveEarly` is ignored outside `phase === 'countdown'`.** The countdown only starts once a
    wave's last enemy has *spawned* (`DECISIONS.md` §5), so there is never a moment where two waves
    are spawning at once, and `NightState.wave` staying a single `Wave | null` is correct — do not
@@ -88,23 +99,34 @@ edit this file, don't leave it lying.
     `countdownTicks` set to wave 0's authored `countdownTicks`, so the night starts on its own after
     12s and calling early works from the first second. A `'building'` phase that waits forever is a
     night that never starts if 5C's key handler has a typo.
+11. **`NightState.clearedThroughWaveIndex: number`, starting at `-1`.** "Emits `waveCleared` once"
+    needs somewhere to remember that it did, and nothing on `Wave` or `NightState` carries it today.
+    A high-water mark rather than a set, because waves always start in order and never un-clear. Each
+    tick, while the wave at `clearedThroughWaveIndex + 1` has both finished spawning and no live
+    enemy with that `spawnedInWaveIndex`, emit `waveCleared` for it and increment. Without this field
+    the obvious implementation emits `waveCleared` every tick for the rest of the night, and nothing
+    consumes the event until step 8 — so it is silent until the HUD flashes forever.
 
 ## Build
 
 ### 1. Food — `core/content/food.ts`, `schema.ts`, `contentKeys.ts`, `en.ts`
 
 The twelve items of `CONTENT.md` §7 as defs: `{ id, nameKey: 'food.<id>.name', glyph }`. Add a `food`
-schema and a `food` slot to `RawContent`/`Content`, and pass `FOODS` to `validateContentInDev` — all
-content is zod-validated at boot (`CLAUDE.md`), and a food id with no locale entry should fail at
-startup like a tower does. Add `FoodMessages` to `contentKeys.ts` the way `EnemyMessages` is derived,
-and the `food:` block to `en.ts`.
+schema to `contentSchemas()`, a `food` slot to `RawContent`/`Content` and a `validateCollection` line
+to `validateContent`, then pass `FOODS` to `validateContentInDev` — all content is zod-validated at
+boot (`CLAUDE.md`), and a food id with no locale entry should fail at startup like a tower does.
+
+Add `FoodMessages` to `contentKeys.ts` the way `EnemyMessages` is derived — but **`Record<id, { name:
+string }>`, not the shared `Entry`.** A food item has a name and no description; reusing `Entry`
+means inventing twelve flavour-text lines nothing renders. Then the `food:` block in `en.ts`.
 
 ### 2. Stocking the fridge — `core/world.ts`
 
 `round(( 18 + floor(night.index / 3) ) * difficulty.foodItemsMult)` items, drawn from the pool
-through `world.rng` (`bindRng` — never `Math.random`). Twelve defs and eighteen items means
-duplicates; each is its own `FoodItem` with its own id from `nextEntityId`. Update
-`tests/fixtures/world.ts` to match the new field, and the two `world.spec.ts` assertions above.
+through `world.rng` (`bindRng` — never `Math.random`). Night 1 is 18 items on normal. Twelve defs and
+eighteen items means duplicates; each is its own `FoodItem` with its own id from `nextEntityId`.
+Update `tests/fixtures/world.ts` for the new fields, the `world.spec.ts` assertion above, and the now
+out-of-date comment on `night.food` in `createWorld`.
 
 ### 3. `waveSystem` — `core/systems/wave.ts`, wired into `core/sim.ts` after `spawn`
 
@@ -113,14 +135,22 @@ The whole state machine, and the only place `phase` changes:
 - `'building'` / `'countdown'`: `countdownTicks--`; at zero, `startWave(world, getNightDef(nightId),
   waveIndex + 1)` (or `0` from `'building'`).
 - `'wave'`: once every `WaveSpawn` has `remaining === 0`, the wave has finished *spawning* — set
-  `countdownTicks` from the wave's authored value and go to `'countdown'`. If that was the last wave,
-  do not start a countdown.
-- A wave whose enemies are all gone (`no enemy has spawnedInWaveIndex === i`) emits `waveCleared`
-  once. This is the one thing `spawnedInWaveIndex` is for, and it has to work while the *next* wave
-  is on the board.
+  `countdownTicks` and go to `'countdown'`. **The authored countdown is on the night def's wave, not
+  on the runtime `Wave`** (`Wave` is `{ index, spawns, startedAtTick }`), so read it from
+  `getNightDef(nightId).waves[waveIndex].countdownTicks`. If that was the last wave, do not start a
+  countdown.
+- A wave whose enemies are all gone emits `waveCleared` once, per decision 11. This has to work while
+  the *next* wave is on the board, which is the one thing `spawnedInWaveIndex` is for.
 - Last wave spawned out, no enemies alive → `phase = 'won'`, `nightEnded { won: true }`.
 - Terminal phases run nothing: `spawn`, `wave`, `movement` and `resolve` all return early on `'won'`
-  and `'lost'`, or the night keeps simulating behind the summary screen.
+  and `'lost'`, or the night keeps simulating behind the summary screen. Two of those files are 5A's;
+  adding the guard to them is yours.
+
+**Ordering gotcha worth knowing before you write the spec:** `commands` runs 1st, `spawn` 2nd, `wave`
+3rd. So a wave started by `CallWaveEarly` has its first enemies spawned by `spawnSystem` *later in
+the same tick*, while a wave started by the countdown expiring is started after `spawnSystem` has
+already run and spawns on the following tick. One tick, deterministic either way — but an assertion
+that pins an exact spawn tick will disagree with itself depending on which path started the wave.
 
 ### 4. `CallWaveEarly` — `core/systems/commands.ts`
 
@@ -152,6 +182,8 @@ tables** — 5C re-tunes them.
 - `nightClock(0, 6)` is 2:00am and `nightClock(5, 6)` is 6:00am.
 - A night whose last wave has spawned and whose enemies are all gone ends `'won'` in the tick the
   last one is removed, not the tick after.
+- `waveCleared` for wave 0 is emitted **exactly once**, on a world where wave 1 is already spawning —
+  drive it far enough to prove the event does not repeat on every subsequent tick.
 - Two worlds from the same seed, ticked 3000 times with an identical command log, have identical
   `night.food` (ids, defIds and `lost` flags) and identical `tick` at which they ended.
 
@@ -161,7 +193,8 @@ tables** — 5C re-tunes them.
 core/systems/wave.ts      waveSystem(world: World): void
                           nightClock(waveIndex: number, waveCount: number): { hour: number; minute: number }
 core/content/food.ts      FOODS, getFoodDef(id: DefId): FoodDef   // { id, nameKey, glyph }
-core/types.ts             FoodItem.defId: DefId, NightState.ticksSkippedTotal: number
+core/types.ts             FoodItem.defId: DefId
+                          NightState.ticksSkippedTotal: number, NightState.clearedThroughWaveIndex: number
 core/sim.ts               tick() clears world.events before the systems run
 ```
 
@@ -169,7 +202,8 @@ core/sim.ts               tick() clears world.events before the systems run
 
 - [ ] A headless run of night 1 from `createWorld` to `nightEnded` needs no input and no renderer,
       and the event sequence is identical on two runs from the same seed.
-- [ ] Nothing outside `core/systems/wave.ts` writes `night.phase`.
+- [ ] Nothing outside `core/systems/wave.ts` writes `night.phase`, except the loss check in
+      `resolve.ts`.
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not

@@ -16,17 +16,22 @@ waves, 5C draws them.
 
 | File | What's there now |
 | --- | --- |
-| `core/types.ts` | `Enemy` (`pathId`, `distance`, `speed` — **tiles per tick**, `flags: Record<EnemyFlag, boolean>`), `Wave { index, spawns, startedAtTick }`, `WaveSpawn { enemyDefId, remaining, nextSpawnTick, pathId }`, `NightState { waveIndex, waveCount, phase, countdownTicks, wave, food }`, `EntityIndex` |
-| `core/systems/spawn.ts`, `movement.ts` | one-line no-op stubs, `(world: World) => void` |
-| `core/sim.ts` | `SYSTEM_ORDER`; `spawn` runs 2nd, `movement` 4th, both already wired |
-| `core/content/nights.ts` | `night01` — one wave, 5 ants, `countdownTicks: 12 * 60`. A placeholder from 2D; replace it |
-| `core/content/schema.ts` | `waveEntry` (`enemyDefId`, `count`, `spacingTicks`, `startDelayTicks`, `pathId` — all required), `wave { entries, countdownTicks }`, `night { id, index, mapId, waves }` |
-| `core/content/enemies.ts` | `ant` only, `speedTilesPerTick: tilesPerSecond(1.0)`, plus the `tilesPerSecond` helper |
-| `core/content/statuses.ts` | **`speedMultiplier(target): number`** already exists — 1 when nothing is running, 0 under Freeze |
+| `core/types.ts` | `Enemy` (`pathId`, `distance`, `speed` — **tiles per tick**, `flags: Record<EnemyFlag, boolean>`), `Wave { index, spawns, startedAtTick }`, `WaveSpawn { enemyDefId, remaining, nextSpawnTick, pathId }`, `NightState { nightId, waveIndex, waveCount, phase, countdownTicks, wave, food }`, `EntityIndex` |
+| `core/systems/spawn.ts`, `movement.ts` | no-op stubs, `(_world: World): void`, already exported from `core/systems/index.ts` |
+| `core/sim.ts` | `SYSTEMS` as a literal array; `SYSTEM_ORDER` is derived from it. `commands` 1st, `spawn` 2nd, `status` 3rd, `movement` 4th — all already wired |
+| `core/content/nights.ts` | `night01` — one wave, 5 ants, `spacingTicks: 45`, `pathId: 'crack'`, `countdownTicks: 12 * 60`. A placeholder from 2D; replace it |
+| `core/content/schema.ts` | `waveEntry` (`enemyDefId`, `count`, `spacingTicks`, `startDelayTicks`, `pathId` — all required), `wave { entries, countdownTicks }`, `night { id, index, mapId, waves }`. `speedTilesPerTick` is bounded `max(0.5)` so a tiles-per-second value cannot get in |
+| `core/content/enemies.ts` | `ant` only, `speedTilesPerTick: tilesPerSecond(1.0)`, plus the `tilesPerSecond` helper and `EnemyDefOf<Id>` (its `nameKey` is a template literal type, so the key writes itself) |
+| `core/content/statuses.ts` | **`speedMultiplier(target): number`** already exists — 1 when nothing is running, 0 under Freeze. Takes any `{ statuses }`, so an `Enemy` is one |
 | `core/content/index.ts` | `getEnemyDef`, `getNightDef`, `validateContentInDev({ towers, enemies, nights })` at module load |
-| `core/path.ts` | `samplePath(path, distance)`, `totalLength(path)`, `remainingToFridge` |
+| `core/content/maps/counter.json` | **one path, id `'crack'`, `lengthTiles` 31.12** — from `(0, 11)` to the fridge at `(22, 3)` |
+| `core/path.ts` | `samplePath(path, distance)`, `totalLength(path)`, `remainingToFridge`. Its arc-length table is a `WeakMap` keyed by the `Path` object, so a cloned map builds its own |
+| `ui/locales/contentKeys.ts` | `EnemyMessages = Record<(typeof ENEMIES)[number]['id'], Entry>` — **derived from the array**, so adding the Roach makes `en.ts`'s `satisfies EnemyMessages` fail `type-check` before `content.spec.ts` ever runs |
 | `tests/fixtures/world.ts` | `createTestWorld()` — hand-built, 2 × 1 map, one path `'a'` of length 1 |
-| `tests/content.spec.ts` | asserts every `ENEMIES` entry has an `en.enemy[id]` name and description — **adding the Roach without a locale entry fails this** |
+| `tests/content.spec.ts` | asserts every `ENEMIES` entry has an `en.enemy[id]` name and description |
+
+No spec breaks this session. `createWorld` leaves `night.wave` null and nothing calls `startWave`, so
+`world.spec.ts`'s hundred-tick determinism test still ticks over an empty board.
 
 ## Decisions already made
 
@@ -46,9 +51,9 @@ edit this file, don't leave it lying.
    `WaveSpawn[]`, and passing the def in means a test can drive a synthetic night without registering
    it in `NIGHTS`. 5B calls it; nothing calls it this session.
 4. **Difficulty scalars are applied in `startWave`, to copies.** `count = max(1, round(entry.count *
-   enemyCountMult))` — the `max(1)` is what stops cozy's 0.85 deleting a one-enemy entry. HP is
-   `def.hp * enemyHpMult` **unrounded**: rounding it quantises the whole difficulty curve at low HP,
-   and nothing downstream needs an integer.
+   enemyCountMult))` — `round`, not `floor`, or cozy's 0.85 deletes a one-enemy entry; the `max(1)`
+   is the belt to that braces. HP is `def.hp * enemyHpMult` **unrounded**: rounding it quantises the
+   whole difficulty curve at low HP, and nothing downstream needs an integer.
 5. **`Enemy.spawnedInWaveIndex: number`** is a new field on `Enemy`, set here, read by 5B. Waves
    overlap (`DECISIONS.md` §5), so "wave 3 is cleared" has to be answerable while wave 4 is walking,
    and no other field carries that. Set it, don't read it.
@@ -64,13 +69,17 @@ edit this file, don't leave it lying.
    the spawn system then.
 8. **An entry naming a path the map does not have throws**, with both ids in the message. The silent
    version spawns nothing, and the symptom is a night that simply never ends.
+9. **Don't clear `world.events`.** `startWave` pushes `waveStarted` and `eventsSystem` is still a
+   no-op, so events accumulate across a long test run this session. That is fine and it is not yours
+   to fix: 5B moves the clear to the top of `tick()` and rewrites that stub's header comment.
 
 ## Build
 
 ### 1. The Roach — `core/content/enemies.ts`, `ui/locales/en.ts`
 
 `CONTENT.md` §2, night 3: 18 HP, 1.8 tiles/sec through the existing `tilesPerSecond` helper, reward
-5, steals 1, `ground fast bug`, 🪳. Plus its `en.enemy.roach` entry, or `content.spec.ts` fails.
+5, steals 1, `ground fast bug`, 🪳. Plus its `en.enemy.roach` entry — `EnemyMessages` is derived from
+`ENEMIES`, so without it `en.ts` fails `type-check`, not just `content.spec.ts`.
 
 ### 2. Nights 1–3 — `core/content/nights.ts`
 
@@ -78,6 +87,11 @@ edit this file, don't leave it lying.
 so total pressure rises smoothly across the night and across the three nights; a wave is one or two
 entries, `startDelayTicks` staggering the second against the first. `countdownTicks` is `12 * 60` on
 every wave unless you have a reason.
+
+**The one number that stops this being guesswork:** the Counter's `crack` path is **31.12 tiles**
+long, so an Ant at 1.0 tiles/sec is on the board for ~31 seconds and a Roach at 1.8 for ~17. A wave
+of 5 ants at `spacingTicks: 45` finishes spawning in under 4 seconds and then walks alone for
+another 28 — which is why the countdown, not the spawn schedule, is what sets a night's pace.
 
 These tables are **drafted here and re-tuned in 5C**, which is the first session that can watch a
 night play out. Get the shape right, don't polish the numbers.
@@ -113,6 +127,13 @@ Decision 1, for every enemy, and nothing else — no steering, no collision, no 
 clamping. Enemies overlap freely and that is correct for this genre; an enemy past `totalLength` is
 5B's problem, and `samplePath` already clamps for the renderer.
 
+**`spawn` runs 2nd and `movement` 4th, so an enemy spawned on tick T also moves on tick T.** That is
+correct and the spec below depends on it: an ant spawned during the first `tick()` call has moved
+once by the time that call returns, so after 60 calls it has made exactly 60 steps. If you "fix" this
+by skipping movement for freshly spawned enemies you get 59 steps, the one-tile assertion fails by
+1/60 of a tile, and the obvious-looking repair is to loosen the tolerance — which is the thing that
+assertion exists to prevent.
+
 ## Tests — `game/tests/spawn.spec.ts`
 
 Build the night defs in the spec as literals. **Never assert against `night01`'s authored numbers** —
@@ -126,10 +147,13 @@ Build the night defs in the spec as literals. **Never assert against `night01`'s
   This is the assertion that catches a units slip, so spell the tolerance out rather than rounding.
 - `nightmare` (`enemyCountMult` 1.25, `enemyHpMult` 1.35) spawns 6 enemies for a `count: 5` entry at
   13.5 HP, and `structuredClone` of the night def taken before `startWave` deep-equals it after.
-- `cozy` (0.85) still spawns 1 enemy for a `count: 1` entry.
+- `cozy` (0.85) still spawns 1 enemy for a `count: 1` entry. This is the `floor`-instead-of-`round`
+  catch — `round(0.85)` is 1 and `floor(0.85)` is 0, and the symptom of the second is a wave entry
+  that silently vanishes on the easiest difficulty only.
 - An entry with no `pathId` on a two-path map deals its enemies round-robin: 5 enemies become 3 on
   the first path and 2 on the second. Extend `createTestWorld()` with a second path, or build the
   `MapDef` in the spec.
+- An entry naming a path the map does not have throws with both ids in the message (decision 8).
 
 ## Hands to the next parts
 
@@ -139,6 +163,7 @@ core/systems/spawn.ts     startWave(world: World, night: NightDef, waveIndex: nu
 core/systems/movement.ts  movementSystem(world: World): void
 core/types.ts             Enemy.spawnedInWaveIndex: number
 core/content/nights.ts    night01, night02, night03, NIGHTS
+core/content/enemies.ts   roach
 ```
 
 ## Acceptance
