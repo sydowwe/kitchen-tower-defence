@@ -59,6 +59,10 @@ export const en = {
 			name: 'Ant',
 			description: 'Small, tireless, and never on its own. It only wants one thing from the fridge.',
 		},
+		roach: {
+			name: 'Roach',
+			description: 'Fast, flat and unbothered by the light. It is across the counter before you decide.',
+		},
 	} satisfies EnemyMessages,
 	night: {},
 }

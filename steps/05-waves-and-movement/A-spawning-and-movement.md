@@ -50,11 +50,19 @@ edit this file, don't leave it lying.
    `NightDef` as an argument rather than looking it up. It is what turns authored entries into
    `WaveSpawn[]`, and passing the def in means a test can drive a synthetic night without registering
    it in `NIGHTS`. 5B calls it; nothing calls it this session.
-4. **Difficulty scalars are applied in `startWave`, to copies.** `count = max(1, round(entry.count *
-   enemyCountMult))` — `round`, not `floor`, or cozy's 0.85 deletes a one-enemy entry; the `max(1)`
-   is the belt to that braces. HP is `def.hp * enemyHpMult` **unrounded**: rounding it quantises the
-   whole difficulty curve at low HP, and nothing downstream needs an integer.
-5. **`Enemy.spawnedInWaveIndex: number`** is a new field on `Enemy`, set here, read by 5B. Waves
+4. **Difficulty scalars are applied at runtime, to copies, never to the authored def.** `count =
+   max(1, round(entry.count * enemyCountMult))` in `startWave` — `round`, not `floor`, or cozy's
+   0.85 deletes a one-enemy entry; the `max(1)` is the belt to that braces. HP is `def.hp *
+   enemyHpMult` **unrounded**: rounding it quantises the whole difficulty curve at low HP, and
+   nothing downstream needs an integer. *(Built: the HP scale lands in `spawnEnemy`, not
+   `startWave` — a `WaveSpawn` carries no HP field, so there is nowhere in the cursor to put it.
+   Same scalar, same copy-not-mutate rule, one system later.)*
+5. **Two new fields on `core/types.ts`.** `Enemy.spawnedInWaveIndex: number`, set here, read by 5B;
+   and `WaveSpawn.spacingTicks: number`, because build item 5 advances the cursor by adding it and
+   the committed `WaveSpawn` had no such field — `spawnSystem` only has the world, so it cannot
+   reach back to the authored entry.
+
+   On `spawnedInWaveIndex`: it is set here, read by 5B. Waves
    overlap (`DECISIONS.md` §5), so "wave 3 is cleared" has to be answerable while wave 4 is walking,
    and no other field carries that. Set it, don't read it.
 6. **`waveCount` is derived, never authored.** `createWorld` already sets
@@ -162,17 +170,18 @@ core/systems/spawn.ts     startWave(world: World, night: NightDef, waveIndex: nu
                           spawnSystem(world: World): void
 core/systems/movement.ts  movementSystem(world: World): void
 core/types.ts             Enemy.spawnedInWaveIndex: number
+                          WaveSpawn.spacingTicks: number
 core/content/nights.ts    night01, night02, night03, NIGHTS
 core/content/enemies.ts   roach
 ```
 
 ## Acceptance
 
-- [ ] `startWave` + 300 ticks over a hand-built world puts the right number of ants at the right
+- [x] `startWave` + 300 ticks over a hand-built world puts the right number of ants at the right
       distances, asserted by the spec above.
-- [ ] Adding the Roach required no change to any system file — only `enemies.ts`, `en.ts` and a wave
+- [x] Adding the Roach required no change to any system file — only `enemies.ts`, `en.ts` and a wave
       entry. If it didn't, the content-is-data rule has eroded; fix it here.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

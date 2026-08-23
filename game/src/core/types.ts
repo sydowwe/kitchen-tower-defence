@@ -173,6 +173,12 @@ export interface Enemy {
 	tags: EnemyTag[]
 	/** Tiles per tick, before status modifiers. Never tiles per second. */
 	speed: number
+	/**
+	 * The wave this enemy was spawned by. Waves overlap (analytic-docs/DECISIONS.md section 5), so
+	 * "wave 3 is cleared" has to be answerable while wave 4 is already walking, and no other field
+	 * carries that. Set by the spawn system; step 5B is what reads it.
+	 */
+	spawnedInWaveIndex: number
 	/** Food ids a thief is carrying. Returned to the fridge if it dies before it leaves the map. */
 	stolenItems: EntityId[]
 	flags: Record<EnemyFlag, boolean>
@@ -278,6 +284,12 @@ export interface WaveSpawn {
 	remaining: number
 	/** The tick this entry spawns its next enemy on. */
 	nextSpawnTick: number
+	/**
+	 * Ticks between two enemies of this entry, copied off the authored entry. Carried here because
+	 * the spawn system advances `nextSpawnTick` by adding it, and the authored wave is not in reach
+	 * of a system that only has the world.
+	 */
+	spacingTicks: number
 	pathId: string
 }
 

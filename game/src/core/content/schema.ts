@@ -425,7 +425,12 @@ export function contentSchemas() {
 		spacingTicks: z.number().int().min(1).max(MAX_WAVE_DELAY_TICKS),
 		/** Ticks after the wave starts before this entry spawns its first enemy. */
 		startDelayTicks: tickCount(MAX_WAVE_DELAY_TICKS),
-		pathId: defId(),
+		/**
+		 * Which lane this entry walks. **Optional**: an entry without one is expanded by `startWave`
+		 * into one spawn cursor per path on the map, its count dealt out round-robin. That spreads
+		 * pressure across the lanes of a multi-spawn map without changing per-lane spacing.
+		 */
+		pathId: defId().optional(),
 	})
 
 	const wave = z.object({

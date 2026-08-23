@@ -44,6 +44,25 @@ export const ant: EnemyDefOf<'ant'> = {
 	tags: ['ground', 'swarm', 'bug'],
 }
 
-export const ENEMIES = [ant]
+/**
+ * analytic-docs/CONTENT.md section 2, night 3: 18 HP, 1.8 tiles/sec, 5 crumbs, steals 1,
+ * `ground fast bug`.
+ *
+ * None of its three tags has a matrix row, so it takes every damage type at 1.0 -- what makes it
+ * dangerous is the speed, which halves the time a tower has it in range compared to an Ant.
+ */
+export const roach: EnemyDefOf<'roach'> = {
+	id: 'roach',
+	nameKey: 'enemy.roach.name',
+	descriptionKey: 'enemy.roach.description',
+	glyph: '🪳',
+	hp: 18,
+	speedTilesPerTick: tilesPerSecond(1.8),
+	reward: 5,
+	steals: 1,
+	tags: ['ground', 'fast', 'bug'],
+}
+
+export const ENEMIES = [ant, roach]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']
