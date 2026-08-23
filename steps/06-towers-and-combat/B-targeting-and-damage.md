@@ -74,8 +74,13 @@ edit this file, don't leave it lying.
    that drifts — the same reasoning `lengthTiles` and `nightClock` already follow. Step 7 looks it
    up.
 10. **Two new `GameEvent` members:** `towerFired` carrying the tower's `noise` (step 13 consumes it;
-    emit it now, ignore it now) and `enemyDamaged` carrying the **resolved** amount and the position
-    (6C's damage numbers and hit flash).
+    emit it now, ignore it now) and `enemyDamaged` carrying the **resolved** amount, the position
+    (6C's damage numbers and hit flash) **and `sourceTowerId`**.
+
+    That last field was added while building. `tsconfig` has `noUnusedParameters: true`, so decision
+    8's `sourceTowerId` parameter does not compile unless something consumes it — and the event is
+    where "who did it" belongs. Same shape as `towerFired.noise`: emitted now, consumed by a later
+    step (7's crumb attribution, 10's tower kill credit).
 11. **`pierce` goes on `Projectile` only**, default 1, decremented per hit, despawned at 0. It does
     **not** go on `AttackBehaviour`: that means editing `schema.ts` for a field no content sets, and
     step 12's Tier 3 upgrades own it. When a pierce survives a hit, **clear `targetEnemyId`** and let
@@ -178,7 +183,12 @@ assertion for it in `tests/content.spec.ts`.
   `remainingToFridge`, `LAST` the largest, `STRONGEST` the highest `hp`, `WEAKEST` the lowest,
   `CLOSEST` the smallest euclidean distance to the tower.
 - **On a two-path map whose lanes have different lengths, `FIRST` picks the enemy nearer the fridge
-  even though its raw `distance` is larger.** Build the two-lane map inline; the fixture has one.
+  even though *the other one's* raw `distance` is larger.** Build the two-lane map inline; the
+  fixture has one lane and a spec pushes the second onto `world.map.paths`.
+
+  The "its" in the original sentence was backwards and would not have caught anything: a `FIRST`
+  that maximised raw `distance` picks the same enemy in that case. The winner has to be the one with
+  the *smaller* raw distance.
 - An enemy at exactly `rangeTiles` is in range and one at `rangeTiles + 0.001` is not.
 - A `ground` attack does not hit an `air`-tagged enemy, an `air` attack does not hit a ground one,
   and `both` hits either. An enemy with `flags.hidden` or `flags.untargetable` is never picked.
@@ -191,23 +201,32 @@ assertion for it in `tests/content.spec.ts`.
 
 ## Acceptance
 
-- [ ] Four Salt Shakers placed along the Counter clear wave 1 of night 1 with no leak, headless.
-- [ ] Adding a second DPS tower to `core/content/towers.ts` requires **zero** changes to any file in
-      `core/systems/`. Prove it: add one, run the suite, delete it.
-- [ ] `core/` still imports nothing but itself and zod; no `Math.random`, no wall clock, no `dt`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] Four Salt Shakers placed along the Counter clear wave 1 of night 1 with no leak, headless.
+      Asserted in `tests/combat.spec.ts`, on tiles (3,12), (7,8), (13,4) and (15,3) — 200 crumbs,
+      exactly the starting wallet.
+- [x] Adding a second DPS tower to `core/content/towers.ts` requires **zero** changes to any file in
+      `core/systems/`. Prove it: add one, run the suite, delete it. Done with a fire/`both`/range-4
+      tower; 199 tests green, no file under `core/systems/` touched. (It needs one `ui/locales/en.ts`
+      entry, which is `contentKeys.ts` doing its job, not a system.)
+- [x] `core/` still imports nothing but itself and zod; no `Math.random`, no wall clock, no `dt`.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 6C
 
 ```
 core/types.ts   Projectile.pierce: number                       // 1 by default
                 GameEvent | { kind: 'towerFired'; towerId: EntityId; defId: DefId; noise: number }
-                          | { kind: 'enemyDamaged'; enemyId: EntityId; amount: number; at: Vec2 }
+                          | { kind: 'enemyDamaged'; enemyId: EntityId; sourceTowerId: EntityId
+                                                     amount: number; at: Vec2 }
 
 core/systems/spatial.ts    queryEnemiesInRange(world, center: Vec2, radiusTiles: number,
                                                filter?: (e: Enemy) => boolean): Enemy[]
 core/systems/targeting.ts  pickTarget(world: World, tower: Tower, attack: AttackBehaviour): Enemy | null
                            isTargetable(enemy: Enemy, targets: TargetClass): boolean
+core/systems/spatial.ts    enemyById(world, enemyId: EntityId): Enemy | null
+                           enemyPosition(world, enemy: Enemy): Vec2 | null   // null: path missing
+core/systems/projectiles.ts spawnProjectile(world, tower: Tower, attack: AttackBehaviour,
+                                            target: Enemy): void
 core/systems/combat.ts     dealDamage(world, enemy, base: number, damageType: DamageType,
                                       sourceTowerId: EntityId): number   // the resolved amount
 ```

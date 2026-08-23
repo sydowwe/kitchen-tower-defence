@@ -65,6 +65,13 @@ export const saltShaker: TowerDefOf<'saltShaker'> = {
 			cooldownTicks: perSecond(1.0),
 			rangeTiles: 3,
 			targets: 'ground',
+			/**
+			 * 12 tiles/sec, so a shot crosses the range-3 circle in a quarter of a second. There is
+			 * no projectile-speed column in analytic-docs/CONTENT.md section 1, so the number is
+			 * authored here and asserted in `tests/content.spec.ts` alongside the rest. Step 6C
+			 * re-tunes it after watching a shot cross the board.
+			 */
+			projectileSpeed: 0.2,
 		}),
 	],
 }

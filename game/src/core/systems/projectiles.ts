@@ -1,4 +1,148 @@
-import type { World } from '@/core/types.ts'
+/**
+ * Shots in flight: spawned by `combat.ts`, moved here, and resolved through `dealDamage` on arrival.
+ *
+ * **The pool is module-local and holds only dead projectiles.** `world.projectiles` is live ones
+ * and nothing else, or its length stops meaning anything and every replay carries dead entries
+ * (analytic-docs/ARCHITECTURE.md section 6 asks for pooled projectiles, not for a pool on the
+ * world). Every field is overwritten on acquire, so a pooled object carries nothing from its last
+ * life and determinism is untouched.
+ *
+ * A projectile is released **exactly once**. A double release puts one object in the free list
+ * twice and the next two acquires hand out aliases of the same object -- the symptom is two
+ * projectiles moving in perfect lockstep and one enemy taking both hits. Every projectile below
+ * leaves the loop through exactly one of `survivors.push` or `release`.
+ */
 
-/** Moves projectiles and resolves the ones that arrived. Stub: step 6 owns this. */
-export function projectilesSystem(_world: World): void {}
+import type { AttackBehaviour } from '@/core/content/behaviours.ts'
+import { dealDamage } from '@/core/systems/combat.ts'
+import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
+import type { Enemy, Projectile, Tower, World } from '@/core/types.ts'
+
+const POOL: Projectile[] = []
+
+function acquire(): Projectile {
+	const pooled = POOL.pop()
+	if (pooled !== undefined) {
+		return pooled
+	}
+	return {
+		id: 0,
+		sourceTowerId: 0,
+		targetEnemyId: null,
+		position: { x: 0, y: 0 },
+		target: { x: 0, y: 0 },
+		speed: 0,
+		damage: 0,
+		damageType: 'physical',
+		splashRadiusTiles: 0,
+		pierce: 1,
+	}
+}
+
+function release(projectile: Projectile): void {
+	POOL.push(projectile)
+}
+
+/** See the note on `EntityIndex`: an index built from stale positions reads out the wrong entity. */
+function reindexProjectiles(world: World): void {
+	world.index.projectiles = {}
+	world.projectiles.forEach((projectile, position) => {
+		world.index.projectiles[projectile.id] = position
+	})
+}
+
+/**
+ * One shot, leaving `tower` for where `target` is standing right now.
+ *
+ * `splashRadiusTiles` is carried off the behaviour because the field exists and has to be filled.
+ * Step 12's Tier 3 is the first content with a non-zero radius and owns the splash query; until
+ * then the hit resolves against the one target.
+ */
+export function spawnProjectile(world: World, tower: Tower, attack: AttackBehaviour, target: Enemy): void {
+	const at = enemyPosition(world, target) ?? { x: tower.tile.x, y: tower.tile.y }
+
+	const projectile = acquire()
+	projectile.id = world.nextEntityId++
+	projectile.sourceTowerId = tower.id
+	projectile.targetEnemyId = target.id
+	projectile.position.x = tower.tile.x
+	projectile.position.y = tower.tile.y
+	projectile.target.x = at.x
+	projectile.target.y = at.y
+	projectile.speed = attack.projectileSpeed
+	projectile.damage = attack.damage
+	projectile.damageType = attack.damageType
+	projectile.splashRadiusTiles = attack.splashRadiusTiles
+	// No content sets pierce: it is step 12's upgrade field, and `AttackBehaviour` deliberately
+	// does not carry it.
+	projectile.pierce = 1
+
+	world.index.projectiles[projectile.id] = world.projectiles.length
+	world.projectiles.push(projectile)
+}
+
+export function projectilesSystem(world: World): void {
+	// Terminal phases run nothing, or the night keeps simulating behind the summary screen.
+	if (world.night.phase === 'won' || world.night.phase === 'lost') {
+		return
+	}
+	if (world.projectiles.length === 0) {
+		return
+	}
+
+	const survivors: Projectile[] = []
+
+	for (const projectile of world.projectiles) {
+		const target = projectile.targetEnemyId === null ? null : enemyById(world, projectile.targetEnemyId)
+
+		if (target === null) {
+			// The target died. The projectile flies on to where it was aimed and despawns there --
+			// without this the array only ever grows.
+			projectile.targetEnemyId = null
+		} else {
+			const at = enemyPosition(world, target)
+			if (at !== null) {
+				projectile.target.x = at.x
+				projectile.target.y = at.y
+			}
+		}
+
+		const dx = projectile.target.x - projectile.position.x
+		const dy = projectile.target.y - projectile.position.y
+		const distance = Math.hypot(dx, dy)
+
+		// Arrival is "within one tick's travel", never equality: a projectile stepping 0.2 tiles per
+		// tick never lands exactly on a float position, and the symptom of an equality check is
+		// projectiles orbiting an enemy for the rest of the night.
+		if (distance > projectile.speed) {
+			projectile.position.x += (dx / distance) * projectile.speed
+			projectile.position.y += (dy / distance) * projectile.speed
+			survivors.push(projectile)
+			continue
+		}
+
+		projectile.position.x = projectile.target.x
+		projectile.position.y = projectile.target.y
+
+		if (target !== null) {
+			dealDamage(world, target, projectile.damage, projectile.damageType, projectile.sourceTowerId)
+			projectile.pierce--
+
+			if (projectile.pierce > 0) {
+				// Clear the target: a homing projectile that pierces would otherwise re-hit the same
+				// enemy every tick.
+				projectile.targetEnemyId = null
+				survivors.push(projectile)
+				continue
+			}
+		}
+
+		release(projectile)
+	}
+
+	// Removing one shifts every later index, so the map is rebuilt rather than patched.
+	if (survivors.length !== world.projectiles.length) {
+		world.projectiles = survivors
+		reindexProjectiles(world)
+	}
+}

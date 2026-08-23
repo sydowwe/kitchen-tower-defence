@@ -6,12 +6,16 @@
  * removals do: a night is won when the board empties and lost when the fridge does, and this is the
  * system that empties them. Checking nine systems earlier would report either one a tick late.
  *
- * Step 6 owns deaths and step 19 owns thieves that carry food off the map; today an enemy that
- * reaches the fridge eats there and is removed on the spot.
+ * Deaths and leaks share **one pass** over `world.enemies`, not two. A second filter would run
+ * against an index the first one already invalidated.
+ *
+ * Step 19 owns thieves that carry food off the map; today an enemy that reaches the fridge eats
+ * there and is removed on the spot.
  */
 
 import { getEnemyDef } from '@/core/content/index.ts'
 import { totalLength } from '@/core/path.ts'
+import { enemyPosition } from '@/core/systems/spatial.ts'
 import { hasFinishedSpawning } from '@/core/systems/wave.ts'
 import type { Enemy, EntityId, World } from '@/core/types.ts'
 
@@ -57,6 +61,19 @@ export function resolveSystem(world: World): void {
 
 	for (const enemy of world.enemies) {
 		const path = world.map.paths.find(candidate => candidate.id === enemy.pathId)
+
+		// **Before** the leak check. An enemy killed on the tick it reaches the fridge emits
+		// `enemyKilled` and takes no food -- otherwise a tower that kills an Ant standing on the
+		// fridge still costs you a slice of pizza.
+		if (enemy.hp <= 0) {
+			// `at` is where step 7 drops the crumb. No `reward` field: that is
+			// `getEnemyDef(defId).reward`, and a second copy of a derived number is the one that
+			// drifts.
+			const at = enemyPosition(world, enemy) ?? { x: 0, y: 0 }
+			world.events.push({ kind: 'enemyKilled', enemyId: enemy.id, defId: enemy.defId, at })
+			continue
+		}
+
 		if (path === undefined || enemy.distance < totalLength(path)) {
 			survivors.push(enemy)
 			continue

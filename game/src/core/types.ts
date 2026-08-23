@@ -233,6 +233,14 @@ export interface Projectile {
 	damageType: DamageType
 	/** 0 for a single-target hit. */
 	splashRadiusTiles: number
+	/**
+	 * Hits left before it despawns, decremented per hit. 1 for every shot in the game today.
+	 *
+	 * It lives here and **not** on `AttackBehaviour`: no content sets it, and step 12's Tier 3
+	 * upgrades are what own it. A field on the behaviour would mean a `schema.ts` entry nothing
+	 * fills in.
+	 */
+	pierce: number
 }
 
 /**
@@ -393,6 +401,14 @@ export interface Difficulty {
 export type GameEvent =
 	| { kind: 'enemyKilled'; enemyId: EntityId; defId: DefId; at: Vec2 }
 	| { kind: 'enemyLeaked'; enemyId: EntityId; defId: DefId; stolenItems: EntityId[] }
+	/** `noise` is step 13's meter. Emitted from step 6B, consumed then. */
+	| { kind: 'towerFired'; towerId: EntityId; defId: DefId; noise: number }
+	/**
+	 * `amount` is the **resolved** damage -- already through the tag matrix and the status
+	 * multipliers -- because that is what 6C's damage numbers show and what a balance report adds
+	 * up. `at` is tile coordinates like everything else in `core/`.
+	 */
+	| { kind: 'enemyDamaged'; enemyId: EntityId; sourceTowerId: EntityId; amount: number; at: Vec2 }
 	| { kind: 'towerPlaced'; towerId: EntityId; defId: DefId; tile: Vec2 }
 	| { kind: 'towerSold'; towerId: EntityId; refund: number }
 	| { kind: 'crumbCollected'; crumbId: EntityId; value: number; byTowerId: EntityId | null }
