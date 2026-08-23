@@ -76,6 +76,11 @@ edit this file, don't leave it lying.
     no targeting behaviour; §5 gives `CLOSEST` to everything that is neither DPS nor burst.
 14. **`SetTargetingMode` is executed here** — it is a one-line assignment on the tower. What the
     modes *do* is 6B's.
+15. **`towerById(world, id)` is exported alongside `towerAt`**, added while building because
+    `sellTower` and `SetTargetingMode` both need the same "id → tower, or null if it has gone"
+    lookup through `world.index.towers`, and 6B's targeting and combat will need it a third time.
+    Written twice it is written two ways, and one of them forgets that the index can name a tower
+    that has been sold.
 
 ## Build
 
@@ -151,11 +156,11 @@ Extend it with the two towers' numbers, literally, the way the Salt Shaker's blo
 
 ## Acceptance
 
-- [ ] `core/` still imports nothing but itself and zod, and `placement.ts` knows nothing about
+- [x] `core/` still imports nothing but itself and zod, and `placement.ts` knows nothing about
       pixels or clicks.
-- [ ] Adding `toasterCrumbTray` and `cookieJar` touched `core/content/towers.ts`,
+- [x] Adding `toasterCrumbTray` and `cookieJar` touched `core/content/towers.ts`,
       `ui/locales/en.ts` and `tests/content.spec.ts` — and no file in `core/systems/`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 6B and 6C
 
@@ -173,6 +178,7 @@ core/systems/placement.ts PlacementRejection =
                           sellTower(world: World, towerId: EntityId): boolean
                           refundFor(world: World, tower: Tower): number
                           towerAt(world: World, tile: Vec2): Tower | null
+                          towerById(world: World, towerId: EntityId): Tower | null
 
 core/content/towers.ts    toasterCrumbTray, cookieJar          // TOWERS now has three entries
 ```

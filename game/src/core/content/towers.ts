@@ -1,16 +1,16 @@
 /**
- * The tower roster. One entry today -- the Salt Shaker, the baseline every other tower in
+ * The tower roster. It opens with the Salt Shaker, the baseline every other tower in
  * analytic-docs/CONTENT.md section 1 is priced against.
  *
  * A tower is numbers plus a list of behaviour descriptors from `core/content/behaviours.ts`. There
- * is no class, no `extends`, and no field naming a system. The second tower arrives in step 6 and
- * is the proof that no system file has to change to add one.
+ * is no class, no `extends`, and no field naming a system: the two economy towers below were added
+ * without a line changing in `core/systems/`.
  *
  * Rates in the doc are per second; the fields here are tick counts, converted through `perSecond`
  * so the doc's number stays legible next to it.
  */
 
-import { attack } from '@/core/content/behaviours.ts'
+import { attack, income } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 
 /** `core/` has no clock, so the conversion from the doc's per-second rates lives here as a factor. */
@@ -69,6 +69,52 @@ export const saltShaker: TowerDefOf<'saltShaker'> = {
 	],
 }
 
-export const TOWERS = [saltShaker]
+/**
+ * The two economy towers, and the proof that adding a tower is a config object: neither one touched
+ * a file in `core/systems/`.
+ *
+ * Both are `income(...)` and neither carries `collect(...)`. CONTENT.md section 1's "2.5 collect"
+ * and "3 collect" are collect *radii*, and step 7 owns both that descriptor's numbers and the system
+ * that reads them -- authoring a radius here would mean step 7 re-tuning a number it never saw. So
+ * these two pay out nothing until step 7 fills in `economySystem`.
+ *
+ * `maxHp: 100` matches the Salt Shaker's precedent -- the only HP in the table is the Cardboard
+ * Box's 200. `defaultTargetingMode` is required and inert for a tower with no targeting behaviour;
+ * section 5 gives `CLOSEST` to everything that is neither DPS nor burst.
+ */
+export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
+	id: 'toasterCrumbTray',
+	nameKey: 'tower.toasterCrumbTray.name',
+	descriptionKey: 'tower.toasterCrumbTray.description',
+	glyph: '🍞',
+	role: 'ECONOMY',
+	cost: 75,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	/** The doc's 4/sec, as a payout every 60 ticks -- see the note on `IncomeBehaviour`. */
+	behaviours: [income({ crumbsPerPayout: 4, payoutIntervalTicks: TICKS_PER_SECOND })],
+}
+
+/**
+ * TODO(step 10): drops 200 crumbs to the enemy side if destroyed (CONTENT.md section 1, *Economy
+ * rates*). That needs tower HP to be damageable, which is step 10's, so it is not half-built here.
+ */
+export const cookieJar: TowerDefOf<'cookieJar'> = {
+	id: 'cookieJar',
+	nameKey: 'tower.cookieJar.name',
+	descriptionKey: 'tower.cookieJar.description',
+	glyph: '🍪',
+	role: 'ECONOMY',
+	cost: 150,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [income({ crumbsPerPayout: 9, payoutIntervalTicks: TICKS_PER_SECOND })],
+}
+
+export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar]
 
 export type TowerId = (typeof TOWERS)[number]['id']

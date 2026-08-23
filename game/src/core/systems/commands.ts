@@ -1,15 +1,20 @@
-import { getNightDef } from '@/core/content/index.ts'
+import { getNightDef, getTowerDef } from '@/core/content/index.ts'
+import { placeTower, sellTower, towerById } from '@/core/systems/placement.ts'
 import { startWave } from '@/core/systems/spawn.ts'
 import type { Command } from '@/core/commands.ts'
-import type { World } from '@/core/types.ts'
+import type { EntityId, TargetingMode, World } from '@/core/types.ts'
 
 /**
  * Applies one drained batch of player intents. The only system that takes an argument beyond the
  * world, and the only place a command is ever executed.
  *
- * Step 6 executes `PlaceTower`/`SellTower`/`SetTargetingMode`, step 7 `CollectCrumb`, step 12
- * `UpgradeTower`. `SetSpeed` is deliberately not handled here: speed is more ticks per frame and
- * lives in `loop.ts`; it travels through the queue only so a replay records when it changed.
+ * Step 7 executes `CollectCrumb`, step 12 `UpgradeTower`. `SetSpeed` is deliberately not handled
+ * here: speed is more ticks per frame and lives in `loop.ts`; it travels through the queue only so
+ * a replay records when it changed.
+ *
+ * The batch was drained into a fresh array before any system ran, so a `PlaceTower` and a
+ * `SellTower` in the same batch execute in enqueue order. That is deterministic and correct --
+ * nothing here dedupes or reorders a batch.
  */
 
 /**
@@ -41,10 +46,36 @@ function callWaveEarly(world: World): void {
 	startWave(world, getNightDef(night.nightId), night.waveIndex + 1)
 }
 
+/**
+ * What the modes *do* is step 6B's; switching one is a single assignment. Silently ignored for a
+ * tower that is no longer on the board, like every other command naming a gone entity.
+ */
+function setTargetingMode(world: World, towerId: EntityId, mode: TargetingMode): void {
+	const tower = towerById(world, towerId)
+	if (tower !== null) {
+		tower.targetingMode = mode
+	}
+}
+
 export function commandsSystem(world: World, commands: readonly Command[]): void {
 	for (const command of commands) {
-		if (command.kind === 'CallWaveEarly') {
-			callWaveEarly(world)
+		switch (command.kind) {
+			case 'CallWaveEarly':
+				callWaveEarly(world)
+				break
+			// `getTowerDef` throws on an unknown id: a `PlaceTower` naming a tower that does not
+			// exist can only come from a corrupt replay, and every other lookup in `core/` throws.
+			case 'PlaceTower':
+				placeTower(world, getTowerDef(command.defId), command.tile)
+				break
+			case 'SellTower':
+				sellTower(world, command.towerId)
+				break
+			case 'SetTargetingMode':
+				setTargetingMode(world, command.towerId, command.mode)
+				break
+			default:
+				break
 		}
 	}
 }

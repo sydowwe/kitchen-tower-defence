@@ -53,6 +53,14 @@ export const en = {
 			name: 'Salt Shaker',
 			description: 'Table salt, thrown a handful at a time. Ants will not cross it.',
 		},
+		toasterCrumbTray: {
+			name: 'Toaster Crumb Tray',
+			description: 'Pull it out and a week of breakfast comes with it. Somebody has to sweep up.',
+		},
+		cookieJar: {
+			name: 'Cookie Jar',
+			description: 'The lid never sits straight. Crumbs collect around it faster than you can eat them.',
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {

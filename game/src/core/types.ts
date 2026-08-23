@@ -205,6 +205,12 @@ export interface Tower {
 	/** 0 for a freshly placed tower, up to 3 (analytic-docs/CONTENT.md section 1, Upgrades). */
 	tier: number
 	targetingMode: TargetingMode
+	/**
+	 * The enemy this tower is currently shooting at, under its `targetingMode`. Null on placement and
+	 * whenever nothing is in range. `targetingSystem` writes it and `combatSystem` reads it (step 6B);
+	 * it is declared here because `placeTower` is what constructs a `Tower`.
+	 */
+	targetEnemyId: EntityId | null
 	/** Ticks until this tower may fire again. */
 	cooldownTicks: number
 	state: TowerState | null

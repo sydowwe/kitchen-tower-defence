@@ -4,9 +4,9 @@ import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContent } from '@/core/content/schema.ts'
-import { saltShaker, TOWERS } from '@/core/content/towers.ts'
+import { cookieJar, saltShaker, toasterCrumbTray, TOWERS } from '@/core/content/towers.ts'
 import { en } from '@/ui/locales/en.ts'
-import type { AttackBehaviour } from '@/core/content/behaviours.ts'
+import type { AttackBehaviour, IncomeBehaviour } from '@/core/content/behaviours.ts'
 
 /**
  * Two real defs, so this is the first check that the pipeline of steps 2B and 2C actually accepts
@@ -22,6 +22,12 @@ function attackOf(behaviours: readonly { kind: string }[]): AttackBehaviour {
 	const found = behaviours.find(behaviour => behaviour.kind === 'attack')
 	expect(found).toBeDefined()
 	return found as AttackBehaviour
+}
+
+function incomeOf(behaviours: readonly { kind: string }[]): IncomeBehaviour {
+	const found = behaviours.find(behaviour => behaviour.kind === 'income')
+	expect(found).toBeDefined()
+	return found as IncomeBehaviour
 }
 
 describe('the authored content', () => {
@@ -72,6 +78,40 @@ describe('the Salt Shaker', () => {
 
 		expect(() => validateContent({ towers: [broken] })).toThrow(/saltShaker/)
 		expect(() => validateContent({ towers: [broken] })).toThrow(/cost/)
+	})
+})
+
+describe('the economy towers', () => {
+	it('match analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(toasterCrumbTray.cost).toBe(75)
+		expect(toasterCrumbTray.role).toBe('ECONOMY')
+		expect(toasterCrumbTray.glyph).toBe('🍞')
+		expect(toasterCrumbTray.placement).toBe('off_path')
+		expect(toasterCrumbTray.noise).toBe(0)
+		expect(toasterCrumbTray.maxHp).toBe(100)
+
+		expect(cookieJar.cost).toBe(150)
+		expect(cookieJar.role).toBe('ECONOMY')
+		expect(cookieJar.glyph).toBe('🍪')
+		expect(cookieJar.placement).toBe('off_path')
+		expect(cookieJar.noise).toBe(0)
+		expect(cookieJar.maxHp).toBe(100)
+	})
+
+	it('pay the doc rate as a whole number of crumbs every 60 ticks', () => {
+		const tray = incomeOf(toasterCrumbTray.behaviours)
+		expect(tray.crumbsPerPayout).toBe(4)
+		expect(tray.payoutIntervalTicks).toBe(60)
+
+		const jar = incomeOf(cookieJar.behaviours)
+		expect(jar.crumbsPerPayout).toBe(9)
+		expect(jar.payoutIntervalTicks).toBe(60)
+	})
+
+	it('carries no collect behaviour yet -- the radii in the table are step 7 (decision 11)', () => {
+		for (const tower of [toasterCrumbTray, cookieJar]) {
+			expect(tower.behaviours.map(behaviour => behaviour.kind)).toEqual(['income'])
+		}
 	})
 })
 
