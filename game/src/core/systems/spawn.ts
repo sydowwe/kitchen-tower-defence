@@ -11,7 +11,7 @@
  */
 
 import { getEnemyDef } from '@/core/content/index.ts'
-import type { NightDef } from '@/core/content/schema.ts'
+import type { EnemyDef, NightDef } from '@/core/content/schema.ts'
 import type { Enemy, WaveSpawn, World } from '@/core/types.ts'
 
 /**
@@ -95,13 +95,22 @@ export function startWave(world: World, night: NightDef, waveIndex: number): voi
 }
 
 /**
- * One enemy at the start of its lane.
+ * The one constructor for an `Enemy`, anywhere it comes from: a wave puts one at `distance: 0`, and
+ * step 7B's crumb rot hatches a Fruit Fly mid-board at the arc distance `nearestPath` projected. A
+ * second constructor is how a hatched enemy ends up aliasing `def.tags` or missing its index entry.
  *
  * `tags` is copied and not aliased: the def's array is shared by every enemy of that kind, and a
  * status system that adds a tag to one of them would be editing the roster.
+ *
+ * `spawnedInWaveIndex` is -1 for an enemy no wave spawned -- see the field's note in `types.ts`.
  */
-function spawnEnemy(world: World, spawn: WaveSpawn, waveIndex: number): void {
-	const def = getEnemyDef(spawn.enemyDefId)
+export function spawnEnemyAt(
+	world: World,
+	def: EnemyDef,
+	pathId: string,
+	distance: number,
+	spawnedInWaveIndex: number,
+): Enemy {
 	// Unrounded on purpose: rounding quantises the whole difficulty curve at low HP, and nothing
 	// downstream needs an integer.
 	const hp = def.hp * world.difficulty.enemyHpMult
@@ -109,20 +118,27 @@ function spawnEnemy(world: World, spawn: WaveSpawn, waveIndex: number): void {
 	const enemy: Enemy = {
 		id: world.nextEntityId++,
 		defId: def.id,
-		pathId: spawn.pathId,
-		distance: 0,
+		pathId,
+		distance,
 		hp,
 		maxHp: hp,
 		statuses: [],
 		tags: [...def.tags],
 		speed: def.speedTilesPerTick,
-		spawnedInWaveIndex: waveIndex,
+		spawnedInWaveIndex,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false },
 	}
 
 	world.enemies.push(enemy)
 	world.index.enemies[enemy.id] = world.enemies.length - 1
+
+	return enemy
+}
+
+/** One enemy of a wave cursor, at the start of its lane. */
+function spawnEnemy(world: World, spawn: WaveSpawn, waveIndex: number): void {
+	spawnEnemyAt(world, getEnemyDef(spawn.enemyDefId), spawn.pathId, 0, waveIndex)
 }
 
 /**

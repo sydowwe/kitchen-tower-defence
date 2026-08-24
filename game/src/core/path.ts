@@ -114,3 +114,73 @@ export function samplePath(path: Path, distance: number): { x: number; y: number
 		angle: Math.atan2(to.y - from.y, to.x - from.x),
 	}
 }
+
+/**
+ * The inverse of `samplePath`: the arc distance of the point on the polyline closest to `point`, and
+ * how far off the track `point` sits. Step 7B hatches a Fruit Fly at the returned distance; step 11's
+ * moth deviation and step 18's pushback want the same projection rather than a second copy of it.
+ *
+ * **Projected onto each segment with `t` clamped to `[0, 1]`, never onto the infinite line.** A point
+ * outside the elbow of a corner projects onto the *extension* of both segments if you forget, and the
+ * result is an arc distance the track does not reach there -- several tiles from the point asked
+ * about. Ties go to the earlier segment, so the answer does not depend on iteration luck.
+ *
+ * A path with no segments comes back at distance 0 with an infinite offset, which is what keeps
+ * `nearestPath` from ever choosing it.
+ */
+export function nearestOnPath(path: Path, point: Vec2): { distance: number; offsetTiles: number } {
+	const { cumulative } = tableFor(path)
+	let bestDistance = 0
+	let bestOffsetSquared = Infinity
+
+	for (let index = 0; index + 1 < path.waypoints.length; index++) {
+		const from = path.waypoints[index]
+		const to = path.waypoints[index + 1]
+		const start = cumulative[index]
+		if (from === undefined || to === undefined || start === undefined) {
+			continue
+		}
+
+		const dx = to.x - from.x
+		const dy = to.y - from.y
+		const lengthSquared = dx * dx + dy * dy
+
+		// Same guard as `samplePath`: coincident waypoints are rejected by the map schema, but a
+		// production build has no zod left and a NaN here would surface as an enemy at NaN distance.
+		const projected = lengthSquared > 0 ? ((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared : 0
+		const t = Math.min(Math.max(projected, 0), 1)
+
+		const offsetX = point.x - (from.x + dx * t)
+		const offsetY = point.y - (from.y + dy * t)
+		const offsetSquared = offsetX * offsetX + offsetY * offsetY
+
+		if (offsetSquared < bestOffsetSquared) {
+			bestOffsetSquared = offsetSquared
+			bestDistance = start + Math.sqrt(lengthSquared) * t
+		}
+	}
+
+	return { distance: bestDistance, offsetTiles: Math.sqrt(bestOffsetSquared) }
+}
+
+/**
+ * The lane `point` is nearest to, by off-track offset, and where along it. Ties go to the earlier
+ * entry of `paths`, so a crumb exactly between two lanes joins the same one on a replay.
+ *
+ * Null for an empty `paths` array -- a half-edited map out of step 4's editor, which every other
+ * caller in `core/` also tolerates rather than throwing on.
+ */
+export function nearestPath(paths: readonly Path[], point: Vec2): { pathId: string; distance: number } | null {
+	let best: { pathId: string; distance: number } | null = null
+	let bestOffset = Infinity
+
+	for (const path of paths) {
+		const found = nearestOnPath(path, point)
+		if (found.offsetTiles < bestOffset) {
+			bestOffset = found.offsetTiles
+			best = { pathId: path.id, distance: found.distance }
+		}
+	}
+
+	return best
+}

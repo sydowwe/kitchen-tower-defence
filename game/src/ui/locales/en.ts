@@ -71,6 +71,10 @@ export const en = {
 			name: 'Roach',
 			description: 'Fast, flat and unbothered by the light. It is across the counter before you decide.',
 		},
+		fruitFly: {
+			name: 'Fruit Fly',
+			description: 'Hatched out of something you left too long. It starts halfway across the kitchen.',
+		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.
 	food: {

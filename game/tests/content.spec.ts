@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ant, ENEMIES } from '@/core/content/enemies.ts'
+import { ant, ENEMIES, fruitFly } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
@@ -158,5 +158,28 @@ describe('the Ant', () => {
 		expect(resolveDamage(10, 'physical', target)).toBeCloseTo(10, 10)
 		expect(resolveDamage(10, 'cold', target)).toBeCloseTo(10, 10)
 		expect(resolveDamage(10, 'electric', target)).toBeCloseTo(10, 10)
+	})
+})
+
+describe('the Fruit Fly', () => {
+	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
+		expect(fruitFly.hp).toBe(8)
+		expect(fruitFly.reward).toBe(2)
+		expect(fruitFly.steals).toBe(1)
+		expect(fruitFly.glyph).toBe('🦟')
+		expect(fruitFly.tags).toEqual(['air', 'swarm', 'self-spawning'])
+	})
+
+	it('walks two tiles per second, in ticks and well under the schema cap', () => {
+		expect(fruitFly.speedTilesPerTick * 60).toBeCloseTo(2.0, 10)
+		expect(fruitFly.speedTilesPerTick).toBeLessThan(0.5)
+	})
+
+	it('is scheduled by no night in v1: it is a rot consequence, not a wave enemy', () => {
+		const scheduled = NIGHTS.flatMap(night =>
+			night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId)),
+		)
+
+		expect(scheduled).not.toContain('fruitFly')
 	})
 })

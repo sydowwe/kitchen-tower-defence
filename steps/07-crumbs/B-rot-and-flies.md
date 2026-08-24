@@ -122,10 +122,15 @@ Two things to get right:
   tower with a big enough radius genuinely protects its patch of floor, and that is the point of
   buying one.
 
-Removing crumbs while iterating `world.crumbPiles` is the same shape as `resolveSystem`'s survivor
-pass: build the survivors, assign once, reindex once. Splicing inside a `for…of` over the same array
-skips the element after each removal, and the symptom is every second overdue crumb surviving a tick
-longer than the one before it.
+Splicing inside a `for…of` over `world.crumbPiles` skips the element after each removal, and the
+symptom is every second overdue crumb surviving a tick longer than the one before it.
+
+**Built as a snapshot iteration, not a survivor pass.** This paragraph originally called for
+`resolveSystem`'s shape — build the survivors, assign once, reindex once — but that pass has to do
+its own splice, which is exactly the second splice site the bullet above forbids. Iterating
+`[...world.crumbPiles]` and calling the shared `removeCrumb` avoids the skipped-element bug just as
+well (it is what `deliverCrumbs` already does two functions up) and leaves one splice in the file.
+A handful of piles per night is not a reindex budget worth a second removal path.
 
 ### 3. `core/systems/spawn.ts`
 
@@ -170,12 +175,12 @@ Extend `tests/path.spec.ts` and 7A's `tests/crumbs.spec.ts`.
 
 ## Acceptance
 
-- [ ] `core/` still imports nothing but itself and zod, and `path.ts` knows nothing about crumbs.
-- [ ] Adding the Fruit Fly touched `core/content/enemies.ts`, `ui/locales/en.ts` and
+- [x] `core/` still imports nothing but itself and zod, and `path.ts` knows nothing about crumbs.
+- [x] Adding the Fruit Fly touched `core/content/enemies.ts`, `ui/locales/en.ts` and
       `tests/content.spec.ts` — and no file in `core/systems/` except the one line that names it.
-- [ ] A headless night with no towers still ends: nothing dies, so nothing rots, so no fly is ever
+- [x] A headless night with no towers still ends: nothing dies, so nothing rots, so no fly is ever
       hatched, and `tests/night.spec.ts` is unchanged in behaviour.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 - [ ] Night 1 played carelessly generates two or three flies, not ten. *Cannot be judged this
       session* — there is nothing on screen and no way to play carelessly headlessly. 7C and step 8
       are where this is looked at; if it is wrong, `ROT_TICKS` / `HATCH_TICKS` and night 1's rewards

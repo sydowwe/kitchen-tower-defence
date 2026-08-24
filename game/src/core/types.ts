@@ -177,6 +177,11 @@ export interface Enemy {
 	 * The wave this enemy was spawned by. Waves overlap (analytic-docs/DECISIONS.md section 5), so
 	 * "wave 3 is cleared" has to be answerable while wave 4 is already walking, and no other field
 	 * carries that. Set by the spawn system; step 5B is what reads it.
+	 *
+	 * **-1 for an enemy no wave spawned** -- a Fruit Fly hatched out of a rotting crumb. -1 matches no
+	 * index, so waves clear on their own enemies and a fly blocks nothing. Attributing it to the
+	 * current wave would make `emitClearedWaves` inconsistent: sometimes the fly holds that wave open
+	 * until it leaks, sometimes the wave is already past the high-water mark and it does nothing.
 	 */
 	spawnedInWaveIndex: number
 	/** Food ids a thief is carrying. Returned to the fridge if it dies before it leaves the map. */
@@ -251,7 +256,11 @@ export interface Crumb {
 	id: EntityId
 	position: Vec2
 	value: number
-	/** Rot starts raising spawn pressure at 20s and hatches a Fruit Fly at 35s. */
+	/**
+	 * A pile older than 20s is rotting (`isRotting`); at 35s it is consumed and hatches a Fruit Fly.
+	 * Nothing raises spawn pressure: analytic-docs/DECISIONS.md section 4 says rot does, but v1 has no
+	 * reader for such a value and tile state is step 14's.
+	 */
 	ageTicks: number
 	/** The tower currently drawing this pile in, if any. Auto-collection takes travel time. */
 	claimedByTowerId: EntityId | null

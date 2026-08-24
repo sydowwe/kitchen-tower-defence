@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getMapDef } from '@/core/content/index.ts'
 import { canPlace, flagsAt, loadMap, TileFlags } from '@/core/map.ts'
-import { remainingToFridge, samplePath, totalLength } from '@/core/path.ts'
+import { nearestOnPath, nearestPath, remainingToFridge, samplePath, totalLength } from '@/core/path.ts'
 import counterJson from '@/core/content/maps/counter.json'
 import type { MapSource } from '@/core/content/schema.ts'
 import type { MapDef, Path } from '@/core/types.ts'
@@ -115,6 +115,94 @@ describe('samplePath', () => {
 		expect(remainingToFridge(path, 999)).toBe(0)
 		// The straight line from waypoint 1 to the end is shorter than what is left of the track.
 		expect(remainingToFridge(path, 3)).toBeGreaterThan(Math.hypot(7 - 4, 9 - 1))
+	})
+})
+
+/** A single 10-tile segment along `y = 0`, so a perpendicular foot is readable by eye. */
+function straightPath(): Path {
+	return {
+		id: 'straight',
+		waypoints: [
+			{ x: 0, y: 0 },
+			{ x: 10, y: 0 },
+		],
+		lengthTiles: 10,
+	}
+}
+
+function lanes(): Path[] {
+	return [
+		{
+			id: 'near',
+			waypoints: [
+				{ x: 0, y: 1 },
+				{ x: 10, y: 1 },
+			],
+			lengthTiles: 10,
+		},
+		{
+			id: 'far',
+			waypoints: [
+				{ x: 0, y: 5 },
+				{ x: 10, y: 5 },
+			],
+			lengthTiles: 10,
+		},
+	]
+}
+
+describe('nearestOnPath', () => {
+	it('returns the perpendicular foot on a straight segment', () => {
+		const found = nearestOnPath(straightPath(), { x: 3, y: 2 })
+
+		expect(found.distance).toBeCloseTo(3, 10)
+		expect(found.offsetTiles).toBeCloseTo(2, 10)
+	})
+
+	it('clamps a point beyond either end to that end, rather than running off the line', () => {
+		const path = straightPath()
+
+		const before = nearestOnPath(path, { x: -4, y: 1 })
+		expect(before.distance).toBe(0)
+		expect(before.offsetTiles).toBeCloseTo(Math.hypot(4, 1), 10)
+
+		const after = nearestOnPath(path, { x: 15, y: -3 })
+		expect(after.distance).toBeCloseTo(10, 10)
+		expect(after.offsetTiles).toBeCloseTo(Math.hypot(5, 3), 10)
+	})
+
+	it('projects a point outside a right-angled corner onto the corner waypoint, not past it', () => {
+		// The one that catches an unclamped `t`. `testPath` turns south at (4,1), 3 tiles in; (5,0)
+		// sits outside that elbow. On the infinite lines the answer would be 4 tiles along the first
+		// segment -- a full tile past the corner, on track the polyline never reaches there.
+		const path = testPath()
+		const found = nearestOnPath(path, { x: 5, y: 0 })
+
+		expect(found.distance).toBeCloseTo(3, 10)
+		expect(found.offsetTiles).toBeCloseTo(Math.hypot(1, 1), 10)
+
+		// Checks the two functions against each other rather than against a number worked out by hand.
+		const sample = samplePath(path, found.distance)
+		expect(Math.hypot(sample.x - 4, sample.y - 1)).toBeLessThan(EPSILON)
+	})
+})
+
+describe('nearestPath', () => {
+	it('picks the nearer of two lanes, and where along it', () => {
+		const found = nearestPath(lanes(), { x: 5, y: 2 })
+
+		expect(found).toEqual({ pathId: 'near', distance: 5 })
+	})
+
+	it('picks the earlier lane for a point exactly between them, either way round', () => {
+		const between = { x: 5, y: 3 }
+
+		expect(nearestPath(lanes(), between)?.pathId).toBe('near')
+		expect(nearestPath([...lanes()].reverse(), between)?.pathId).toBe('far')
+	})
+
+	it('is null for a map with no paths at all', () => {
+		expect(nearestPath([], { x: 5, y: 3 })).toBeNull()
 	})
 })
 

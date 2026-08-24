@@ -236,8 +236,18 @@ describe('waveCleared', () => {
 })
 
 describe('a headless night', () => {
-	/** Plays a night out to `nightEnded`, recording every event in order. */
-	function playOut(seed: number, callWaveAt: readonly number[]): { world: World; log: GameEvent[]; endedAt: number } {
+	/**
+	 * Plays a night out to `nightEnded`, recording every event in order.
+	 *
+	 * `killEvery` is a stand-in for towers that kill: every N ticks everything on the board dies where
+	 * it stands. 0 -- the default -- is an unattended night, where nothing dies, nothing rots and no
+	 * Fruit Fly is ever hatched.
+	 */
+	function playOut(
+		seed: number,
+		callWaveAt: readonly number[],
+		killEvery = 0,
+	): { world: World; log: GameEvent[]; endedAt: number } {
 		const world = createWorld(options({ seed }))
 		const queue = createCommandQueue()
 		const log: GameEvent[] = []
@@ -246,6 +256,11 @@ describe('a headless night', () => {
 		for (let index = 0; index < 20_000 && endedAt < 0; index++) {
 			if (callWaveAt.includes(world.tick)) {
 				queue.enqueue({ kind: 'CallWaveEarly' })
+			}
+			if (killEvery > 0 && world.tick % killEvery === 0) {
+				for (const enemy of world.enemies) {
+					enemy.hp = 0
+				}
 			}
 			tick(world, queue)
 			log.push(...world.events)
@@ -274,6 +289,24 @@ describe('a headless night', () => {
 		expect(first.endedAt).toBe(second.endedAt)
 		expect(first.log).toEqual(second.log)
 		expect(first.world.night.food).toEqual(second.world.night.food)
+		expect(first.world).toEqual(second.world)
+	})
+
+	it('reproduces a night that hatches Fruit Flies, down to the tick each one appears on', () => {
+		// Crumbs only exist where something died, so determinism over rot needs a night with kills in
+		// it. Ten seconds apart, so piles land past the start of the lane and live long enough to rot.
+		const first = playOut(4242, [800, 1600], 600)
+		const second = playOut(4242, [800, 1600], 600)
+
+		// Rot is a threshold and not a roll, so "deterministic" here is a real assertion only if flies
+		// actually hatched. They only ever leave the log by dying or reaching the fridge.
+		const flies = first.log.filter(
+			event => (event.kind === 'enemyKilled' || event.kind === 'enemyLeaked') && event.defId === 'fruitFly',
+		)
+		expect(flies.length).toBeGreaterThan(0)
+
+		expect(first.endedAt).toBe(second.endedAt)
+		expect(first.log).toEqual(second.log)
 		expect(first.world).toEqual(second.world)
 	})
 

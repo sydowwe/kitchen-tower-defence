@@ -1,6 +1,6 @@
 /**
- * The enemy roster. One entry today -- the Ant, night 1's whole bestiary
- * (analytic-docs/CONTENT.md section 2).
+ * The enemy roster (analytic-docs/CONTENT.md section 2). Two enemies waves can schedule, and the
+ * Fruit Fly, which no night schedules at all.
  *
  * An enemy is stats plus tags. The tags are the only thing that decides how it takes damage: they
  * multiply through `resolveDamage` in `core/content/matrix.ts`, and nothing branches on an enemy id
@@ -63,6 +63,30 @@ export const roach: EnemyDefOf<'roach'> = {
 	tags: ['ground', 'fast', 'bug'],
 }
 
-export const ENEMIES = [ant, roach]
+/**
+ * analytic-docs/CONTENT.md section 2, last row: 8 HP, 2.0 tiles/sec, 2 crumbs, steals 1,
+ * `air swarm self-spawning`.
+ *
+ * **No scheduled night in v1.** Nothing in `nights.ts` names it: it is a consequence of crumb rot
+ * (analytic-docs/DECISIONS.md section 9, change 1), hatched by `crumbsSystem` at 35s. It becomes a
+ * wave enemy at night 20, post-v1, and that is a wave-table edit and nothing else.
+ *
+ * Nothing in the game can target `air` until the Toaster at night 8, so on nights 1-7 a hatched fly
+ * walks to the fridge and takes an item. That is the tutorial, not an oversight --
+ * analytic-docs/OPEN-QUESTIONS.md, "The fruit fly gap".
+ */
+export const fruitFly: EnemyDefOf<'fruitFly'> = {
+	id: 'fruitFly',
+	nameKey: 'enemy.fruitFly.name',
+	descriptionKey: 'enemy.fruitFly.description',
+	glyph: '🦟',
+	hp: 8,
+	speedTilesPerTick: tilesPerSecond(2.0),
+	reward: 2,
+	steals: 1,
+	tags: ['air', 'swarm', 'self-spawning'],
+}
+
+export const ENEMIES = [ant, roach, fruitFly]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']

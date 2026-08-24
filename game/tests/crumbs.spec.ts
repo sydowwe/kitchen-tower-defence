@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { getTowerDef } from '@/core/content/index.ts'
-import { samplePath } from '@/core/path.ts'
+import { nearestOnPath, samplePath } from '@/core/path.ts'
 import { tick } from '@/core/sim.ts'
-import { collectCrumb, crumbById, dropCrumb, MERGE_RADIUS_TILES } from '@/core/systems/crumbs.ts'
+import {
+	collectCrumb,
+	crumbById,
+	dropCrumb,
+	HATCH_TICKS,
+	isRotting,
+	MERGE_RADIUS_TILES,
+	ROT_TICKS,
+} from '@/core/systems/crumbs.ts'
 import { sellTower } from '@/core/systems/placement.ts'
+import { enemyPosition } from '@/core/systems/spatial.ts'
 import { createWorld } from '@/core/world.ts'
 import { createTestWorld } from './fixtures/world.ts'
 import type { CommandQueue } from '@/core/commands.ts'
@@ -293,6 +302,112 @@ describe('tower income', () => {
 	})
 })
 
+describe('rot', () => {
+	it('is not rotting at 1199 ticks and is at 1200', () => {
+		const world = runningWorld()
+		const crumb = dropCrumb(world, { x: 5, y: 0 }, 6)
+
+		runTicks(world, ROT_TICKS - 1)
+		expect(crumb.ageTicks).toBe(1199)
+		expect(isRotting(crumb)).toBe(false)
+
+		runTicks(world, 1)
+		expect(crumb.ageTicks).toBe(1200)
+		expect(isRotting(crumb)).toBe(true)
+		// 20 seconds, and the assertion that catches 1200 being read as milliseconds.
+		expect(ROT_TICKS / 60).toBe(20)
+	})
+
+	it('consumes the pile at 2100 ticks, hatches exactly one enemy, and pays nothing', () => {
+		const world = runningWorld()
+		dropCrumb(world, { x: 5, y: 0 }, 6)
+		const before = world.crumbs
+
+		runTicks(world, HATCH_TICKS - 1)
+		expect(world.crumbPiles).toHaveLength(1)
+		expect(world.enemies).toEqual([])
+
+		runTicks(world, 1)
+
+		expect(world.crumbPiles).toEqual([])
+		expect(world.enemies).toHaveLength(1)
+		// The rot door credits nothing: a rotted crumb was dropped and not collected, which is what
+		// makes the cleanliness ratio mean anything.
+		expect(world.crumbs).toBe(before)
+		expect(world.night.crumbsCollected).toBe(0)
+		expect(world.night.crumbsDropped).toBe(6)
+		expect(HATCH_TICKS / 60).toBe(35)
+	})
+
+	it('puts the fly on the nearest lane where the pile was, attributed to no wave', () => {
+		const world = runningWorld()
+		const at = { x: 12, y: 0 }
+		dropCrumb(world, at, 6)
+		const path = world.map.paths[0]
+		if (path === undefined) {
+			throw new Error('the fixture map has no paths')
+		}
+
+		runTicks(world, HATCH_TICKS)
+		const fly = world.enemies[0]
+		if (fly === undefined) {
+			throw new Error('nothing hatched')
+		}
+
+		expect(fly.defId).toBe('fruitFly')
+		// -1 and not `night.waveIndex`: a fly is a consequence, not a member of any wave.
+		expect(fly.spawnedInWaveIndex).toBe(-1)
+		expect(fly.pathId).toBe('a')
+		expect(fly.distance).toBeCloseTo(nearestOnPath(path, at).distance, 10)
+		// Mid-board, past most of the defences -- not at the start of the lane like a wave enemy.
+		expect(fly.distance).toBeCloseTo(12, 10)
+		expect(fly.tags).toEqual(['air', 'swarm', 'self-spawning'])
+
+		const position = enemyPosition(world, fly)
+		expect(Math.hypot((position?.x ?? 0) - at.x, (position?.y ?? 0) - at.y)).toBeLessThan(1e-9)
+	})
+
+	it('does not hatch a pile a tower has claimed, however long the flight takes', () => {
+		const world = runningWorld()
+		const towerId = putTower(world, 'toasterCrumbTray', { x: 0, y: 0 })
+		const crumb = dropCrumb(world, { x: 2, y: 0 }, 6)
+
+		runTicks(world, 1)
+		expect(crumb.claimedByTowerId).toBe(towerId)
+		// A flight that outlasts the hatch threshold, so the claim is still held at 2100.
+		crumb.travelTicksRemaining = HATCH_TICKS + 100
+
+		runTicks(world, HATCH_TICKS + 1)
+
+		expect(world.crumbPiles).toEqual([crumb])
+		expect(world.enemies).toEqual([])
+		expect(crumb.ageTicks).toBeGreaterThan(HATCH_TICKS)
+	})
+
+	it('lets a wave clear while a hatched fly is still on the board', () => {
+		const world = runningWorld()
+		dropCrumb(world, { x: 5, y: 0 }, 6)
+		runTicks(world, HATCH_TICKS)
+
+		const fly = world.enemies[0]
+		expect(fly?.defId).toBe('fruitFly')
+
+		// Wave 0, spawned out, and every enemy it spawned already gone. The fly is the only thing left
+		// on the board -- and it is not wave 0's, so wave 0 is cleared.
+		world.night.waveIndex = 0
+		world.night.wave = {
+			index: 0,
+			startedAtTick: 0,
+			spawns: [{ enemyDefId: 'ant', remaining: 0, nextSpawnTick: 0, spacingTicks: 60, pathId: 'a' }],
+		}
+
+		const log = runTicks(world, 1)
+
+		expect(log.filter(event => event.kind === 'waveCleared')).toEqual([{ kind: 'waveCleared', waveIndex: 0 }])
+		expect(world.enemies).toEqual([fly])
+	})
+})
+
 describe('the ledger', () => {
 	it('accounts for every crumb over a headless night, with no leak and no double credit', () => {
 		const world = createWorld({ seed: 4242, mapId: 'counter', nightId: 'night01', difficulty: 'normal' })
@@ -310,23 +425,47 @@ describe('the ledger', () => {
 		const log: GameEvent[] = []
 		let ended = false
 
+		// The third term of the ledger, tracked here and **not** on the world: rot is the door that
+		// writes nothing, so the only way to see it is piles that left the board without an event.
+		// `seen` holds each live pile's value as of the end of the previous tick, which is the value it
+		// still has on the tick it rots -- nothing changes a pile's value in between.
+		const seen = new Map<EntityId, number>()
+		let rotted = 0
+
 		for (let index = 0; index < 20_000 && !ended; index++) {
-			// A stand-in for towers that kill: every two seconds, everything on the board dies where
-			// it stands, which is what puts crumbs on the floor in the first place.
-			if (world.tick % 120 === 0) {
+			// A stand-in for towers that kill: every ten seconds, everything on the board dies where it
+			// stands, which is what puts crumbs on the floor in the first place. Ten and not two, so
+			// kills land further down the lane than the tray can reach and some piles live to rot.
+			if (world.tick % 600 === 0) {
 				for (const enemy of world.enemies) {
 					enemy.hp = 0
 				}
 			}
-			// And a player who clicks the oldest pile now and then, so both doors are used.
-			const oldest = world.crumbPiles[0]
-			if (world.tick % 300 === 0 && oldest !== undefined) {
-				queue.enqueue({ kind: 'CollectCrumb', crumbId: oldest.id })
+			// And a player who clicks whatever just landed, so both collection doors are used. The
+			// newest pile and not the oldest: a player who always swept the oldest would never let one
+			// reach 35s, and the rot term of the ledger would be zero for the wrong reason.
+			const newest = world.crumbPiles[world.crumbPiles.length - 1]
+			if (world.tick % 300 === 0 && newest !== undefined) {
+				queue.enqueue({ kind: 'CollectCrumb', crumbId: newest.id })
 			}
 
 			tick(world, queue)
 			log.push(...world.events)
 			ended = world.events.some(event => event.kind === 'nightEnded')
+
+			const paid = new Set(collectedEvents(world.events).map(event => event.crumbId))
+			const alive = new Set(world.crumbPiles.map(crumb => crumb.id))
+			for (const [id, value] of seen) {
+				if (!alive.has(id)) {
+					if (!paid.has(id)) {
+						rotted += value
+					}
+					seen.delete(id)
+				}
+			}
+			for (const crumb of world.crumbPiles) {
+				seen.set(crumb.id, crumb.value)
+			}
 		}
 
 		const collected = collectedEvents(log)
@@ -336,8 +475,10 @@ describe('the ledger', () => {
 		expect(collected.length).toBeGreaterThan(0)
 		expect(world.night.crumbsDropped).toBeGreaterThan(0)
 		expect(world.night.crumbsCollected).toBe(collected.reduce((sum, event) => sum + event.value, 0))
-		// 7B adds the rot door to the right-hand side of this.
-		expect(world.night.crumbsDropped).toBe(world.night.crumbsCollected + onTheBoard)
+		// Every crumb dropped tonight is in exactly one of three places: paid out, still lying there,
+		// or rotted away. Rot credits nothing, which is what makes the cleanliness ratio mean something.
+		expect(rotted).toBeGreaterThan(0)
+		expect(world.night.crumbsDropped).toBe(world.night.crumbsCollected + onTheBoard + rotted)
 		expect(collected.some(event => event.byTowerId === null)).toBe(true)
 		expect(collected.some(event => event.byTowerId !== null)).toBe(true)
 	})

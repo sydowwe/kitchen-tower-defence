@@ -8,18 +8,38 @@
  * once in the renderer.
  *
  * **No randomness.** Merge target and claim order are both decided by array order, so the fridge
- * draw and `RANDOM` targeting do not depend on how many crumbs happen to be lying about.
+ * draw and `RANDOM` targeting do not depend on how many crumbs happen to be lying about. Rot is a
+ * threshold on `ageTicks`, not a roll, so it does not touch `world.rng` either.
  *
- * Rot is step 7B's: `ageTicks` is incremented here and read by nothing.
+ * A crumb leaves the floor through exactly one of two doors: `collectCrumb`, which pays, and rot,
+ * which does not. Both splice through `removeCrumb` so the reindex cannot be forgotten on one of them.
  */
 
 import { isCollect } from '@/core/content/behaviours.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
+import { nearestPath } from '@/core/path.ts'
 import { towerById } from '@/core/systems/placement.ts'
+import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import type { Crumb, EntityId, Vec2, World } from '@/core/types.ts'
 
 /** analytic-docs/DECISIONS.md section 4, "within ~0.7 tiles of each other". */
 export const MERGE_RADIUS_TILES = 0.7
+
+/**
+ * 20s and 35s at 60 ticks per second (analytic-docs/DECISIONS.md section 4). Both are named
+ * separately and neither is computed from the other: analytic-docs/OPEN-QUESTIONS.md flags the pair
+ * as the first tuning target, so each has to be one edit.
+ */
+export const ROT_TICKS = 1200
+export const HATCH_TICKS = 2100
+
+/**
+ * Derived, never stored. A boolean field on `Crumb` would be a second truth that can disagree with
+ * the age it was computed from, and it would have to survive the JSON round-trip for nothing.
+ */
+export function isRotting(crumb: Crumb): boolean {
+	return crumb.ageTicks >= ROT_TICKS
+}
 
 /** See the note on `EntityIndex`: an index built from stale positions reads out the wrong crumb. */
 function reindexCrumbs(world: World): void {
@@ -111,27 +131,40 @@ export function dropCrumb(world: World, at: Vec2, value: number): Crumb {
 }
 
 /**
- * The one exit door: credit, event, remove, reindex. Both ways a crumb leaves the floor -- the
- * click and a tower's delivery -- come through here, which is what makes "once and only once" a
- * property of one function rather than of two call sites.
+ * Takes a pile off the floor and nothing else. Returns false for a pile that has already gone: the
+ * id lookup, not the argument, decides whether there is anything there.
+ *
+ * Both doors splice through here. Two splices would mean two reindexes, and the one that gets
+ * forgotten reads out the wrong crumb silently.
+ */
+function removeCrumb(world: World, crumb: Crumb): boolean {
+	const position = world.index.crumbPiles[crumb.id]
+	if (position === undefined || world.crumbPiles[position]?.id !== crumb.id) {
+		return false
+	}
+
+	world.crumbPiles.splice(position, 1)
+	reindexCrumbs(world)
+	return true
+}
+
+/**
+ * The paying exit door: remove, credit, event. Both ways a crumb is *collected* -- the click and a
+ * tower's delivery -- come through here, which is what makes "once and only once" a property of one
+ * function rather than of two call sites. Rot is the other door and pays nothing.
  *
  * `byTowerId` is null for a click. That is what distinguishes the two in the event.
  *
- * A pile that is already gone is a no-op: the id lookup, not the argument, decides whether there is
- * anything to pay for.
+ * A pile that is already gone is a no-op.
  */
 export function collectCrumb(world: World, crumb: Crumb, byTowerId: EntityId | null): void {
-	const position = world.index.crumbPiles[crumb.id]
-	if (position === undefined || world.crumbPiles[position]?.id !== crumb.id) {
+	if (!removeCrumb(world, crumb)) {
 		return
 	}
 
 	world.crumbs += crumb.value
 	world.night.crumbsCollected += crumb.value
 	world.events.push({ kind: 'crumbCollected', crumbId: crumb.id, value: crumb.value, byTowerId })
-
-	world.crumbPiles.splice(position, 1)
-	reindexCrumbs(world)
 }
 
 /**
@@ -195,18 +228,57 @@ function deliverCrumbs(world: World): void {
 	}
 }
 
+/**
+ * The unpaying exit door. The pile is consumed and a Fruit Fly hatches on the spot, joining the
+ * nearest lane **mid-board** -- past most of the defences, which is the whole sting
+ * (analytic-docs/DECISIONS.md section 9, change 1).
+ *
+ * **Nothing is credited and `night.crumbsCollected` is not touched.** A rotted crumb was dropped and
+ * not collected, which is exactly what makes the cleanliness ratio mean something.
+ *
+ * A map with no lanes -- half-edited, out of step 4's editor -- consumes the pile and hatches
+ * nothing, the same way every other `core/` caller tolerates one rather than throwing.
+ */
+function hatchFruitFly(world: World, crumb: Crumb): void {
+	const lane = nearestPath(world.map.paths, crumb.position)
+	if (lane === null) {
+		return
+	}
+
+	// -1: no wave spawned it, so it clears no wave. See `Enemy.spawnedInWaveIndex`.
+	spawnEnemyAt(world, getEnemyDef('fruitFly'), lane.pathId, lane.distance, -1)
+}
+
+/**
+ * Ages every pile, and takes the ones that are overdue.
+ *
+ * `ROT_TICKS` has nothing to do here -- `isRotting` is the read, and 7C's tint is the reader.
+ *
+ * **A claimed pile does not hatch.** It is in flight and its value is spoken for; hatching it would
+ * strand the tower's timer and pay nothing. Which means a collect radius genuinely protects its
+ * patch of floor, and that is what buying one is for.
+ *
+ * Iterates a snapshot, because hatching splices `world.crumbPiles`. Splicing inside a `for...of` over
+ * the same array skips the element after each removal, and the symptom is every second overdue crumb
+ * surviving a tick longer than the one before it.
+ */
+function ageCrumbs(world: World): void {
+	for (const crumb of [...world.crumbPiles]) {
+		crumb.ageTicks++
+
+		if (crumb.claimedByTowerId === null && crumb.ageTicks >= HATCH_TICKS && removeCrumb(world, crumb)) {
+			hatchFruitFly(world, crumb)
+		}
+	}
+}
+
 export function crumbsSystem(world: World): void {
 	// Terminal phases run nothing, or the night keeps simulating behind the summary screen.
 	if (world.night.phase === 'won' || world.night.phase === 'lost') {
 		return
 	}
 
-	// Ageing and nothing else. Both thresholds -- spawn pressure at 20s, the Fruit Fly at 35s -- are
-	// step 7B's, and a half-built one here is one the next session has to unpick.
-	for (const crumb of world.crumbPiles) {
-		crumb.ageTicks++
-	}
-
+	ageCrumbs(world)
 	claimCrumbs(world)
 	deliverCrumbs(world)
 }
