@@ -83,7 +83,7 @@ Eight reference documents plus 23 step files. Each step file in `../steps` is a 
 **Phase 1 — Playable loop**
 5. [Waves, spawning, movement, food loss](../steps/00-done/05-waves-and-movement.md)
 6. [Tower placement, targeting, projectiles, damage](../steps/00-done/06-towers-and-combat.md)
-7. [Crumb economy](../steps/07-crumbs.md)
+7. [Crumb economy](../steps/00-done/07-crumbs.md)
 8. [Vue HUD v1](../steps/08-hud.md) — **MILESTONE**
 
 **Phase 2 — Act I systems**

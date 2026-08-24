@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §4 (the *Rot* bullet) and §9
-(change 1, *Fruit flies exist from night 1*), `../../analytic-docs/CONTENT.md` §2 (the Fruit Fly row
-and the note under the table), `../../analytic-docs/OPEN-QUESTIONS.md` (*Crumb rot timings* and *The
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §4 (the *Rot* bullet) and §9
+(change 1, *Fruit flies exist from night 1*), `../../../analytic-docs/CONTENT.md` §2 (the Fruit Fly row
+and the note under the table), `../../../analytic-docs/OPEN-QUESTIONS.md` (*Crumb rot timings* and *The
 fruit fly gap*).
 **Prereq:** step 7A.
 

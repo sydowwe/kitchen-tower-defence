@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §6,
-`../../analytic-docs/DECISIONS.md` §4 (what the loop is meant to feel like) and §2 *Art: emoji
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §6,
+`../../../analytic-docs/DECISIONS.md` §4 (what the loop is meant to feel like) and §2 *Art: emoji
 sprites*.
 **Prereq:** steps 7A and 7B.
 

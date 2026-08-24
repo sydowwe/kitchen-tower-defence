@@ -10,7 +10,7 @@
 Mess is money, and money left lying around is a liability. Killing things litters the board; you
 collect the litter by clicking it or by having built economy towers near where the killing happens;
 litter you ignore rots and hatches flies. This is the game's signature mechanic
-(`../analytic-docs/DECISIONS.md` §4) and the whole risk is that it quietly collapses into "gold on
+(`../../analytic-docs/DECISIONS.md` §4) and the whole risk is that it quietly collapses into "gold on
 kill" — which is what the split below is arranged to prevent, by giving the rot half its own session
 rather than making it the last item of a long one.
 
@@ -29,7 +29,7 @@ with.
 
 **A and B both carry tests; C carries none.** A owns the merge, credit and ledger assertions, B owns
 the rot-timing, hatch and path-projection assertions, and C is pixels —
-`../analytic-docs/ARCHITECTURE.md` §7, and vitest runs `environment: 'node'` so nothing in C is
+`../../analytic-docs/ARCHITECTURE.md` §7, and vitest runs `environment: 'node'` so nothing in C is
 reachable from a spec anyway. A part with no tests is not an under-tested part; do not invent
 coverage for C.
 
@@ -55,7 +55,7 @@ catches double-credit, and it is what step 20's cleanliness score is computed fr
       the `collect` radius or the income rate is wrong.
 - [ ] Collecting a big pile feels good.
 - [ ] Night 1 played carelessly generates two or three fruit flies, not ten
-      (`../analytic-docs/OPEN-QUESTIONS.md`, *the fruit fly gap*). More than that and the rot
+      (`../../analytic-docs/OPEN-QUESTIONS.md`, *the fruit fly gap*). More than that and the rot
       timings or night 1's rewards are wrong.
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 

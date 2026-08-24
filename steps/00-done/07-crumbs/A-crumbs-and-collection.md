@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §4 — read it twice, this is the
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §4 — read it twice, this is the
 game's signature mechanic and it is easy to accidentally reduce to "gold on kill" —
-`../../analytic-docs/CONTENT.md` §1 (*Economy rates* and the two `collect` radii in the Act I table)
+`../../../analytic-docs/CONTENT.md` §1 (*Economy rates* and the two `collect` radii in the Act I table)
 and §9 (the difficulty scalars).
 **Prereq:** step 6.
 
