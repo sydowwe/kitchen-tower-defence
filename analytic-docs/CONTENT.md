@@ -17,10 +17,10 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 | Tower | Glyph | Role | Cost | DMG | Rate/s | Range | Type | Targets | Noise | Placement |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Salt Shaker | 🧂 | BASIC_DPS | 50 | 5 | 1.0 | 3 | physical | ground | 0 | off_path |
-| Toaster Crumb Tray | 🍞 | ECONOMY | 75 | — | — | 2.5 collect | — | — | 0 | off_path |
+| Toaster Crumb Tray | 🧺 | ECONOMY | 75 | — | — | 2.5 collect | — | — | 0 | off_path |
 | Sticky Tape | 🧻 | CONTROL | 40 | 0 | 0.5 | 2 | — | ground | 0 | off_path |
 | Mousetrap | 🪤 | BURST_DPS | 90 | 60 | 0.15 | 1 | physical | ground | 2 | off_path |
-| Cookie Jar | 🍪 | ECONOMY | 150 | — | — | 3 collect | — | — | 0 | off_path |
+| Cookie Jar | 🫙 | ECONOMY | 150 | — | — | 3 collect | — | — | 0 | off_path |
 | Spray Bottle | 🧴 | DOT | 120 | 3 + 2/s | 1.2 | 3 cone | chemical | both | 0 | off_path |
 | Cardboard Box | 📦 | WALL | 25 | — | — | — | — | — | 0 | **path_only** |
 | Ice Cube Tray | 🧊 | SLOW | 110 | 2 | 0.8 | 3 | cold | ground | 0 | off_path |

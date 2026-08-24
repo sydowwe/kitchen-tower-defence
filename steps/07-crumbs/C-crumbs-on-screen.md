@@ -158,18 +158,18 @@ with it.
 
 ## Acceptance
 
-- [ ] Collecting a big pile feels good.
+- [x] Collecting a big pile feels good.
 - [ ] You can tell a rotting pile from a fresh one at a glance, at 3× speed, without pausing.
-- [ ] Clicking a crumb collects the crumb you were pointing at — including one in flight to a tower —
+- [x] Clicking a crumb collects the crumb you were pointing at — including one in flight to a tower —
       at every window size and at all four corners of the board.
-- [ ] Playing night 3 while ignoring the board floor produces visible fly problems by wave 6, and a
+- [x] Playing night 3 while ignoring the board floor produces visible fly problems by wave 6, and a
       careless night 1 produces two or three flies, not ten. If it is ten, `ROT_TICKS` /
       `HATCH_TICKS` are the knobs (decision 11).
-- [ ] A Crumb Tray placed in a kill zone measurably out-earns one placed in a corner — check it by
+- [x] A Crumb Tray placed in a kill zone measurably out-earns one placed in a corner — check it by
       watching the wallet, not by reasoning about the radius.
 - [x] `render/` still contains no `fillText` outside `glyphCache.ts`'s rasteriser, and nothing in
       `render/` reads dev state or writes to `world`.
-- [ ] `glyphCacheSize()` is flat after the first minute of a night — the `+N` key space is bounded.
+- [] `glyphCacheSize()` is flat after the first minute of a night — the `+N` key space is bounded.
 - [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not

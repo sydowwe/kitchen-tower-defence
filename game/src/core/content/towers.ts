@@ -97,12 +97,19 @@ export const saltShaker: TowerDefOf<'saltShaker'> = {
  * `maxHp: 100` matches the Salt Shaker's precedent -- the only HP in the table is the Cardboard
  * Box's 200. `defaultTargetingMode` is required and inert for a tower with no targeting behaviour;
  * section 5 gives `CLOSEST` to everything that is neither DPS nor burst.
+ *
+ * **Both glyphs are the container, not its contents** -- a basket and a jar, where CONTENT.md
+ * section 1 originally had the bread and the cookie. Those two are what a *crumb pile* is drawn with
+ * (`render/layers/crumbs.ts`'s bands, and DECISIONS.md section 2 assigns the bread to crumbs), so a
+ * Cookie Jar standing in its own collect radius was two sizes of the same emoji and the fat pile
+ * worth clicking stopped being findable. A tower is furniture and a pile is litter; they cannot
+ * share a silhouette. Step 7C, seen on screen.
  */
 export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
 	id: 'toasterCrumbTray',
 	nameKey: 'tower.toasterCrumbTray.name',
 	descriptionKey: 'tower.toasterCrumbTray.description',
-	glyph: '🍞',
+	glyph: '🧺',
 	role: 'ECONOMY',
 	cost: 75,
 	maxHp: 100,
@@ -124,7 +131,7 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
 	id: 'cookieJar',
 	nameKey: 'tower.cookieJar.name',
 	descriptionKey: 'tower.cookieJar.description',
-	glyph: '🍪',
+	glyph: '🫙',
 	role: 'ECONOMY',
 	cost: 150,
 	maxHp: 100,

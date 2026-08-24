@@ -98,14 +98,14 @@ describe('the economy towers', () => {
 	it('match analytic-docs/CONTENT.md section 1 to the number', () => {
 		expect(toasterCrumbTray.cost).toBe(75)
 		expect(toasterCrumbTray.role).toBe('ECONOMY')
-		expect(toasterCrumbTray.glyph).toBe('🍞')
+		expect(toasterCrumbTray.glyph).toBe('🧺')
 		expect(toasterCrumbTray.placement).toBe('off_path')
 		expect(toasterCrumbTray.noise).toBe(0)
 		expect(toasterCrumbTray.maxHp).toBe(100)
 
 		expect(cookieJar.cost).toBe(150)
 		expect(cookieJar.role).toBe('ECONOMY')
-		expect(cookieJar.glyph).toBe('🍪')
+		expect(cookieJar.glyph).toBe('🫙')
 		expect(cookieJar.placement).toBe('off_path')
 		expect(cookieJar.noise).toBe(0)
 		expect(cookieJar.maxHp).toBe(100)
