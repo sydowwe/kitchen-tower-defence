@@ -15,9 +15,21 @@
 
 import { getEnemyDef } from '@/core/content/index.ts'
 import { totalLength } from '@/core/path.ts'
+import { dropCrumb } from '@/core/systems/crumbs.ts'
 import { enemyPosition } from '@/core/systems/spatial.ts'
 import { hasFinishedSpawning } from '@/core/systems/wave.ts'
-import type { Enemy, EntityId, World } from '@/core/types.ts'
+import type { DefId, Enemy, EntityId, World } from '@/core/types.ts'
+
+/**
+ * What a kill is worth, in whole crumbs.
+ *
+ * The difficulty multiplier is applied **at the drop** and not at the credit, so a pile's `value` is
+ * the number the player is shown and merging sums numbers that are already final. `max(1)` stops
+ * nightmare's 0.85 rounding a 1-crumb reward away to nothing.
+ */
+function crumbValueFor(world: World, defId: DefId): number {
+	return Math.max(1, Math.round(getEnemyDef(defId).reward * world.difficulty.crumbIncomeMult))
+}
 
 /**
  * Marks the first `count` items still on the shelf as lost and returns their ids.
@@ -66,11 +78,12 @@ export function resolveSystem(world: World): void {
 		// `enemyKilled` and takes no food -- otherwise a tower that kills an Ant standing on the
 		// fridge still costs you a slice of pizza.
 		if (enemy.hp <= 0) {
-			// `at` is where step 7 drops the crumb. No `reward` field: that is
+			// `at` is both the event's position and where the crumb lands. No `reward` field: that is
 			// `getEnemyDef(defId).reward`, and a second copy of a derived number is the one that
 			// drifts.
 			const at = enemyPosition(world, enemy) ?? { x: 0, y: 0 }
 			world.events.push({ kind: 'enemyKilled', enemyId: enemy.id, defId: enemy.defId, at })
+			dropCrumb(world, at, crumbValueFor(world, enemy.defId))
 			continue
 		}
 

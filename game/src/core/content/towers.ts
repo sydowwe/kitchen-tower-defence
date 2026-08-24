@@ -10,7 +10,7 @@
  * so the doc's number stays legible next to it.
  */
 
-import { attack, income } from '@/core/content/behaviours.ts'
+import { attack, collect, income } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 
 /** `core/` has no clock, so the conversion from the doc's per-second rates lives here as a factor. */
@@ -20,6 +20,9 @@ const TICKS_PER_SECOND = 60
 function perSecond(rate: number): number {
 	return Math.round(TICKS_PER_SECOND / rate)
 }
+
+/** The doc's "~1.5s to travel in" for an auto-collected pile, in ticks. Shared by both collectors. */
+const COLLECT_TRAVEL_TICKS = 90
 
 /**
  * A def whose id is known statically, so `nameKey` and `descriptionKey` are *derived* from it
@@ -81,13 +84,15 @@ export const saltShaker: TowerDefOf<'saltShaker'> = {
 }
 
 /**
- * The two economy towers, and the proof that adding a tower is a config object: neither one touched
- * a file in `core/systems/`.
+ * The two economy towers, and the proof that adding a tower is a config object: neither one has ever
+ * needed a file in `core/systems/` written for it alone.
  *
- * Both are `income(...)` and neither carries `collect(...)`. CONTENT.md section 1's "2.5 collect"
- * and "3 collect" are collect *radii*, and step 7 owns both that descriptor's numbers and the system
- * that reads them -- authoring a radius here would mean step 7 re-tuning a number it never saw. So
- * these two pay out nothing until step 7 fills in `economySystem`.
+ * Both pay out and both draw piles in. The radii are analytic-docs/CONTENT.md section 1's "2.5
+ * collect" and "3 collect"; the 1.5 seconds that section gives for a trip is 90 ticks, not 1500.
+ *
+ * `travelTicks` was authored in step 7A with nothing on screen to judge it by. 7C watches a night
+ * and may re-tune it -- in this file and in `tests/content.spec.ts`, the way 6C re-tuned
+ * `projectileSpeed`.
  *
  * `maxHp: 100` matches the Salt Shaker's precedent -- the only HP in the table is the Cardboard
  * Box's 200. `defaultTargetingMode` is required and inert for a tower with no targeting behaviour;
@@ -105,7 +110,10 @@ export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
 	/** The doc's 4/sec, as a payout every 60 ticks -- see the note on `IncomeBehaviour`. */
-	behaviours: [income({ crumbsPerPayout: 4, payoutIntervalTicks: TICKS_PER_SECOND })],
+	behaviours: [
+		income({ crumbsPerPayout: 4, payoutIntervalTicks: TICKS_PER_SECOND }),
+		collect({ radiusTiles: 2.5, travelTicks: COLLECT_TRAVEL_TICKS }),
+	],
 }
 
 /**
@@ -123,7 +131,10 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
 	placement: 'off_path',
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
-	behaviours: [income({ crumbsPerPayout: 9, payoutIntervalTicks: TICKS_PER_SECOND })],
+	behaviours: [
+		income({ crumbsPerPayout: 9, payoutIntervalTicks: TICKS_PER_SECOND }),
+		collect({ radiusTiles: 3, travelTicks: COLLECT_TRAVEL_TICKS }),
+	],
 }
 
 export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar]

@@ -183,13 +183,13 @@ New `tests/crumbs.spec.ts`, plus the two edits named above.
 
 ## Acceptance
 
-- [ ] `core/` still imports nothing but itself and zod; nothing in `crumbs.ts` knows about pixels,
+- [x] `core/` still imports nothing but itself and zod; nothing in `crumbs.ts` knows about pixels,
       clicks or glyphs.
-- [ ] `SYSTEM_ORDER` is unchanged and `tests/sim.spec.ts` is green.
-- [ ] Adding the two `collect(...)` descriptors touched `core/content/towers.ts` and
+- [x] `SYSTEM_ORDER` is unchanged and `tests/sim.spec.ts` is green.
+- [x] Adding the two `collect(...)` descriptors touched `core/content/towers.ts` and
       `tests/content.spec.ts` and **no** other file in `core/systems/` — the behaviour vocabulary
       held.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 7B and 7C
 
@@ -209,6 +209,14 @@ core/content/behaviours.ts isCollect(behaviour: Behaviour): behaviour is Collect
 core/content/towers.ts    toasterCrumbTray  collect({ radiusTiles: 2.5, travelTicks: 90 })
                           cookieJar         collect({ radiusTiles: 3,   travelTicks: 90 })
 ```
+
+Two things 7A settled that the contract above does not show:
+
+- **`night.crumbsDropped` moves inside `dropCrumb`**, not at the call site in `resolve.ts`, so no
+  future caller can drop a crumb without the ledger seeing it. `night.crumbsCollected` moves inside
+  `collectCrumb` for the same reason.
+- Both towers' 90 is one `COLLECT_TRAVEL_TICKS` const in `towers.ts`, so 7C re-tunes the trip in one
+  place (and in `tests/content.spec.ts`, which asserts the 90 literally).
 
 `Crumb.position` is a **tile-space float**, the space `samplePath` returns and `Tower.tile` is
 written in. 7C maps it to pixels; nothing in `core/` does. A claimed crumb's `position` **does not

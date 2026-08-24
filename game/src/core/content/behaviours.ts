@@ -403,3 +403,12 @@ export const BEHAVIOUR_KINDS = [
 export function isAttack(behaviour: Behaviour): behaviour is AttackBehaviour {
 	return behaviour.kind === 'attack'
 }
+
+/**
+ * The same, for collection. Three readers want it -- the crumbs system, the renderer's travel
+ * fraction and step 20's installation -- and hand-writing the check in each is how the third one
+ * gets it wrong.
+ */
+export function isCollect(behaviour: Behaviour): behaviour is CollectBehaviour {
+	return behaviour.kind === 'collect'
+}

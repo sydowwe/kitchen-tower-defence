@@ -348,6 +348,18 @@ export interface NightState {
 	 */
 	ticksSkippedTotal: number
 	/**
+	 * Crumb **value** dropped on the floor tonight, summed -- never a count of piles. Merging changes
+	 * how many piles there are and not how much they are worth, so a ratio of pile counts would
+	 * measure nothing. Tower income is not counted here: cleanliness measures litter left on the
+	 * floor, and a payout was never on the floor.
+	 *
+	 * analytic-docs/CONTENT.md section 8's `cleanliness = 40 x (crumbsCollected / crumbsDropped)` is
+	 * the consumer, and step 20 is what reads it.
+	 */
+	crumbsDropped: number
+	/** The same currency as `crumbsDropped`: summed value, through either collection door. */
+	crumbsCollected: number
+	/**
 	 * High-water mark for `waveCleared`: every wave up to and including this index has had the event
 	 * emitted. Starts at -1. A mark rather than a set, because waves always start in order and a
 	 * cleared wave never un-clears -- and without it the obvious implementation emits `waveCleared`

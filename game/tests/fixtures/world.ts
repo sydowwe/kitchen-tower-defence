@@ -68,6 +68,8 @@ export function createTestWorld(): World {
 			wave: null,
 			food: [{ id: 1, defId: 'cheese', nameKey: 'food.cheese.name', heldBy: null, lost: false }],
 			ticksSkippedTotal: 0,
+			crumbsDropped: 0,
+			crumbsCollected: 0,
 			clearedThroughWaveIndex: -1,
 		},
 		difficulty: {

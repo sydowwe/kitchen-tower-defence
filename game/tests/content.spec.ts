@@ -6,7 +6,7 @@ import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContent } from '@/core/content/schema.ts'
 import { cookieJar, saltShaker, toasterCrumbTray, TOWERS } from '@/core/content/towers.ts'
 import { en } from '@/ui/locales/en.ts'
-import type { AttackBehaviour, IncomeBehaviour } from '@/core/content/behaviours.ts'
+import type { AttackBehaviour, CollectBehaviour, IncomeBehaviour } from '@/core/content/behaviours.ts'
 
 /**
  * Two real defs, so this is the first check that the pipeline of steps 2B and 2C actually accepts
@@ -28,6 +28,12 @@ function incomeOf(behaviours: readonly { kind: string }[]): IncomeBehaviour {
 	const found = behaviours.find(behaviour => behaviour.kind === 'income')
 	expect(found).toBeDefined()
 	return found as IncomeBehaviour
+}
+
+function collectOf(behaviours: readonly { kind: string }[]): CollectBehaviour {
+	const found = behaviours.find(behaviour => behaviour.kind === 'collect')
+	expect(found).toBeDefined()
+	return found as CollectBehaviour
 }
 
 describe('the authored content', () => {
@@ -115,10 +121,17 @@ describe('the economy towers', () => {
 		expect(jar.payoutIntervalTicks).toBe(60)
 	})
 
-	it('carries no collect behaviour yet -- the radii in the table are step 7 (decision 11)', () => {
-		for (const tower of [toasterCrumbTray, cookieJar]) {
-			expect(tower.behaviours.map(behaviour => behaviour.kind)).toEqual(['income'])
-		}
+	it('draws piles in from the doc radius, in ticks and not milliseconds', () => {
+		const tray = collectOf(toasterCrumbTray.behaviours)
+		expect(tray.radiusTiles).toBe(2.5)
+		expect(tray.travelTicks).toBe(90)
+
+		const jar = collectOf(cookieJar.behaviours)
+		expect(jar.radiusTiles).toBe(3)
+		expect(jar.travelTicks).toBe(90)
+
+		// 1.5 seconds, and the assertion that catches 1500 being pasted in from the doc.
+		expect(tray.travelTicks / 60).toBeCloseTo(1.5, 10)
 	})
 })
 
