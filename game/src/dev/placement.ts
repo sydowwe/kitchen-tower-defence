@@ -14,8 +14,15 @@ import { TOWERS } from '@/core/content/index.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
 import { isAttack } from '@/core/content/behaviours.ts'
 import { isTypingTarget } from '@/dev/debug/state.ts'
-import { isOnBoard, toGridPoint, toTile } from '@/dev/tileCoords.ts'
-import { blitGlyph, drawPlacementTile, drawRangeCircle, towerGlyphSize } from '@/render/index.ts'
+import { gridToWaypoint, isOnBoard, toGridPoint, toTile } from '@/dev/tileCoords.ts'
+import {
+	blitGlyph,
+	drawPlacementTile,
+	drawRangeCircle,
+	LOGICAL_WIDTH,
+	pickCrumb,
+	towerGlyphSize,
+} from '@/render/index.ts'
 import type { CommandQueue } from '@/core/commands.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { DefId, EntityId, Vec2, World } from '@/core/types.ts'
@@ -37,6 +44,15 @@ const CURSOR_SELECTABLE = 'pointer'
 /** The stylesheet's own cursor, restored by writing the empty string back. */
 const CURSOR_DEFAULT = ''
 
+/**
+ * How far outside a pile's drawn edge still counts as clicking it, in logical pixels.
+ *
+ * A speck is 0.28 of a 48px tile, so its drawn radius is under 7px and an exact hit test makes the
+ * most-repeated interaction in the game feel like a precision task. Named, because step 20's
+ * Buy-a-Broom widens exactly this.
+ */
+const CRUMB_CLICK_FORGIVENESS_PX = 8
+
 export interface PlacementState {
 	/** The tower type the number keys selected, or null. Survives a placement, so four in a row is four clicks. */
 	selectedDefId: DefId | null
@@ -44,6 +60,13 @@ export interface PlacementState {
 	selectedTowerId: EntityId | null
 	/** The tile under the pointer, or null while the pointer is off the board. */
 	hoverTile: Vec2 | null
+	/**
+	 * The same pointer position, fractional and in waypoint space, or null.
+	 *
+	 * Kept beside the tile rather than derived from it: a crumb sits anywhere on a tile, so the hit
+	 * test needs the sub-tile position the floored tile has already thrown away.
+	 */
+	hoverPoint: Vec2 | null
 }
 
 export interface PlacementController {
@@ -63,6 +86,16 @@ function defFor(defId: DefId): TowerDef | null {
 	return TOWERS.find(def => def.id === defId) ?? null
 }
 
+/**
+ * The same derivation `Renderer.setMap` does, from the world's own map.
+ *
+ * Derived rather than passed in because this controller is built before the first frame and holds no
+ * renderer; the map is the thing both of them read, so the two cannot disagree.
+ */
+function tilePxFor(world: World): number {
+	return LOGICAL_WIDTH / world.map.widthTiles
+}
+
 export function createPlacementController(
 	canvas: HTMLCanvasElement,
 	queue: CommandQueue,
@@ -72,6 +105,7 @@ export function createPlacementController(
 		selectedDefId: null,
 		selectedTowerId: null,
 		hoverTile: null,
+		hoverPoint: null,
 	}
 
 	function clearSelection(): void {
@@ -79,27 +113,49 @@ export function createPlacementController(
 		state.selectedTowerId = null
 	}
 
-	function tileUnder(event: PointerEvent, world: World): Vec2 | null {
-		// Through `toGridPoint`, never `event.offsetX`: the canvas is CSS-scaled to the window, so
-		// `offsetX / tilePx` is wrong by the scale factor -- see `dev/tileCoords.ts`.
+	/**
+	 * Through `toGridPoint`, never `event.offsetX`: the canvas is CSS-scaled to the window, so
+	 * `offsetX / tilePx` is wrong by the scale factor -- see `dev/tileCoords.ts`.
+	 */
+	function gridUnder(event: PointerEvent, world: World): Vec2 {
+		return toGridPoint(canvas, event, world.map.widthTiles)
+	}
+
+	function tileFor(grid: Vec2, world: World): Vec2 | null {
 		const map = world.map
-		const tile = toTile(toGridPoint(canvas, event, map.widthTiles))
+		const tile = toTile(grid)
 		return isOnBoard(tile, map.widthTiles, map.heightTiles) ? tile : null
 	}
 
 	function onPointerMove(event: PointerEvent): void {
 		const world = getWorld()
-		state.hoverTile = world === null ? null : tileUnder(event, world)
+		if (world === null) {
+			state.hoverTile = null
+			state.hoverPoint = null
+			return
+		}
+		const grid = gridUnder(event, world)
+		state.hoverTile = tileFor(grid, world)
+		// Waypoint space, the space crumbs are in. `toGridPoint` puts integers on tile corners and
+		// `Crumb.position` puts them on tile centres; the `- 0.5` is the whole of the difference, and
+		// skipping it makes every pile feel like it has to be clicked up and to the left.
+		state.hoverPoint = state.hoverTile === null ? null : gridToWaypoint(grid)
 	}
 
 	function onPointerLeave(): void {
 		state.hoverTile = null
+		state.hoverPoint = null
 	}
 
 	/**
-	 * **One click, one rule, and no modifier key.** A tower on the tile selects it; otherwise a
-	 * selected tower type builds there. Nothing here reads shift, alt or the right button, and the
-	 * next session should not invent one -- step 8's HUD makes the shop panel the mode switch.
+	 * **One click, one rule, and no modifier key.** A crumb under the pointer is collected; else a
+	 * tower on the tile is selected; else a selected tower type builds there. Nothing here reads
+	 * shift, alt or the right button, and the next session should not invent one -- step 8's HUD
+	 * makes the shop panel the mode switch.
+	 *
+	 * The crumb goes first because enemies die on the track and `off_path` towers stand beside it, so
+	 * a pile and a buildable tile almost never coincide -- and a click that landed inside a pile's
+	 * forgiving radius was aimed at the pile (step 7C, decision 5).
 	 */
 	function onPointerDown(event: PointerEvent): void {
 		const world = getWorld()
@@ -107,8 +163,18 @@ export function createPlacementController(
 			return
 		}
 
-		const tile = tileUnder(event, world)
+		const grid = gridUnder(event, world)
+		const tile = tileFor(grid, world)
 		if (tile === null) {
+			return
+		}
+
+		const crumb = pickCrumb(world, gridToWaypoint(grid), tilePxFor(world), CRUMB_CLICK_FORGIVENESS_PX)
+		if (crumb !== null) {
+			// A command, never a write: the pile is credited at the next tick boundary, which is also
+			// why a pile already delivered between the click and the tick is a silent no-op rather
+			// than a double payout (ARCHITECTURE.md section 3).
+			queue.enqueue({ kind: 'CollectCrumb', crumbId: crumb.id })
 			return
 		}
 
@@ -228,6 +294,14 @@ export function drawPlacementOverlay(
 
 	const def = state.selectedDefId === null ? null : defFor(state.selectedDefId)
 	const hover = state.hoverTile
+
+	// A pile under the pointer wins over everything, because `onPointerDown` collects it whatever is
+	// armed. Same call, same forgiveness: the cursor and the click cannot disagree about what is
+	// clickable, which is the only way the forgiving radius can be tuned by feel.
+	if (state.hoverPoint !== null && pickCrumb(world, state.hoverPoint, tilePx, CRUMB_CLICK_FORGIVENESS_PX) !== null) {
+		applyCursor(ctx.canvas, CURSOR_SELECTABLE)
+		return
+	}
 
 	// A tower under the pointer wins over an armed def, because `onPointerDown` selects it whatever
 	// is armed. Tinting the tile red for `occupied` while the click quietly does something useful is

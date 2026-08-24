@@ -1,5 +1,6 @@
 import { blitGlyph } from '@/render/glyphCache.ts'
 import {
+	drawCrumbs,
 	drawEffects,
 	drawEntities,
 	drawFridge,
@@ -155,7 +156,9 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		}
 
 		// tile effects: step 15
-		// crumbs: step 7
+		// Crumbs sit under the towers and under the enemies: the litter is on the floor, and an ant
+		// walking over a pile is the right picture (step 7C, decision 9).
+		drawCrumbs(ctx, world, tilePx, dpr)
 		drawTowers(ctx, world, tilePx, dpr)
 		if (world !== null) {
 			drawFridge(ctx, world, tilePx, dpr)

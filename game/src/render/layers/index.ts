@@ -3,6 +3,7 @@ export { drawTrack } from '@/render/layers/track.ts'
 export { drawEntities, preloadEnemyGlyphs } from '@/render/layers/entities.ts'
 export { drawFridge, preloadFoodGlyphs } from '@/render/layers/fridge.ts'
 export { drawEffects, pushEvents, resetEffects } from '@/render/layers/effects.ts'
+export { drawCrumbs, crumbPosition, pickCrumb, preloadCrumbGlyphs } from '@/render/layers/crumbs.ts'
 export {
 	drawTowers,
 	drawProjectiles,

@@ -30,6 +30,7 @@
 		createRenderer,
 		LOGICAL_HEIGHT,
 		LOGICAL_WIDTH,
+		preloadCrumbGlyphs,
 		preloadEnemyGlyphs,
 		preloadFoodGlyphs,
 		preloadTowerGlyphs,
@@ -144,6 +145,7 @@
 			preloadEnemyGlyphs(renderer.tilePx)
 			preloadFoodGlyphs(renderer.tilePx)
 			preloadTowerGlyphs(renderer.tilePx)
+			preloadCrumbGlyphs(renderer.tilePx)
 		}
 	}
 

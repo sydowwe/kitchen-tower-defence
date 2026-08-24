@@ -134,8 +134,14 @@ a cursor. Keep it a named constant so step 20's Buy-a-Broom sweep has something 
 
 Add crumbs on the board (a pile count and their total value) and a rot-warning count —
 `world.crumbPiles.filter(isRotting).length` — to the status line. `world.crumbs` is already there.
-Then update the `HINT` line and `en.ts`'s `debug.hint` to mention clicking a crumb, in the same edit,
-or the on-screen help lies from this session on.
+Then update the `HINT` line to mention clicking a crumb, in the same edit, or the on-screen help lies
+from this session on.
+
+*Built differently:* this said "and `en.ts`'s `debug.hint`". It isn't. `debug.hint` is the speed and
+pause half, rendered by the Vue `DebugOverlay` **at the same time** as `HINT` — putting the crumb
+click in both would print the same binding twice on one screen. The click is a pointer binding that
+`dev/placement.ts` owns, so it lives with the other pointer bindings, in `HINT`. `debug.hint` is
+unchanged.
 
 ### 6. `ui/views/GameView.vue`
 
@@ -161,10 +167,10 @@ with it.
       `HATCH_TICKS` are the knobs (decision 11).
 - [ ] A Crumb Tray placed in a kill zone measurably out-earns one placed in a corner — check it by
       watching the wallet, not by reasoning about the radius.
-- [ ] `render/` still contains no `fillText` outside `glyphCache.ts`'s rasteriser, and nothing in
+- [x] `render/` still contains no `fillText` outside `glyphCache.ts`'s rasteriser, and nothing in
       `render/` reads dev state or writes to `world`.
 - [ ] `glyphCacheSize()` is flat after the first minute of a night — the `+N` key space is bounded.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

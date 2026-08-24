@@ -10,6 +10,7 @@
  * wave progress, and a second clock counting its own ticks would drift from the one the game means.
  */
 
+import { isRotting } from '@/core/systems/crumbs.ts'
 import { nightClock } from '@/core/systems/wave.ts'
 import type { World } from '@/core/types.ts'
 import { LOGICAL_HEIGHT } from '@/render/index.ts'
@@ -25,7 +26,7 @@ const HINT_COLOR = 'rgba(255, 255, 255, 0.55)'
  * toggle. It has to be edited in the same breath as the bindings, or the on-screen help lies --
  * `ui/locales/en.ts`'s `debug.hint` is the other half and carries the speed keys.
  */
-const HINT = '1-3 tower · click place · x sell · n next wave · r restart'
+const HINT = '1-3 tower · click crumb / place · x sell · n next wave · r restart'
 
 const MARGIN_PX = 10
 const LINE_HEIGHT_PX = 17
@@ -41,6 +42,25 @@ function foodLabel(world: World): string {
 	return `Food ${remaining}/${world.night.food.length}`
 }
 
+/**
+ * What is still on the floor, and how much of it is going over.
+ *
+ * The value total is what makes the pile count mean anything -- forty specks and one fat pile are
+ * the same number of piles and nothing like the same wallet -- and the rot count is the number the
+ * fly problem is read off, so it is here rather than counted off the screen.
+ */
+function floorLabel(world: World): string {
+	let total = 0
+	let rotting = 0
+	for (const crumb of world.crumbPiles) {
+		total += crumb.value
+		if (isRotting(crumb)) {
+			rotting++
+		}
+	}
+	return `Floor ${world.crumbPiles.length} piles (${total}) · rot ${rotting}`
+}
+
 function statusLine(world: World): string {
 	const night = world.night
 	const parts = [
@@ -48,6 +68,7 @@ function statusLine(world: World): string {
 		clockLabel(world),
 		foodLabel(world),
 		`Crumbs ${Math.floor(world.crumbs)}`,
+		floorLabel(world),
 	]
 
 	if (night.phase === 'won' || night.phase === 'lost') {

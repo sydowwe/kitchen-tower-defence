@@ -81,6 +81,25 @@ export const RANGE_NEUTRAL_FILL = 'rgba(226, 232, 255, 0.06)'
 export const HIT_FLASH = 'rgba(255, 244, 214, 0.9)'
 export const DAMAGE_NUMBER = '#ffe9a8'
 
+/**
+ * The mould under a pile that has started to go over.
+ *
+ * Two stops of the same green rather than a gradient: one soft cast is the whole rot tell, and a
+ * `createRadialGradient` per pile per frame allocates on the 60Hz path for a difference nobody can
+ * see at 3x speed.
+ */
+export const CRUMB_ROT_HALO = 'rgba(126, 214, 96, 0.13)'
+export const CRUMB_ROT_CORE = 'rgba(126, 214, 96, 0.3)'
+
+/**
+ * Taking a pile: the ring that goes off where it was, and the `+N` that rises off it.
+ *
+ * Warmer and more saturated than `DAMAGE_NUMBER` on purpose -- crumbs are money and hits are not,
+ * and the two land on the same board within a frame of each other.
+ */
+export const CRUMB_POP = 'rgba(255, 214, 150, 0.9)'
+export const CRUMB_VALUE = '#ffc247'
+
 /** The panel the fridge's remaining items sit on, so a row of glyphs reads as a shelf and not as litter. */
 export const SHELF_BACKDROP = 'rgba(12, 16, 28, 0.55)'
 export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'
