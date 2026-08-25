@@ -65,12 +65,14 @@ Override one only if the code proves it wrong — and then edit this file, don't
     `counter.json`'s decor at (18, 11) becomes something else (🧼 reads as the same kitchen). A tower
     and a piece of scenery cannot share a silhouette — step 7C found the same thing with the Cookie
     Jar and the bread, and wrote it into `towers.ts`.
-11. **The Spray Bottle's poison runs at the status table's rate, not §1's.** §1's row says
-    "3 + 2/s"; §4 says Poison is 4 dmg/s, and 9A decided duration, stacking *and* magnitude come off
-    `STATUS_DEFS` so there is one copy of each. Nothing else in v1 applies poison, so there is
-    nothing yet to drift from. **9C's tuning pass settles which of the two numbers is right and
-    writes the loser out of the doc**, and the first step that ships a second poison source (Vinegar
-    Spray, night 11) is the one that earns a per-application magnitude override.
+11. **The Spray Bottle's poison is authored at §1's 2/s, as a per-application override.** §1's row
+    says "3 + 2/s" and §4 says Poison is 4 dmg/s — and both are right about different things: 9A
+    made the magnitude, and only the magnitude, overridable for exactly this case, so the status
+    table keeps the default every other source takes and the tower carries the rate its own row
+    gives it. **You are the first content to use the override**, so it is worth reading 9A's
+    decisions 1 and 2 before authoring the def: `applies: [{ kind: 'poison', magnitude: 2 /
+    TICKS_PER_SECOND }]`, through the divisor already in `towers.ts`, and a bare `2` is rejected by
+    the schema's `[0, 1]` bound rather than dealing 120 damage a second.
 
 ## Build
 
@@ -125,8 +127,10 @@ non-zero radius, but the query is no longer its to build.
 render a raw key), both pinned literally in `tests/content.spec.ts` like every other def:
 
 - **Spray Bottle** 🧴 — `DOT`, 120, `coneAttack` 3 damage at 1.2/sec (the file's `perSecond` helper),
-  range 3, `coneHalfAngleDeg: 30`, chemical, **both** targets, noise 0, `off_path`,
-  `applies: ['poison']`, `maxHp: 100`.
+  range 3, `coneHalfAngleDeg: 30`, chemical, **both** targets, noise 0, `off_path`, `maxHp: 100`,
+  and poison at §1's 2/s per decision 11. Pin the override in `tests/content.spec.ts` with the
+  `magnitude * 60` form the Ant's speed assertion uses, so a per-second value pasted in fails there
+  as well as at the schema.
 - **Beetle** 🪲 — 55 HP, 0.7 tiles/sec, reward 10, **steals 2**, tags `ground, bug`. Neither tag has
   a matrix row, so it takes every damage type at 1.0: what makes it a bruiser is 5.5 Ants' worth of
   HP crossing in ~44 seconds, and it is the first enemy that costs you two items when it lands.

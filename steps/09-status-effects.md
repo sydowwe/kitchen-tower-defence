@@ -41,14 +41,14 @@ under-tested part; do not invent coverage for C.
 
 ## The seam that can't be split
 
-**A owns how a status lands.** The `applies` list on all four behaviour schemas, and the one
-function that turns that list into `applyStatus` calls carrying the *source's* damage type. B
-interprets the cone and the splash circle, and calls that function; it does not grow a second
-application path.
+**A owns how a status lands.** The `applies` list on all four behaviour schemas — including which of
+a status's three numbers a tower may override — and the one function that turns that list into
+`applyStatus` calls carrying the *source's* damage type. B interprets the cone and the splash
+circle, and calls that function; it does not grow a second application path.
 
 Move that line and the two paths drift silently: a burn from a shot routes through the tag matrix as
-fire, a burn from a cone routes through it as nothing, and the only symptom is a damage number that
-is wrong by 1.5× on one tower and right on the other.
+fire, a burn from a cone routes through it as nothing, an override honoured on one and dropped on
+the other, and the only symptom is a damage number that is wrong on one tower and right on the next.
 
 ## Dependency order
 
@@ -72,7 +72,7 @@ are step 10. Pushback and the Fan are step 18. Tile effects are step 14. Cones a
 
 ## Reconciled while splitting
 
-Nine things the step said that the repo has since made untrue, or that contradicted a doc. Each is
+Ten things the step said that the repo has since made untrue, or that contradicted a doc. Each is
 resolved in the part that owns it; they are listed here so the change is on the record rather than
 silently reinterpreted.
 
@@ -110,7 +110,14 @@ silently reinterpreted.
    the two rather than adding a third.
 8. **Ice Cube Tray's targets.** The step's line names only its damage and its status;
    `../analytic-docs/CONTENT.md` §1 says `ground`. A takes the doc.
-9. **The Spray Bottle's glyph is already on the board.** `core/content/maps/counter.json` has 🧴 as
+9. **The two poison rates.** `../analytic-docs/CONTENT.md` §1 gives the Spray Bottle "3 + 2/s";
+   §4 gives Poison 4 dmg/s. The step says to add a per-application override "only if a tower
+   actually needs one" — and one does, three times over: §1 authors a DoT rate per *tower* for the
+   Spray Bottle, Vinegar Spray, the Candle and the Burner. So A makes the **magnitude** overridable
+   per application and nothing else; duration and the stack cap stay single-copy on `STATUS_DEFS`,
+   where step 12's tier-3 upgrades are the first thing that would ask for a second value. B is the
+   first content to use it, at §1's 2/s. Both doc sections stay true.
+10. **The Spray Bottle's glyph is already on the board.** `core/content/maps/counter.json` has 🧴 as
    decor at (18, 11). A tower and a piece of scenery cannot share a silhouette — the same mistake
    step 7C found with the Cookie Jar and the bread — so B changes the *decor* glyph, because
    CONTENT.md §1 fixes the tower's.

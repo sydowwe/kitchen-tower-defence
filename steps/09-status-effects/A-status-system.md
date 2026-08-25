@@ -44,15 +44,31 @@ The specs that will break, so you plan for them rather than discovering them:
 Reasons given so you don't re-derive them. Override one only if the code proves it wrong — and then
 edit this file, don't leave it lying.
 
-1. **`applies: StatusKind[]` on `attack`, `coneAttack`, `aura` and `pushback`, always present,
-   defaulting to `[]`.** Not optional: the factories write every field out and the zod union is
-   pinned `satisfies z.ZodType<Behaviour>`, so an optional field on one side and a default on the
-   other is exactly the drift `Exact<>` exists to catch. Schema: `z.array(statusKind)`, no
-   `.optional()`.
-2. **No per-application duration or magnitude override.** Duration and stacking come off
-   `STATUS_DEFS`, which already carries both as tick counts. Two numbers for one duration is two
-   numbers that drift. Ice Cube Tray's T3 "slow becomes a 1.5s freeze" is what first earns an
-   override, and step 12 can add one then.
+1. **`applies` on `attack`, `coneAttack`, `aura` and `pushback`, always present, defaulting to
+   `[]`.** Not optional: the factories write every field out and the zod union is pinned
+   `satisfies z.ZodType<Behaviour>`, so an optional field on one side and a default on the other is
+   exactly the drift `Exact<>` exists to catch.
+   **One shape in the descriptor, two in the params.** The descriptor is `StatusApplication[]` —
+   `{ kind: StatusKind; magnitude: number | null }`, where `null` means "whatever the def says" —
+   and the factory normalises a bare `'slow'` into it. So authoring stays `applies: ['slow']` and
+   only a tower that actually overrides writes the object out, while exactly one shape is validated,
+   saved and replayed. `attack()` already normalises `projectileSpeed ?? 0` in the same place for the
+   same reason.
+2. **Magnitude is overridable per application. Duration and stacking are not.**
+   `../../analytic-docs/CONTENT.md` §1 authors a DoT rate per *tower* — the Spray Bottle's 2/s,
+   Vinegar Spray's 4/s, the Candle's 4/s aura, the Burner's 14/s — against §4's one status-wide 4/s,
+   so the roster disagrees with the status table in three places before Act II is out. Duration and
+   the stack cap have no such second source: they stay single-copy on `STATUS_DEFS`, and Ice Cube
+   Tray's T3 ("slow becomes a 1.5s freeze") and the Candle's T3 ("burn stacks to 3") are step 12's
+   to earn.
+   **The override is a per-tick magnitude, bounded `[0, 1]` by the schema.** A speed fraction is
+   never above 1 and 1 damage *per tick* is 60/sec, so the bound is what rejects the doc's
+   per-second number pasted in — the same job `MAX_COOLDOWN_TICKS` does for a millisecond value.
+   Author it through the `TICKS_PER_SECOND` divisor already in `towers.ts`, so the doc's number
+   stays legible next to it.
+   **Last application wins**, which is what both `STACK_RULES` entries already do with `magnitude`
+   and `sourceId`. A `Math.max` there would leave a sold tower's stronger number running on an enemy
+   for the rest of the effect, with nothing on the board to explain it.
 3. **`ActiveStatus` gains `damageType: DamageType | null`**, set at application from the applying
    behaviour's own `damageType`. `StatusDef` carries the fallback for a source that has none — burn
    `'fire'`, poison `'chemical'`, `null` for the five that deal no damage. Reason: per-tick DoT has
@@ -69,16 +85,19 @@ edit this file, don't leave it lying.
    for DoT.
 5. **An attack whose resolved damage is 0 emits no `enemyDamaged` either.** Sticky Tape is
    `damage: 0`; without this every root prints a floating `0` over the enemy.
-6. **One application seam: `applyStatuses(target, kinds, sourceId, damageType)` in
+6. **One application seam: `applyStatuses(target, applications, sourceId, damageType)` in
    `core/content/statuses.ts`**, next to `createStatus`. It needs no world, so it belongs with the
    vocabulary rather than in a system, and 9B's cone calls the same one. Two call sites each
    building their own `createStatus` is how the damage type ends up set on one path and null on the
-   other.
-7. **`Projectile` gains `applies: StatusKind[]`.** A slow lands when the ice cube arrives, not when
-   it is fired, and the tower may be sold in between. **Refill the array in place** in
-   `spawnProjectile` — `length = 0`, then push — because the pool hands back a used object and a
-   fresh array per shot allocates on the one path `../../analytic-docs/ARCHITECTURE.md` §6 budgets.
-   A pooled projectile that keeps the previous shot's list is the bug this sentence exists to stop.
+   other — and now the override with it.
+7. **`Projectile` gains `applies: readonly StatusApplication[]`, assigned by reference.** A slow
+   lands when the ice cube arrives, not when it is fired, and the tower may be sold in between, so
+   the projectile has to carry it. Assign the behaviour's own array — `projectile.applies =
+   attack.applies` — rather than copying: a behaviour descriptor is immutable content that outlives
+   every world, the reference is overwritten on acquire like every other pooled field, and copying
+   an array of objects per shot allocates on the one path `../../analytic-docs/ARCHITECTURE.md` §6
+   budgets. **Never write through it.** Mutating that array edits the tower def for the rest of the
+   session; the symptom is a tower whose second shot applies something its first one didn't.
 8. **`placeTower` initialises `Tower.state` from a `charge` behaviour** —
    `{ kind: 'charge', charges: <the behaviour's>, rearmTicksRemaining: 0 }` — and leaves it `null`
    for every other tower. Nothing has ever filled the field in, and a tape placed with `state: null`
@@ -98,14 +117,37 @@ edit this file, don't leave it lying.
 
 ### 1. `applies` across the vocabulary
 
-`core/content/behaviours.ts`: the field on the four descriptors and their `*Params`, defaulted
-`params.applies ?? []` in each factory. `core/content/schema.ts`: the same four entries of the
-discriminated union. Then the two specs above.
+`core/content/behaviours.ts`: `StatusApplication` and the params form it normalises from —
 
-### 2. The damage type a DoT carries
+```
+type StatusApplication = { kind: StatusKind; magnitude: number | null }
+type StatusApplicationParam = StatusKind | { kind: StatusKind; magnitude?: number }
+```
 
-`ActiveStatus.damageType` in `core/types.ts`, the fallback on `StatusDef`, the third parameter on
-`createStatus`, the copy in both `STACK_RULES` entries, and `applyStatuses` per decision 6.
+— the field on the four descriptors and their `*Params`, and one shared `toApplications(params)`
+that every factory runs its list through. Four copies of a two-line normaliser is four places for
+`?? null` to become `?? 0`, and a magnitude of 0 is a status that applies and does nothing.
+
+`core/content/schema.ts`: the same four entries of the union, as
+`z.array(z.object({ kind: statusKind, magnitude: z.number().min(0).max(1).nullable() }))`. The bound
+is decision 2's, and it is the whole value of the field being validated at all. Then the two specs
+above.
+
+### 2. What an application carries
+
+`ActiveStatus.damageType` in `core/types.ts`, the DoT fallback on `StatusDef`, the copy of **both**
+new fields in the two `STACK_RULES` entries, `applyStatuses` per decision 6, and `createStatus`
+growing two more parameters:
+
+```
+createStatus(kind, sourceId = null, damageType = null, magnitude = null): ActiveStatus
+```
+
+Positional and defaulted, not an options object, so step 2C's `createStatus('rooted', 7)` calls in
+`tests/statuses.spec.ts` keep compiling untouched. `magnitude` falls back to `STATUS_DEFS[kind]`,
+which seeds `ActiveStatus.magnitude` — so **every existing reader gets the override for free**:
+`speedMultiplier`, `damageTakenMultiplier` and `armorStripStrength` already read the live field and
+none of them changes.
 
 ### 3. `core/systems/status.ts`
 
@@ -170,6 +212,10 @@ existing def, with the doc's numbers (§1, Act I) and the `perSecond()` helper a
   `applies: ['rooted']`, `charge({ charges: 3, rearmTicks: 0 })`, `maxHp: 100`. A `damageType` is
   still required by the schema; `physical` with 0 damage is the honest filler.
 
+Neither overrides a magnitude — both take the status table's number, so both author the bare-kind
+form and the normaliser is exercised by the roster rather than only by a spec. The first real
+override is 9B's Spray Bottle; the synthetic def in your tests is what pins the mechanism.
+
 Then `ui/locales/en.ts` (both entries — the tone is `../../analytic-docs/DECISIONS.md` §1:
 understated, dry, never jokey), and `debug.hint`, which reads `'1-3 tower · …'` and is now `1-5`.
 
@@ -188,6 +234,13 @@ functions `tests/statuses.spec.ts` already covers. Put them in a new `tests/stat
   hard-coded `'fire'` fails here rather than shipping.
 - Poison stacks to exactly 5 and a sixth application only refreshes the duration, driven by a firing
   tower rather than by `applyStatus` directly.
+- A tower applying `{ kind: 'poison', magnitude: 2 / 60 }` costs its target **half** the per-tick
+  damage the def's 4/60 would, while its duration and its cap of 5 are unchanged — the assertion
+  that says which of the three numbers a tower may override.
+- `applies: ['slow']` and `applies: [{ kind: 'slow' }]` produce the same descriptor, and a slow
+  applied from either lands at `STATUS_DEFS.slow.magnitude`.
+- In `tests/schema.spec.ts`, an application authored `magnitude: 2` — the doc's per-second value —
+  is rejected with `applies` in the message, the way a millisecond cooldown already is.
 - A rooted enemy's `distance` is unchanged after 120 ticks with `movementSystem` running.
 - A tick in which an enemy burns produces **no** `enemyDamaged` event, and neither does a hit from a
   `damage: 0` attack.
@@ -211,15 +264,17 @@ functions `tests/statuses.spec.ts` already covers. Put them in a new `tests/stat
 The contract the next two sessions build against. If you change a signature, change it here too.
 
 ```
-core/content/statuses.ts   applyStatuses(target: StatusHolder, kinds: readonly StatusKind[],
+core/content/behaviours.ts StatusApplication      = { kind: StatusKind; magnitude: number | null }
+                           StatusApplicationParam = StatusKind | { kind: StatusKind; magnitude?: number }
+                           attack/coneAttack/aura/pushback all carry `applies: StatusApplication[]`
+core/content/statuses.ts   applyStatuses(target: StatusHolder, applications: readonly StatusApplication[],
                                          sourceId: EntityId, damageType: DamageType | null): void
-                           createStatus(kind, sourceId?, damageType?): ActiveStatus
+                           createStatus(kind, sourceId?, damageType?, magnitude?): ActiveStatus
 core/systems/combat.ts     applyDamage(world, enemy, base: number, damageType: DamageType): number
                            dealDamage(world, enemy, base, damageType, sourceTowerId): number
 core/systems/placement.ts  removeTower(world: World, towerId: EntityId): boolean
-core/content/behaviours.ts attack/coneAttack/aura/pushback all carry `applies: StatusKind[]`
 core/types.ts              ActiveStatus.damageType: DamageType | null
-                           Projectile.applies: StatusKind[]
+                           Projectile.applies: readonly StatusApplication[]
 ```
 
 ## Do not

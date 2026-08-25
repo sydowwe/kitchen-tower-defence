@@ -55,13 +55,17 @@ Override one only if the code proves it wrong — and then edit this file, don't
    four treatments, play a night, then add an icon row for whatever you still cannot read. If you do
    add one, **anchor it to the glyph box and not to the HP bar** — the bar is only drawn once an
    enemy is damaged, and a row anchored to it jumps a few pixels the first time anything hits.
-6. **`TowerStatsView` gains `applies: StatusKind[]` and `coneHalfAngleDeg: number | null`**, and
-   `StatusKind` joins the vocabulary `ui/viewModel.ts` re-exports, so `StatCard.vue` still imports
-   nothing from `core/`.
+6. **`TowerStatsView` gains `coneHalfAngleDeg: number | null` and
+   `applies: { kind: StatusKind; perSecond: number | null }[]`** — resolved and already converted,
+   because the view model is where every other derived number on that card is rounded, and a
+   component doing arithmetic on a magnitude is a component that has to know what a magnitude means
+   per kind. `perSecond` is null for the statuses that deal no damage. `StatusKind` joins the
+   vocabulary `ui/viewModel.ts` re-exports, so `StatCard.vue` still imports nothing from `core/`.
 7. **Tune only the numbers the docs do not fix.** Cone half-angle, the Ice Cube Tray's projectile
    speed and the night tables are yours. Anything in `../../analytic-docs/CONTENT.md` §1–§4 moves
-   only as an edit to that file in the same commit — which includes the one number the docs
-   contradict themselves on, below.
+   only as an edit to that file in the same commit — the Spray Bottle's 2/s poison included, which
+   is now §1's number authored as a per-application override rather than a contradiction waiting on
+   this session.
 
 ## Build
 
@@ -108,9 +112,12 @@ still `v-if`'d on null and on an empty array. New keys: `hud.stat.cone`, `hud.st
 `hud.status.*` for the seven kinds, keyed by the literal so the row renders the union directly the
 way `hud.mode` and `hud.damage` already do.
 
-The DoT number a player wants on a Spray Bottle card is "3 on impact, then poison" — the poison rate
-belongs to the status, not the tower, and printing a per-tower DoT rate here would be the second
-copy of the number decision 7 is about.
+A DoT tower's card should say the rate, not just the name: "3 on impact, then poison 2/sec". Resolve
+it the way the simulation does — the application's `magnitude` if it has one, otherwise
+`STATUS_DEFS[kind].magnitude` — and multiply by 60 for the card, in `statsFor`, where every other
+per-second number on that card is already derived. `ui/` reading `STATUS_DEFS` is the same one-way
+import the shop already makes for `TOWERS`; what would be a second copy is typing "2/sec" into
+`en.ts`.
 
 ### 5. Play nights 4–7, then tune
 
@@ -119,11 +126,12 @@ With `npm run dev` running, at 1× and at 3×, more than once. Then:
 - **Re-tune the night tables** in `core/content/nights.ts` — counts, spacing, countdowns. 9B
   authored them from arithmetic; this is the pass that can see whether night 5 is a night. The file's
   header note is the thing to hold onto: the spawn window against the crossing is what sets the pace.
-- **Settle the poison rate.** §1 gives the Spray Bottle "3 + 2/s"; §4 gives Poison 4 dmg/s, and 9B
-  shipped the status table's number because nothing else applies poison yet. Decide it by playing
-  night 5 — with `swarm`'s ×1.5 against chemical, one stack at 4/s kills an Ant in under two seconds
-  and five stacks is 30/s. Whichever number wins, **edit `../../analytic-docs/CONTENT.md` so the two
-  sections stop disagreeing**, and say which way it went in the commit.
+- **Judge the poison rate, now that it is one number in one place.** The Spray Bottle carries §1's
+  2/s as a per-application override, so changing it is a one-line edit in `towers.ts` that touches
+  no other source of poison and no status default. Watch what it actually does on night 5: against
+  `swarm`'s ×1.5 to chemical, one stack is 3/sec on an Ant and five stacks is 15, and a cone reaches
+  the whole queue. If it moves, `../../analytic-docs/CONTENT.md` §1 moves with it in the same
+  commit.
 - **Revise the English.** 9A and 9B wrote four entries with nothing on screen. Read them next to the
   cards: `../../analytic-docs/DECISIONS.md` §1 is understated and dry, and a description that reads
   as a joke on a card read forty times a night is the wrong length.
