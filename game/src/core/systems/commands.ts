@@ -26,6 +26,23 @@ const CRUMBS_PER_SECOND_SKIPPED = 2
 const TICKS_PER_SECOND = 60
 
 /**
+ * What calling the wave right now would pay. 0 outside `'countdown'`, and partial seconds are
+ * floored -- a 91-tick countdown is one second of bonus, not 1.51.
+ *
+ * Exported because the HUD previews it under the button, the same way it previews `refundFor` under
+ * the sell button. A formula the UI repeats is a button that promises +14 while the wallet gains
+ * +12, and nobody watches both at once.
+ */
+export function earlyCallBonus(world: World): number {
+	const night = world.night
+	if (night.phase !== 'countdown') {
+		return 0
+	}
+
+	return Math.floor(night.countdownTicks / TICKS_PER_SECOND) * CRUMBS_PER_SECOND_SKIPPED
+}
+
+/**
  * Ignored outside `'countdown'`. The countdown only exists between a wave finishing its spawning
  * and the next one starting, so there is no moment where calling early could start a second wave
  * alongside a running one -- and a click during a wave has to be a no-op rather than a free wave.
@@ -40,7 +57,7 @@ function callWaveEarly(world: World): void {
 	}
 
 	const skipped = night.countdownTicks
-	world.crumbs += Math.floor(skipped / TICKS_PER_SECOND) * CRUMBS_PER_SECOND_SKIPPED
+	world.crumbs += earlyCallBonus(world)
 	night.ticksSkippedTotal += skipped
 	night.countdownTicks = 0
 

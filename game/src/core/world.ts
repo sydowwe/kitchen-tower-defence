@@ -132,6 +132,7 @@ export function createWorld({ seed, mapId, nightId, difficulty }: CreateWorldOpt
 			ticksSkippedTotal: 0,
 			crumbsDropped: 0,
 			crumbsCollected: 0,
+			enemiesKilled: 0,
 			clearedThroughWaveIndex: -1,
 		},
 		difficulty: tier,

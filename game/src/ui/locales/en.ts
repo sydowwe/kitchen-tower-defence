@@ -7,7 +7,7 @@
  * and retrofitting forty towers and thirty enemies later is the expensive version of this decision.
  */
 
-import type { EnemyMessages, FoodMessages, TowerMessages } from '@/ui/locales/contentKeys.ts'
+import type { EnemyMessages, FoodMessages, RejectionMessages, TowerMessages } from '@/ui/locales/contentKeys.ts'
 
 export const en = {
 	general: {
@@ -18,6 +18,10 @@ export const en = {
 		confirm: 'Confirm',
 		and: 'and',
 	},
+	// Written in one pass in step 8A, before anything was on screen to read it against. **Step 8C
+	// revises it after playing a night** -- length, tone and whether a label is needed at all are
+	// judgements that need the HUD drawn. analytic-docs/DECISIONS.md section 1 sets the voice:
+	// understated, dry, never jokey.
 	hud: {
 		pause: 'Pause',
 		resume: 'Resume',
@@ -29,6 +33,47 @@ export const en = {
 		callWave: 'Call next wave',
 		sell: 'Sell',
 		upgrade: 'Upgrade',
+
+		shop: 'On the counter',
+		locked: 'Locked',
+		cost: '{n} crumbs',
+		onFloor: 'On the floor',
+		floorPiles: '{piles} piles · {value} crumbs',
+		floorRotting: '{n} going over',
+		nextWaveIn: 'Next wave in {seconds}s',
+		callWaveBonus: '+{n} crumbs',
+		selected: 'Selected',
+		tier: 'Tier {n}',
+		targeting: 'Targeting',
+		sellFor: 'Sell for {n}',
+		sellPenalty: 'Half price while a wave is running',
+		// One line per stat on the hover card. A tower with no attack shows none of the first six
+		// rather than showing them as zero -- see `TowerStatsView` in ui/viewModel.ts.
+		stat: {
+			damage: 'Damage',
+			rate: 'Rate',
+			dps: 'Damage per second',
+			range: 'Range',
+			damageType: 'Type',
+			targets: 'Targets',
+			noise: 'Noise',
+			income: 'Income',
+			collect: 'Collects within',
+			perSecond: '{n}/sec',
+			tiles: '{n} tiles',
+			silent: 'Silent',
+		},
+		// One per PlacementRejection, as the player's problem rather than the validator's.
+		reject: {
+			offBoard: 'That is off the counter.',
+			blocked: 'The counter is taken up there.',
+			notBuildable: 'Nothing will stand on that.',
+			onTrack: 'Not on the track — they walk through there.',
+			offTrack: 'This one goes on the track itself.',
+			occupied: 'Something is already there.',
+			tooExpensive: 'Not enough crumbs yet.',
+			nightOver: 'The night is over.',
+		} satisfies RejectionMessages,
 	},
 	debug: {
 		fps: 'FPS',
@@ -47,7 +92,7 @@ export const en = {
 
 	// One entry per def in core/content/, keyed by its id. The `satisfies` is the enforcement: a
 	// tower or enemy authored without an English name fails type-check here rather than rendering
-	// its own key on screen. `night.*` is filled in with the night summary in step 8.
+	// its own key on screen.
 	tower: {
 		saltShaker: {
 			name: 'Salt Shaker',
@@ -91,7 +136,25 @@ export const en = {
 		chicken: { name: 'Chicken' },
 		butter: { name: 'Butter' },
 	} satisfies FoodMessages,
-	night: {},
+	// The night-end summary. `foodLost` is the line analytic-docs/DECISIONS.md section 6 calls the
+	// emotional payload -- the specificity is the whole joke, so it lists items by name and never
+	// collapses them into a count. The UI joins them with `listSeparator` and `general.and` for the
+	// last one; there is deliberately no second word for "and" here.
+	night: {
+		wonTitle: 'It got to 6:00am',
+		lostTitle: 'The fridge is empty',
+		wonSubtitle: 'The kitchen is more or less as you left it.',
+		lostSubtitle: 'There is nothing left on the shelves to defend.',
+		wavesSurvived: 'Survived {survived} of {total} waves',
+		foodLost: 'Lost: {items}',
+		foodNothingLost: 'Nothing was taken.',
+		foodRemaining: 'Still in the fridge: {n}',
+		enemiesKilled: 'Dealt with: {n}',
+		crumbsCollected: 'Swept up {collected} crumbs of {dropped} dropped',
+		listSeparator: ', ',
+		retry: 'Try the night again',
+		continue: 'Continue',
+	},
 }
 
 export type Messages = typeof en

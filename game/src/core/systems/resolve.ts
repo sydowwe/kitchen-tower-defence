@@ -83,6 +83,7 @@ export function resolveSystem(world: World): void {
 			// drifts.
 			const at = enemyPosition(world, enemy) ?? { x: 0, y: 0 }
 			world.events.push({ kind: 'enemyKilled', enemyId: enemy.id, defId: enemy.defId, at })
+			night.enemiesKilled++
 			dropCrumb(world, at, crumbValueFor(world, enemy.defId))
 			continue
 		}

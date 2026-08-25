@@ -70,6 +70,7 @@ export function createTestWorld(): World {
 			ticksSkippedTotal: 0,
 			crumbsDropped: 0,
 			crumbsCollected: 0,
+			enemiesKilled: 0,
 			clearedThroughWaveIndex: -1,
 		},
 		difficulty: {

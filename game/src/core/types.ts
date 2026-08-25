@@ -369,6 +369,14 @@ export interface NightState {
 	/** The same currency as `crumbsDropped`: summed value, through either collection door. */
 	crumbsCollected: number
 	/**
+	 * Enemies killed tonight, incremented where `resolveSystem` pushes `enemyKilled`. The night-end
+	 * summary shows it and step 20's scoring reads it.
+	 *
+	 * A tally kept in the UI off `world.events` would count nothing on a replay, could not be
+	 * asserted in a spec, and would not exist for the balance harness at all.
+	 */
+	enemiesKilled: number
+	/**
 	 * High-water mark for `waveCleared`: every wave up to and including this index has had the event
 	 * emitted. Starts at -1. A mark rather than a set, because waves always start in order and a
 	 * cleared wave never un-clears -- and without it the obvious implementation emits `waveCleared`

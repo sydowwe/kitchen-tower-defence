@@ -310,6 +310,16 @@ describe('a headless night', () => {
 		expect(first.world).toEqual(second.world)
 	})
 
+	it('tallies exactly one enemiesKilled per enemyKilled event, over a whole night', () => {
+		// A UI counting the events itself would drift the moment a frame ran two ticks; the field is
+		// what makes the number replayable, assertable and visible to the balance harness.
+		const { world, log } = playOut(4242, [800, 1600], 600)
+		const killed = log.filter(event => event.kind === 'enemyKilled').length
+
+		expect(killed).toBeGreaterThan(0)
+		expect(world.night.enemiesKilled).toBe(killed)
+	})
+
 	it('gives a different seed a different fridge and still ends deterministically', () => {
 		const a = playOut(4242, [])
 		const b = playOut(7, [])

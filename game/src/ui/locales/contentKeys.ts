@@ -12,6 +12,7 @@
 import type { ENEMIES } from '@/core/content/enemies.ts'
 import type { FOODS } from '@/core/content/food.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
+import type { PlacementRejection } from '@/core/systems/placement.ts'
 
 /** The two keys every def carries: `<kind>.<id>.name` and `<kind>.<id>.description`. */
 interface Entry {
@@ -29,3 +30,10 @@ export type EnemyMessages = Record<(typeof ENEMIES)[number]['id'], Entry>
  * Reusing `Entry` here would mean inventing twelve lines of flavour text no screen shows.
  */
 export type FoodMessages = Record<(typeof FOODS)[number]['id'], { name: string }>
+
+/**
+ * The same trick over a vocabulary rather than a collection: `PlacementRejection` is eight string
+ * literals in `core/systems/placement.ts`, and `hud.reject` has to answer all of them. When step 10
+ * adds a ninth reason for barricades, the build fails here instead of a toast rendering `onTrack`.
+ */
+export type RejectionMessages = Record<PlacementRejection, string>

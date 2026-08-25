@@ -137,7 +137,7 @@ HudSnapshot {
   `enemiesKilled`, `crumbsCollected`, `crumbsDropped`. `wavesSurvived` is `waveIndex + 1` on a win
   and `waveIndex` on a loss (you did not survive the one that emptied the fridge).
 
-Then `buildHudSnapshot(world, view: { speed, paused }): HudSnapshot`,
+Then `buildHudSnapshot(world, view: { speed, paused }, inspector = null): HudSnapshot`,
 `buildTowerInspector(world, towerId): TowerInspectorView | null` (null for an id that has been sold —
 normal, not an error, exactly like `towerById`), and `buildNightSummary(world): NightSummaryView`.
 
@@ -212,13 +212,13 @@ silent drift; do not add one for "the snapshot has a crumbs field".
 
 ## Acceptance
 
-- [ ] `ui/viewModel.ts` imports nothing from `vue`, `render/` or `dev/`, and contains no English
+- [x] `ui/viewModel.ts` imports nothing from `vue`, `render/` or `dev/`, and contains no English
       literal.
-- [ ] No entity array appears anywhere in `HudSnapshot` — searching the file for `Enemy[]`,
+- [x] No entity array appears anywhere in `HudSnapshot` — searching the file for `Enemy[]`,
       `Tower[]`, `Crumb[]` or `FoodItem[]` finds nothing.
-- [ ] `en.ts` still satisfies its content types, and adding a fake ninth `PlacementRejection` to the
+- [x] `en.ts` still satisfies its content types, and adding a fake ninth `PlacementRejection` to the
       union makes `type-check` fail. Try it, then take it out.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green, and the
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green, and the
       game still plays exactly as it did at the end of step 7 — this session changes nothing you can
       see.
 
@@ -226,8 +226,15 @@ silent drift; do not add one for "the snapshot has a crumbs field".
 
 The contract the next two sessions build against. If you change a signature, change it here too.
 
+**Changed while building:** `buildHudSnapshot` grew a third, defaulted parameter. Decision 3 says the
+inspector is built on selection change and not at 15Hz, but `HudSnapshot` carries an `inspector`
+slot — and a builder that derived it would quietly demote it to 15Hz, while one that hard-coded
+`null` would have the caller merging a field back into an object it just replaced wholesale. So the
+caller passes the inspector it already holds. Two-argument calls are unaffected.
+
 ```
-ui/viewModel.ts   buildHudSnapshot(world: World, view: { speed: Speed; paused: boolean }): HudSnapshot
+ui/viewModel.ts   buildHudSnapshot(world: World, view: { speed: Speed; paused: boolean },
+                                   inspector?: TowerInspectorView | null): HudSnapshot
                   buildTowerInspector(world: World, towerId: EntityId): TowerInspectorView | null
                   buildNightSummary(world: World): NightSummaryView
                   type HudSnapshot, ShopEntry, TowerStatsView, TowerInspectorView, NightSummaryView
