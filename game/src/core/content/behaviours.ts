@@ -16,13 +16,42 @@
  * Durations are tick counts. Ranges and radii are tiles. Speeds are tiles per tick.
  */
 
-import type { DamageType, TileEffectKind } from '@/core/types.ts'
+import type { DamageType, StatusKind, TileEffectKind } from '@/core/types.ts'
 
 /**
  * Which half of the roster a behaviour can reach. Ground-only, air-only and both are the only
  * three the content tables use (analytic-docs/CONTENT.md section 1, "Targets").
  */
 export type TargetClass = 'ground' | 'air' | 'both'
+
+// --- status application ---------------------------------------------------------------------------
+
+/**
+ * One status a behaviour lands on what it hits. `magnitude: null` means "whatever `STATUS_DEFS`
+ * says"; a number overrides it **per tick**, for this behaviour only.
+ *
+ * Only the magnitude is overridable. analytic-docs/CONTENT.md section 1 authors a DoT rate per
+ * tower -- the Spray Bottle's 2/s against section 4's status-wide 4/s -- so that number has two
+ * sources and needs the per-application copy. Duration and the stack cap have one source each and
+ * stay on the def.
+ */
+export type StatusApplication = { kind: StatusKind; magnitude: number | null }
+
+/** What a def *authors*. A bare kind is the common case and normalises to `magnitude: null`. */
+export type StatusApplicationParam = StatusKind | { kind: StatusKind; magnitude?: number }
+
+/**
+ * The one normaliser, shared by all four factories that carry `applies`. Four copies of it would be
+ * four places for `?? null` to become `?? 0`, and a magnitude of 0 is a status that applies and
+ * then does nothing.
+ */
+function toApplications(params: readonly StatusApplicationParam[] | undefined): StatusApplication[] {
+	return (params ?? []).map(entry =>
+		typeof entry === 'string'
+			? { kind: entry, magnitude: null }
+			: { kind: entry.kind, magnitude: entry.magnitude ?? null },
+	)
+}
 
 // --- attack -------------------------------------------------------------------------------------
 
@@ -39,6 +68,8 @@ export interface AttackBehaviour {
 	projectileSpeed: number
 	/** 0 for a single-target hit. Salt Shaker's T3 upgrade is what first makes this non-zero. */
 	splashRadiusTiles: number
+	/** Statuses landed on what this hits. Empty for a tower that only deals damage. */
+	applies: StatusApplication[]
 }
 
 export interface AttackParams {
@@ -49,6 +80,7 @@ export interface AttackParams {
 	targets: TargetClass
 	projectileSpeed?: number
 	splashRadiusTiles?: number
+	applies?: readonly StatusApplicationParam[]
 }
 
 /**
@@ -65,6 +97,7 @@ export function attack(params: AttackParams): AttackBehaviour {
 		targets: params.targets,
 		projectileSpeed: params.projectileSpeed ?? 0,
 		splashRadiusTiles: params.splashRadiusTiles ?? 0,
+		applies: toApplications(params.applies),
 	}
 }
 
@@ -82,6 +115,7 @@ export interface ConeAttackBehaviour {
 	/** Half the opening angle, in degrees: the cone spans twice this either side of the facing. */
 	coneHalfAngleDeg: number
 	targets: TargetClass
+	applies: StatusApplication[]
 }
 
 export interface ConeAttackParams {
@@ -91,6 +125,7 @@ export interface ConeAttackParams {
 	rangeTiles: number
 	coneHalfAngleDeg: number
 	targets: TargetClass
+	applies?: readonly StatusApplicationParam[]
 }
 
 export function coneAttack(params: ConeAttackParams): ConeAttackBehaviour {
@@ -102,6 +137,7 @@ export function coneAttack(params: ConeAttackParams): ConeAttackBehaviour {
 		rangeTiles: params.rangeTiles,
 		coneHalfAngleDeg: params.coneHalfAngleDeg,
 		targets: params.targets,
+		applies: toApplications(params.applies),
 	}
 }
 
@@ -113,6 +149,7 @@ export interface AuraBehaviour {
 	damagePerTick: number
 	damageType: DamageType
 	targets: TargetClass
+	applies: StatusApplication[]
 }
 
 export interface AuraParams {
@@ -120,6 +157,7 @@ export interface AuraParams {
 	damagePerTick: number
 	damageType: DamageType
 	targets: TargetClass
+	applies?: readonly StatusApplicationParam[]
 }
 
 export function aura(params: AuraParams): AuraBehaviour {
@@ -129,6 +167,7 @@ export function aura(params: AuraParams): AuraBehaviour {
 		damagePerTick: params.damagePerTick,
 		damageType: params.damageType,
 		targets: params.targets,
+		applies: toApplications(params.applies),
 	}
 }
 
@@ -276,6 +315,7 @@ export interface PushbackBehaviour {
 	/** Tiles per tick, subtracted from the enemy's path distance while it is in the cone. */
 	pushTilesPerTick: number
 	targets: TargetClass
+	applies: StatusApplication[]
 }
 
 export interface PushbackParams {
@@ -283,6 +323,7 @@ export interface PushbackParams {
 	coneHalfAngleDeg: number
 	pushTilesPerTick: number
 	targets: TargetClass
+	applies?: readonly StatusApplicationParam[]
 }
 
 export function pushback(params: PushbackParams): PushbackBehaviour {
@@ -292,6 +333,7 @@ export function pushback(params: PushbackParams): PushbackBehaviour {
 		coneHalfAngleDeg: params.coneHalfAngleDeg,
 		pushTilesPerTick: params.pushTilesPerTick,
 		targets: params.targets,
+		applies: toApplications(params.applies),
 	}
 }
 
@@ -411,4 +453,9 @@ export function isAttack(behaviour: Behaviour): behaviour is AttackBehaviour {
  */
 export function isCollect(behaviour: Behaviour): behaviour is CollectBehaviour {
 	return behaviour.kind === 'collect'
+}
+
+/** And for charges: `placeTower` seeds `Tower.state` from one, and step 10's rearm reads the same. */
+export function isCharge(behaviour: Behaviour): behaviour is ChargeBehaviour {
+	return behaviour.kind === 'charge'
 }

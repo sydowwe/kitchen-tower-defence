@@ -8,10 +8,12 @@
  * `StackRule` and one entry in `STACK_RULES`, and `applyStatus` still does not change.
  *
  * This file owns the bookkeeping only. Burn does not deal its damage here -- `damageOverTime` is a
- * label the combat system reads in step 9, and no source applies any of these until then.
+ * label `core/systems/status.ts` filters on, and that system is what routes the per-tick number
+ * through the matrix.
  */
 
-import type { ActiveStatus, EntityId, StatusKind } from '@/core/types.ts'
+import type { StatusApplication } from '@/core/content/behaviours.ts'
+import type { ActiveStatus, DamageType, EntityId, StatusKind } from '@/core/types.ts'
 
 /** `core/` has no clock, so the conversion from the doc's seconds lives here as a plain factor. */
 const TICKS_PER_SECOND = 60
@@ -43,18 +45,25 @@ type MergeFn<K extends StackRuleKind> = (existing: ActiveStatus, incoming: Activ
 /**
  * One entry per rule. Both entries refresh the duration -- an effect re-applied by a still-firing
  * tower must not expire on the first application's clock.
+ *
+ * **Last application wins** for `magnitude`, `sourceId` and `damageType`, and all three move
+ * together. A `Math.max` on the magnitude would leave a sold tower's stronger number running on an
+ * enemy with nothing on the board to explain it, and a `damageType` left behind would have a fire
+ * tower's burn still resolving as the electric one that first lit it.
  */
 const STACK_RULES: { [K in StackRuleKind]: MergeFn<K> } = {
 	refresh(existing, incoming) {
 		existing.remainingTicks = Math.max(existing.remainingTicks, incoming.remainingTicks)
 		existing.magnitude = incoming.magnitude
 		existing.sourceId = incoming.sourceId
+		existing.damageType = incoming.damageType
 	},
 	stackTo(existing, incoming, rule) {
 		existing.stacks = Math.min(existing.stacks + incoming.stacks, rule.max)
 		existing.remainingTicks = Math.max(existing.remainingTicks, incoming.remainingTicks)
 		existing.magnitude = incoming.magnitude
 		existing.sourceId = incoming.sourceId
+		existing.damageType = incoming.damageType
 	},
 }
 
@@ -86,6 +95,12 @@ export interface StatusDef {
 	/** Default for `ActiveStatus.magnitude`. An upgraded tower may apply a stronger one. */
 	magnitude: number
 	effect: StatusEffect
+	/**
+	 * What a `damageOverTime` tick resolves as when the source had no damage type of its own. Null
+	 * for the five that deal no damage. An application carries the applying behaviour's type instead
+	 * whenever it has one -- this is only the floor under it.
+	 */
+	damageType: DamageType | null
 	stack: StackRule
 	/**
 	 * Kinds that refuse this one while they are active. Freeze suppresses Slow *re-application*
@@ -102,6 +117,7 @@ export const STATUS_DEFS: Readonly<Record<StatusKind, StatusDef>> = {
 		durationTicks: seconds(2),
 		magnitude: 0.4,
 		effect: 'speed',
+		damageType: null,
 		stack: { kind: 'refresh' },
 		suppressedBy: ['freeze'],
 	},
@@ -110,6 +126,7 @@ export const STATUS_DEFS: Readonly<Record<StatusKind, StatusDef>> = {
 		durationTicks: seconds(4),
 		magnitude: 1,
 		effect: 'speed',
+		damageType: null,
 		stack: { kind: 'refresh' },
 		suppressedBy: [],
 	},
@@ -118,6 +135,7 @@ export const STATUS_DEFS: Readonly<Record<StatusKind, StatusDef>> = {
 		durationTicks: seconds(3),
 		magnitude: 5 / TICKS_PER_SECOND,
 		effect: 'damageOverTime',
+		damageType: 'fire',
 		stack: { kind: 'stackTo', max: 3 },
 		suppressedBy: [],
 	},
@@ -126,6 +144,7 @@ export const STATUS_DEFS: Readonly<Record<StatusKind, StatusDef>> = {
 		durationTicks: seconds(5),
 		magnitude: 4 / TICKS_PER_SECOND,
 		effect: 'damageOverTime',
+		damageType: 'chemical',
 		stack: { kind: 'stackTo', max: 5 },
 		suppressedBy: [],
 	},
@@ -135,6 +154,7 @@ export const STATUS_DEFS: Readonly<Record<StatusKind, StatusDef>> = {
 		/** Halfway to 1.0: the `armored` physical 0.4 becomes 0.7. */
 		magnitude: 0.5,
 		effect: 'armorStrip',
+		damageType: null,
 		stack: { kind: 'refresh' },
 		suppressedBy: [],
 	},
@@ -143,6 +163,7 @@ export const STATUS_DEFS: Readonly<Record<StatusKind, StatusDef>> = {
 		durationTicks: seconds(3),
 		magnitude: 0.25,
 		effect: 'damageTaken',
+		damageType: null,
 		stack: { kind: 'refresh' },
 		suppressedBy: [],
 	},
@@ -151,6 +172,7 @@ export const STATUS_DEFS: Readonly<Record<StatusKind, StatusDef>> = {
 		durationTicks: UNTIL_SOURCE_SPENT,
 		magnitude: 1,
 		effect: 'speed',
+		damageType: null,
 		stack: { kind: 'refresh' },
 		suppressedBy: [],
 	},
@@ -163,16 +185,55 @@ export interface StatusHolder {
 	statuses: ActiveStatus[]
 }
 
-/** One application of `kind` at its default strength and duration. */
-export function createStatus(kind: StatusKind, sourceId: EntityId | null = null): ActiveStatus {
+/**
+ * One application of `kind`, at its default strength and duration unless told otherwise.
+ *
+ * The three optional parameters are positional and defaulted rather than an options object, so
+ * `createStatus('rooted', 7)` keeps meaning what it did. `magnitude` falls back to the def's, which
+ * is what gets the override to `speedMultiplier`, `damageTakenMultiplier` and `armorStripStrength`
+ * for free -- all three read the live field and none of them knows an override exists.
+ */
+export function createStatus(
+	kind: StatusKind,
+	sourceId: EntityId | null = null,
+	damageType: DamageType | null = null,
+	magnitude: number | null = null,
+): ActiveStatus {
 	const def = STATUS_DEFS[kind]
 	return {
 		kind: def.kind,
 		remainingTicks: def.durationTicks,
 		stacks: 1,
-		magnitude: def.magnitude,
+		magnitude: magnitude ?? def.magnitude,
 		sourceId,
+		damageType,
 	}
+}
+
+/**
+ * The one seam every source lands statuses through: an instant hit, a projectile on arrival, and
+ * 9B's cone all call this. It needs no world, so it lives with the vocabulary rather than in a
+ * system -- and two call sites each assembling their own `createStatus` is exactly how the damage
+ * type ends up set on one path and null on the other.
+ */
+export function applyStatuses(
+	target: StatusHolder,
+	applications: readonly StatusApplication[],
+	sourceId: EntityId,
+	damageType: DamageType | null,
+): void {
+	for (const application of applications) {
+		applyStatus(target, createStatus(application.kind, sourceId, damageType, application.magnitude))
+	}
+}
+
+/**
+ * Whether this status ends when whatever applied it is spent, rather than on a timer. True for
+ * Rooted and nothing else today. Read by the charge bookkeeping, which is what "spent" means -- so
+ * that scan filters on a property of the def instead of naming a kind.
+ */
+export function endsWithItsSource(status: ActiveStatus): boolean {
+	return STATUS_DEFS[status.kind].durationTicks === UNTIL_SOURCE_SPENT
 }
 
 export function findStatus(target: StatusHolder, kind: StatusKind): ActiveStatus | undefined {

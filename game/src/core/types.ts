@@ -9,6 +9,7 @@
  * with milliseconds eventually; a field called `cooldownTicks` does not.
  */
 
+import type { StatusApplication } from '@/core/content/behaviours.ts'
 import type { RngState } from '@/core/rng.ts'
 
 // --- identity ---------------------------------------------------------------------------------
@@ -158,6 +159,12 @@ export interface ActiveStatus {
 	magnitude: number
 	/** Rooted lasts "until the source is spent", so it has to know its source. Null otherwise. */
 	sourceId: EntityId | null
+	/**
+	 * The damage type per-tick damage is dealt as, taken from the behaviour that applied it -- so a
+	 * burn lit by an electric tower burns electric. Null when the source had none, and
+	 * `StatusDef.damageType` is the fallback. Meaningless for a status that deals no damage.
+	 */
+	damageType: DamageType | null
 }
 
 export interface Enemy {
@@ -238,6 +245,15 @@ export interface Projectile {
 	damageType: DamageType
 	/** 0 for a single-target hit. */
 	splashRadiusTiles: number
+	/**
+	 * The statuses to land on arrival -- a slow lands when the ice cube gets there, not when it was
+	 * fired, and the tower may have been sold in between.
+	 *
+	 * **Assigned by reference off the firing behaviour and never written through.** A behaviour
+	 * descriptor is immutable content that outlives every world, and mutating this array would edit
+	 * the tower def for the rest of the session.
+	 */
+	applies: readonly StatusApplication[]
 	/**
 	 * Hits left before it despawns, decremented per hit. 1 for every shot in the game today.
 	 *

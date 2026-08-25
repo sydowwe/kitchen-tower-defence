@@ -182,20 +182,28 @@ on arrival, with `projectile.damageType` as the source type and `sourceTowerId` 
 
 ### 5. Charges, and the tape that spends them
 
-`placeTower` initialisation per decision 8, then in `statusSystem` (after the per-enemy pass, since
-it is status bookkeeping):
+`placeTower` initialisation per decision 8, then two halves in two files:
 
 - **The fire gate**, in `combatSystem`: a tower with a `charge` state fires only while
   `charges > 0`, and Sticky Tape roots **one enemy at a time** — skip it while any enemy carries a
-  `rooted` status whose `sourceId` is this tower's id.
-- **The release**: that same scan, one tick later, finds no such enemy → `charges--`. At 0, call
-  `removeTower`. Scanning `world.enemies` for the outstanding root rather than remembering the
-  enemy's id on the tower keeps `TowerState` as it is, and — the real reason — it covers **both**
-  ways a root ends. A version that hooks `enemyKilled` misses the enemy that reached the fridge and
-  leaked, and the symptom is a tape that keeps a charge forever and never expires.
-- The release is noticed on the **following** tick, because `resolveSystem` runs ninth after this
-  one. That is fine and worth a comment; a tape that re-fires in the same tick its target died would
-  be reading a dead enemy out of a stale index.
+  status of this tower's that ends when its source is spent. Filter on
+  `durationTicks === UNTIL_SOURCE_SPENT` rather than on the kind `'rooted'`, and the scan needs no
+  `Do not` fence when step 10 adds a second charge tower.
+- **The spend is at the shot**, not at the release. `charges--` in `combatSystem` on the tick the
+  tape fires. *This part was written the other way round — "the release scan, one tick later, finds
+  no such enemy → `charges--`" — and the code proved it wrong: a freshly placed tape has no
+  outstanding root either, so that rule burns all three charges on the tick it is built. Spending at
+  the shot lands the same three roots with no marker field on `TowerState`.*
+- **The retirement**, in `statusSystem` after the per-enemy pass: a `charge` tower at 0 charges with
+  no outstanding status of its own is done with → `removeTower`. Scanning `world.enemies` rather
+  than remembering the enemy's id on the tower keeps `TowerState` as it is, and — the real reason —
+  it covers **both** ways a root ends. A version that hooks `enemyKilled` misses the enemy that
+  reached the fridge and leaked, and the symptom is a tape that stands there forever. Requiring the
+  scan to be clear is also what stops the tape being removed while a live root of its own is still
+  holding an enemy, which would leave that root running with nothing to end it.
+- The end of a root is noticed on the **following** tick, because `resolveSystem` runs ninth and
+  this system first. That is fine and worth a comment; a tape that re-fires in the same tick its
+  target died would be reading a dead enemy out of a stale index.
 
 ### 6. The two towers
 
@@ -252,12 +260,12 @@ functions `tests/statuses.spec.ts` already covers. Put them in a new `tests/stat
 
 ## Acceptance
 
-- [ ] Adding a fourth status-applying tower is a def in `core/content/towers.ts` plus an `en.ts`
+- [x] Adding a fourth status-applying tower is a def in `core/content/towers.ts` plus an `en.ts`
       entry, and **no file in `core/systems/` changes**. This is the architecture checkpoint for the
       step; if it isn't true, the composition is wrong and this is the session to fix it.
-- [ ] No `kind === 'burn'`-style branch anywhere in `core/systems/status.ts`.
-- [ ] `core/` still imports nothing but itself and zod; `SYSTEM_ORDER` is unchanged.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] No `kind === 'burn'`-style branch anywhere in `core/systems/status.ts`.
+- [x] `core/` still imports nothing but itself and zod; `SYSTEM_ORDER` is unchanged.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 9B and 9C
 
@@ -270,12 +278,18 @@ core/content/behaviours.ts StatusApplication      = { kind: StatusKind; magnitud
 core/content/statuses.ts   applyStatuses(target: StatusHolder, applications: readonly StatusApplication[],
                                          sourceId: EntityId, damageType: DamageType | null): void
                            createStatus(kind, sourceId?, damageType?, magnitude?): ActiveStatus
-core/systems/combat.ts     applyDamage(world, enemy, base: number, damageType: DamageType): number
+core/systems/combat.ts     applyDamage(_world, enemy, base: number, damageType: DamageType): number
                            dealDamage(world, enemy, base, damageType, sourceTowerId): number
+                           hasOutstandingSourceStatus(world, towerId: EntityId): boolean
+core/content/statuses.ts   endsWithItsSource(status: ActiveStatus): boolean
 core/systems/placement.ts  removeTower(world: World, towerId: EntityId): boolean
 core/types.ts              ActiveStatus.damageType: DamageType | null
                            Projectile.applies: readonly StatusApplication[]
 ```
+
+`applyDamage` takes the world and does not read it — hence the underscore, which `noUnusedParameters`
+insists on. It is kept in the signature so both halves of the split read the same at every call site,
+and so 9B's splash has it when it needs a position.
 
 ## Do not
 

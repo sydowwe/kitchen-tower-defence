@@ -10,7 +10,7 @@
  * so the doc's number stays legible next to it.
  */
 
-import { attack, collect, income } from '@/core/content/behaviours.ts'
+import { attack, charge, collect, income } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 
 /** `core/` has no clock, so the conversion from the doc's per-second rates lives here as a factor. */
@@ -144,6 +144,89 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
 	],
 }
 
-export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar]
+/**
+ * The two status towers, and the proof that landing an effect is content: neither needed a line in
+ * `core/systems/` beyond the one interpreter both share.
+ *
+ * Both author `applies` in its bare form and take the status table's own magnitude. Overriding one
+ * is what 9B's Spray Bottle does, because analytic-docs/CONTENT.md section 1 gives it a DoT rate the
+ * status table disagrees with; nothing in Act I has that problem.
+ */
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act I: 110 crumbs, 2 damage, 0.8/sec, range 3, cold, ground,
+ * no noise, off the path. Section 4's Slow is -40% for 2 seconds, and this tower does not override
+ * it.
+ *
+ * **The 2 damage is not meant to matter.** Cold is *weak* against `soft` (0.5x) and only slightly
+ * strong against `armored` (1.2x) in section 3's matrix -- this is a control tower whose output is
+ * the slow, and a version balanced around its damage would be the Salt Shaker at twice the price.
+ *
+ * `projectileSpeed` has no column in the doc, so it is authored here and pinned in
+ * `tests/content.spec.ts` the way the Salt Shaker's is. 0.1 tiles/tick is that tower's, retuned in
+ * 6C by watching a shot cross; there is no reason an ice cube should outrun a grain of salt.
+ */
+export const iceCubeTray: TowerDefOf<'iceCubeTray'> = {
+	id: 'iceCubeTray',
+	nameKey: 'tower.iceCubeTray.name',
+	descriptionKey: 'tower.iceCubeTray.description',
+	glyph: '🧊',
+	role: 'SLOW',
+	cost: 110,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	/** Neither DPS nor burst, so section 5's default is `CLOSEST`. */
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		attack({
+			damage: 2,
+			damageType: 'cold',
+			cooldownTicks: perSecond(0.8),
+			rangeTiles: 3,
+			targets: 'ground',
+			projectileSpeed: 0.1,
+			applies: ['slow'],
+		}),
+	],
+}
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act I: 40 crumbs, 0 damage, 0.5/sec, range 2, ground, no
+ * noise, off the path -- and section 1's behaviour note, "applies `Rooted` to one enemy at a time,
+ * until the tape is spent (3 charges) or the enemy dies".
+ *
+ * The damage column is 0 and the type column is a dash, but the schema requires a `damageType`:
+ * `physical` against 0 damage is the honest filler, and `dealDamage` publishes no event for a
+ * resolved 0 either way.
+ *
+ * `rearmTicks: 0` -- a tape does not rearm. It spends a charge per root and is removed when the
+ * third one ends.
+ */
+export const stickyTape: TowerDefOf<'stickyTape'> = {
+	id: 'stickyTape',
+	nameKey: 'tower.stickyTape.name',
+	descriptionKey: 'tower.stickyTape.description',
+	glyph: '🧻',
+	role: 'CONTROL',
+	cost: 40,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		attack({
+			damage: 0,
+			damageType: 'physical',
+			cooldownTicks: perSecond(0.5),
+			rangeTiles: 2,
+			targets: 'ground',
+			applies: ['rooted'],
+		}),
+		charge({ charges: 3, rearmTicks: 0 }),
+	],
+}
+
+export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar, iceCubeTray, stickyTape]
 
 export type TowerId = (typeof TOWERS)[number]['id']

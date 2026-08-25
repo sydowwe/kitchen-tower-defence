@@ -111,6 +111,7 @@ describe('behaviour descriptors', () => {
 
 		expect(shot.projectileSpeed).toBe(0)
 		expect(shot.splashRadiusTiles).toBe(0)
+		expect(shot.applies).toEqual([])
 	})
 
 	it('keeps a factory to exactly the descriptor keys', () => {
@@ -125,6 +126,7 @@ describe('behaviour descriptors', () => {
 		})
 
 		expect(Object.keys(shot).sort()).toEqual([
+			'applies',
 			'cooldownTicks',
 			'damage',
 			'damageType',

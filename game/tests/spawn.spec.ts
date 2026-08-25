@@ -225,9 +225,17 @@ describe('movementSystem', () => {
 		const enemy = world.enemies[0]
 		expect(enemy).toBeDefined()
 		const before = enemy?.distance ?? 0
-		// Freeze is magnitude 1, so speedMultiplier is 0. Nothing applies a status until step 9;
-		// this is here so a movement system that ignores statuses fails now rather than then.
-		enemy?.statuses.push({ kind: 'freeze', remainingTicks: 600, stacks: 1, magnitude: 1, sourceId: null })
+		// Freeze is magnitude 1, so speedMultiplier is 0. Pushed straight onto the enemy rather than
+		// applied by a tower: no v1 tower freezes, and what is under test is movement reading the
+		// field at all.
+		enemy?.statuses.push({
+			kind: 'freeze',
+			remainingTicks: 600,
+			stacks: 1,
+			magnitude: 1,
+			sourceId: null,
+			damageType: null,
+		})
 		spawnTicksOver(world, 30)
 
 		expect(enemy?.distance).toBe(before)

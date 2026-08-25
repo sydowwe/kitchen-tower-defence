@@ -4,7 +4,7 @@ import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContent } from '@/core/content/schema.ts'
-import { cookieJar, saltShaker, toasterCrumbTray, TOWERS } from '@/core/content/towers.ts'
+import { cookieJar, iceCubeTray, saltShaker, stickyTape, toasterCrumbTray, TOWERS } from '@/core/content/towers.ts'
 import { en } from '@/ui/locales/en.ts'
 import type { AttackBehaviour, CollectBehaviour, IncomeBehaviour } from '@/core/content/behaviours.ts'
 
@@ -132,6 +132,61 @@ describe('the economy towers', () => {
 
 		// 1.5 seconds, and the assertion that catches 1500 being pasted in from the doc.
 		expect(tray.travelTicks / 60).toBeCloseTo(1.5, 10)
+	})
+})
+
+describe('the two status towers', () => {
+	it('match analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(iceCubeTray.cost).toBe(110)
+		expect(iceCubeTray.role).toBe('SLOW')
+		expect(iceCubeTray.glyph).toBe('🧊')
+		expect(iceCubeTray.placement).toBe('off_path')
+		expect(iceCubeTray.noise).toBe(0)
+		expect(iceCubeTray.maxHp).toBe(100)
+
+		const ice = attackOf(iceCubeTray.behaviours)
+		expect(ice.damage).toBe(2)
+		expect(ice.damageType).toBe('cold')
+		expect(ice.rangeTiles).toBe(3)
+		expect(ice.targets).toBe('ground')
+		/** 0.8 shots per second: 60 / 0.8 is 75 ticks. */
+		expect(ice.cooldownTicks).toBe(75)
+		/** Authored here, not in the doc -- the Salt Shaker's retuned 0.1 is the only precedent. */
+		expect(ice.projectileSpeed).toBeCloseTo(0.1, 10)
+
+		expect(stickyTape.cost).toBe(40)
+		expect(stickyTape.role).toBe('CONTROL')
+		expect(stickyTape.glyph).toBe('🧻')
+		expect(stickyTape.placement).toBe('off_path')
+		expect(stickyTape.noise).toBe(0)
+
+		const tape = attackOf(stickyTape.behaviours)
+		expect(tape.damage).toBe(0)
+		expect(tape.rangeTiles).toBe(2)
+		expect(tape.targets).toBe('ground')
+		/** 0.5 shots per second: 60 / 0.5 is 120 ticks. */
+		expect(tape.cooldownTicks).toBe(120)
+		/** No projectile: a strip of tape lands the tick it is laid. */
+		expect(tape.projectileSpeed).toBe(0)
+	})
+
+	it('carry the doc s status and defer its magnitude to the status table', () => {
+		expect(attackOf(iceCubeTray.behaviours).applies).toEqual([{ kind: 'slow', magnitude: null }])
+		expect(attackOf(stickyTape.behaviours).applies).toEqual([{ kind: 'rooted', magnitude: null }])
+	})
+
+	it('gives the tape the doc s three charges and no rearm', () => {
+		const behaviour = stickyTape.behaviours.find(entry => entry.kind === 'charge')
+
+		expect(behaviour).toEqual({ kind: 'charge', charges: 3, rearmTicks: 0 })
+	})
+
+	it('makes cold a control type rather than a damage one, through the matrix', () => {
+		const ice = attackOf(iceCubeTray.behaviours)
+
+		// section 3: cold is 0.5x against `soft` and 1.2x against `armored`. 2 damage is not the point.
+		expect(resolveDamage(ice.damage, 'cold', { tags: ['soft'], statuses: [] })).toBeCloseTo(1, 10)
+		expect(resolveDamage(ice.damage, 'cold', { tags: ['armored'], statuses: [] })).toBeCloseTo(2.4, 10)
 	})
 })
 

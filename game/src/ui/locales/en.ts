@@ -125,7 +125,7 @@ export const en = {
 		// Every key the game route answers to. `dev/nightHud.ts` carried the other half of this list
 		// until step 8C deleted it, so this line is now the whole of it -- edit it in the same breath
 		// as the bindings in `ui/interaction.ts`, or the on-screen help lies.
-		hint: '1-3 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
+		hint: '1-5 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
 	},
 	settings: {
 		title: 'Settings',
@@ -148,6 +148,14 @@ export const en = {
 		cookieJar: {
 			name: 'Cookie Jar',
 			description: 'The lid never sits straight. Crumbs collect around it faster than you can eat them.',
+		},
+		iceCubeTray: {
+			name: 'Ice Cube Tray',
+			description: 'Left out to thaw on the counter. Whatever walks through it slows right down.',
+		},
+		stickyTape: {
+			name: 'Sticky Tape',
+			description: 'Three strips off the roll. One thing gets stuck to each, and that is the roll gone.',
 		},
 	} satisfies TowerMessages,
 	enemy: {

@@ -125,6 +125,38 @@ describe('towerDefSchema', () => {
 		expect(problem).toContain('behaviours.0.cooldownTicks')
 	})
 
+	it('rejects a status magnitude that was written per second', () => {
+		// 2 damage/sec is the Spray Bottle's doc rate. Per *tick* it is 2/60, and 2 is 120/sec --
+		// so the [0, 1] bound is what catches the doc number pasted in, exactly as
+		// `MAX_COOLDOWN_TICKS` catches a millisecond duration.
+		const broken = {
+			...validTower(),
+			behaviours: [{ ...validTower().behaviours[0], applies: [{ kind: 'poison', magnitude: 2 }] }],
+		}
+
+		const [problem] = problemsFrom(() => validateContent({ towers: [broken] }))
+
+		expect(problem).toContain("tower 'testTurret'")
+		expect(problem).toContain('behaviours.0.applies.0.magnitude')
+	})
+
+	it('accepts an override inside the bound, and a null that defers to the status def', () => {
+		const def = {
+			...validTower(),
+			behaviours: [
+				{
+					...validTower().behaviours[0],
+					applies: [
+						{ kind: 'poison', magnitude: 2 / 60 },
+						{ kind: 'slow', magnitude: null },
+					],
+				},
+			],
+		}
+
+		expect(contentSchemas().tower.safeParse(def).success).toBe(true)
+	})
+
 	it('rejects a tower that does nothing', () => {
 		const broken = { ...validTower(), behaviours: [] }
 

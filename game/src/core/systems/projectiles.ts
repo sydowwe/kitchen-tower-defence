@@ -14,6 +14,7 @@
  */
 
 import type { AttackBehaviour } from '@/core/content/behaviours.ts'
+import { applyStatuses } from '@/core/content/statuses.ts'
 import { dealDamage } from '@/core/systems/combat.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import type { Enemy, Projectile, Tower, World } from '@/core/types.ts'
@@ -36,6 +37,7 @@ function acquire(): Projectile {
 		damageType: 'physical',
 		splashRadiusTiles: 0,
 		pierce: 1,
+		applies: [],
 	}
 }
 
@@ -73,6 +75,10 @@ export function spawnProjectile(world: World, tower: Tower, attack: AttackBehavi
 	projectile.damage = attack.damage
 	projectile.damageType = attack.damageType
 	projectile.splashRadiusTiles = attack.splashRadiusTiles
+	// The behaviour's own array, by reference and never copied: a descriptor is immutable content
+	// that outlives every world, and copying an array of objects per shot allocates on the one path
+	// analytic-docs/ARCHITECTURE.md section 6 budgets. Nothing may write through it.
+	projectile.applies = attack.applies
 	// No content sets pierce: it is step 12's upgrade field, and `AttackBehaviour` deliberately
 	// does not carry it.
 	projectile.pierce = 1
@@ -126,6 +132,8 @@ export function projectilesSystem(world: World): void {
 
 		if (target !== null) {
 			dealDamage(world, target, projectile.damage, projectile.damageType, projectile.sourceTowerId)
+			// On arrival, not at the muzzle: a slow lands when the ice cube gets there.
+			applyStatuses(target, projectile.applies, projectile.sourceTowerId, projectile.damageType)
 			projectile.pierce--
 
 			if (projectile.pierce > 0) {

@@ -12,9 +12,10 @@
  * centres -- the same space `samplePath` returns -- and mapping a click to one is `render/`'s job.
  */
 
+import { isCharge } from '@/core/content/behaviours.ts'
 import { flagsAt, canPlace, TileFlags } from '@/core/map.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { EntityId, Tower, Vec2, World } from '@/core/types.ts'
+import type { EntityId, Tower, TowerState, Vec2, World } from '@/core/types.ts'
 
 /**
  * Why a placement was refused. A plain vocabulary like `TargetingMode`, **not** an i18n key: `ui/`
@@ -31,6 +32,19 @@ const REFUND_RATE_DURING_WAVE = 0.5
 
 function rejected(reason: PlacementRejection): PlacementResult {
 	return { ok: false, reason }
+}
+
+/**
+ * The live counter a charge tower spends down, seeded from its own behaviour. Null for every tower
+ * without one, which is most of them.
+ *
+ * `rearmTicksRemaining` starts at 0 and nothing reads it yet -- step 10 owns the armed/firing/
+ * rearming machine. What matters here is that the field gets filled in at all: a Sticky Tape placed
+ * with `state: null` silently has infinite charges.
+ */
+function initialState(def: TowerDef): TowerState | null {
+	const behaviour = def.behaviours.find(isCharge)
+	return behaviour === undefined ? null : { kind: 'charge', charges: behaviour.charges, rearmTicksRemaining: 0 }
 }
 
 /**
@@ -120,7 +134,7 @@ export function placeTower(world: World, def: TowerDef, tile: Vec2): Tower | nul
 		// Fires on the tick it lands. A tower that waits a full second before its first shot reads
 		// as broken at the moment the player is watching it hardest.
 		cooldownTicks: 0,
-		state: null,
+		state: initialState(def),
 		// The sell refund reads this field and never the def, because step 12's upgrades add to it.
 		totalInvested: def.cost,
 		targetEnemyId: null,
@@ -155,6 +169,26 @@ function reindexTowers(world: World): void {
 }
 
 /**
+ * Takes the tower off the board and nothing else -- no event, no money. False for an id that is not
+ * there.
+ *
+ * This is what a *spent* tower leaves through: a Sticky Tape out of charges is gone with no refund,
+ * and emitting `towerSold` with a refund of 0 would lie to a ledger the HUD reads. `towerDestroyed`
+ * is step 10's event. `sellTower` is this plus the money.
+ */
+export function removeTower(world: World, towerId: EntityId): boolean {
+	const position = world.index.towers[towerId]
+	if (position === undefined || world.towers[position] === undefined) {
+		return false
+	}
+
+	world.towers.splice(position, 1)
+	reindexTowers(world)
+
+	return true
+}
+
+/**
  * Removes the tower and pays the refund. False for an id that is not on the board -- a double-click
  * sends two `SellTower` commands and the second one is normal, not a crash.
  */
@@ -165,10 +199,10 @@ export function sellTower(world: World, towerId: EntityId): boolean {
 		return false
 	}
 
+	// Priced before the removal, because `refundFor` reads the tower.
 	const refund = refundFor(world, tower)
+	removeTower(world, towerId)
 	world.crumbs += refund
-	world.towers.splice(position, 1)
-	reindexTowers(world)
 	world.events.push({ kind: 'towerSold', towerId, refund })
 
 	return true

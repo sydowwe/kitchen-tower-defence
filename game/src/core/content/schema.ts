@@ -192,6 +192,16 @@ export function contentSchemas() {
 	// if a behaviour gains a field the schema does not know about, and tests/schema.spec.ts
 	// asserts the inferred union is exactly `Behaviour` in the other direction too.
 
+	/**
+	 * What a behaviour lands on what it hits. `null` is "whatever the status def says".
+	 *
+	 * **The `[0, 1]` bound is the whole value of validating this field.** An override is a *per-tick*
+	 * magnitude: a speed fraction is never above 1, and 1 damage per tick is 60/sec. So the bound is
+	 * what rejects analytic-docs/CONTENT.md's per-second number pasted straight in -- the same job
+	 * `MAX_COOLDOWN_TICKS` does for a millisecond value.
+	 */
+	const statusApplications = z.array(z.object({ kind: statusKind, magnitude: z.number().min(0).max(1).nullable() }))
+
 	const behaviour = z.discriminatedUnion('kind', [
 		z.object({
 			kind: z.literal('attack'),
@@ -202,6 +212,7 @@ export function contentSchemas() {
 			targets: targetClass,
 			projectileSpeed: z.number().min(0).max(MAX_TILES),
 			splashRadiusTiles: tiles(),
+			applies: statusApplications,
 		}),
 		z.object({
 			kind: z.literal('coneAttack'),
@@ -211,6 +222,7 @@ export function contentSchemas() {
 			rangeTiles: tiles(),
 			coneHalfAngleDeg: z.number().min(0).max(180),
 			targets: targetClass,
+			applies: statusApplications,
 		}),
 		z.object({
 			kind: z.literal('aura'),
@@ -218,6 +230,7 @@ export function contentSchemas() {
 			damagePerTick: z.number().min(0),
 			damageType,
 			targets: targetClass,
+			applies: statusApplications,
 		}),
 		z.object({
 			kind: z.literal('income'),
@@ -251,6 +264,7 @@ export function contentSchemas() {
 			coneHalfAngleDeg: z.number().min(0).max(180),
 			pushTilesPerTick: z.number().min(0).max(1),
 			targets: targetClass,
+			applies: statusApplications,
 		}),
 		z.object({
 			kind: z.literal('tileEffect'),
