@@ -10,7 +10,7 @@
  * so the doc's number stays legible next to it.
  */
 
-import { attack, charge, collect, income } from '@/core/content/behaviours.ts'
+import { attack, charge, collect, coneAttack, income } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 
 /** `core/` has no clock, so the conversion from the doc's per-second rates lives here as a factor. */
@@ -148,9 +148,9 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
  * The two status towers, and the proof that landing an effect is content: neither needed a line in
  * `core/systems/` beyond the one interpreter both share.
  *
- * Both author `applies` in its bare form and take the status table's own magnitude. Overriding one
- * is what 9B's Spray Bottle does, because analytic-docs/CONTENT.md section 1 gives it a DoT rate the
- * status table disagrees with; nothing in Act I has that problem.
+ * Both author `applies` in its bare form and take the status table's own magnitude. The Spray Bottle
+ * below is the one def that overrides it, because analytic-docs/CONTENT.md section 1 gives that
+ * tower a DoT rate the status table disagrees with; nothing else in Act I has that problem.
  */
 
 /**
@@ -227,6 +227,44 @@ export const stickyTape: TowerDefOf<'stickyTape'> = {
 	],
 }
 
-export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar, iceCubeTray, stickyTape]
+/**
+ * analytic-docs/CONTENT.md section 1, Act I: 120 crumbs, "3 + 2/s", 1.2/sec, range 3 cone, chemical,
+ * both, no noise, off the path. The first cone in the game, and the first def to override a status
+ * magnitude.
+ *
+ * **The 2/s is the row's own poison rate, not the status table's.** Section 4 gives Poison 4 dmg/s
+ * and both numbers are right about different things: the table's default is what every other source
+ * takes, and a tower may author its own. So the override is `2 / TICKS_PER_SECOND` -- a per-*tick*
+ * magnitude, through the same divisor the rates above use. A bare `2` would be 120 damage a second,
+ * and the schema's `[0, 1]` bound is what rejects it rather than the balance sheet finding out.
+ *
+ * `coneHalfAngleDeg: 30` -- a 60-degree spray, authored here because the doc's "3 cone" gives the
+ * range and not the opening. `CLOSEST` is section 5's default for a cone.
+ */
+export const sprayBottle: TowerDefOf<'sprayBottle'> = {
+	id: 'sprayBottle',
+	nameKey: 'tower.sprayBottle.name',
+	descriptionKey: 'tower.sprayBottle.description',
+	glyph: '🧴',
+	role: 'DOT',
+	cost: 120,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		coneAttack({
+			damage: 3,
+			damageType: 'chemical',
+			cooldownTicks: perSecond(1.2),
+			rangeTiles: 3,
+			coneHalfAngleDeg: 30,
+			targets: 'both',
+			applies: [{ kind: 'poison', magnitude: 2 / TICKS_PER_SECOND }],
+		}),
+	],
+}
+
+export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar, iceCubeTray, stickyTape, sprayBottle]
 
 export type TowerId = (typeof TOWERS)[number]['id']

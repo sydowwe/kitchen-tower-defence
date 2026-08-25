@@ -9,9 +9,9 @@
  * guarantee. `tests/behaviours.spec.ts` fails `type-check` the moment a function-typed field
  * appears on one.
  *
- * Only `attack` has a system reading it (step 6). The rest are descriptors without an interpreter:
- * the type exists, is a member of the union, and is schema-validated, so content can be authored
- * against it before the step that owns the mechanic arrives.
+ * `attack` (step 6) and `coneAttack` (step 9B) have systems reading them. The rest are descriptors
+ * without an interpreter: the type exists, is a member of the union, and is schema-validated, so
+ * content can be authored against it before the step that owns the mechanic arrives.
  *
  * Durations are tick counts. Ranges and radii are tiles. Speeds are tiles per tick.
  */
@@ -101,11 +101,15 @@ export function attack(params: AttackParams): AttackBehaviour {
 	}
 }
 
-// --- descriptors without an interpreter -----------------------------------------------------------
-// Each names the step that will read it. Adding the system is that step's work; adding the shape
-// is this one's, so a tower def written in step 2D never has to be revisited to gain a field.
+// --- cone -----------------------------------------------------------------------------------------
 
-/** Spray Bottle, Fan. A wedge in front of the tower rather than a circle. Step 6. */
+/**
+ * Spray Bottle. A wedge in front of the tower rather than a circle: one target chosen the ordinary
+ * way, and then everything in the wedge takes the hit. `core/systems/combat.ts` interprets it, step
+ * 9B.
+ *
+ * No `projectileSpeed`: a cone lands the tick it fires.
+ */
 export interface ConeAttackBehaviour {
 	kind: 'coneAttack'
 	damage: number
@@ -140,6 +144,10 @@ export function coneAttack(params: ConeAttackParams): ConeAttackBehaviour {
 		applies: toApplications(params.applies),
 	}
 }
+
+// --- descriptors without an interpreter -----------------------------------------------------------
+// Each names the step that will read it. Adding the system is that step's work; adding the shape
+// is this one's, so a tower def written in step 2D never has to be revisited to gain a field.
 
 /** Candle. Continuous damage to everything in radius, no shots and no targeting. Step 17. */
 export interface AuraBehaviour {
@@ -444,6 +452,22 @@ export const BEHAVIOUR_KINDS = [
 /** Narrowing helper for the systems, so `combat.ts` never hand-writes `b.kind === 'attack'`. */
 export function isAttack(behaviour: Behaviour): behaviour is AttackBehaviour {
 	return behaviour.kind === 'attack'
+}
+
+/** The same, for the wedge. */
+export function isConeAttack(behaviour: Behaviour): behaviour is ConeAttackBehaviour {
+	return behaviour.kind === 'coneAttack'
+}
+
+/**
+ * Everything that picks a target, spends a cooldown and fires. Both `targeting.ts` and `combat.ts`
+ * ask for one, and they have to agree about what counts: a tower the targeting system serves and the
+ * combat system does not is a tower that aims and never shoots.
+ */
+export type FiringBehaviour = AttackBehaviour | ConeAttackBehaviour
+
+export function isFiring(behaviour: Behaviour): behaviour is FiringBehaviour {
+	return isAttack(behaviour) || isConeAttack(behaviour)
 }
 
 /**

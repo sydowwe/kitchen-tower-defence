@@ -9,7 +9,7 @@
  * with milliseconds eventually; a field called `cooldownTicks` does not.
  */
 
-import type { StatusApplication } from '@/core/content/behaviours.ts'
+import type { StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import type { RngState } from '@/core/rng.ts'
 
 // --- identity ---------------------------------------------------------------------------------
@@ -243,8 +243,16 @@ export interface Projectile {
 	speed: number
 	damage: number
 	damageType: DamageType
-	/** 0 for a single-target hit. */
+	/** 0 for a single-target hit. Above 0, the arrival resolves through `dealSplashDamage`. */
 	splashRadiusTiles: number
+	/**
+	 * Which half of the roster the splash may catch, carried off the firing behaviour.
+	 *
+	 * It is on the projectile and not looked up from the tower on arrival, because a projectile
+	 * routinely outlives the tower that fired it -- and the symptom of looking it up would be a
+	 * ground-only splash silently hitting flyers.
+	 */
+	targets: TargetClass
 	/**
 	 * The statuses to land on arrival -- a slow lands when the ice cube gets there, not when it was
 	 * fired, and the tower may have been sold in between.

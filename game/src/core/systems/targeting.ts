@@ -11,8 +11,8 @@
  * The six modes are analytic-docs/CONTENT.md section 5.
  */
 
-import { isAttack } from '@/core/content/behaviours.ts'
-import type { AttackBehaviour, TargetClass } from '@/core/content/behaviours.ts'
+import { isFiring } from '@/core/content/behaviours.ts'
+import type { TargetClass } from '@/core/content/behaviours.ts'
 import { getTowerDef } from '@/core/content/index.ts'
 import { remainingToFridge } from '@/core/path.ts'
 import { bindRng } from '@/core/rng.ts'
@@ -80,9 +80,19 @@ function distanceSquaredFrom(world: World, tower: Tower, enemy: Enemy): number {
 	return dx * dx + dy * dy
 }
 
-export function pickTarget(world: World, tower: Tower, attack: AttackBehaviour): Enemy | null {
-	const candidates = queryEnemiesInRange(world, tower.tile, attack.rangeTiles, enemy =>
-		isTargetable(enemy, attack.targets),
+/**
+ * How far a behaviour reaches and what it is allowed to reach. Structural rather than a union of
+ * `AttackBehaviour | ConeAttackBehaviour`, because the six modes below do not care which descriptor
+ * the two numbers came from -- a cone picks its aim with exactly the same code and no branch.
+ */
+export interface Reach {
+	rangeTiles: number
+	targets: TargetClass
+}
+
+export function pickTarget(world: World, tower: Tower, reach: Reach): Enemy | null {
+	const candidates = queryEnemiesInRange(world, tower.tile, reach.rangeTiles, enemy =>
+		isTargetable(enemy, reach.targets),
 	)
 	if (candidates.length === 0) {
 		return null
@@ -114,10 +124,10 @@ export function targetingSystem(world: World): void {
 	}
 
 	for (const tower of world.towers) {
-		const attack = getTowerDef(tower.defId).behaviours.find(isAttack)
-		if (attack === undefined) {
+		const firing = getTowerDef(tower.defId).behaviours.find(isFiring)
+		if (firing === undefined) {
 			continue
 		}
-		tower.targetEnemyId = pickTarget(world, tower, attack)?.id ?? null
+		tower.targetEnemyId = pickTarget(world, tower, firing)?.id ?? null
 	}
 }

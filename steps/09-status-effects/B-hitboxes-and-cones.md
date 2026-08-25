@@ -21,7 +21,7 @@ tower and enemy that need them. Headless, apart from two English strings and one
 | `core/systems/targeting.ts` | `pickTarget(world, tower, attack: AttackBehaviour)`, `isTargetable(enemy, targets)`, `bestBy` (first-wins on a tie, deliberately not `sort`). Every tower's target is refreshed every tick, before `combat` runs |
 | `core/systems/combat.ts` | `combatSystem` finds one `attack` per tower, decrements the cooldown, emits `towerFired` with the def's `noise`, then either spawns a projectile or hits |
 | `core/systems/projectiles.ts` | arrival, `dealDamage`, `pierce`. `Projectile.splashRadiusTiles` is carried off the behaviour and **never read**; the comment says step 12 owns the query. That comment is what you are replacing |
-| `core/content/behaviours.ts` | `ConeAttackBehaviour` — `damage`, `damageType`, `cooldownTicks`, `rangeTiles`, `coneHalfAngleDeg`, `targets`, and 9A's `applies`. No `projectileSpeed`: a cone lands the tick it fires. `isAttack` is the only narrowing helper |
+| `core/content/behaviours.ts` | `ConeAttackBehaviour` — `damage`, `damageType`, `cooldownTicks`, `rangeTiles`, `coneHalfAngleDeg`, `targets`, and 9A's `applies`. No `projectileSpeed`: a cone lands the tick it fires. `isAttack`, `isCollect` and `isCharge` are the narrowing helpers; the cone has none |
 | `core/path.ts` | `samplePath` returns `{ x, y, angle }` with `angle = atan2(dy, dx)` — the convention every angle in the codebase follows |
 | `core/content/nights.ts` | nights 1–3, and a header note worth reading before you author a wave: **what sets the pace is the spawn window against the crossing, not the wave count** |
 | `core/content/maps/counter.json` | one lane, `crack`, 31.12 tiles; decor includes **🧴 at (18, 11)** — the Spray Bottle's own glyph |
@@ -102,6 +102,11 @@ line(world, from: Vec2, to: Vec2, widthTiles, filter?): Enemy[]
 
 `targetingSystem` and `combatSystem` both find the first behaviour that is an `attack` **or** a
 `coneAttack` — add `isConeAttack` beside `isAttack` rather than hand-writing the check in two files.
+Built as **two** helpers rather than one: `isConeAttack` narrows to the cone, and `isFiring` (over
+`FiringBehaviour = AttackBehaviour | ConeAttackBehaviour`) is what both systems pass to `find`. A
+predicate composed at the call site does not narrow the result of `Array.find`, and the two systems
+have to agree about what counts — a tower targeting served and combat skipped is one that aims and
+never shoots.
 Targeting is unchanged past decision 3. In combat: keep the cooldown decrement and the `towerFired`
 event exactly where they are, then aim at the target's position, query `cone`, and for each enemy in
 the wedge deal the damage and call 9A's `applyStatuses`. A tower definition can then say "cone,
@@ -176,13 +181,14 @@ literal content assertions in `tests/content.spec.ts`.
 
 ## Acceptance
 
-- [ ] A tower that says "cone, 3 tiles, chemical, applies poison" in one config object works with no
+- [x] A tower that says "cone, 3 tiles, chemical, applies poison" in one config object works with no
       further edit to `core/systems/` — the same architecture checkpoint 9A made for statuses.
-- [ ] `core/systems/hitbox.ts` contains no distance loop of its own: every shape goes through
+      (`tests/hitbox.spec.ts`, "the architecture checkpoint".)
+- [x] `core/systems/hitbox.ts` contains no distance loop of its own: every shape goes through
       `queryEnemiesInRange`.
 - [ ] Nights 4–7 play to the end from *Continue*, and night 5 is noticeably harder without a crowd
       answer than night 4 was.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 9C
 
@@ -191,7 +197,10 @@ core/systems/hitbox.ts     circle(world, center: Vec2, radiusTiles, filter?): En
                            cone(world, origin: Vec2, directionRad, radiusTiles, halfAngleDeg, filter?): Enemy[]
                            line(world, from: Vec2, to: Vec2, widthTiles, filter?): Enemy[]
 core/content/behaviours.ts isConeAttack(behaviour): behaviour is ConeAttackBehaviour
-core/systems/targeting.ts  pickTarget(world, tower, reach: { rangeTiles: number; targets: TargetClass }): Enemy | null
+                           isFiring(behaviour): behaviour is FiringBehaviour   (attack | coneAttack)
+core/systems/targeting.ts  pickTarget(world, tower, reach: Reach): Enemy | null
+                           interface Reach { rangeTiles: number; targets: TargetClass }
+core/systems/combat.ts     dealSplashDamage(world, center, radiusTiles, base, damageType, targets, sourceTowerId, applies)
 core/types.ts              Projectile.targets: TargetClass
 ```
 

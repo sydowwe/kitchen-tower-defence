@@ -125,7 +125,7 @@ export const en = {
 		// Every key the game route answers to. `dev/nightHud.ts` carried the other half of this list
 		// until step 8C deleted it, so this line is now the whole of it -- edit it in the same breath
 		// as the bindings in `ui/interaction.ts`, or the on-screen help lies.
-		hint: '1-5 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
+		hint: '1-6 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
 	},
 	settings: {
 		title: 'Settings',
@@ -157,6 +157,10 @@ export const en = {
 			name: 'Sticky Tape',
 			description: 'Three strips off the roll. One thing gets stuck to each, and that is the roll gone.',
 		},
+		sprayBottle: {
+			name: 'Spray Bottle',
+			description: 'Kitchen cleaner, one pull at a time. Whatever the mist settles on keeps going over.',
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {
@@ -166,6 +170,10 @@ export const en = {
 		roach: {
 			name: 'Roach',
 			description: 'Fast, flat and unbothered by the light. It is across the counter before you decide.',
+		},
+		beetle: {
+			name: 'Beetle',
+			description: 'Armoured, unhurried, and in no doubt about where it is going. It takes two things.',
 		},
 		fruitFly: {
 			name: 'Fruit Fly',
@@ -207,7 +215,7 @@ export const en = {
 		listSeparator: ', ',
 		retry: 'Try the night again',
 		continue: 'Continue',
-		// Night 3 is the last one authored. Step 20 is what turns this into a campaign.
+		// Night 7 is the last one authored. Step 20 is what turns this into a campaign.
 		continueUnavailable: 'That is as far as the kitchen goes for now.',
 	},
 }

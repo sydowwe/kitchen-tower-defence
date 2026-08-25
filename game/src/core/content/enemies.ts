@@ -1,5 +1,5 @@
 /**
- * The enemy roster (analytic-docs/CONTENT.md section 2). Two enemies waves can schedule, and the
+ * The enemy roster (analytic-docs/CONTENT.md section 2). Three enemies waves can schedule, and the
  * Fruit Fly, which no night schedules at all.
  *
  * An enemy is stats plus tags. The tags are the only thing that decides how it takes damage: they
@@ -87,6 +87,27 @@ export const fruitFly: EnemyDefOf<'fruitFly'> = {
 	tags: ['air', 'swarm', 'self-spawning'],
 }
 
-export const ENEMIES = [ant, roach, fruitFly]
+/**
+ * analytic-docs/CONTENT.md section 2, night 5: 55 HP, 0.7 tiles/sec, 10 crumbs, steals 2,
+ * `ground bug`.
+ *
+ * Neither tag has a matrix row, so it takes every damage type at 1.0. What makes it a bruiser is
+ * 5.5 Ants' worth of HP crossing the Counter in ~44 seconds -- long enough that one released with a
+ * wave is still walking when the next arrives -- and it is the first enemy that costs two items when
+ * it lands.
+ */
+export const beetle: EnemyDefOf<'beetle'> = {
+	id: 'beetle',
+	nameKey: 'enemy.beetle.name',
+	descriptionKey: 'enemy.beetle.description',
+	glyph: '🪲',
+	hp: 55,
+	speedTilesPerTick: tilesPerSecond(0.7),
+	reward: 10,
+	steals: 2,
+	tags: ['ground', 'bug'],
+}
+
+export const ENEMIES = [ant, roach, beetle, fruitFly]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']

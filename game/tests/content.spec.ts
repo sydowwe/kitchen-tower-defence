@@ -1,12 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { ant, ENEMIES, fruitFly } from '@/core/content/enemies.ts'
+import { ant, beetle, ENEMIES, fruitFly } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
+import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { validateContent } from '@/core/content/schema.ts'
-import { cookieJar, iceCubeTray, saltShaker, stickyTape, toasterCrumbTray, TOWERS } from '@/core/content/towers.ts'
+import {
+	cookieJar,
+	iceCubeTray,
+	saltShaker,
+	sprayBottle,
+	stickyTape,
+	toasterCrumbTray,
+	TOWERS,
+} from '@/core/content/towers.ts'
 import { en } from '@/ui/locales/en.ts'
-import type { AttackBehaviour, CollectBehaviour, IncomeBehaviour } from '@/core/content/behaviours.ts'
+import type {
+	AttackBehaviour,
+	CollectBehaviour,
+	ConeAttackBehaviour,
+	IncomeBehaviour,
+} from '@/core/content/behaviours.ts'
 
 /**
  * Two real defs, so this is the first check that the pipeline of steps 2B and 2C actually accepts
@@ -28,6 +42,12 @@ function incomeOf(behaviours: readonly { kind: string }[]): IncomeBehaviour {
 	const found = behaviours.find(behaviour => behaviour.kind === 'income')
 	expect(found).toBeDefined()
 	return found as IncomeBehaviour
+}
+
+function coneOf(behaviours: readonly { kind: string }[]): ConeAttackBehaviour {
+	const found = behaviours.find(behaviour => behaviour.kind === 'coneAttack')
+	expect(found).toBeDefined()
+	return found as ConeAttackBehaviour
 }
 
 function collectOf(behaviours: readonly { kind: string }[]): CollectBehaviour {
@@ -187,6 +207,122 @@ describe('the two status towers', () => {
 		// section 3: cold is 0.5x against `soft` and 1.2x against `armored`. 2 damage is not the point.
 		expect(resolveDamage(ice.damage, 'cold', { tags: ['soft'], statuses: [] })).toBeCloseTo(1, 10)
 		expect(resolveDamage(ice.damage, 'cold', { tags: ['armored'], statuses: [] })).toBeCloseTo(2.4, 10)
+	})
+})
+
+describe('the Spray Bottle', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(sprayBottle.cost).toBe(120)
+		expect(sprayBottle.role).toBe('DOT')
+		expect(sprayBottle.glyph).toBe('🧴')
+		expect(sprayBottle.placement).toBe('off_path')
+		expect(sprayBottle.noise).toBe(0)
+		expect(sprayBottle.maxHp).toBe(100)
+		/** Section 5: `CLOSEST` for auras and cones. */
+		expect(sprayBottle.defaultTargetingMode).toBe('CLOSEST')
+
+		const spray = coneOf(sprayBottle.behaviours)
+		expect(spray.damage).toBe(3)
+		expect(spray.damageType).toBe('chemical')
+		expect(spray.rangeTiles).toBe(3)
+		expect(spray.targets).toBe('both')
+		/** 1.2 sprays per second: 60 / 1.2 is 50 ticks. */
+		expect(spray.cooldownTicks).toBe(50)
+		/** The opening has no column in the doc, so it is authored in `towers.ts` and pinned here. */
+		expect(spray.coneHalfAngleDeg).toBe(30)
+	})
+
+	it('poisons at the row s own 2/sec, as a per-tick magnitude and not a per-second one', () => {
+		const applied = coneOf(sprayBottle.behaviours).applies
+
+		expect(applied).toHaveLength(1)
+		expect(applied[0]?.kind).toBe('poison')
+		// The `x 60` form, like the Ant's speed: a `2` pasted straight out of the doc fails here as
+		// well as against the schema's [0, 1] bound.
+		expect((applied[0]?.magnitude ?? 0) * 60).toBeCloseTo(2, 10)
+		// Section 4's status-wide 4/sec is what every other source takes, and it is untouched.
+		expect(STATUS_DEFS.poison.magnitude * 60).toBeCloseTo(4, 10)
+	})
+
+	it('is the one def that has no attack behaviour and still fires', () => {
+		expect(sprayBottle.behaviours.some(behaviour => behaviour.kind === 'attack')).toBe(false)
+	})
+})
+
+describe('the Beetle', () => {
+	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
+		expect(beetle.hp).toBe(55)
+		expect(beetle.reward).toBe(10)
+		expect(beetle.steals).toBe(2)
+		expect(beetle.glyph).toBe('🪲')
+		expect(beetle.tags).toEqual(['ground', 'bug'])
+	})
+
+	it('walks 0.7 tiles a second, in ticks', () => {
+		expect(beetle.speedTilesPerTick * 60).toBeCloseTo(0.7, 10)
+	})
+
+	it('takes every damage type at 1.0: neither of its tags has a matrix row', () => {
+		const target = { tags: beetle.tags, statuses: [] }
+
+		for (const damageType of ['physical', 'fire', 'cold', 'chemical', 'electric'] as const) {
+			expect(resolveDamage(10, damageType, target)).toBeCloseTo(10, 10)
+		}
+	})
+
+	it('crosses the Counter in about 44 seconds, which is what makes it a bruiser', () => {
+		const counter = MAP_SOURCES.find(map => map.id === 'counter')
+		const crack = counter?.paths.find(path => path.id === 'crack')
+		expect(crack).toBeDefined()
+
+		expect((crack?.lengthTiles ?? 0) / (beetle.speedTilesPerTick * 60)).toBeCloseTo(44.5, 0)
+	})
+})
+
+describe('nights 4 to 7', () => {
+	it('carries the wave counts of analytic-docs/CONTENT.md section 6', () => {
+		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10])
+		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7])
+	})
+
+	it('is authored on the Counter, on the lane the Counter actually has', () => {
+		for (const night of NIGHTS) {
+			// Step 21 re-maps 4-7 onto the Sink and the Pantry; `createWorld` throws until it does.
+			expect(night.mapId).toBe('counter')
+			for (const wave of night.waves) {
+				for (const entry of wave.entries) {
+					// An unknown lane is what `startWave` throws on, and it would throw mid-night.
+					expect(entry.pathId).toBe('crack')
+				}
+			}
+		}
+	})
+
+	it('introduces the Beetle on night 5 and nowhere earlier', () => {
+		function enemiesOf(index: number): string[] {
+			const night = NIGHTS.find(entry => entry.index === index)
+			return (night?.waves ?? []).flatMap(wave => wave.entries.map(entry => entry.enemyDefId))
+		}
+
+		expect(enemiesOf(4)).not.toContain('beetle')
+		expect(enemiesOf(5)).toContain('beetle')
+		// Two of them, in wave 3, the way night 3 introduced the Roach.
+		const firstWaveWithBeetles = NIGHTS.find(night => night.index === 5)?.waves.findIndex(wave =>
+			wave.entries.some(entry => entry.enemyDefId === 'beetle'),
+		)
+		expect(firstWaveWithBeetles).toBe(2)
+	})
+
+	it('schedules only enemies the roster has', () => {
+		const known = ENEMIES.map(enemy => enemy.id)
+
+		for (const night of NIGHTS) {
+			for (const wave of night.waves) {
+				for (const entry of wave.entries) {
+					expect(known).toContain(entry.enemyDefId)
+				}
+			}
+		}
 	})
 })
 

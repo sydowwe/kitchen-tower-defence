@@ -15,7 +15,7 @@
 
 import type { AttackBehaviour } from '@/core/content/behaviours.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
-import { dealDamage } from '@/core/systems/combat.ts'
+import { dealDamage, dealSplashDamage } from '@/core/systems/combat.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import type { Enemy, Projectile, Tower, World } from '@/core/types.ts'
 
@@ -36,6 +36,8 @@ function acquire(): Projectile {
 		damage: 0,
 		damageType: 'physical',
 		splashRadiusTiles: 0,
+		// Overwritten on acquire like every other field; a pooled projectile carries nothing forward.
+		targets: 'ground',
 		pierce: 1,
 		applies: [],
 	}
@@ -56,9 +58,12 @@ function reindexProjectiles(world: World): void {
 /**
  * One shot, leaving `tower` for where `target` is standing right now.
  *
- * `splashRadiusTiles` is carried off the behaviour because the field exists and has to be filled.
- * Step 12's Tier 3 is the first content with a non-zero radius and owns the splash query; until
- * then the hit resolves against the one target.
+ * `splashRadiusTiles` is carried off the behaviour, and the arrival below resolves it through
+ * `dealSplashDamage`. Step 12's Tier 3 is still the first *content* with a non-zero radius; the
+ * query is no longer its to build.
+ *
+ * `targets` is carried too, because the splash needs the filter and a projectile outlives the tower
+ * that fired it -- without it a ground-only splash would quietly hit flyers.
  */
 export function spawnProjectile(world: World, tower: Tower, attack: AttackBehaviour, target: Enemy): void {
 	const at = enemyPosition(world, target) ?? { x: tower.tile.x, y: tower.tile.y }
@@ -75,6 +80,7 @@ export function spawnProjectile(world: World, tower: Tower, attack: AttackBehavi
 	projectile.damage = attack.damage
 	projectile.damageType = attack.damageType
 	projectile.splashRadiusTiles = attack.splashRadiusTiles
+	projectile.targets = attack.targets
 	// The behaviour's own array, by reference and never copied: a descriptor is immutable content
 	// that outlives every world, and copying an array of objects per shot allocates on the one path
 	// analytic-docs/ARCHITECTURE.md section 6 budgets. Nothing may write through it.
@@ -131,9 +137,23 @@ export function projectilesSystem(world: World): void {
 		projectile.position.y = projectile.target.y
 
 		if (target !== null) {
-			dealDamage(world, target, projectile.damage, projectile.damageType, projectile.sourceTowerId)
-			// On arrival, not at the muzzle: a slow lands when the ice cube gets there.
-			applyStatuses(target, projectile.applies, projectile.sourceTowerId, projectile.damageType)
+			if (projectile.splashRadiusTiles > 0) {
+				// The primary target is inside the circle and takes its damage there, exactly once.
+				dealSplashDamage(
+					world,
+					projectile.position,
+					projectile.splashRadiusTiles,
+					projectile.damage,
+					projectile.damageType,
+					projectile.targets,
+					projectile.sourceTowerId,
+					projectile.applies,
+				)
+			} else {
+				dealDamage(world, target, projectile.damage, projectile.damageType, projectile.sourceTowerId)
+				// On arrival, not at the muzzle: a slow lands when the ice cube gets there.
+				applyStatuses(target, projectile.applies, projectile.sourceTowerId, projectile.damageType)
+			}
 			projectile.pierce--
 
 			if (projectile.pierce > 0) {
