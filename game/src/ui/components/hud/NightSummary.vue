@@ -40,6 +40,8 @@
 				<button
 					type="button"
 					class="action primary"
+					:disabled="!canContinue"
+					:title="canContinue ? undefined : t('night.continueUnavailable')"
 					@click="emit('continueNight')"
 				>
 					{{ t('night.continue') }}
@@ -54,7 +56,15 @@
 	import { useI18n } from 'vue-i18n'
 	import type { NightSummaryView } from '@/ui/viewModel.ts'
 
-	const { summary } = defineProps<{ summary: NightSummaryView }>()
+	/**
+	 * `canContinue` is false on the last authored night. Disabled rather than hidden, so the pair of
+	 * buttons does not reflow on the one screen where the player is reading rather than aiming --
+	 * step 20 is what turns it into a campaign that continues somewhere.
+	 */
+	const { summary, canContinue = true } = defineProps<{
+		summary: NightSummaryView
+		canContinue?: boolean
+	}>()
 
 	const emit = defineEmits<{
 		retry: []
@@ -168,5 +178,11 @@
 	.action.primary {
 		border-color: var(--kd-owned-dim);
 		color: var(--kd-owned);
+	}
+
+	.action:disabled {
+		border-color: var(--kd-panel-edge);
+		opacity: 0.4;
+		cursor: default;
 	}
 </style>

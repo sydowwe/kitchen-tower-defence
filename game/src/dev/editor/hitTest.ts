@@ -5,7 +5,7 @@
  * 6px grab radius is a third of a tile on a laptop and a twentieth on a 4K monitor, and the tool
  * feels different on every machine (step 4B, section 4).
  *
- * All coordinates are waypoint space -- `dev/tileCoords.ts` converts, and the authored `MapSource`
+ * All coordinates are waypoint space -- `render/tileCoords.ts` converts, and the authored `MapSource`
  * is already in it.
  */
 

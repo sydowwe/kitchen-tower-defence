@@ -1,5 +1,13 @@
 export { createRenderer, LOGICAL_WIDTH, LOGICAL_HEIGHT, type Renderer } from '@/render/renderer.ts'
 export {
+	toGridPoint,
+	toTile,
+	gridToWaypoint,
+	waypointToGrid,
+	isOnBoard,
+	type ClientPoint,
+} from '@/render/tileCoords.ts'
+export {
 	getGlyph,
 	blitGlyph,
 	preload,
@@ -27,5 +35,9 @@ export {
 	drawPlacementTile,
 	preloadTowerGlyphs,
 	towerGlyphSize,
+	drawOverlay,
 	type PlacementTone,
+	type OverlayView,
+	type OverlayGhost,
+	type OverlaySelected,
 } from '@/render/layers/index.ts'

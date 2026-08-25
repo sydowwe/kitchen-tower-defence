@@ -64,9 +64,17 @@
 	import { onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 	import { useRouter } from 'vue-router'
 	import { MAP_SOURCES } from '@/core/content/maps/index.ts'
-	import { createRenderer, LOGICAL_HEIGHT, LOGICAL_WIDTH, type Renderer } from '@/render/index.ts'
-	import { isTypingTarget } from '@/dev/debug/state.ts'
-	import { gridToWaypoint, isOnBoard, toGridPoint, toTile } from '@/dev/tileCoords.ts'
+	import {
+		createRenderer,
+		gridToWaypoint,
+		isOnBoard,
+		LOGICAL_HEIGHT,
+		LOGICAL_WIDTH,
+		toGridPoint,
+		toTile,
+		type Renderer,
+	} from '@/render/index.ts'
+	import { isTypingTarget } from '@/ui/keyboard.ts'
 	import { createDocument, type EditorDoc, type EditorSnapshot } from '@/dev/editor/document.ts'
 	import { hitSegment, hitWaypoint } from '@/dev/editor/hitTest.ts'
 	import { drawEditorOverlay, type OverlayPath } from '@/dev/editor/overlay.ts'

@@ -4,6 +4,7 @@
 			type="button"
 			class="call"
 			:disabled="phase !== 'countdown'"
+			:title="t('hud.callWaveKey')"
 			@click="emit('callWave')"
 		>
 			<span class="call-label">{{ t('hud.callWave') }}</span>

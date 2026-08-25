@@ -12,8 +12,7 @@
  * edit per pointermove (decision 1).
  */
 
-import { waypointToGrid } from '@/dev/tileCoords.ts'
-import { LOGICAL_WIDTH } from '@/render/renderer.ts'
+import { LOGICAL_WIDTH, waypointToGrid } from '@/render/index.ts'
 import type { BrushChar } from '@/dev/editor/edits.ts'
 import type { Problem } from '@/dev/editor/validate.ts'
 import type { Vec2 } from '@/core/types.ts'

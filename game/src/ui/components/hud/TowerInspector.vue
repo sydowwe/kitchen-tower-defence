@@ -41,6 +41,7 @@
 			<button
 				type="button"
 				class="action sell"
+				:title="t('hud.sellKey')"
 				@click="emit('sell', inspector.towerId)"
 			>
 				<FontAwesomeIcon icon="trash" />

@@ -5,8 +5,8 @@
  * fourth file for six lines is worse than the shared one (step 6C, decision 5).
  *
  * **Nothing in this file knows what is selected.** It exports the primitives -- a range ring, a
- * placement square -- and *who* is highlighted is the caller's business, because the caller is
- * `dev/placement.ts` today and step 8's Vue HUD tomorrow. `render/` reads core state and owns no UI
+ * placement square -- and *who* is highlighted is the caller's business, because the callers are
+ * `render/layers/overlay.ts` and the step 4 editor. `render/` reads core state and owns no UI
  * state (CLAUDE.md, the layering rule); `effects.ts` is the one exception and it holds animation,
  * not selection.
  */

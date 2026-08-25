@@ -5,9 +5,14 @@
  * wrong by whatever the scale factor is -- invisible at the centre of the board and a full tile at
  * the corners. Everything here goes through `getBoundingClientRect()` instead.
  *
- * Extracted from `dev/debug/state.ts`, which wrote it inline in step 3C. Both the debug overlay and
- * the map editor call it now (step 4B, decision 4). Flooring is deliberately **not** done here: the
- * editor needs the fractional position for waypoints and only the brush wants a tile index.
+ * Extracted from `dev/debug/state.ts`, which wrote it inline in step 3C. Flooring is deliberately
+ * **not** done here: the editor needs the fractional position for waypoints and only the brush wants
+ * a tile index.
+ *
+ * It lived in `dev/` until step 8C, when `ui/interaction.ts` became a fourth caller -- and that one
+ * ships, so a `dev/` import would root the map editor in the production bundle. It belongs here
+ * anyway: `core/systems/placement.ts` has said since step 6 that mapping a click to a tile is
+ * `render/`'s job, and the file already reads the renderer's logical size.
  */
 
 import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from '@/render/renderer.ts'

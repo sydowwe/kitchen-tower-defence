@@ -1,5 +1,8 @@
 <template>
-	<div class="overlay">
+	<div
+		v-if="visible"
+		class="overlay"
+	>
 		<dl>
 			<dt>{{ t('debug.fps') }}</dt>
 			<dd>{{ Math.round(fps) }}</dd>
@@ -26,7 +29,10 @@
 		entityCount = 0,
 		speed = 1,
 		paused = false,
+		visible = false,
 	} = defineProps<{
+		/** The `` ` `` toggle, which owns the canvas debug overlay too -- one key for both (step 8C). */
+		visible?: boolean
 		fps?: number
 		tickCount?: number
 		simSeconds?: number

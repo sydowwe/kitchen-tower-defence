@@ -38,6 +38,7 @@
 	<NightSummary
 		v-if="snapshot.summary !== null"
 		:summary="snapshot.summary"
+		:canContinue="canContinue"
 		@retry="emit('retry')"
 		@continueNight="emit('continueNight')"
 	/>
@@ -69,10 +70,13 @@
 		snapshot,
 		selection,
 		toasts = [],
+		canContinue = true,
 	} = defineProps<{
 		snapshot: HudSnapshot
 		selection: Selection
 		toasts?: { id: number; messageKey: string }[]
+		/** False on the last authored night. `GameView.vue` steps through `NIGHTS` and stops. */
+		canContinue?: boolean
 	}>()
 
 	const emit = defineEmits<{

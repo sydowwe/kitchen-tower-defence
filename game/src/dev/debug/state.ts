@@ -10,7 +10,8 @@
  * identically whether or not someone had the overlay open (step 3C, decision 3).
  */
 
-import { isOnBoard, toGridPoint, toTile } from '@/dev/tileCoords.ts'
+import { isOnBoard, toGridPoint, toTile } from '@/render/index.ts'
+import { isTypingTarget } from '@/ui/keyboard.ts'
 import { totalLength } from '@/core/path.ts'
 import type { MapDef, Vec2 } from '@/core/types.ts'
 
@@ -36,19 +37,6 @@ export interface DebugController {
 	/** Advances the marker by however much wall-clock time passed since the last call. Call once per drawn frame. */
 	update(): void
 	destroy(): void
-}
-
-/**
- * True while a text field has focus, so `` ` `` toggling the overlay does not eat a keystroke.
- *
- * Exported because the map editor's shortcuts need exactly the same guard against its own panel
- * inputs, and two copies of it drift (step 4B).
- */
-export function isTypingTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) {
-		return false
-	}
-	return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 }
 
 const FORWARD_KEYS = new Set(['ArrowRight', 'ArrowDown'])

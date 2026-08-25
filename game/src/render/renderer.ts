@@ -6,10 +6,12 @@ import {
 	drawFridge,
 	drawProjectiles,
 	drawTerrain,
+	drawOverlay,
 	drawTowers,
 	drawTrack,
 } from '@/render/layers/index.ts'
 import { BACKGROUND } from '@/render/palette.ts'
+import type { OverlayView } from '@/render/layers/index.ts'
 import type { MapDef, World } from '@/core/types.ts'
 
 /**
@@ -39,8 +41,12 @@ export interface Renderer {
 	drawGlyph(emoji: string, sizePx: number, x: number, y: number): void
 	/** The map to draw. Bakes terrain and track; cheap to call again with the same map. */
 	setMap(map: MapDef): void
-	/** One frame. `world` is null until step 5 puts a simulation behind the board. */
-	drawFrame(world: World | null): void
+	/**
+	 * One frame. `world` is null until step 5 puts a simulation behind the board, and `overlay` is
+	 * the placement ghost and range circles -- plain data resolved by the caller, null when there is
+	 * nothing armed and nothing selected.
+	 */
+	drawFrame(world: World | null, overlay?: OverlayView | null): void
 }
 
 export function createRenderer(canvas: HTMLCanvasElement): Renderer {
@@ -136,7 +142,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		ensureBake()
 	}
 
-	function drawFrame(world: World | null): void {
+	function drawFrame(world: World | null, overlay: OverlayView | null = null): void {
 		// Draw order, documented the way sim.ts documents its system order. Everything before
 		// `entities` is in the bake; everything after it is a later step's, and is named here so
 		// none of them can quietly insert itself in the wrong place.
@@ -169,7 +175,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// events come in through `pushEvents` before the frame; this is where they are aged and
 		// drawn.
 		drawEffects(ctx, tilePx, dpr)
-		// overlay: step 3C
+		drawOverlay(ctx, overlay, tilePx, dpr)
 	}
 
 	resize()

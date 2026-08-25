@@ -22,7 +22,7 @@ and answering the questions at the bottom honestly.
 | --- | --- |
 | `dev/placement.ts` | **the file you are replacing.** `PlacementState` (selectedDefId, selectedTowerId, hoverTile, hoverPoint), `createPlacementController(canvas, queue, getWorld)` owning `pointermove` / `pointerleave` / `pointerdown` on the canvas and `keydown` on the window with its own `destroy()`, and `drawPlacementOverlay(ctx, world, state, tilePx, dpr)` — ghost at `GHOST_ALPHA`, range circle, tile tint, and a three-way cursor (`copy` / `not-allowed` / `pointer`) applied through a module-local `lastCursor` so a frame that changes nothing does not touch the DOM. `CRUMB_CLICK_FORGIVENESS_PX = 8`, named for step 20's Buy-a-Broom |
 | `dev/nightHud.ts` | the always-on canvas status line and its `HINT` string. Deleted this session |
-| `dev/tileCoords.ts` | **stays.** `toGridPoint(canvas, event, widthTiles)` (integers on tile **corners**, via `getBoundingClientRect` — never `offsetX`), `toTile`, `gridToWaypoint` (`− 0.5`, into the space entity positions use), `isOnBoard`. It is in `dev/` but the map editor and the debug overlay both use it |
+| `dev/tileCoords.ts` | **moved to `render/tileCoords.ts` this session** — see decision 13. `toGridPoint(canvas, event, widthTiles)` (integers on tile **corners**, via `getBoundingClientRect` — never `offsetX`), `toTile`, `gridToWaypoint` (`− 0.5`, into the space entity positions use), `isOnBoard`. The map editor and the debug overlay import it from `@/render/index.ts` now |
 | `dev/debug/state.ts` | exports **`isTypingTarget`**, imported by `dev/placement.ts` and the step 4 editor. Owns the `` ` `` toggle, and is dynamically imported by `GameView.vue` behind `import.meta.env.DEV` |
 | `render/layers/overlay.ts` | a genuinely empty 0-byte file. Step 3C decision 1 reserved it with the words "that stub belongs to step 6's in-game range circles and placement ghost" |
 | `render/renderer.ts` | `drawFrame(world: World \| null)`, whose draw-order comment ends `… → particles → overlay` with the slot marked `// overlay: step 3C` |
@@ -66,7 +66,7 @@ edit this file, don't leave it lying.
    7C decision 5 put the crumb first because there was no armed mode to speak of. Now there is a
    ghost under the cursor, and a green ghost that collects a crumb instead of building reads as the
    placement being broken.
-7. **Validity is asked once per pointermove and stored on the selection.** The tint, the cursor and
+7. **Validity is asked in one place and stored on the selection.** The tint, the cursor and
    the toast all read that one `canPlaceTower` answer, so they cannot disagree. On click, a refusal
    shows the toast and **does not enqueue**; the executor still re-validates, so a world that moved
    between the click and the tick boundary is a silent no-op, which is how every other command
@@ -88,6 +88,34 @@ edit this file, don't leave it lying.
     scoring and persistence are step 20's — this is the minimum that makes "nights 1–3 are playable"
     true, and it is three lines.
 
+### Decided during the build
+
+13. **`dev/tileCoords.ts` moved to `render/tileCoords.ts`.** The table above said it stays, and that
+    was wrong: `ui/interaction.ts` ships, so a static import of it would root the map editor in the
+    production bundle — breaking this step's own second acceptance line and contradicting decision 3,
+    which moves `isTypingTarget` out of `dev/` for exactly that reason. It belongs in `render/`
+    anyway: `core/systems/placement.ts` has said since step 6 that mapping a click to a tile is
+    `render/`'s job, and the file already read `LOGICAL_WIDTH` from the renderer. Three dev importers
+    were re-pointed at `@/render/index.ts`.
+14. **`canPlaceTower` is asked once per *frame*, not once per pointermove** (softening decision 7).
+    Per-move alone leaves a still pointer green over a tile that a shift-click just occupied, or red
+    over a tower that has since become affordable — the world moves without the mouse, and the
+    acceptance line about "a tile that just became occupied" is exactly that case. `refreshHover()`
+    is the one caller, and `overlay()` runs it once a frame; the cursor write is still guarded, so
+    nothing extra touches the DOM.
+15. **`createInteraction` takes a fifth argument, an `InteractionHost`.** Pause, speed and the toast
+    list are the three things the board cannot do for itself: the first two live in `loop.ts`, which
+    `GameView.vue` owns, and the third has to reach a Vue ref from a file that may not import `vue`.
+    Handing three functions in is what keeps the single `keydown` listener decision 10 asks for
+    without this file reaching for the loop.
+16. **`` ` `` stays on the debug controller** (implementing decision 11 rather than changing it).
+    `dev/debug/state.ts` already owns that key; `DebugOverlay.vue` gained a `visible` prop and
+    `GameView.vue` publishes `debug.state.enabled` into its dev snapshot. One key, both overlays, and
+    no dev-only key handling in a file that ships.
+17. **`NightSummary.vue` gained a `canContinue` prop**, passed through `HudLayer`. Decision 12 needs
+    Continue disabled after night 3 and 8B left no way to say so. Disabled rather than hidden, so the
+    button pair does not reflow on the one screen the player is reading rather than aiming.
+
 ## Build
 
 ### 1. `render/layers/overlay.ts`, `render/renderer.ts`, the barrels
@@ -107,7 +135,8 @@ dynamic import of it out of `GameView.vue`.
 
 ### 3. `ui/interaction.ts`
 
-`createInteraction(canvas, queue, selection, getWorld): { destroy(): void; toasts: … }`.
+`createInteraction(canvas, queue, selection, getWorld, host): { overlay(): OverlayView | null; destroy(): void }`
+— see decision 15 for the `host`, and decision 14 for where the toasts went.
 
 - **`pointermove`**: `toGridPoint` → `toTile` → `hoverTile`, `gridToWaypoint` → `hoverPoint`, then
   one `canPlaceTower` call into `tone` / `reason`, then the cursor. Through `toGridPoint`, never
@@ -166,19 +195,21 @@ placement, the assertion belongs in `core/`.
 
 - [ ] Nights 1–3 are playable start to finish with mouse and keyboard only: no dev keys, no console,
       no `r`.
-- [ ] `dev/placement.ts` and `dev/nightHud.ts` are gone and nothing imports them; `dev/tileCoords.ts`
-      and `dev/debug/` still work, and the production bundle still contains no `dev/` code.
-- [ ] A refused click says why, once, in words — "can't build on the track", not a silent no-op and
+- [x] `dev/placement.ts` and `dev/nightHud.ts` are gone and nothing imports them; `render/tileCoords.ts`
+      and `dev/debug/` still work, and the production bundle still contains no `dev/` code (checked by
+      grepping `dist/` for `markerDistance`, `activePathIndex`, `takePreviewMap`, `brushMode` — all 0).
+- [x] A refused click says why, once, in words — "can't build on the track", not a silent no-op and
       not nine identical toasts.
 - [ ] The tile tint, the cursor and the toast always agree, including on the tile under the fridge
-      and on a tile that just became occupied.
+      and on a tile that just became occupied. *(occupied case verified in the browser; the fridge
+      tile still wants a look.)*
 - [ ] Frame time is unchanged from step 7. Profile a busy wave with the HUD up; if Vue costs anything
       measurable, look first for a hover field that became a `ref`.
-- [ ] Shift-click builds four Salt Shakers in four clicks; a plain click builds one and disarms.
-- [ ] Speed and pause never disagree about which button is lit, at any order of pressing them.
+- [x] Shift-click builds four Salt Shakers in four clicks; a plain click builds one and disarms.
+- [x] Speed and pause never disagree about which button is lit, at any order of pressing them.
 - [ ] Someone who has never seen the code can be handed the keyboard and knows what to do within a
       minute. Actually try this on someone.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Stop here and play it
 

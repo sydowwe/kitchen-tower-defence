@@ -13,3 +13,4 @@ export {
 	towerGlyphSize,
 	type PlacementTone,
 } from '@/render/layers/towers.ts'
+export { drawOverlay, type OverlayView, type OverlayGhost, type OverlaySelected } from '@/render/layers/overlay.ts'

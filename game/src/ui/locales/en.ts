@@ -79,6 +79,11 @@ export const en = {
 		targeting: 'Targeting',
 		sellFor: 'Sell for {n}',
 		sellPenalty: 'Half price while a wave is running',
+		// Tooltips, and the only place the two hotkeys that have no on-screen badge are written down.
+		// `dev/nightHud.ts` carried a hint line for all of them until step 8C deleted it; the shop
+		// prints its own numbers, and these two are what was left over.
+		sellKey: 'Sell this tower  (x)',
+		callWaveKey: 'Call the next wave in early  (n)',
 		// One line per stat on the hover card. A tower with no attack shows none of the first six
 		// rather than showing them as zero -- see `TowerStatsView` in ui/viewModel.ts.
 		stat: {
@@ -98,11 +103,14 @@ export const en = {
 		// One per PlacementRejection, as the player's problem rather than the validator's.
 		reject: {
 			offBoard: 'That is off the counter.',
-			blocked: 'The counter is taken up there.',
+			// Distinct from `occupied` on purpose: this one is the kitchen's own clutter, that one is
+			// a tower you put there yourself, and a player who cannot tell them apart moves the wrong
+			// thing.
+			blocked: 'There is something on the counter there.',
 			notBuildable: 'Nothing will stand on that.',
 			onTrack: 'Not on the track — they walk through there.',
 			offTrack: 'This one goes on the track itself.',
-			occupied: 'Something is already there.',
+			occupied: 'You have already put something there.',
 			tooExpensive: 'Not enough crumbs yet.',
 			nightOver: 'The night is over.',
 		} satisfies RejectionMessages,
@@ -114,7 +122,10 @@ export const en = {
 		entities: 'Entities',
 		speed: 'Speed',
 		paused: 'Paused',
-		hint: 'space pause · , . speed',
+		// Every key the game route answers to. `dev/nightHud.ts` carried the other half of this list
+		// until step 8C deleted it, so this line is now the whole of it -- edit it in the same breath
+		// as the bindings in `ui/interaction.ts`, or the on-screen help lies.
+		hint: '1-3 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
 	},
 	settings: {
 		title: 'Settings',
@@ -188,6 +199,8 @@ export const en = {
 		listSeparator: ', ',
 		retry: 'Try the night again',
 		continue: 'Continue',
+		// Night 3 is the last one authored. Step 20 is what turns this into a campaign.
+		continueUnavailable: 'That is as far as the kitchen goes for now.',
 	},
 }
 

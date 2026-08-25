@@ -11,8 +11,19 @@
 				v-if="hud !== null"
 				:snapshot="hud"
 				:selection="selection"
+				:toasts="toasts"
+				:canContinue="canContinue"
+				@select="onSelect"
+				@sell="onSell"
+				@setTargetingMode="onSetTargetingMode"
+				@callWave="onCallWave"
+				@setSpeed="applySpeed"
+				@togglePause="togglePause"
+				@retry="retry"
+				@continueNight="continueNight"
 			/>
 			<DebugOverlay
+				:visible="snapshot.debugEnabled"
 				:fps="snapshot.fps"
 				:tickCount="snapshot.tickCount"
 				:simSeconds="snapshot.simSeconds"
@@ -25,9 +36,9 @@
 </template>
 
 <script setup lang="ts">
-	import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 	import { createLoop, type Loop, type Speed } from '@/loop.ts'
-	import { getMapDef } from '@/core/content/index.ts'
+	import { getMapDef, NIGHTS } from '@/core/content/index.ts'
 	import { createCommandQueue } from '@/core/commands.ts'
 	import { tick as stepWorld } from '@/core/sim.ts'
 	import { createWorld } from '@/core/world.ts'
@@ -45,14 +56,13 @@
 	} from '@/render/index.ts'
 	import DebugOverlay from '@/ui/components/DebugOverlay.vue'
 	import HudLayer from '@/ui/components/hud/HudLayer.vue'
+	import { createInteraction, type Interaction, type Toast } from '@/ui/interaction.ts'
 	import { createSelection } from '@/ui/selection.ts'
 	import { buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
 	import type { HudSnapshot, TowerInspectorView } from '@/ui/viewModel.ts'
-	import type { GameEvent, MapDef, World } from '@/core/types.ts'
-	import type { DebugController, isTypingTarget } from '@/dev/debug/state.ts'
+	import type { DefId, EntityId, GameEvent, MapDef, TargetingMode, World } from '@/core/types.ts'
+	import type { DebugController } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
-	import type { drawNightHud } from '@/dev/nightHud.ts'
-	import type { drawPlacementOverlay, PlacementController } from '@/dev/placement.ts'
 
 	/**
 	 * The one place the canvas, the loop, the world and the HUD meet.
@@ -70,13 +80,21 @@
 		entityCount: number
 		speed: Speed
 		paused: boolean
+		/** The `` ` `` toggle. False outside dev, where the debug controller is never built. */
+		debugEnabled: boolean
 	}
 
-	/** The only map there is until step 3C authors the real one. */
 	const MAP_ID = 'counter'
-	const NIGHT_ID = 'night01'
-	/** Fixed in dev, so `r` reopens the same night: same ants, same fridge, same order. */
+	/** Fixed, so retrying a night reopens the same one: same ants, same fridge, same order. */
 	const SEED = 1234
+
+	/**
+	 * Which of `NIGHTS` is on the board. Retry rebuilds this one, Continue steps to the next and stops
+	 * at the last -- and that is the whole of the night flow. Campaign progress, unlocks, scoring and
+	 * saves are step 20's.
+	 */
+	const nightIndex = ref(0)
+	const canContinue = computed(() => nightIndex.value < NIGHTS.length - 1)
 
 	let world: World | null = null
 	const queue = createCommandQueue()
@@ -92,10 +110,9 @@
 	let previewMap: MapDef | null = null
 
 	/**
-	 * The map the overlay and the debug controller work against: **the world's clone**, not the
-	 * authored def. They would otherwise tint and hit-test a different object than the one being
-	 * simulated -- which looks right today and stops matching the board the first time a night
-	 * modifier writes to a tile.
+	 * The map the debug controller works against: **the world's clone**, not the authored def. It
+	 * would otherwise hit-test a different object than the one being simulated -- which looks right
+	 * today and stops matching the board the first time a night modifier writes to a tile.
 	 */
 	function currentMap(): MapDef {
 		return world?.map ?? getMapDef(MAP_ID)
@@ -110,6 +127,7 @@
 		entityCount: 0,
 		speed: 1,
 		paused: false,
+		debugEnabled: false,
 	})
 
 	/**
@@ -122,9 +140,16 @@
 	const hud = shallowRef<HudSnapshot | null>(null)
 
 	/**
+	 * Refused clicks, in the player's words. Replaced wholesale by `interaction.ts`'s callback rather
+	 * than mutated, and never on a frame where nothing changed -- the interaction layer owns the queue
+	 * and the lifetime, because that is where the refusal happens.
+	 */
+	const toasts = shallowRef<Toast[]>([])
+
+	/**
 	 * What the player has armed and what they are inspecting. It lives in `ui/selection.ts` rather
 	 * than in a component because the HUD, the pointer handlers and the key bindings all need the same
-	 * answer. **Step 8C is what writes to it**; this session only reads it into the HUD.
+	 * answer.
 	 */
 	const selection = createSelection()
 
@@ -143,14 +168,10 @@
 
 	let renderer: Renderer | null = null
 	let loop: Loop | null = null
+	let interaction: Interaction | null = null
 	/** Dev-only: dynamically imported below, so none of these modules enters the production bundle. */
 	let debug: DebugController | null = null
 	let drawOverlay: typeof drawDebugOverlay | null = null
-	let drawHud: typeof drawNightHud | null = null
-	let placement: PlacementController | null = null
-	let drawPlacement: typeof drawPlacementOverlay | null = null
-	/** Null outside dev, which is also how `n` and `r` know they are not available. */
-	let typingGuard: typeof isTypingTarget | null = null
 
 	function onResize(): void {
 		renderer?.resize()
@@ -160,10 +181,16 @@
 	 * A fresh night on the same seed, plus the three things that are not part of the world: the bake
 	 * (the new world's map is a different object, so it re-fires exactly once), the transient
 	 * effects, which would otherwise keep flying items out of the night that just ended, and the
-	 * placement selection, whose tower id points at nothing once the world is replaced.
+	 * selection, whose tower id points at nothing once the world is replaced.
 	 */
-	function restart(): void {
-		const next = createWorld({ seed: SEED, mapId: MAP_ID, nightId: NIGHT_ID, difficulty: 'normal' })
+	function restart(index: number): void {
+		const night = NIGHTS[index]
+		if (night === undefined) {
+			return
+		}
+		nightIndex.value = index
+
+		const next = createWorld({ seed: SEED, mapId: MAP_ID, nightId: night.id, difficulty: 'normal' })
 		// A world cannot be built from an unregistered map, so the editor's preview is assigned on
 		// afterwards. A preview whose paths were renamed has no 'crack', and `startWave` throws with
 		// both ids in the message -- the right failure for a dev-only route.
@@ -174,7 +201,6 @@
 		world = next
 		frameEvents.length = 0
 		resetEffects()
-		placement?.clearSelection()
 		// Both selections point at a world that no longer exists.
 		selection.clear()
 		inspector = null
@@ -190,40 +216,48 @@
 		}
 	}
 
-	function onKeyDown(event: KeyboardEvent): void {
-		if (loop === null) {
-			return
-		}
-		if (typingGuard !== null && typingGuard(event.target)) {
-			return
-		}
-		if (event.code === 'Space') {
-			event.preventDefault()
-			loop.togglePause()
-			return
-		}
-		// Speed is `,` and `.`, not the number keys: 1-9 select a tower, which is where step 8's
-		// hotkey list already puts both (step 6C, decision 1). `dev/placement.ts` owns the numbers,
-		// and both key listeners are live at once.
-		if (event.key === ',' || event.key === '.') {
-			const next = loop.speed + (event.key === '.' ? 1 : -1)
-			loop.setSpeed(Math.min(Math.max(next, 1), 3) as Speed)
-			return
-		}
+	function retry(): void {
+		restart(nightIndex.value)
+	}
 
-		// `n` and `r` are dev keys, and a null guard means the dev modules were never loaded.
-		if (typingGuard === null) {
-			return
-		}
-		if (event.key === 'n') {
-			// A command, never a call into the wave system: player input enters the simulation at a
-			// tick boundary and nowhere else (ARCHITECTURE.md section 3).
-			queue.enqueue({ kind: 'CallWaveEarly' })
-			return
-		}
-		if (event.key === 'r') {
-			restart()
-		}
+	function continueNight(): void {
+		restart(nightIndex.value + 1)
+	}
+
+	/**
+	 * Pause is `pause()` / `resume()` and never `setSpeed(0)`: two ways to stop time means the pause
+	 * button and the speed buttons disagree about which one is lit. Picking a speed therefore resumes.
+	 *
+	 * Every change also enqueues `SetSpeed`. The simulation ignores it by design -- the command log is
+	 * the whole reason the command exists, and nothing has ever enqueued one.
+	 */
+	function applySpeed(speed: Speed): void {
+		queue.enqueue({ kind: 'SetSpeed', speed })
+		loop?.setSpeed(speed)
+		loop?.resume()
+	}
+
+	function togglePause(): void {
+		loop?.togglePause()
+	}
+
+	/** The shop's toggle: the same tower again disarms, and arming one closes the inspector. */
+	function onSelect(defId: DefId): void {
+		selection.selectedDefId.value = selection.selectedDefId.value === defId ? null : defId
+		selection.selectedTowerId.value = null
+	}
+
+	function onSell(towerId: EntityId): void {
+		queue.enqueue({ kind: 'SellTower', towerId })
+		selection.selectedTowerId.value = null
+	}
+
+	function onSetTargetingMode(towerId: EntityId, mode: TargetingMode): void {
+		queue.enqueue({ kind: 'SetTargetingMode', towerId, mode })
+	}
+
+	function onCallWave(): void {
+		queue.enqueue({ kind: 'CallWaveEarly' })
 	}
 
 	onMounted(async () => {
@@ -234,20 +268,11 @@
 
 		if (import.meta.env.DEV) {
 			// Dynamic import keeps dev/ entirely out of the production bundle -- the same pattern
-			// router.ts uses for the step 4 editor route. `isTypingTarget` comes through here for
-			// that reason too: a static import of it would drag the debug controller in with it.
-			const [
-				{ createDebugController, isTypingTarget: guard },
-				{ drawDebugOverlay: draw },
-				{ takePreviewMap },
-				{ drawNightHud: hud },
-				{ createPlacementController, drawPlacementOverlay: drawPlace },
-			] = await Promise.all([
+			// router.ts uses for the step 4 editor route.
+			const [{ createDebugController }, { drawDebugOverlay: draw }, { takePreviewMap }] = await Promise.all([
 				import('@/dev/debug/state.ts'),
 				import('@/dev/debug/overlay.ts'),
 				import('@/dev/editor/preview.ts'),
-				import('@/dev/nightHud.ts'),
-				import('@/dev/placement.ts'),
 			])
 
 			// One-shot: the editor's preview slot is read and cleared here, so a stale preview
@@ -257,17 +282,23 @@
 
 			debug = createDebugController(canvasEl, currentMap)
 			drawOverlay = draw
-			drawHud = hud
-			typingGuard = guard
-			// The queue and a getter, never the world itself: everything it does to the simulation
-			// is a command drained at a tick boundary (ARCHITECTURE.md section 3).
-			placement = createPlacementController(canvasEl, queue, () => world)
-			drawPlacement = drawPlace
 		}
 
 		const activeRenderer = createRenderer(canvasEl)
 		renderer = activeRenderer
-		restart()
+		restart(nightIndex.value)
+
+		// The queue and a getter, never the world itself: everything it does to the simulation is a
+		// command drained at a tick boundary (ARCHITECTURE.md section 3).
+		const activeInteraction = createInteraction(canvasEl, queue, selection, () => world, {
+			togglePause,
+			setSpeed: applySpeed,
+			speed: () => activeLoop.speed,
+			onToasts(next) {
+				toasts.value = next
+			},
+		})
+		interaction = activeInteraction
 
 		const activeLoop = createLoop({
 			tick() {
@@ -285,16 +316,10 @@
 					frameEvents.length = 0
 				}
 
-				activeRenderer.drawFrame(world)
-				if (import.meta.env.DEV && drawPlacement !== null && placement !== null && world !== null) {
-					drawPlacement(activeRenderer.ctx, world, placement.state, activeRenderer.tilePx, activeRenderer.dpr)
-				}
+				activeRenderer.drawFrame(world, activeInteraction.overlay())
 				debug?.update()
 				if (import.meta.env.DEV && debug !== null && debug.state.enabled && drawOverlay !== null) {
 					drawOverlay(activeRenderer.ctx, currentMap(), debug.state, activeRenderer.tilePx)
-				}
-				if (import.meta.env.DEV && drawHud !== null && world !== null) {
-					drawHud(activeRenderer.ctx, world)
 				}
 			},
 			publish() {
@@ -305,6 +330,7 @@
 					entityCount: world?.enemies.length ?? 0,
 					speed: activeLoop.speed,
 					paused: activeLoop.paused,
+					debugEnabled: debug?.state.enabled ?? false,
 				}
 
 				if (world !== null) {
@@ -320,30 +346,26 @@
 		loop = activeLoop
 
 		window.addEventListener('resize', onResize)
-		window.addEventListener('keydown', onKeyDown)
 		activeLoop.start()
 	})
 
 	onBeforeUnmount(() => {
 		window.removeEventListener('resize', onResize)
-		window.removeEventListener('keydown', onKeyDown)
 		loop?.stop()
 		loop = null
 		renderer = null
 		world = null
 		hud.value = null
+		toasts.value = []
 		inspector = null
 		selection.clear()
 		frameEvents.length = 0
 		resetEffects()
+		interaction?.destroy()
+		interaction = null
 		debug?.destroy()
 		debug = null
-		placement?.destroy()
-		placement = null
 		drawOverlay = null
-		drawHud = null
-		drawPlacement = null
-		typingGuard = null
 	})
 </script>
 

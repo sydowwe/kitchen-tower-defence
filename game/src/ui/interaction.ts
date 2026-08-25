@@ -1,0 +1,411 @@
+/**
+ * Hands on the game: the pointer over the board, the hotkeys, and the ghost that follows the cursor.
+ *
+ * It replaces `dev/placement.ts`, which stood in for all of this from step 6 to step 8.
+ *
+ * **Plain TypeScript, no `vue` import.** It is DOM plumbing rather than markup, and it owns its own
+ * listeners and its own `destroy()` -- the shape `createDebugController` has. A component owning
+ * `window` listeners leaks them on a route change, and an `onBeforeUnmount` in five components is
+ * five chances to forget one.
+ *
+ * **Everything here enqueues a command and never writes to `world`**
+ * (analytic-docs/ARCHITECTURE.md section 3). The selection is UI state and is written directly.
+ */
+
+import { getTowerDef, TOWERS } from '@/core/content/index.ts'
+import { isAttack } from '@/core/content/behaviours.ts'
+import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
+import {
+	gridToWaypoint,
+	isOnBoard,
+	LOGICAL_WIDTH,
+	pickCrumb,
+	toGridPoint,
+	toTile,
+	type OverlayView,
+} from '@/render/index.ts'
+import { isTypingTarget } from '@/ui/keyboard.ts'
+import type { CommandQueue } from '@/core/commands.ts'
+import type { TowerDef } from '@/core/content/index.ts'
+import type { Vec2, World } from '@/core/types.ts'
+import type { Speed } from '@/loop.ts'
+import type { Selection } from '@/ui/selection.ts'
+
+/**
+ * How far outside a pile's drawn edge still counts as clicking it, in logical pixels.
+ *
+ * A speck is 0.28 of a 48px tile, so its drawn radius is under 7px and an exact hit test makes the
+ * most-repeated interaction in the game feel like a precision task. Named, because step 20's
+ * Buy-a-Broom widens exactly this.
+ */
+const CRUMB_CLICK_FORGIVENESS_PX = 8
+
+/**
+ * The pointer's own half of the answer, so the tile is readable without tracking the tint.
+ *
+ * `copy` is the plus-sign cursor every canvas editor uses for "this drops here", and `not-allowed` is
+ * the one browsers already give a refused drop -- both borrowed rather than invented, which is the
+ * point. `pointer` means the click will pick something up rather than build.
+ */
+const CURSOR_PLACEABLE = 'copy'
+const CURSOR_REFUSED = 'not-allowed'
+const CURSOR_SELECTABLE = 'pointer'
+/** The stylesheet's own cursor, restored by writing the empty string back. */
+const CURSOR_DEFAULT = ''
+
+/** How long a refusal stays on screen. Long enough to read eight words, short enough not to be nagged. */
+const TOAST_LIFETIME_MS = 2600
+/** How often expired toasts are swept. Only runs while there is something to sweep. */
+const TOAST_SWEEP_MS = 200
+
+const SPEED_MIN: Speed = 1
+const SPEED_MAX: Speed = 3
+
+export interface Toast {
+	id: number
+	messageKey: string
+}
+
+/**
+ * The three things the board cannot do for itself.
+ *
+ * Pause and speed live in `loop.ts`, which `GameView.vue` owns, and the toast list has to reach a Vue
+ * ref without this file importing `vue`. All three are handed in as functions rather than reached for.
+ */
+export interface InteractionHost {
+	/** `pause()` / `resume()`, never `setSpeed(0)`: two ways to stop time means two lit buttons. */
+	togglePause(): void
+	/** Selects a speed, resumes if paused, and enqueues the `SetSpeed` the command log wants. */
+	setSpeed(speed: Speed): void
+	/** The speed the loop is running at, so `,` and `.` can step from it. */
+	speed(): Speed
+	/** Called whenever the toast list changes. Never on a frame where it did not. */
+	onToasts(toasts: Toast[]): void
+}
+
+export interface Interaction {
+	/** What `drawFrame` should draw over the board this frame. Null before there is a world. */
+	overlay(): OverlayView | null
+	destroy(): void
+}
+
+/** The attack range of a def, or null for one with no attack behaviour -- both economy towers. */
+function rangeOf(def: TowerDef): number | null {
+	const shot = def.behaviours.find(isAttack)
+	return shot === undefined ? null : shot.rangeTiles
+}
+
+/**
+ * The same derivation `Renderer.setMap` does, from the world's own map.
+ *
+ * Derived rather than passed in because this controller is built before the first frame and holds no
+ * renderer; the map is the thing both of them read, so the two cannot disagree.
+ */
+function tilePxFor(world: World): number {
+	return LOGICAL_WIDTH / world.map.widthTiles
+}
+
+function clampSpeed(n: number): Speed {
+	return Math.min(Math.max(n, SPEED_MIN), SPEED_MAX) as Speed
+}
+
+export function createInteraction(
+	canvas: HTMLCanvasElement,
+	queue: CommandQueue,
+	selection: Selection,
+	getWorld: () => World | null,
+	host: InteractionHost,
+): Interaction {
+	let lastCursor = CURSOR_DEFAULT
+	let nextToastId = 1
+	const live: { id: number; messageKey: string; expiresAt: number }[] = []
+	let sweepHandle: number | null = null
+
+	function applyCursor(cursor: string): void {
+		// Only when it changed: this runs once a frame, and a write every frame touches the DOM 60
+		// times a second to say the same thing.
+		if (lastCursor === cursor) {
+			return
+		}
+		lastCursor = cursor
+		canvas.style.cursor = cursor
+	}
+
+	function publishToasts(): void {
+		host.onToasts(live.map(entry => ({ id: entry.id, messageKey: entry.messageKey })))
+	}
+
+	function sweep(): void {
+		const now = performance.now()
+		const before = live.length
+		for (let i = live.length - 1; i >= 0; i--) {
+			const entry = live[i]
+			if (entry !== undefined && entry.expiresAt <= now) {
+				live.splice(i, 1)
+			}
+		}
+		if (live.length !== before) {
+			publishToasts()
+		}
+		if (live.length === 0 && sweepHandle !== null) {
+			window.clearInterval(sweepHandle)
+			sweepHandle = null
+		}
+	}
+
+	/**
+	 * Says why, once. **Consecutive identical reasons are folded into the one toast** and its clock is
+	 * restarted: dragging a ghost along the track and clicking fires `onTrack` on every click, and a
+	 * stack of nine identical lines is noise rather than an explanation.
+	 */
+	function toast(messageKey: string): void {
+		const newest = live[live.length - 1]
+		if (newest !== undefined && newest.messageKey === messageKey) {
+			newest.expiresAt = performance.now() + TOAST_LIFETIME_MS
+			return
+		}
+
+		live.push({ id: nextToastId++, messageKey, expiresAt: performance.now() + TOAST_LIFETIME_MS })
+		publishToasts()
+		if (sweepHandle === null) {
+			sweepHandle = window.setInterval(sweep, TOAST_SWEEP_MS)
+		}
+	}
+
+	function armedDef(): TowerDef | null {
+		const defId = selection.selectedDefId.value
+		return defId === null ? null : (TOWERS.find(def => def.id === defId) ?? null)
+	}
+
+	function tileFor(grid: Vec2, world: World): Vec2 | null {
+		const map = world.map
+		const tile = toTile(grid)
+		return isOnBoard(tile, map.widthTiles, map.heightTiles) ? tile : null
+	}
+
+	function crumbUnder(world: World): boolean {
+		const point = selection.hoverPoint
+		return point !== null && pickCrumb(world, point, tilePxFor(world), CRUMB_CLICK_FORGIVENESS_PX) !== null
+	}
+
+	/**
+	 * One `canPlaceTower` answer into `tone` and `reason`, and the cursor off the same answer. The
+	 * tint, the pointer and the toast therefore cannot disagree with each other or with the executor.
+	 *
+	 * Called on every pointermove **and** once per frame from `overlay()`. Per-move alone leaves a
+	 * still pointer showing green over a tile another click just occupied, or over an unaffordable
+	 * tower that has since become affordable -- the world moves without the mouse.
+	 */
+	function refreshHover(): void {
+		const world = getWorld()
+		const tile = selection.hoverTile
+		const def = armedDef()
+
+		if (world === null || tile === null || def === null) {
+			selection.tone = null
+			selection.reason = null
+		} else {
+			const result = canPlaceTower(world, def, tile)
+			selection.tone = result.ok ? 'valid' : 'invalid'
+			selection.reason = result.ok ? null : result.reason
+		}
+
+		// Cursor priority is click priority (decision 6): while a def is armed the click builds, so a
+		// crumb under an armed ghost must not offer to be picked up.
+		if (world === null || tile === null) {
+			applyCursor(CURSOR_DEFAULT)
+			return
+		}
+		if (def !== null) {
+			applyCursor(selection.tone === 'valid' ? CURSOR_PLACEABLE : CURSOR_REFUSED)
+			return
+		}
+		applyCursor(crumbUnder(world) || towerAt(world, tile) !== null ? CURSOR_SELECTABLE : CURSOR_DEFAULT)
+	}
+
+	function onPointerMove(event: PointerEvent): void {
+		const world = getWorld()
+		if (world === null) {
+			selection.hoverTile = null
+			selection.hoverPoint = null
+			refreshHover()
+			return
+		}
+
+		// Through `toGridPoint`, never `event.offsetX`: the canvas is CSS-scaled to the window, so
+		// `offsetX / tilePx` is wrong by the scale factor -- invisible at the centre of the board and
+		// a full tile at the corners. See `render/tileCoords.ts`.
+		const grid = toGridPoint(canvas, event, world.map.widthTiles)
+		const tile = tileFor(grid, world)
+		selection.hoverTile = tile
+		// Waypoint space, the space crumbs are in. `toGridPoint` puts integers on tile corners and
+		// `Crumb.position` puts them on tile centres; the `- 0.5` is the whole of the difference, and
+		// skipping it makes every pile feel like it has to be clicked up and to the left.
+		selection.hoverPoint = tile === null ? null : gridToWaypoint(grid)
+		refreshHover()
+	}
+
+	function onPointerLeave(): void {
+		selection.hoverTile = null
+		selection.hoverPoint = null
+		refreshHover()
+	}
+
+	/**
+	 * **A plain click places and disarms; shift-click places and stays armed** (decision 5). Sticky by
+	 * default buys a second tower every time the player clicks the board to deselect, and
+	 * place-and-exit is what the genre trained them to expect.
+	 *
+	 * The order is: armed def builds, else a crumb is collected, else a tower is selected, else the
+	 * selection is cleared. The armed def goes first because a green ghost that quietly collects a
+	 * crumb instead of building reads as the placement being broken.
+	 */
+	function onPointerDown(event: PointerEvent): void {
+		const world = getWorld()
+		if (world === null || event.button !== 0) {
+			return
+		}
+
+		const grid = toGridPoint(canvas, event, world.map.widthTiles)
+		const tile = tileFor(grid, world)
+		if (tile === null) {
+			return
+		}
+
+		const def = armedDef()
+		if (def !== null) {
+			const result = canPlaceTower(world, def, tile)
+			if (!result.ok) {
+				// Refused clicks say why and **do not enqueue**. The executor re-validates anyway, so a
+				// world that moved between the click and the tick boundary is a silent no-op -- which
+				// is how every other command already behaves.
+				toast(`hud.reject.${result.reason}`)
+				return
+			}
+
+			queue.enqueue({ kind: 'PlaceTower', defId: def.id, tile: { x: tile.x, y: tile.y } })
+			if (!event.shiftKey) {
+				selection.selectedDefId.value = null
+			}
+			return
+		}
+
+		const crumb = pickCrumb(world, gridToWaypoint(grid), tilePxFor(world), CRUMB_CLICK_FORGIVENESS_PX)
+		if (crumb !== null) {
+			// A command, never a write: the pile is credited at the next tick boundary, which is also
+			// why a pile already delivered between the click and the tick is a silent no-op rather
+			// than a double payout (ARCHITECTURE.md section 3).
+			queue.enqueue({ kind: 'CollectCrumb', crumbId: crumb.id })
+			return
+		}
+
+		// Clicking empty floor with nothing armed closes the inspector. It is the only way out that is
+		// not a key.
+		const existing = towerAt(world, tile)
+		selection.selectedTowerId.value = existing === null ? null : existing.id
+	}
+
+	/** Without the `preventDefault` the browser menu opens over the board and the cancel reads as nothing. */
+	function onContextMenu(event: MouseEvent): void {
+		event.preventDefault()
+		selection.selectedDefId.value = null
+		refreshHover()
+	}
+
+	function onKeyDown(event: KeyboardEvent): void {
+		// The editor route has text fields, and this is the guard both tools share.
+		if (isTypingTarget(event.target)) {
+			return
+		}
+
+		if (event.code === 'Space') {
+			event.preventDefault()
+			host.togglePause()
+			return
+		}
+		if (event.key === ',' || event.key === '.') {
+			host.setSpeed(clampSpeed(host.speed() + (event.key === '.' ? 1 : -1)))
+			return
+		}
+		if (event.key === 'n') {
+			// A command, never a call into the wave system: player input enters the simulation at a
+			// tick boundary and nowhere else (ARCHITECTURE.md section 3).
+			queue.enqueue({ kind: 'CallWaveEarly' })
+			return
+		}
+		if (event.key === 'Escape') {
+			selection.selectedDefId.value = null
+			selection.selectedTowerId.value = null
+			refreshHover()
+			return
+		}
+		if (event.key === 'x') {
+			const towerId = selection.selectedTowerId.value
+			if (towerId !== null) {
+				queue.enqueue({ kind: 'SellTower', towerId })
+				selection.selectedTowerId.value = null
+			}
+			return
+		}
+
+		// 1-9 into the roster, in `TOWERS` order -- the order the shop panel renders and the number it
+		// prints on each button. The same key again disarms, so there is a way out that is not Escape.
+		const index = Number(event.key) - 1
+		if (!Number.isInteger(index) || index < 0 || index >= TOWERS.length) {
+			return
+		}
+		const def = TOWERS[index]
+		if (def === undefined) {
+			return
+		}
+		selection.selectedDefId.value = selection.selectedDefId.value === def.id ? null : def.id
+		selection.selectedTowerId.value = null
+		refreshHover()
+	}
+
+	function overlay(): OverlayView | null {
+		const world = getWorld()
+		if (world === null) {
+			return null
+		}
+		refreshHover()
+
+		const towerId = selection.selectedTowerId.value
+		const tower = towerId === null ? null : towerById(world, towerId)
+		const def = armedDef()
+		const tile = selection.hoverTile
+		const tone = selection.tone
+
+		return {
+			selected: tower === null ? null : { tile: tower.tile, rangeTiles: rangeOf(getTowerDef(tower.defId)) },
+			ghost:
+				def === null || tile === null || tone === null
+					? null
+					: { glyph: def.glyph, tile, rangeTiles: rangeOf(def), tone },
+		}
+	}
+
+	window.addEventListener('keydown', onKeyDown)
+	canvas.addEventListener('pointermove', onPointerMove)
+	canvas.addEventListener('pointerleave', onPointerLeave)
+	canvas.addEventListener('pointerdown', onPointerDown)
+	canvas.addEventListener('contextmenu', onContextMenu)
+
+	function destroy(): void {
+		window.removeEventListener('keydown', onKeyDown)
+		canvas.removeEventListener('pointermove', onPointerMove)
+		canvas.removeEventListener('pointerleave', onPointerLeave)
+		canvas.removeEventListener('pointerdown', onPointerDown)
+		canvas.removeEventListener('contextmenu', onContextMenu)
+		if (sweepHandle !== null) {
+			window.clearInterval(sweepHandle)
+			sweepHandle = null
+		}
+		live.length = 0
+		// The canvas outlives this controller on a route change, so the cursor has to be handed back.
+		canvas.style.cursor = CURSOR_DEFAULT
+		lastCursor = CURSOR_DEFAULT
+	}
+
+	return { overlay, destroy }
+}
