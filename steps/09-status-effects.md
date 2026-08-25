@@ -1,52 +1,116 @@
 # Step 9 — Status effects, cones and AoE
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is three sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index — it exists to say what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/CONTENT.md` §1 (Act I), §4.
 **Prereq:** step 8, and you have actually played the milestone.
 
 ## Goal
 
-Two reusable systems — **timed modifiers on an enemy** and **non-single-target hitboxes** — that between them turn most of the remaining forty-odd towers into config entries. Build them properly here; half the roster depends on them.
+Two reusable systems — **timed modifiers on an enemy** and **non-single-target hitboxes** — that
+between them turn most of the remaining forty-odd towers into config entries. Build them properly
+here; half the roster depends on them.
 
-## Build
+## Parts
 
-1. **Wire up the status system.** Step 2 defined the effects and their stacking rules as pure functions; nothing applies them yet. Add:
-   - `statusEffects` to the tick order (already stubbed in `sim.ts`) — ticks durations, applies per-tick damage for Burn and Poison, expires effects.
-   - An `applies` field that any attack can carry: `attack({ ..., applies: ['slow'] })`. Extend the `attack`/`coneAttack`/`aura`/`pushback` schemas in `core/content/schema.ts` to match — 2B left the field out because nothing read it yet. Duration and stacking come from the `StatusDef`, which already carries both as tick counts; add a per-application override only if a tower actually needs one, or the two numbers will drift.
-   - Per-tick DoT damage must route through `resolveDamage` with the *source's* damage type, so a burn from a fire tower is still fire damage against the tag matrix. This is the single most commonly-botched detail in this system.
+Each part names its own `Read first:` sections, so a session only loads the docs it needs.
 
-2. **Hitbox shapes** (`core/systems/hitbox.ts`). Three query functions sharing the step 6 range-query seam:
-   - `circle(center, radius)` — AoE
-   - `cone(origin, direction, radius, halfAngleDeg)` — the tower aims at its chosen target, then hits everything inside the cone. Default half-angle 30°.
-   - `line(from, to, width)` — unused in v1, but cheap now and several Act III towers want it.
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](09-status-effects/A-status-system.md) | Statuses that land, and the two towers that need no geometry | `core/systems/status.ts`, `applies` across the behaviour vocabulary, DoT through the matrix, charge consumption; Ice Cube Tray, Sticky Tape |
+| [B](09-status-effects/B-hitboxes-and-cones.md) | Hitbox shapes and the cone interpreter | `core/systems/hitbox.ts`, cone targeting and firing, splash through `circle`; Spray Bottle, Beetle, nights 4–7 |
+| [C](09-status-effects/C-statuses-on-screen.md) | What all of it looks like, and the tuning pass | `render/layers/entities.ts`, `drawRangeCone`, `ui/viewModel.ts`, `ui/locales/en.ts`, re-tuned nights |
 
-3. **Wire the shapes to the behaviours that already exist.** `coneAttack` has been a descriptor since step 2B — give it an interpreter that queries `cone`. There is **no `aoeAttack` kind and there should not be one**: instant AoE is `attack` with `splashRadiusTiles > 0`, resolved through `circle`. A tower definition should be able to say "cone, 3 tiles, chemical, applies poison" in one object.
+Strictly in order. B interprets the field A adds; C draws what both of them made and is the part
+that plays it.
 
-4. **Towers** (`../analytic-docs/CONTENT.md` §1):
-   - **Spray Bottle** — 120, cone 3 tiles, 3 impact + 2/s poison, chemical, both targets. The first real crowd answer.
-   - **Ice Cube Tray** — 110, 2 damage, cold, applies Slow. Note the matrix: cold is *weak* against soft enemies (0.5×) and slightly strong against armored (1.2×) — it is a control tower, not a DPS tower, and the numbers should make that obvious in play.
-   - **Sticky Tape** — 40, no damage, applies `Rooted` to one enemy at a time. **3 charges**; each root consumes one when the rooted enemy dies or breaks free; the tape self-removes when spent. Add a generic `charges` field to the tower model now — Fly Paper (step 17) and Diatomaceous Earth (post-v1) both reuse it.
+**A and B carry every test in the step. C has none.** Both of the first two parts are headless core
+work and each carries the assertions for its own system — A the status wiring, B the geometry. C is
+`render/` plus copy plus content tuning: `../analytic-docs/ARCHITECTURE.md` §7 rules out specs over
+the renderer, and the one headless thing C touches (`statsFor` in `ui/viewModel.ts`) extends an
+assertion that already exists rather than earning a suite. A part with no tests is not an
+under-tested part; do not invent coverage for C.
 
-5. **Enemies**: add **Roach** (night 3, fast) and **Beetle** (night 5, bruiser) — pure config, no new behaviour. Author nights 4–7 in `nights.ts`.
+**Authored twice on purpose**, and both parts say so:
 
-6. **Rendering.** Status indicators on enemies must be readable at a glance and at 3× speed: a blue tint plus frost specks for Slow, orange flicker for Burn, green bubbles for Poison, a white shimmer for Rooted. Small icons stacked above the HP bar for anything ambiguous. Cone towers show their cone, not a circle, in the placement ghost and the range preview.
+- **Nights 4–7.** B drafts them from arithmetic against the Counter's 31.1-tile crossing; C re-tunes
+  them after watching them at 1× and 3×. This is the same split step 5C used on nights 1–3, and the
+  reason is the same — wave pacing cannot be judged by reading a table.
+- **The English strings.** A and B write `en.ts` entries for three towers and an enemy with nothing
+  on screen; C revises that copy after seeing the cards in place, the way 8C revised 8A's.
 
-## Tests
+## The seam that can't be split
 
-- Burn from a fire source against a `fungal` enemy deals per-tick damage multiplied by 1.5 — proving DoT routes through the matrix.
-- Applying Slow twice refreshes duration and does not double the magnitude.
-- Freeze applied over Slow overrides it; Slow applied under Freeze does not re-apply.
-- Poison stacks to exactly 5 and the 6th application only refreshes duration.
-- A cone at 30° half-angle hits an enemy 25° off-axis and misses one at 35°.
-- Rooted enemies do not advance `distance` at all.
+**A owns how a status lands.** The `applies` list on all four behaviour schemas, and the one
+function that turns that list into `applyStatus` calls carrying the *source's* damage type. B
+interprets the cone and the splash circle, and calls that function; it does not grow a second
+application path.
 
-## Acceptance
+Move that line and the two paths drift silently: a burn from a shot routes through the tag matrix as
+fire, a burn from a cone routes through it as nothing, and the only symptom is a damage number that
+is wrong by 1.5× on one tower and right on the other.
+
+## Dependency order
+
+A → B → C, no overlap. A ships the vocabulary and the tick slot. B consumes both and adds geometry.
+C reads what the world already holds and adds no simulation state at all.
+
+## Step acceptance
 
 - [ ] One Spray Bottle covering a corner meaningfully changes how night 5 plays.
-- [ ] Adding a hypothetical fourth status-applying tower is a pure config change.
+- [ ] Adding a hypothetical fourth status-applying tower is a pure config change — a def in
+      `core/content/towers.ts` and an entry in `en.ts`, and nothing in `core/systems/`.
 - [ ] At 3× speed you can still tell which enemies are slowed and which are burning.
+- [ ] Nights 4–7 are playable end to end from the night-end *Continue* button.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
-Add auras (persistent radius effects with no firing) — those come in step 17. Cones and instant AoE only.
+Auras — persistent radius effects with no firing — are step 17, along with the Candle, Fly Paper and
+the Honey Pot. The charge *state machine* (`armed → firing → rearming`), tower HP and the barricade
+are step 10. Pushback and the Fan are step 18. Tile effects are step 14. Cones and instant AoE only.
+
+## Reconciled while splitting
+
+Nine things the step said that the repo has since made untrue, or that contradicted a doc. Each is
+resolved in the part that owns it; they are listed here so the change is on the record rather than
+silently reinterpreted.
+
+1. **"add Roach"** — the Roach shipped in step 5C. It is in `core/content/enemies.ts` with the doc's
+   numbers and night 3 schedules it in five of its eight waves. Only the **Beetle** is new, in B.
+2. **"Add a generic `charges` field to the tower model now"** — it exists. Step 2 shipped
+   `charge({ charges, rearmTicks })` in `behaviours.ts` and `TowerState = { kind: 'charge', charges,
+   rearmTicksRemaining }` in `core/types.ts`. What is missing is that nothing ever *fills it in*:
+   `placeTower` builds every tower with `state: null`. A does the initialisation and the
+   consumption, so step 17's "the field exists from step 9's Sticky Tape" stays true.
+3. **"Author nights 4–7"** — `../analytic-docs/CONTENT.md` §6 puts nights 4–6 on the Sink and night 7
+   in the Pantry, and neither map exists: step 21 authors the other five maps and wires nights 1–18
+   in full. Meanwhile `createWorld` throws when a night's `mapId` is not the map it was handed, and
+   `GameView.vue` hard-codes `MAP_ID = 'counter'`. So B authors nights 4–7 **on the Counter**, and
+   step 21 re-maps them along with everything else.
+4. **"`statusEffects` … already stubbed in `sim.ts`"** — the stub is `statusSystem` in
+   `core/systems/status.ts`, and it is already fourth in `SYSTEM_ORDER`, which `tests/sim.spec.ts`
+   pins against a literal list. No slot is added to the tick.
+5. **Four of the six tests the step lists already exist.** `tests/statuses.spec.ts` asserts slow
+   refreshing, freeze suppressing slow re-application, the stack cap and a root that never expires —
+   over the pure functions, from step 2C. A's tests are about the **wiring** (a status that lands
+   from a firing tower, DoT that routes through the matrix with its source's damage type) and do not
+   restate them.
+6. **Splash.** `core/systems/projectiles.ts` says "step 12's Tier 3 is the first content with a
+   non-zero radius and owns the splash query"; this step says instant AoE resolves through `circle`
+   now. B builds the query and fixes that comment. Step 12 still owns the first content that uses
+   it, and no v1 tower has a non-zero `splashRadiusTiles`.
+7. **The dead status schema.** `core/content/schema.ts` carries a zod `status` schema
+   (`stacking: refresh | stack | untilSourceSpent`, `nameKey`, `durationTicks`) and exports a second
+   type named `StatusDef` whose shape has already drifted from the runtime table in
+   `core/content/statuses.ts` (`effect`, `StackRule`, `suppressedBy`). It validates a collection
+   nothing passes — `core/content/index.ts` says why in a comment. **Left alone:** no part of step 9
+   needs either shape changed, and deleting it takes two passing specs in `tests/schema.spec.ts`
+   with it. `statuses.ts` stays the only truth; a later step that authors status content reconciles
+   the two rather than adding a third.
+8. **Ice Cube Tray's targets.** The step's line names only its damage and its status;
+   `../analytic-docs/CONTENT.md` §1 says `ground`. A takes the doc.
+9. **The Spray Bottle's glyph is already on the board.** `core/content/maps/counter.json` has 🧴 as
+   decor at (18, 11). A tower and a piece of scenery cannot share a silhouette — the same mistake
+   step 7C found with the Cookie Jar and the bread — so B changes the *decor* glyph, because
+   CONTENT.md §1 fixes the tower's.
