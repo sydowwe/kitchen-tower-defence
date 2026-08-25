@@ -34,6 +34,38 @@ export const en = {
 		sell: 'Sell',
 		upgrade: 'Upgrade',
 
+		// --- step 8B, the components -----------------------------------------------------------
+		clock: '{hour}:{minute}am',
+		foodCount: '{remaining} / {total}',
+		// The top bar's half of analytic-docs/DECISIONS.md section 6: the sting is the *name*, said
+		// once and left to fade. `night.foodLost` is the same sentence with the whole list in it.
+		lastLost: 'Lost: {item}',
+		groceryMoney: 'Grocery money',
+		noiseLevel: '{level} of {cap}',
+		speedShort: '{n}×',
+		upgradeUnavailable: 'Upgrades come later.',
+		// Keyed by the `TargetingMode` literal, so the selector renders the union directly.
+		mode: {
+			FIRST: 'First',
+			LAST: 'Last',
+			STRONGEST: 'Strongest',
+			WEAKEST: 'Weakest',
+			CLOSEST: 'Closest',
+			RANDOM: 'Random',
+		},
+		damage: {
+			physical: 'Physical',
+			fire: 'Fire',
+			cold: 'Cold',
+			chemical: 'Chemical',
+			electric: 'Electric',
+		},
+		targetClass: {
+			ground: 'Ground',
+			air: 'Air',
+			both: 'Ground and air',
+		},
+
 		shop: 'On the counter',
 		locked: 'Locked',
 		cost: '{n} crumbs',
@@ -151,6 +183,8 @@ export const en = {
 		foodRemaining: 'Still in the fridge: {n}',
 		enemiesKilled: 'Dealt with: {n}',
 		crumbsCollected: 'Swept up {collected} crumbs of {dropped} dropped',
+		// A stub until step 20 pays the night out and writes the breakdown behind it.
+		groceryMoney: 'Grocery money earned: {n}',
 		listSeparator: ', ',
 		retry: 'Try the night again',
 		continue: 'Continue',

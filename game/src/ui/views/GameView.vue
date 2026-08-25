@@ -7,6 +7,11 @@
 			:height="LOGICAL_HEIGHT"
 		/>
 		<div class="hud">
+			<HudLayer
+				v-if="hud !== null"
+				:snapshot="hud"
+				:selection="selection"
+			/>
 			<DebugOverlay
 				:fps="snapshot.fps"
 				:tickCount="snapshot.tickCount"
@@ -20,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-	import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
+	import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 	import { createLoop, type Loop, type Speed } from '@/loop.ts'
 	import { getMapDef } from '@/core/content/index.ts'
 	import { createCommandQueue } from '@/core/commands.ts'
@@ -39,6 +44,10 @@
 		type Renderer,
 	} from '@/render/index.ts'
 	import DebugOverlay from '@/ui/components/DebugOverlay.vue'
+	import HudLayer from '@/ui/components/hud/HudLayer.vue'
+	import { createSelection } from '@/ui/selection.ts'
+	import { buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
+	import type { HudSnapshot, TowerInspectorView } from '@/ui/viewModel.ts'
 	import type { GameEvent, MapDef, World } from '@/core/types.ts'
 	import type { DebugController, isTypingTarget } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
@@ -103,6 +112,35 @@
 		paused: false,
 	})
 
+	/**
+	 * The HUD's own snapshot: a second `shallowRef` off the same `publish()`, replaced wholesale.
+	 *
+	 * Two objects rather than one because they have different audiences -- `Snapshot` above is fps and
+	 * tick counters for `DebugOverlay`, and this one is everything the chrome shows. Null until the
+	 * first publish: there is no world to build it from before `onMounted` runs.
+	 */
+	const hud = shallowRef<HudSnapshot | null>(null)
+
+	/**
+	 * What the player has armed and what they are inspecting. It lives in `ui/selection.ts` rather
+	 * than in a component because the HUD, the pointer handlers and the key bindings all need the same
+	 * answer. **Step 8C is what writes to it**; this session only reads it into the HUD.
+	 */
+	const selection = createSelection()
+
+	/**
+	 * Rebuilt on selection change *and* on every publish: the change is what makes picking a tower feel
+	 * instant, and the republish is what keeps its refund honest as the phase moves.
+	 */
+	let inspector: TowerInspectorView | null = null
+
+	function refreshInspector(): void {
+		const towerId = selection.selectedTowerId.value
+		inspector = towerId === null || world === null ? null : buildTowerInspector(world, towerId)
+	}
+
+	watch(selection.selectedTowerId, refreshInspector)
+
 	let renderer: Renderer | null = null
 	let loop: Loop | null = null
 	/** Dev-only: dynamically imported below, so none of these modules enters the production bundle. */
@@ -137,6 +175,9 @@
 		frameEvents.length = 0
 		resetEffects()
 		placement?.clearSelection()
+		// Both selections point at a world that no longer exists.
+		selection.clear()
+		inspector = null
 
 		if (renderer !== null) {
 			renderer.setMap(next.map)
@@ -265,6 +306,15 @@
 					speed: activeLoop.speed,
 					paused: activeLoop.paused,
 				}
+
+				if (world !== null) {
+					refreshInspector()
+					hud.value = buildHudSnapshot(
+						world,
+						{ speed: activeLoop.speed, paused: activeLoop.paused },
+						inspector,
+					)
+				}
 			},
 		})
 		loop = activeLoop
@@ -281,6 +331,9 @@
 		loop = null
 		renderer = null
 		world = null
+		hud.value = null
+		inspector = null
+		selection.clear()
 		frameEvents.length = 0
 		resetEffects()
 		debug?.destroy()

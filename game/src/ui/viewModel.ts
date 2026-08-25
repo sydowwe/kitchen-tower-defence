@@ -27,6 +27,18 @@ import type { TowerDef } from '@/core/content/index.ts'
 import type { DamageType, DefId, EntityId, NightPhase, TargetingMode, World } from '@/core/types.ts'
 import type { Speed } from '@/loop.ts'
 
+/**
+ * The vocabulary the HUD's emit contract is written in, re-exported so a component never names
+ * `core/` itself.
+ *
+ * A `hud/` component that imported `@/core/types.ts` for `TargetingMode` would be one refactor away
+ * from importing a system for "just one helper", and the import graph is the only thing that catches
+ * it. This file already depends on `core/`; it is the seam. Type-only, and erased at build.
+ */
+export type { TargetClass } from '@/core/content/behaviours.ts'
+export type { DamageType, DefId, EntityId, NightPhase, TargetingMode } from '@/core/types.ts'
+export type { Speed } from '@/loop.ts'
+
 /** `core/` durations are tick counts; a card shows rates per second. The one conversion factor. */
 const TICKS_PER_SECOND = 60
 

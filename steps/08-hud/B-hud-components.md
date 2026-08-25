@@ -67,7 +67,13 @@ edit this file, don't leave it lying.
 9. **FontAwesome for chrome only, emoji for anything that is an entity.** Every icon the HUD needs is
    already registered in `ui/icons.ts`; if you need another, add it there one by one and never
    `library.add(fas)`.
-10. **No Pinia.** Nothing here outlives the view: the snapshot is a `shallowRef` in `GameView.vue`
+10. **The emit contract's types come through `ui/viewModel.ts`, not from `core/`.** Written during the
+    build: acceptance says no `hud/` component may import `core/`, and the contract below is typed in
+    `DefId`, `EntityId`, `TargetingMode`, `NightPhase` and `Speed`. `viewModel.ts` already depends on
+    `core/` and is the HUD's seam, so it re-exports those five (plus `DamageType` and `TargetClass`)
+    as types. A component that reached past it for "just one type" is one refactor from reaching past
+    it for a system, and the import graph is the only thing that catches that.
+11. **No Pinia.** Nothing here outlives the view: the snapshot is a `shallowRef` in `GameView.vue`
     and the selection is 8A's module. `CLAUDE.md`'s *What goes in a store* names the HUD snapshot
     explicitly as something a store must not hold — in one, someone eventually `storeToRefs`es it
     into deep reactivity.
@@ -100,6 +106,11 @@ A row of emoji buttons: glyph, cost, `1`–`9` index, lock state, armed state fr
   noise — or income and collect radius for an economy tower, where 8A gives you nulls rather than
   zeroes. Show the description key too; it is the only place the flavour text is ever read.
 - The card must not push the layout around. Position it absolutely over the board, above the shop.
+
+Built as a seventh component, `hud/StatCard.vue`, because the inspector renders the same block off
+the same `TowerStatsView`. Hover is **CSS only** (`.tower:hover + .card-slot`): every entry renders
+its card hidden, so the shop owns no hover ref and an unaffordable tower behaves identically to an
+affordable one.
 
 ### 3. `ui/components/hud/TowerInspector.vue`
 
@@ -148,6 +159,12 @@ thing on screen.
 published from the same `publish()` callback. Leave the existing dev `Snapshot` and `DebugOverlay`
 exactly as they are — 8C decides their fate.
 
+Built with two things this item did not name, both cheap and both 8A's own machinery:
+`GameView.vue` creates 8A's `createSelection()` (nothing writes to it yet — 8C does) and refreshes
+`buildTowerInspector` on a `watch` of `selectedTowerId` *and* on each publish, so the inspector is
+live the moment 8C can select a tower. `HudLayer`'s events are deliberately left unhandled: binding
+one to the queue is 8C's, and doing it here would be the second write path.
+
 ## Tests
 
 **None.** `vite.config.ts` runs `environment: 'node'` with no jsdom, and neither `@vue/test-utils`
@@ -159,7 +176,7 @@ below is the instrumentation.
 
 ## Acceptance
 
-- [ ] No component in `ui/components/hud/` imports from `core/`, `render/`, `dev/` or `@/data`, and
+- [x] No component in `ui/components/hud/` imports from `core/`, `render/`, `dev/` or `@/data`, and
       none of them holds state that outlives a frame beyond 8A's selection.
 - [ ] Clicking anywhere on the board that is not a HUD control still reaches the canvas — check by
       collecting a crumb underneath the top bar and underneath the shop.
@@ -170,7 +187,7 @@ below is the instrumentation.
 - [ ] Squint at it: you read "2am kitchen", the board is the brightest thing on screen, and there is
       no hard white anywhere.
 - [ ] The food readout is the first thing your eye lands on in the top bar.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 8C
 
