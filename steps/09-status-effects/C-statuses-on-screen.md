@@ -84,9 +84,14 @@ brief: **Slow** a blue tint plus frost specks, **Burn** an orange flicker, **Poi
 - **Slow and Freeze both read as "cold and stopped"**, and `speedMultiplier` is a `min` over both.
   Nothing applies Freeze in v1 (Ice Cube Tray's T3 is step 12's), so give Slow the treatment and
   leave Freeze reusing it at full strength rather than inventing a fifth language.
-- Test it against the thing it exists for before you tune it: forty ants at 3×, half of them
-  burning. If you cannot sort them at a glance the answer is more *contrast*, not more effects — a
-  board where every enemy is decorated is a board with no information on it.
+- **Only three of the four can be staged in a night.** The roster applies Slow (Ice Cube Tray),
+  Rooted (Sticky Tape) and Poison (Spray Bottle) and nothing else: the first source of Burn is the
+  Candle in step 17, and the Gas Stove Burner and Toaster in step 14. Build the Burn treatment
+  anyway — the layer reads `enemy.statuses` and does not know which kinds have a source yet — but
+  judge it when something lights an enemy, not here.
+- Test it against the thing it exists for before you tune it: forty ants at 3×, a third of them
+  slowed and a third poisoned. If you cannot sort them at a glance the answer is more *contrast*,
+  not more effects — a board where every enemy is decorated is a board with no information on it.
 
 ### 2. `drawRangeCone` (`render/layers/towers.ts`)
 
@@ -149,8 +154,9 @@ runs `environment: 'node'` with no jsdom, so there is nothing to mount.
 
 ## Acceptance
 
-- [ ] At 3× speed you can tell which enemies are slowed and which are burning, across a whole wave,
-      without pausing.
+- [ ] At 3× speed you can tell which enemies are slowed, which are poisoned and which are rooted,
+      across a whole wave, without pausing. **Not burning** — nothing in the roster applies Burn
+      until step 17's Candle, so that treatment is judged there.
 - [ ] A Spray Bottle's ghost shows a wedge before you place it, and the wedge points where the tower
       will actually shoot.
 - [ ] The shop card for every one of the six towers says something true, and the two new control
