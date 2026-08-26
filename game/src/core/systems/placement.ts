@@ -12,8 +12,10 @@
  * centres -- the same space `samplePath` returns -- and mapping a click to one is `render/`'s job.
  */
 
-import { isCharge } from '@/core/content/behaviours.ts'
+import { isCharge, isIncome } from '@/core/content/behaviours.ts'
+import { getTowerDef } from '@/core/content/index.ts'
 import { flagsAt, canPlace, TileFlags } from '@/core/map.ts'
+import { spawnDestroyPenalty } from '@/core/systems/spawn.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { EntityId, Tower, TowerState, Vec2, World } from '@/core/types.ts'
 
@@ -38,9 +40,10 @@ function rejected(reason: PlacementRejection): PlacementResult {
  * The live counter a charge tower spends down, seeded from its own behaviour. Null for every tower
  * without one, which is most of them.
  *
- * `rearmTicksRemaining` starts at 0 and nothing reads it yet -- step 10 owns the armed/firing/
- * rearming machine. What matters here is that the field gets filled in at all: a Sticky Tape placed
- * with `state: null` silently has infinite charges.
+ * `rearmTicksRemaining` starts at 0: a tower is placed armed and nothing is rearming yet. The
+ * machine that spends and refills both numbers is `core/systems/charges.ts`. What matters here is
+ * that the field gets filled in at all -- a Sticky Tape placed with `state: null` silently has
+ * infinite charges.
  */
 function initialState(def: TowerDef): TowerState | null {
 	const behaviour = def.behaviours.find(isCharge)
@@ -173,8 +176,8 @@ function reindexTowers(world: World): void {
  * there.
  *
  * This is what a *spent* tower leaves through: a Sticky Tape out of charges is gone with no refund,
- * and emitting `towerSold` with a refund of 0 would lie to a ledger the HUD reads. `towerDestroyed`
- * is step 10's event. `sellTower` is this plus the money.
+ * and emitting `towerSold` with a refund of 0 would lie to a ledger the HUD reads. `sellTower` is
+ * this plus the money, and `destroyTower` is this plus the penalty and the event.
  */
 export function removeTower(world: World, towerId: EntityId): boolean {
 	const position = world.index.towers[towerId]
@@ -186,6 +189,52 @@ export function removeTower(world: World, towerId: EntityId): boolean {
 	reindexTowers(world)
 
 	return true
+}
+
+/**
+ * Flat damage onto a tower's hp, clamped at 0. `amount` is already-final: **nothing between here and
+ * `tower.hp` scales it**.
+ *
+ * It deliberately does not go through `resolveDamage`. That function is damage type against *enemy
+ * tags*, and a tower has none -- routing a chew through it would silently multiply by whatever the
+ * matrix does with an empty tag list.
+ *
+ * No event: nothing consumes a `towerDamaged`, the HP bar reads `tower.hp`, and a `GameEvent` member
+ * is added by the step that reads it. **Whoever damages a tower calls `destroyTower` when its hp
+ * reaches 0** -- 10B's chew system is the only caller in v1. The two stay separate because step 13
+ * wants to destroy a tower without a damage number.
+ *
+ * The world is unused today and taken anyway, so every damage helper in `core/` reads the same at
+ * the call site.
+ */
+export function damageTower(_world: World, tower: Tower, amount: number): void {
+	tower.hp = Math.max(0, tower.hp - amount)
+}
+
+/**
+ * *The* path off the board for a killed tower: the destroy penalty, then the event, then the
+ * removal. False for an id that is not there -- the `sellTower` precedent, because two things
+ * killing the same tower on one tick is normal and not a crash.
+ *
+ * A second removal path is how a Cookie Jar killed by noise ends up paying nothing, so 10B's chew
+ * and step 13's noise both come through here.
+ */
+export function destroyTower(world: World, towerId: EntityId): boolean {
+	const tower = towerById(world, towerId)
+	if (tower === null) {
+		return false
+	}
+
+	const def = getTowerDef(tower.defId)
+	const tile = { x: tower.tile.x, y: tower.tile.y }
+
+	// The penalty is a field on `income`, not a branch on this tower's id: the Cookie Jar owes 200
+	// and every other tower owes the default 0.
+	const owed = def.behaviours.find(isIncome)?.enemyCrumbsOnDestroy ?? 0
+	spawnDestroyPenalty(world, owed)
+
+	world.events.push({ kind: 'towerDestroyed', towerId, defId: def.id, tile })
+	return removeTower(world, towerId)
 }
 
 /**

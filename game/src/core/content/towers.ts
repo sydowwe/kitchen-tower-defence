@@ -124,8 +124,9 @@ export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
 }
 
 /**
- * TODO(step 10): drops 200 crumbs to the enemy side if destroyed (CONTENT.md section 1, *Economy
- * rates*). That needs tower HP to be damageable, which is step 10's, so it is not half-built here.
+ * The jar's 200 is `enemyCrumbsOnDestroy` on its own `income`, spent on extra spawns by
+ * `core/systems/spawn.ts` when the jar is destroyed. It is a field rather than a behaviour kind
+ * because analytic-docs/CONTENT.md section 1's *Economy rates* table puts the 200 beside the 9/sec.
  */
 export const cookieJar: TowerDefOf<'cookieJar'> = {
 	id: 'cookieJar',
@@ -139,7 +140,7 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
 	behaviours: [
-		income({ crumbsPerPayout: 9, payoutIntervalTicks: TICKS_PER_SECOND }),
+		income({ crumbsPerPayout: 9, payoutIntervalTicks: TICKS_PER_SECOND, enemyCrumbsOnDestroy: 200 }),
 		collect({ radiusTiles: 3, travelTicks: COLLECT_TRAVEL_TICKS }),
 	],
 }
@@ -265,6 +266,47 @@ export const sprayBottle: TowerDefOf<'sprayBottle'> = {
 	],
 }
 
-export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar, iceCubeTray, stickyTape, sprayBottle]
+/**
+ * analytic-docs/CONTENT.md section 1, Act I: 90 crumbs, 60 damage, 0.15/sec, range 1, physical,
+ * ground, noise 2, off the path -- and section 1's behaviour note, "charge state machine: armed ->
+ * fired -> rearming (6.6s) -> armed. Fires at the STRONGEST target in range by default."
+ *
+ * **One number, 396 ticks, for both the cooldown and the rearm.** The doc's 0.15/sec and its 6.6s
+ * rearm are the same interval written twice, and `perSecond(0.15)` would be 400 -- four ticks
+ * longer, which would make the rearm dead machinery (the cooldown would gate every shot) and the
+ * balance sheet a lie. `round2(60 / 396)` is 0.15, so the shop card still shows the doc's rate.
+ *
+ * `projectileSpeed: 0` -- a trap snaps. The hit lands the tick it fires, with no `Projectile` entity
+ * at all. `maxHp: 100` is every non-wall tower's precedent; the only HP in the table is the
+ * Cardboard Box's 200.
+ */
+const MOUSETRAP_TICKS = 396
+
+export const mousetrap: TowerDefOf<'mousetrap'> = {
+	id: 'mousetrap',
+	nameKey: 'tower.mousetrap.name',
+	descriptionKey: 'tower.mousetrap.description',
+	glyph: '🪤',
+	role: 'BURST_DPS',
+	cost: 90,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 2,
+	defaultTargetingMode: 'STRONGEST',
+	behaviours: [
+		attack({
+			damage: 60,
+			damageType: 'physical',
+			cooldownTicks: MOUSETRAP_TICKS,
+			rangeTiles: 1,
+			targets: 'ground',
+			projectileSpeed: 0,
+		}),
+		charge({ charges: 1, rearmTicks: MOUSETRAP_TICKS }),
+	],
+}
+
+/** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
+export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar, iceCubeTray, stickyTape, sprayBottle, mousetrap]
 
 export type TowerId = (typeof TOWERS)[number]['id']

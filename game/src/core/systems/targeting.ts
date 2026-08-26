@@ -16,6 +16,7 @@ import type { TargetClass } from '@/core/content/behaviours.ts'
 import { getTowerDef } from '@/core/content/index.ts'
 import { remainingToFridge } from '@/core/path.ts'
 import { bindRng } from '@/core/rng.ts'
+import { chargeAllowsFiring } from '@/core/systems/charges.ts'
 import { enemyPosition, queryEnemiesInRange } from '@/core/systems/spatial.ts'
 import type { Enemy, Tower, World } from '@/core/types.ts'
 
@@ -126,6 +127,13 @@ export function targetingSystem(world: World): void {
 	for (const tower of world.towers) {
 		const firing = getTowerDef(tower.defId).behaviours.find(isFiring)
 		if (firing === undefined) {
+			continue
+		}
+		// The same gate `combat` asks in the slot after this one -- see the header. A tower that
+		// cannot fire is left with no target rather than a target it will never consume: a rearming
+		// Mousetrap does not aim, and 10C draws no range line for one.
+		if (!chargeAllowsFiring(world, tower)) {
+			tower.targetEnemyId = null
 			continue
 		}
 		tower.targetEnemyId = pickTarget(world, tower, firing)?.id ?? null

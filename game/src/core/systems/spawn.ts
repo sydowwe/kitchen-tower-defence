@@ -10,8 +10,8 @@
  * board.
  */
 
-import { getEnemyDef } from '@/core/content/index.ts'
-import type { EnemyDef, NightDef } from '@/core/content/schema.ts'
+import { getEnemyDef, getNightDef } from '@/core/content/index.ts'
+import type { EnemyDef, NightDef, WaveEntry } from '@/core/content/schema.ts'
 import type { Enemy, WaveSpawn, World } from '@/core/types.ts'
 
 /**
@@ -29,6 +29,55 @@ function dealRoundRobin(count: number, lanes: number): number[] {
 		}
 	}
 	return shares
+}
+
+/**
+ * One authored entry turned into the cursors that spawn it: one per lane it is spread over, or one
+ * for the lane it names.
+ *
+ * `count` is passed in rather than read off the entry, because the two callers count differently --
+ * `startWave` applies the difficulty multiplier and the destroy penalty buys enemies one at a time
+ * against a budget. Everything else the entry says (its spacing, its lane, the round-robin over
+ * every lane when it names none, and the throw for a lane the map does not have) is carried here
+ * once for both.
+ */
+export function cursorsFor(world: World, entry: WaveEntry, count: number): WaveSpawn[] {
+	const spawns: WaveSpawn[] = []
+	const nextSpawnTick = world.tick + entry.startDelayTicks
+
+	if (entry.pathId === undefined) {
+		// No lane named: spread the entry over every lane on the map, keeping its spacing. The
+		// Counter has one path, so this is a no-op until the first two-lane map at night 10.
+		const paths = world.map.paths
+		dealRoundRobin(count, paths.length).forEach((share, index) => {
+			const path = paths[index]
+			if (path !== undefined) {
+				spawns.push({
+					enemyDefId: entry.enemyDefId,
+					remaining: share,
+					nextSpawnTick,
+					spacingTicks: entry.spacingTicks,
+					pathId: path.id,
+				})
+			}
+		})
+		return spawns
+	}
+
+	// The silent version of this spawns nothing, and the symptom is a night that never ends.
+	if (!world.map.paths.some(path => path.id === entry.pathId)) {
+		throw new Error(`wave entry names path '${entry.pathId}', which map '${world.map.id}' does not have`)
+	}
+
+	spawns.push({
+		enemyDefId: entry.enemyDefId,
+		remaining: count,
+		nextSpawnTick,
+		spacingTicks: entry.spacingTicks,
+		pathId: entry.pathId,
+	})
+
+	return spawns
 }
 
 /**
@@ -51,41 +100,13 @@ export function startWave(world: World, night: NightDef, waveIndex: number): voi
 
 	for (const entry of composition.entries) {
 		const count = Math.max(1, Math.round(entry.count * world.difficulty.enemyCountMult))
-		const nextSpawnTick = world.tick + entry.startDelayTicks
-
-		if (entry.pathId === undefined) {
-			// No lane named: spread the entry over every lane on the map, keeping its spacing. The
-			// Counter has one path, so this is a no-op until the first two-lane map at night 10.
-			const paths = world.map.paths
-			dealRoundRobin(count, paths.length).forEach((share, index) => {
-				const path = paths[index]
-				if (path !== undefined) {
-					spawns.push({
-						enemyDefId: entry.enemyDefId,
-						remaining: share,
-						nextSpawnTick,
-						spacingTicks: entry.spacingTicks,
-						pathId: path.id,
-					})
-				}
-			})
-			continue
+		try {
+			spawns.push(...cursorsFor(world, entry, count))
+		} catch (error) {
+			// `cursorsFor` knows the entry and the map but not which night authored it, and a bad
+			// lane is an authoring mistake that has to name the night to be fixable.
+			throw new Error(`night '${night.id}' wave ${waveIndex}: ${error instanceof Error ? error.message : error}`)
 		}
-
-		// The silent version of this spawns nothing, and the symptom is a night that never ends.
-		if (!world.map.paths.some(path => path.id === entry.pathId)) {
-			throw new Error(
-				`night '${night.id}' wave ${waveIndex} names path '${entry.pathId}', which map '${world.map.id}' does not have`,
-			)
-		}
-
-		spawns.push({
-			enemyDefId: entry.enemyDefId,
-			remaining: count,
-			nextSpawnTick,
-			spacingTicks: entry.spacingTicks,
-			pathId: entry.pathId,
-		})
 	}
 
 	world.night.waveIndex = waveIndex
@@ -165,4 +186,61 @@ export function spawnSystem(world: World): void {
 			spawn.nextSpawnTick += spawn.spacingTicks
 		}
 	}
+}
+
+/**
+ * The Cookie Jar's destroy penalty: a budget of crumbs handed to the enemy side and spent on extra
+ * enemies, appended to the wave that is already running.
+ *
+ * **Bought from the running wave's own composition**, so the penalty knows no enemy names: the
+ * authored entries are walked in order, repeatedly, buying one enemy at a time at that enemy's own
+ * `reward`, until the budget cannot afford anything left. Night 1 therefore gets ants and night 5
+ * gets beetles, and a roster added in step 11 needs no line here.
+ *
+ * **Appending cursors holds the wave open.** `hasFinishedSpawning` gates the countdown to the next
+ * wave and `emitClearedWaves`, and a wave with a live penalty cursor is not finished spawning. That
+ * is the penalty being real, and it is why the burst is bounded by a budget rather than a
+ * multiplier.
+ */
+export function spawnDestroyPenalty(world: World, crumbs: number): void {
+	const wave = world.night.wave
+	// Null before wave 0, i.e. during `'building'` -- nothing in v1 can destroy a tower then, and
+	// skipping beats throwing if something in step 13 ever can.
+	if (wave === null || crumbs <= 0) {
+		return
+	}
+
+	const composition = getNightDef(world.night.nightId).waves[world.night.waveIndex]
+	if (composition === undefined) {
+		return
+	}
+
+	const bought = new Map<number, number>()
+	let budget = crumbs
+	let boughtAnything = true
+
+	while (boughtAnything) {
+		boughtAnything = false
+		composition.entries.forEach((entry, index) => {
+			const price = getEnemyDef(entry.enemyDefId).reward
+			// A free enemy would buy an infinite burst; the roster has none, and this is the guard
+			// rather than the discovery.
+			if (price <= 0 || price > budget) {
+				return
+			}
+			budget -= price
+			bought.set(index, (bought.get(index) ?? 0) + 1)
+			boughtAnything = true
+		})
+	}
+
+	composition.entries.forEach((entry, index) => {
+		const count = bought.get(index)
+		if (count === undefined) {
+			return
+		}
+		// `startDelayTicks: 0` -- the penalty arrives now. The entry's own delay is when *the wave*
+		// scheduled it, and re-applying it here would make a destroyed jar cost nothing for 4 seconds.
+		wave.spawns.push(...cursorsFor(world, { ...entry, startDelayTicks: 0 }, count))
+	})
 }

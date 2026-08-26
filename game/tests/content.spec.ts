@@ -8,6 +8,7 @@ import { validateContent } from '@/core/content/schema.ts'
 import {
 	cookieJar,
 	iceCubeTray,
+	mousetrap,
 	saltShaker,
 	sprayBottle,
 	stickyTape,
@@ -141,6 +142,11 @@ describe('the economy towers', () => {
 		expect(jar.payoutIntervalTicks).toBe(60)
 	})
 
+	it('owes the doc s 200 crumbs to the enemy side when the jar is destroyed, and nothing for the tray', () => {
+		expect(incomeOf(cookieJar.behaviours).enemyCrumbsOnDestroy).toBe(200)
+		expect(incomeOf(toasterCrumbTray.behaviours).enemyCrumbsOnDestroy).toBe(0)
+	})
+
 	it('draws piles in from the doc radius, in ticks and not milliseconds', () => {
 		const tray = collectOf(toasterCrumbTray.behaviours)
 		expect(tray.radiusTiles).toBe(2.5)
@@ -152,6 +158,40 @@ describe('the economy towers', () => {
 
 		// 1.5 seconds, and the assertion that catches 1500 being pasted in from the doc.
 		expect(tray.travelTicks / 60).toBeCloseTo(1.5, 10)
+	})
+})
+
+describe('the Mousetrap', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(mousetrap.cost).toBe(90)
+		expect(mousetrap.role).toBe('BURST_DPS')
+		expect(mousetrap.glyph).toBe('🪤')
+		expect(mousetrap.placement).toBe('off_path')
+		expect(mousetrap.maxHp).toBe(100)
+		/** The first tower in the game with a noise value at all. Step 13 is what reads it. */
+		expect(mousetrap.noise).toBe(2)
+		/** Section 1's behaviour note names STRONGEST explicitly, against section 5's default. */
+		expect(mousetrap.defaultTargetingMode).toBe('STRONGEST')
+
+		const snap = attackOf(mousetrap.behaviours)
+		expect(snap.damage).toBe(60)
+		expect(snap.damageType).toBe('physical')
+		expect(snap.rangeTiles).toBe(1)
+		expect(snap.targets).toBe('ground')
+		/** No projectile: a trap snaps, and the hit lands the tick it fires. */
+		expect(snap.projectileSpeed).toBe(0)
+	})
+
+	it('spends one charge per snap and takes the doc s 6.6 seconds to reset, on one number', () => {
+		const behaviour = mousetrap.behaviours.find(entry => entry.kind === 'charge')
+
+		expect(behaviour).toEqual({ kind: 'charge', charges: 1, rearmTicks: 396 })
+		// The doc's 0.15/sec and its 6.6s rearm are the same interval written twice, so the cooldown
+		// and the rearm are one number. `perSecond(0.15)` would be 400, and the four-tick difference
+		// would make the rearm dead machinery.
+		expect(attackOf(mousetrap.behaviours).cooldownTicks).toBe(396)
+		expect(396 / 60).toBeCloseTo(6.6, 10)
+		expect(Math.round((60 / 396) * 100) / 100).toBeCloseTo(0.15, 10)
 	})
 })
 

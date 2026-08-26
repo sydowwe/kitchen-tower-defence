@@ -13,7 +13,8 @@
 import { isConeAttack, isFiring } from '@/core/content/behaviours.ts'
 import { getTowerDef } from '@/core/content/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
-import { applyStatuses, endsWithItsSource } from '@/core/content/statuses.ts'
+import { applyStatuses } from '@/core/content/statuses.ts'
+import { chargeAllowsFiring, chargeBehaviourOf, spendCharge } from '@/core/systems/charges.ts'
 import { circle, cone } from '@/core/systems/hitbox.ts'
 import { spawnProjectile } from '@/core/systems/projectiles.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
@@ -114,19 +115,6 @@ function fireCone(world: World, tower: Tower, behaviour: ConeAttackBehaviour, ta
 	}
 }
 
-/**
- * Whether any enemy still carries a status this tower applied that ends when its source is spent.
- *
- * It is a scan of `world.enemies` rather than an id remembered on the tower, and that is the point:
- * it covers **both** ways a root ends. A version hooked onto `enemyKilled` misses the enemy that
- * reached the fridge and leaked, and the symptom is a tape that holds a charge forever.
- */
-export function hasOutstandingSourceStatus(world: World, towerId: EntityId): boolean {
-	return world.enemies.some(enemy =>
-		enemy.statuses.some(status => status.sourceId === towerId && endsWithItsSource(status)),
-	)
-}
-
 export function combatSystem(world: World): void {
 	// Terminal phases run nothing, or the night keeps simulating behind the summary screen.
 	if (world.night.phase === 'won' || world.night.phase === 'lost') {
@@ -147,14 +135,12 @@ export function combatSystem(world: World): void {
 			continue
 		}
 
-		// The charge gate. A spent tower fires nothing, and one whose last application is still
-		// running holds -- Sticky Tape roots one enemy at a time. `statusSystem` is what notices the
-		// tape is finished with; nothing here removes it.
-		const state = tower.state
-		if (state !== null && state.kind === 'charge') {
-			if (state.charges <= 0 || hasOutstandingSourceStatus(world, tower.id)) {
-				continue
-			}
+		// The charge gate, the same predicate `targetingSystem` asked in the slot before this one. A
+		// spent tower fires nothing, and one whose last application is still running holds -- Sticky
+		// Tape roots one enemy at a time. `statusSystem` is what notices the tape is finished with;
+		// nothing here removes it.
+		if (!chargeAllowsFiring(world, tower)) {
+			continue
 		}
 
 		const target = enemyById(world, tower.targetEnemyId)
@@ -165,8 +151,9 @@ export function combatSystem(world: World): void {
 		// Assigned, never `+=`. A tower that sat with nothing in range must not bank shots and then
 		// empty the bank when one walks in.
 		tower.cooldownTicks = firing.cooldownTicks
-		if (state !== null && state.kind === 'charge') {
-			state.charges--
+		const charges = chargeBehaviourOf(def)
+		if (charges !== null) {
+			spendCharge(tower, charges)
 		}
 		// `noise` is step 13's meter. Emitted now, consumed then.
 		world.events.push({ kind: 'towerFired', towerId: tower.id, defId: def.id, noise: def.noise })

@@ -197,13 +197,20 @@ export interface Enemy {
 }
 
 /**
- * The charge machines' slot on a tower. Currently one member; step 10 is what fills it in and adds
- * to the union. Null for the towers that don't have a state machine, which is most of them.
+ * The charge machine's slot on a tower. Null for the towers that don't have a state machine, which
+ * is most of them.
+ *
+ * Still one member after step 10A -- that step filled the machine in and did **not** add to the
+ * union, and it stays a union of one so a second kind of state costs no call site. There is
+ * deliberately no `phase` field: `chargePhase` in `core/systems/charges.ts` derives armed, rearming
+ * and spent from the two numbers below, because a stored phase is a second truth that goes into
+ * every save and every replay and can disagree with the counter it describes.
  */
 export type TowerState = {
 	kind: 'charge'
 	/** Sticky Tape has 3, Fly Paper 2, Mousetrap 1. */
 	charges: number
+	/** 0 when nothing is rearming. A tower at 0 charges and 0 here can never fire again. */
 	rearmTicksRemaining: number
 }
 
@@ -464,6 +471,15 @@ export type GameEvent =
 	| { kind: 'enemyDamaged'; enemyId: EntityId; sourceTowerId: EntityId; amount: number; at: Vec2 }
 	| { kind: 'towerPlaced'; towerId: EntityId; defId: DefId; tile: Vec2 }
 	| { kind: 'towerSold'; towerId: EntityId; refund: number }
+	/**
+	 * A tower killed rather than sold or spent. It carries the `tile` because 10C draws the puff
+	 * where the tower stood, and the `defId` because that puff needs the glyph -- by the time anyone
+	 * reads the event the tower is out of `world.towers` and neither can be looked up.
+	 *
+	 * There is no `towerDamaged`: nothing consumes one, the HP bar reads `tower.hp`, and a member
+	 * here is added by the step that reads it.
+	 */
+	| { kind: 'towerDestroyed'; towerId: EntityId; defId: DefId; tile: Vec2 }
 	| { kind: 'crumbCollected'; crumbId: EntityId; value: number; byTowerId: EntityId | null }
 	| { kind: 'waveStarted'; waveIndex: number }
 	| { kind: 'waveCleared'; waveIndex: number }

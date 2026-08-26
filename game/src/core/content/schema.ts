@@ -236,6 +236,8 @@ export function contentSchemas() {
 			kind: z.literal('income'),
 			crumbsPerPayout: z.number().int().min(0),
 			payoutIntervalTicks: z.number().int().min(1).max(MAX_COOLDOWN_TICKS),
+			/** The Cookie Jar's 200. Whole crumbs, because the penalty buys enemies at whole prices. */
+			enemyCrumbsOnDestroy: z.number().int().min(0).max(10_000),
 		}),
 		z.object({
 			kind: z.literal('collect'),
@@ -553,6 +555,13 @@ export type FoodDef = z.infer<ContentSchemas['food']>
 /** The authored map. `loadMap` in `core/map.ts` turns one of these into the `MapDef` a world holds. */
 export type MapSource = z.infer<ContentSchemas['mapSource']>
 export type NightDef = z.infer<ContentSchemas['night']>
+/**
+ * One entry of a wave's composition. Projected out of `NightDef` rather than inferred from the
+ * `waveEntry` schema separately, so there is no second copy of the shape to drift: `cursorsFor` in
+ * `core/systems/spawn.ts` takes one of these from an authored night and from the Cookie Jar's
+ * destroy penalty alike.
+ */
+export type WaveEntry = NightDef['waves'][number]['entries'][number]
 export type StatusDef = z.infer<ContentSchemas['status']>
 export type InstallationDef = z.infer<ContentSchemas['installation']>
 

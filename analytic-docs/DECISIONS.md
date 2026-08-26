@@ -73,6 +73,7 @@ Crumbs are the in-night currency and they are **physical objects on the board**.
 - **Click to collect**: instant, full value. A tempo reward for active play — never mandatory.
 - **Tower collection**: towers have a `collectRadius` (`0` for most). Crumb Tray, Cookie Jar, Compost Bin and later the Roomba have one. Auto-collected crumbs pay full value but take ~1.5s to travel in. Economy towers buy you *attention*, not just money.
 - **Rot**: a crumb older than **20s** starts raising local spawn pressure. At **35s** it hatches a Fruit Fly and is consumed.
+- **A destroyed Cookie Jar pays the enemy side 200 crumbs** (CONTENT.md §1, *Economy rates*). Those crumbs are spent immediately on extra enemies, bought from the running wave's own composition at each enemy's own `reward` price and appended to that wave — so the burst is whatever that night already spawns, and it holds the wave open until it has arrived. The economy tower you did not defend funds the wave that killed it.
 
 A dirty kitchen is a rich kitchen and a dangerous one.
 

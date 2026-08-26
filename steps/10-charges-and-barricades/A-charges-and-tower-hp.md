@@ -83,6 +83,11 @@ edit this file, don't leave it lying.
 11. **Extract the entry → cursors translation out of `startWave`** as `cursorsFor(world, entry,
     count): WaveSpawn[]`, and let both `startWave` and the penalty call it. That is what carries the
     round-robin over lanes and the unknown-path throw into the penalty for free.
+    *Built:* `cursorsFor` reads `entry.startDelayTicks` for its `nextSpawnTick`, and the penalty
+    passes `{ ...entry, startDelayTicks: 0 }` — that is how decision 10's `nextSpawnTick =
+    world.tick` is expressed without a second parameter. The throw moved with it, so it no longer
+    knows the night id; `startWave` catches and re-throws with `night '<id>' wave N:` prefixed,
+    which is what keeps `tests/spawn.spec.ts`'s "throws with both ids" passing.
 12. **Mousetrap: one number, 396 ticks, for both `cooldownTicks` and `rearmTicks`.** §1's 0.15/sec
     and its 6.6s rearm are the same interval written twice, and `perSecond(0.15)` would be 400 — four
     ticks longer, which makes the rearm dead machinery and the balance sheet a lie. `round2(60 /
@@ -172,7 +177,9 @@ restate what `status.spec.ts` already asserts about the tape.
   comes out whether `tick()` is called once or three times per loop iteration — a rearm scaled by a
   `dt` would not survive the second form.
 - After a rearm completes, `charges` is 1 and `rearmTicksRemaining` is 0; a tower with `rearmTicks:
-  0` never leaves 0.
+  0` never leaves 0. **With nothing in range on that tick** — the rearm lands in the 4th slot and
+  combat runs 7th, so a trap with a target spends the restored charge on the same tick it gets it
+  (which is the assertion above, and why the two are separate tests).
 - `damageTower` past 0 hp clamps at 0 and emits nothing on its own; `destroyTower` emits exactly one
   `towerDestroyed`, takes the tower out of `world.towers` **and** `world.index.towers`, and returns
   `false` for a second call on the same id.
@@ -182,13 +189,13 @@ restate what `status.spec.ts` already asserts about the tape.
 
 ## Acceptance
 
-- [ ] `SYSTEM_ORDER` is unchanged — this part adds no tick slot, and `tests/sim.spec.ts` still passes
+- [x] `SYSTEM_ORDER` is unchanged — this part adds no tick slot, and `tests/sim.spec.ts` still passes
       untouched.
-- [ ] No system file branches on a tower id. The penalty reads a behaviour field; the gate reads a
+- [x] No system file branches on a tower id. The penalty reads a behaviour field; the gate reads a
       behaviour kind.
-- [ ] `core/` still imports nothing but itself and zod, and no import cycle appeared between
+- [x] `core/` still imports nothing but itself and zod, and no import cycle appeared between
       `targeting.ts`, `combat.ts` and `charges.ts`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 10B and 10C
 

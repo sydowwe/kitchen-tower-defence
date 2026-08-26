@@ -76,7 +76,7 @@ const everyBehaviour: Behaviour[] = [
 		targets: 'both',
 	}),
 	aura({ radiusTiles: 2, damagePerTick: 4 / 60, damageType: 'fire', targets: 'both' }),
-	income({ crumbsPerPayout: 4, payoutIntervalTicks: 60 }),
+	income({ crumbsPerPayout: 4, payoutIntervalTicks: 60, enemyCrumbsOnDestroy: 200 }),
 	collect({ radiusTiles: 2.5, travelTicks: 90 }),
 	charge({ charges: 3, rearmTicks: 396 }),
 	barricade(),

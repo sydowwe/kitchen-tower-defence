@@ -1,16 +1,18 @@
 /**
- * Per-tick status effects, the ageing that retires them, and the charge bookkeeping that reads the
- * same statuses to decide a tower is finished.
+ * Per-tick status effects, the ageing that retires them, the rearm timers, and the charge
+ * bookkeeping that reads the same statuses to decide a tower is finished.
  *
- * Runs *before* movement so a slow applied this tick is felt this tick.
+ * Runs *before* movement so a slow applied this tick is felt this tick -- and before `targeting`,
+ * which is why the rearm ticks down here: a Mousetrap that rearms in this slot can be served a
+ * target and fire on the same tick, so its shots land exactly `rearmTicks` apart.
  *
  * **Nothing here branches on a status kind.** `effect` is a field on `STATUS_DEFS` precisely so the
  * per-tick reads filter on it, and an eighth status is a config entry rather than a case below.
  */
 
 import { STATUS_DEFS, tickStatuses } from '@/core/content/statuses.ts'
-import { applyDamage, hasOutstandingSourceStatus } from '@/core/systems/combat.ts'
-import { removeTower } from '@/core/systems/placement.ts'
+import { retireSpentTowers, tickRearms } from '@/core/systems/charges.ts'
+import { applyDamage } from '@/core/systems/combat.ts'
 import type { World } from '@/core/types.ts'
 
 export function statusSystem(world: World): void {
@@ -45,29 +47,8 @@ export function statusSystem(world: World): void {
 		tickStatuses(enemy)
 	}
 
+	// Rearm first, retire second, so the retirement pass reads counters that are current for this
+	// tick. A tower mid-rearm survives either order -- `retireSpentTowers` reads both numbers.
+	tickRearms(world)
 	retireSpentTowers(world)
-}
-
-/**
- * A charge tower with nothing left and nothing outstanding is done with. Sticky Tape's third root
- * ending is what removes it -- no event, no refund: `towerDestroyed` is step 10's, and a `towerSold`
- * with a refund of 0 would lie to a ledger the HUD reads.
- *
- * The end of a root is noticed on the **following** tick, because `resolveSystem` runs ninth and
- * this system first. That is deliberate: a tape re-firing on the same tick its target died would be
- * reading a dead enemy out of a stale index.
- */
-function retireSpentTowers(world: World): void {
-	// Descending, because `removeTower` splices: a forward loop would skip the tower after each one
-	// it took out.
-	for (let index = world.towers.length - 1; index >= 0; index--) {
-		const tower = world.towers[index]
-		if (tower === undefined || tower.state === null || tower.state.kind !== 'charge') {
-			continue
-		}
-		if (tower.state.charges > 0 || hasOutstandingSourceStatus(world, tower.id)) {
-			continue
-		}
-		removeTower(world, tower.id)
-	}
 }

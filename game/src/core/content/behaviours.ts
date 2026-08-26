@@ -188,11 +188,21 @@ export interface IncomeBehaviour {
 	kind: 'income'
 	crumbsPerPayout: number
 	payoutIntervalTicks: number
+	/**
+	 * Crumbs the *enemy side* is paid when this tower is destroyed, spent on extra spawns by
+	 * `core/systems/spawn.ts`. 0 for a tower that owes nothing, which is every one but the Cookie
+	 * Jar.
+	 *
+	 * A field rather than a thirteenth behaviour kind: analytic-docs/CONTENT.md section 1 puts the
+	 * 200 in the *Economy rates* table beside the 9/sec, which is what it is a property of.
+	 */
+	enemyCrumbsOnDestroy: number
 }
 
 export interface IncomeParams {
 	crumbsPerPayout: number
 	payoutIntervalTicks: number
+	enemyCrumbsOnDestroy?: number
 }
 
 export function income(params: IncomeParams): IncomeBehaviour {
@@ -200,6 +210,7 @@ export function income(params: IncomeParams): IncomeBehaviour {
 		kind: 'income',
 		crumbsPerPayout: params.crumbsPerPayout,
 		payoutIntervalTicks: params.payoutIntervalTicks,
+		enemyCrumbsOnDestroy: params.enemyCrumbsOnDestroy ?? 0,
 	}
 }
 
@@ -479,7 +490,12 @@ export function isCollect(behaviour: Behaviour): behaviour is CollectBehaviour {
 	return behaviour.kind === 'collect'
 }
 
-/** And for charges: `placeTower` seeds `Tower.state` from one, and step 10's rearm reads the same. */
+/** And for income: `destroyTower` reads the destroy penalty off one, `economySystem` the payout. */
+export function isIncome(behaviour: Behaviour): behaviour is IncomeBehaviour {
+	return behaviour.kind === 'income'
+}
+
+/** And for charges: `placeTower` seeds `Tower.state` from one, and the rearm reads the same. */
 export function isCharge(behaviour: Behaviour): behaviour is ChargeBehaviour {
 	return behaviour.kind === 'charge'
 }

@@ -176,6 +176,10 @@ export const en = {
 			name: 'Spray Bottle',
 			description: 'Kitchen cleaner, one pull at a time. Whatever the mist settles on keeps going over.',
 		},
+		mousetrap: {
+			name: 'Mousetrap',
+			description: 'Set once, and it deals with one thing properly. Resetting it takes a while.',
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {
