@@ -32,6 +32,7 @@ export {
 	drawTowers,
 	drawProjectiles,
 	drawRangeCircle,
+	drawRangeCone,
 	drawPlacementTile,
 	preloadTowerGlyphs,
 	towerGlyphSize,
@@ -39,5 +40,6 @@ export {
 	type PlacementTone,
 	type OverlayView,
 	type OverlayGhost,
+	type OverlayReach,
 	type OverlaySelected,
 } from '@/render/layers/index.ts'

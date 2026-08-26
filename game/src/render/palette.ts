@@ -100,6 +100,23 @@ export const CRUMB_ROT_CORE = 'rgba(126, 214, 96, 0.3)'
 export const CRUMB_POP = 'rgba(255, 214, 150, 0.9)'
 export const CRUMB_VALUE = '#ffc247'
 
+/**
+ * The four status treatments, one colour family each.
+ *
+ * They are told apart by **colour and shape together**, never by colour alone: a slow is a disc under
+ * the glyph, a burn is a flicker over its head, a poison is bubbles rising off it and a root is a ring
+ * around its feet. At 3x speed on a board of forty, the shape is what carries at a glance and the hue
+ * is what confirms it.
+ *
+ * The slow is a disc drawn **under** the glyph and not a tint of it: the cache hands out an opaque
+ * bitmap and `blitGlyph` cannot recolour one (step 9C, decision 2).
+ */
+export const STATUS_SLOW_DISC = 'rgba(120, 176, 255, 0.42)'
+export const STATUS_SLOW_SPECK = 'rgba(214, 234, 255, 0.85)'
+export const STATUS_BURN_FLAME = 'rgba(255, 146, 52, 0.9)'
+export const STATUS_POISON_BUBBLE = 'rgba(138, 226, 106, 0.85)'
+export const STATUS_ROOTED_SHIMMER = 'rgba(236, 242, 255, 0.8)'
+
 /** The panel the fridge's remaining items sit on, so a row of glyphs reads as a shelf and not as litter. */
 export const SHELF_BACKDROP = 'rgba(12, 16, 28, 0.55)'
 export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'

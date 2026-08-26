@@ -13,30 +13,56 @@
  */
 
 import { blitGlyph } from '@/render/glyphCache.ts'
-import { drawPlacementTile, drawRangeCircle, towerGlyphSize } from '@/render/layers/towers.ts'
+import { drawPlacementTile, drawRangeCircle, drawRangeCone, towerGlyphSize } from '@/render/layers/towers.ts'
 import type { PlacementTone } from '@/render/layers/towers.ts'
 import type { Vec2 } from '@/core/types.ts'
 
 /** How solid the tower-to-be is drawn under the cursor. Solid enough to identify, faint enough to read as not-yet. */
 const GHOST_ALPHA = 0.45
 
-/** The tower being inspected. `rangeTiles` is null for an economy tower: it has no reach to show. */
+/**
+ * What shape a tower's reach is, already resolved.
+ *
+ * The caller works out the facing -- from the tower's target, or from the lane it will cover -- the
+ * same way it already works out the `PlacementTone`, so `drawRangeCone` stays a pure draw like every
+ * other function in this file set (step 9C, decision 4).
+ */
+export type OverlayReach =
+	| { kind: 'circle'; radiusTiles: number }
+	| { kind: 'cone'; radiusTiles: number; halfAngleDeg: number; facingRad: number }
+
+/** The tower being inspected. `reach` is null for an economy tower: it has none to show. */
 export interface OverlaySelected {
 	tile: Vec2
-	rangeTiles: number | null
+	reach: OverlayReach | null
 }
 
 /** The tower-to-be under the cursor, with the one `canPlaceTower` answer already folded into `tone`. */
 export interface OverlayGhost {
 	glyph: string
 	tile: Vec2
-	rangeTiles: number | null
+	reach: OverlayReach | null
 	tone: PlacementTone
 }
 
 export interface OverlayView {
 	selected: OverlaySelected | null
 	ghost: OverlayGhost | null
+}
+
+/** One switch over the union, shared by the selection and the ghost so the two cannot disagree. */
+function drawReach(
+	ctx: CanvasRenderingContext2D,
+	tilePx: number,
+	tile: Vec2,
+	reach: OverlayReach,
+	tone: PlacementTone,
+): void {
+	if (reach.kind === 'cone') {
+		drawRangeCone(ctx, tilePx, tile, reach.radiusTiles, reach.halfAngleDeg, reach.facingRad, tone)
+		return
+	}
+	drawRangeCircle(ctx, tilePx, tile, reach.radiusTiles, tone)
 }
 
 /**
@@ -55,11 +81,11 @@ export function drawOverlay(
 
 	const selected = view.selected
 	if (selected !== null) {
-		if (selected.rangeTiles === null) {
+		if (selected.reach === null) {
 			// An economy tower has no reach to show, so the square is the whole of the selection.
 			drawPlacementTile(ctx, tilePx, selected.tile, 'neutral')
 		} else {
-			drawRangeCircle(ctx, tilePx, selected.tile, selected.rangeTiles, 'neutral')
+			drawReach(ctx, tilePx, selected.tile, selected.reach, 'neutral')
 		}
 	}
 
@@ -68,8 +94,8 @@ export function drawOverlay(
 		return
 	}
 
-	if (ghost.rangeTiles !== null) {
-		drawRangeCircle(ctx, tilePx, ghost.tile, ghost.rangeTiles, ghost.tone)
+	if (ghost.reach !== null) {
+		drawReach(ctx, tilePx, ghost.tile, ghost.reach, ghost.tone)
 	}
 	drawPlacementTile(ctx, tilePx, ghost.tile, ghost.tone)
 

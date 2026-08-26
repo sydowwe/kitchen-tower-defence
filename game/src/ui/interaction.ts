@@ -13,8 +13,10 @@
  */
 
 import { getTowerDef, TOWERS } from '@/core/content/index.ts'
-import { isAttack } from '@/core/content/behaviours.ts'
+import { isAttack, isConeAttack } from '@/core/content/behaviours.ts'
+import { nearestPath, samplePath } from '@/core/path.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
+import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import {
 	gridToWaypoint,
 	isOnBoard,
@@ -22,12 +24,13 @@ import {
 	pickCrumb,
 	toGridPoint,
 	toTile,
+	type OverlayReach,
 	type OverlayView,
 } from '@/render/index.ts'
 import { isTypingTarget } from '@/ui/keyboard.ts'
 import type { CommandQueue } from '@/core/commands.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { Vec2, World } from '@/core/types.ts'
+import type { Tower, Vec2, World } from '@/core/types.ts'
 import type { Speed } from '@/loop.ts'
 import type { Selection } from '@/ui/selection.ts'
 
@@ -89,10 +92,75 @@ export interface Interaction {
 	destroy(): void
 }
 
-/** The attack range of a def, or null for one with no attack behaviour -- both economy towers. */
-function rangeOf(def: TowerDef): number | null {
+/**
+ * Two tiles apart in tile space, as an angle, or null when they are the same point.
+ *
+ * `atan2(0, 0)` is 0 -- a cone that always points right -- so the zero-length case is turned away
+ * here rather than being drawn. It cannot happen with an `off_path` tower on a one-lane map and it
+ * will happen the first time something is `path_only` (step 9C).
+ */
+const FACING_EPSILON = 1e-6
+
+function angleBetween(from: Vec2, to: { x: number; y: number }): number | null {
+	const dx = to.x - from.x
+	const dy = to.y - from.y
+	return Math.hypot(dx, dy) < FACING_EPSILON ? null : Math.atan2(dy, dx)
+}
+
+/**
+ * Where a cone tower is pointing.
+ *
+ * A placed tower aims at whatever `targetingSystem` chose this tick, which is the same answer
+ * `fireCone` will use. With no target -- and for the ghost, which has none by definition -- it aims
+ * at the nearest point on the nearest lane, so the wedge shows the traffic it is being bought to
+ * cover. **There is no `facingAngle` on the world**: it would need a system to write it, would go
+ * into every save and every replay, and would be a second answer to a question the targeting system
+ * already answers every tick (step 9C, decision 3).
+ */
+function facingFor(world: World, tile: Vec2, tower: Tower | null): number {
+	const targetId = tower === null ? null : tower.targetEnemyId
+	const target = targetId === null ? null : enemyById(world, targetId)
+	const at = target === null ? null : enemyPosition(world, target)
+	const toTarget = at === null ? null : angleBetween(tile, at)
+	if (toTarget !== null) {
+		return toTarget
+	}
+
+	const nearest = nearestPath(world.map.paths, tile)
+	const path = nearest === null ? undefined : world.map.paths.find(candidate => candidate.id === nearest.pathId)
+	if (nearest === null || path === undefined) {
+		return 0
+	}
+
+	// A tower standing *on* the lane it is nearest to has no vector to it. The lane's own heading
+	// there is the honest answer: it sprays down the track it is sitting on.
+	const point = samplePath(path, nearest.distance)
+	return angleBetween(tile, point) ?? point.angle
+}
+
+/**
+ * The shape of a def's reach, or null for one that has none -- both economy towers.
+ *
+ * Resolved here, including the facing, because the caller resolving it is what keeps `drawRangeCone`
+ * a pure draw (step 9C, decision 4). `tower` is null for the ghost.
+ */
+function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): OverlayReach | null {
 	const shot = def.behaviours.find(isAttack)
-	return shot === undefined ? null : shot.rangeTiles
+	if (shot !== undefined) {
+		return { kind: 'circle', radiusTiles: shot.rangeTiles }
+	}
+
+	const spray = def.behaviours.find(isConeAttack)
+	if (spray === undefined) {
+		return null
+	}
+
+	return {
+		kind: 'cone',
+		radiusTiles: spray.rangeTiles,
+		halfAngleDeg: spray.coneHalfAngleDeg,
+		facingRad: facingFor(world, tile, tower),
+	}
 }
 
 /**
@@ -377,11 +445,14 @@ export function createInteraction(
 		const tone = selection.tone
 
 		return {
-			selected: tower === null ? null : { tile: tower.tile, rangeTiles: rangeOf(getTowerDef(tower.defId)) },
+			selected:
+				tower === null
+					? null
+					: { tile: tower.tile, reach: reachOf(getTowerDef(tower.defId), world, tower.tile, tower) },
 			ghost:
 				def === null || tile === null || tone === null
 					? null
-					: { glyph: def.glyph, tile, rangeTiles: rangeOf(def), tone },
+					: { glyph: def.glyph, tile, reach: reachOf(def, world, tile, null), tone },
 		}
 	}
 

@@ -160,7 +160,7 @@ runs `environment: 'node'` with no jsdom, so there is nothing to mount.
       than they look in an editor. If they are not distinguishable, the fix is the enemy's scale or
       its glyph, and it is cheaper now than in step 23.
 - [ ] Frame time is unchanged from step 8 with forty afflicted enemies on the board.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

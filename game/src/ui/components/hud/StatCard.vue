@@ -23,6 +23,10 @@
 				<dt>{{ t('hud.stat.range') }}</dt>
 				<dd>{{ t('hud.stat.tiles', { n: stats.rangeTiles }) }}</dd>
 			</template>
+			<template v-if="stats.coneHalfAngleDeg !== null">
+				<dt>{{ t('hud.stat.cone') }}</dt>
+				<dd>{{ t('hud.stat.degrees', { n: stats.coneHalfAngleDeg }) }}</dd>
+			</template>
 			<template v-if="stats.damageType !== null">
 				<dt>{{ t('hud.stat.damageType') }}</dt>
 				<dd>{{ t(`hud.damage.${stats.damageType}`) }}</dd>
@@ -30,6 +34,18 @@
 			<template v-if="stats.targets !== null">
 				<dt>{{ t('hud.stat.targets') }}</dt>
 				<dd>{{ t(`hud.targetClass.${stats.targets}`) }}</dd>
+			</template>
+			<template v-if="stats.applies.length > 0">
+				<dt>{{ t('hud.stat.applies') }}</dt>
+				<dd>
+					<span
+						v-for="applied in stats.applies"
+						:key="applied.kind"
+						class="applied"
+					>
+						{{ appliedText(applied) }}
+					</span>
+				</dd>
 			</template>
 			<template v-if="stats.crumbsPerSecond !== null">
 				<dt>{{ t('hud.stat.income') }}</dt>
@@ -64,6 +80,17 @@
 	}>()
 
 	const { t } = useI18n()
+
+	/**
+	 * "Poison 2/sec" for a status that ticks, and the bare name for one that does not.
+	 *
+	 * The rate arrives already resolved and already per-second (see `TowerStatsView.applies`), so this
+	 * is two strings joined and never arithmetic on a magnitude.
+	 */
+	function appliedText(applied: TowerStatsView['applies'][number]): string {
+		const name = t(`hud.status.${applied.kind}`)
+		return applied.perSecond === null ? name : `${name} ${t('hud.stat.perSecond', { n: applied.perSecond })}`
+	}
 </script>
 
 <style scoped>
@@ -101,5 +128,10 @@
 		color: var(--kd-text);
 		text-align: right;
 		font-variant-numeric: tabular-nums;
+	}
+
+	/* One status per line rather than a joined list: two of them on one line wraps mid-name. */
+	.applied {
+		display: block;
 	}
 </style>

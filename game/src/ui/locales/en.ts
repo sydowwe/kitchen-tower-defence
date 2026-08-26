@@ -96,9 +96,24 @@ export const en = {
 			noise: 'Noise',
 			income: 'Income',
 			collect: 'Collects within',
+			cone: 'Cone',
+			applies: 'Applies',
 			perSecond: '{n}/sec',
 			tiles: '{n} tiles',
+			// Half the opening, the way the behaviour authors it: a 30 here is a 60-degree spray.
+			degrees: '±{n}°',
 			silent: 'Silent',
+		},
+		// Keyed by the `StatusKind` literal, so the card renders the union directly the way
+		// `hud.mode` and `hud.damage` already do.
+		status: {
+			slow: 'Slow',
+			freeze: 'Freeze',
+			burn: 'Burn',
+			poison: 'Poison',
+			armorStrip: 'Armour strip',
+			marked: 'Marked',
+			rooted: 'Rooted',
 		},
 		// One per PlacementRejection, as the player's problem rather than the validator's.
 		reject: {

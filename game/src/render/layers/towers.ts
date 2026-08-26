@@ -160,6 +160,37 @@ export function drawRangeCircle(
 }
 
 /**
+ * The same reach, for a tower that sprays a wedge instead of covering a circle. Same fill, same
+ * stroke and the same `PlacementTone`, so a cone and a circle read as one system.
+ *
+ * `facingRad` is `atan2(dy, dx)` -- the convention `samplePath` and `core/systems/hitbox.ts` both
+ * follow -- and `halfAngleDeg` is the behaviour's own `coneHalfAngleDeg`, so the wedge spans twice
+ * it. Who the tower is aiming at is the caller's business, exactly as the tone is.
+ */
+export function drawRangeCone(
+	ctx: CanvasRenderingContext2D,
+	tilePx: number,
+	centerTile: Vec2,
+	radiusTiles: number,
+	halfAngleDeg: number,
+	facingRad: number,
+	tone: PlacementTone,
+): void {
+	const center = tileCenter(centerTile, tilePx)
+	const halfAngleRad = (halfAngleDeg * Math.PI) / 180
+
+	ctx.beginPath()
+	ctx.moveTo(center.x, center.y)
+	ctx.arc(center.x, center.y, radiusTiles * tilePx, facingRad - halfAngleRad, facingRad + halfAngleRad)
+	ctx.closePath()
+	ctx.fillStyle = fillFor(tone)
+	ctx.fill()
+	ctx.lineWidth = RANGE_LINE_WIDTH_PX
+	ctx.strokeStyle = strokeFor(tone)
+	ctx.stroke()
+}
+
+/**
  * The square under the cursor while a build is being aimed.
  *
  * It exists because two of the three towers in the roster have no attack behaviour and therefore no

@@ -153,6 +153,30 @@ describe('the inspector', () => {
 		expect(stats?.dps).toBe(5)
 		expect(stats?.rangeTiles).toBe(3)
 		expect(stats?.crumbsPerSecond).toBeNull()
+		// A circle, and a tower that lands nothing: both are what the cone tower below is not.
+		expect(stats?.coneHalfAngleDeg).toBeNull()
+		expect(stats?.applies).toEqual([])
+	})
+
+	it('gives a cone tower the same card plus its opening and its resolved poison rate', () => {
+		const world = buildableWorld()
+		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'sprayBottle')?.stats
+
+		// 3 damage at 50 ticks a shot: 1.2/sec, 3.6 dps, range 3, a 30-degree half-opening.
+		expect(stats?.damage).toBe(3)
+		expect(stats?.ratePerSecond).toBe(1.2)
+		expect(stats?.dps).toBe(3.6)
+		expect(stats?.rangeTiles).toBe(3)
+		expect(stats?.coneHalfAngleDeg).toBe(30)
+		// The def's per-application override of 2/60 a tick, not the status table's 4/sec default.
+		expect(stats?.applies).toEqual([{ kind: 'poison', perSecond: 2 }])
+	})
+
+	it('carries a slow as a named status with no rate, because a magnitude is not damage', () => {
+		const world = buildableWorld()
+		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'iceCubeTray')?.stats
+
+		expect(stats?.applies).toEqual([{ kind: 'slow', perSecond: null }])
 	})
 })
 

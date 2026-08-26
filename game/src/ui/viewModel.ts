@@ -16,15 +16,16 @@
  * cannot translate, `ui/` resolves, and a snapshot is exactly where that gets broken first.
  */
 
-import { isAttack, isCollect } from '@/core/content/behaviours.ts'
+import { isAttack, isCollect, isConeAttack } from '@/core/content/behaviours.ts'
+import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { TOWERS, getTowerDef } from '@/core/content/index.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
 import { refundFor, towerById } from '@/core/systems/placement.ts'
 import { nightClock } from '@/core/systems/wave.ts'
-import type { TargetClass } from '@/core/content/behaviours.ts'
+import type { StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { DamageType, DefId, EntityId, NightPhase, TargetingMode, World } from '@/core/types.ts'
+import type { DamageType, DefId, EntityId, NightPhase, StatusKind, TargetingMode, World } from '@/core/types.ts'
 import type { Speed } from '@/loop.ts'
 
 /**
@@ -36,7 +37,7 @@ import type { Speed } from '@/loop.ts'
  * it. This file already depends on `core/`; it is the seam. Type-only, and erased at build.
  */
 export type { TargetClass } from '@/core/content/behaviours.ts'
-export type { DamageType, DefId, EntityId, NightPhase, TargetingMode } from '@/core/types.ts'
+export type { DamageType, DefId, EntityId, NightPhase, StatusKind, TargetingMode } from '@/core/types.ts'
 export type { Speed } from '@/loop.ts'
 
 /** `core/` durations are tick counts; a card shows rates per second. The one conversion factor. */
@@ -72,6 +73,18 @@ export interface TowerStatsView {
 	crumbsPerSecond: number | null
 	/** Economy towers only. The radius piles are drawn in from. */
 	collectRadiusTiles: number | null
+	/** Half the opening, in degrees, for a tower that sprays a wedge. Null for a circle. */
+	coneHalfAngleDeg: number | null
+	/**
+	 * What this tower lands on what it hits, **already resolved and already converted**: the
+	 * application's own magnitude where it has one, the status table's otherwise, times 60.
+	 *
+	 * `perSecond` is null for the statuses that deal no damage -- a slow has a magnitude too, and it is
+	 * a fraction of speed rather than a rate. A component doing that arithmetic would be a component
+	 * that has to know what a magnitude means per kind (step 9C, decision 6). Empty, never null, for a
+	 * tower that applies nothing.
+	 */
+	applies: { kind: StatusKind; perSecond: number | null }[]
 }
 
 export interface ShopEntry {
@@ -146,8 +159,26 @@ export interface HudSnapshot {
 }
 
 /**
- * Derives a card from the def's behaviours through `isAttack` / `isCollect`, so a tower that gains a
- * behaviour gains a card line without this file learning its name.
+ * The statuses a firing behaviour lands, as the card reads them.
+ *
+ * Resolved the way the simulation resolves them -- the application's `magnitude` if it has one, the
+ * status table's otherwise -- so the Spray Bottle's per-application 2/s override shows as 2/sec
+ * without `en.ts` carrying a second copy of the number.
+ */
+function appliesOf(applications: readonly StatusApplication[]): TowerStatsView['applies'] {
+	return applications.map(application => {
+		const def = STATUS_DEFS[application.kind]
+		const magnitude = application.magnitude ?? def.magnitude
+		return {
+			kind: application.kind,
+			perSecond: def.effect === 'damageOverTime' ? round2(magnitude * TICKS_PER_SECOND) : null,
+		}
+	})
+}
+
+/**
+ * Derives a card from the def's behaviours through `isAttack` / `isConeAttack` / `isCollect`, so a
+ * tower that gains a behaviour gains a card line without this file learning its name.
  */
 function statsFor(def: TowerDef): TowerStatsView {
 	const stats: TowerStatsView = {
@@ -160,10 +191,12 @@ function statsFor(def: TowerDef): TowerStatsView {
 		noise: def.noise,
 		crumbsPerSecond: null,
 		collectRadiusTiles: null,
+		coneHalfAngleDeg: null,
+		applies: [],
 	}
 
 	for (const behaviour of def.behaviours) {
-		if (isAttack(behaviour)) {
+		if (isAttack(behaviour) || isConeAttack(behaviour)) {
 			const ratePerSecond = round2(TICKS_PER_SECOND / behaviour.cooldownTicks)
 			stats.damage = behaviour.damage
 			stats.ratePerSecond = ratePerSecond
@@ -171,6 +204,9 @@ function statsFor(def: TowerDef): TowerStatsView {
 			stats.rangeTiles = behaviour.rangeTiles
 			stats.damageType = behaviour.damageType
 			stats.targets = behaviour.targets
+			stats.applies = appliesOf(behaviour.applies)
+			// The one line the wedge has and the circle does not. Everything above is the same card.
+			stats.coneHalfAngleDeg = isConeAttack(behaviour) ? behaviour.coneHalfAngleDeg : null
 			continue
 		}
 
