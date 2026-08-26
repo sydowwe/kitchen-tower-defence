@@ -56,6 +56,26 @@ export const HP_BAR_FILL = '#7ad67a'
 export const TOWER_PAD = 'rgba(226, 232, 255, 0.09)'
 export const TOWER_PAD_EDGE = 'rgba(226, 232, 255, 0.22)'
 
+/**
+ * A charge tower between shots: the ring the rearm fills, and the fill itself.
+ *
+ * The sweep is deliberately the brightest thing on a tower pad. Armed and rearming have to be
+ * separable in peripheral vision at 3x speed (step 10C, build item 2), and the glyph cannot carry
+ * that difference on its own -- `blitGlyph` hands out an opaque bitmap, so the only treatment
+ * available over it is alpha.
+ */
+export const TOWER_REARM_TRACK = 'rgba(226, 232, 255, 0.14)'
+export const TOWER_REARM_SWEEP = 'rgba(255, 196, 71, 0.95)'
+
+/** Cracks drawn over a damaged barricade. Darker than anything under it, so it reads as a split. */
+export const TOWER_CRACK = 'rgba(24, 14, 8, 0.75)'
+
+/** The puff a destroyed tower leaves: a ring and the pieces of it going outward. */
+export const TOWER_DEBRIS = 'rgba(214, 178, 128, 0.9)'
+
+/** What a queue chews off a cardboard box. The same family as the debris, and much smaller. */
+export const CHEW_DEBRIS = 'rgba(214, 178, 128, 0.8)'
+
 /** A shot in flight. Salt, so: brighter than anything it crosses, and small. */
 export const PROJECTILE_SHOT = '#f2f4ff'
 

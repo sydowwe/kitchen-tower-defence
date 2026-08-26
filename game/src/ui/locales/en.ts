@@ -98,7 +98,16 @@ export const en = {
 			collect: 'Collects within',
 			cone: 'Cone',
 			applies: 'Applies',
+			// A wall's rows. `blocks` is a label and `blocksGround` its answer: the card is a two-column
+			// list and a row with a label and no value reads as a missing number.
+			hitPoints: 'Hit points',
+			blocks: 'Blocks',
+			blocksGround: 'Everything on the floor',
+			// A charge tower's. `rearm` is null for a tape, which does not rearm -- see `TowerStatsView`.
+			charges: 'Uses',
+			rearm: 'Resets in',
 			perSecond: '{n}/sec',
+			seconds: '{n}s',
 			tiles: '{n} tiles',
 			// Half the opening, the way the behaviour authors it: a 30 here is a 60-degree spray.
 			degrees: '±{n}°',
@@ -176,16 +185,20 @@ export const en = {
 			name: 'Spray Bottle',
 			description: 'Kitchen cleaner, one pull at a time. Whatever the mist settles on keeps going over.',
 		},
+		// Revised in step 10C against the card: the old line spent itself on "resetting takes a while",
+		// which the `Resets in 6.6s` row now says exactly. What it says instead is the part no row
+		// carries -- that it is a trap and it takes one thing.
 		mousetrap: {
 			name: 'Mousetrap',
-			description: 'Set once, and it deals with one thing properly. Resetting it takes a while.',
+			description: 'The old wooden kind, on a hair trigger. It takes one thing at a time, properly.',
 		},
-		// Written in step 10B with an almost empty card behind it -- a wall has no damage, no rate and
-		// no range, so the description is the only line the shop has to explain it. **Step 10C revises
-		// it** once the card has the box's HP on it.
+		// Revised in step 10C for the same reason. `Hit points 200` and `Blocks` are on the card now,
+		// so the description is free to answer the only question a 25-crumb tower with no attack raises:
+		// what it is *for*.
 		cardboardBox: {
 			name: 'Cardboard Box',
-			description: 'Flattened and set across the track. They will get through it, but not quickly.',
+			description:
+				'Set across the track so they stop and chew instead of walking past. It buys seconds, not the night.',
 		},
 	} satisfies TowerMessages,
 	enemy: {

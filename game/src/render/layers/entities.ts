@@ -14,14 +14,15 @@
  * for (step 9C, decision 1). `render/` reads core state and never writes it.
  */
 
-import { getEnemyDef } from '@/core/content/index.ts'
+import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
 import { samplePath } from '@/core/path.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
+import { barricadeHolding, isBarricade } from '@/core/systems/barricades.ts'
 import type { Enemy, MapDef, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
+import { drawHpBar } from '@/render/hpBar.ts'
 import {
-	HP_BAR_BACK,
-	HP_BAR_FILL,
+	CHEW_DEBRIS,
 	STATUS_BURN_FLAME,
 	STATUS_POISON_BUBBLE,
 	STATUS_ROOTED_SHIMMER,
@@ -34,9 +35,31 @@ const ENEMY_SCALE = 0.7
 
 /** The bar is a touch wider than the glyph, so a full one is visibly full rather than ambiguous. */
 const HP_BAR_WIDTH_SCALE = 0.8
-const HP_BAR_HEIGHT_PX = 3
-/** Gap between the top of the glyph box and the bar, in logical pixels. */
-const HP_BAR_GAP_PX = 2
+
+/**
+ * The chew, and the queue it happens in.
+ *
+ * An enemy is held at `boxDistance - 0.5`, so a whole queue comes to rest at **the same arc
+ * distance** and every glyph in it lands on the same point -- correct simulation, and a picture in
+ * which forty ants are one ant. The separation is therefore drawn and never simulated: an enemy's
+ * position stays a pure function of `distance` in `core/`, and there is no separation anywhere in this
+ * codebase (DECISIONS.md section 3).
+ *
+ * The lane and the row come from the order the frame met them, so the queue re-packs when one dies --
+ * which is what a queue does. The lunge is aged in frames like every other treatment here.
+ */
+const CHEW_LANES = 3
+const CHEW_LANE_GAP_TILES = 0.3
+const CHEW_ROW_GAP_TILES = 0.32
+const CHEW_LUNGE_TILES = 0.1
+/** Radians per frame of the lunge. ~2.5 bites a second: a chew, not a vibration. */
+const CHEW_LUNGE_PER_FRAME = 0.26
+
+/** Cardboard coming off the box. Two per enemy, so a queue of forty is a haze and not a blizzard. */
+const CHEW_SPECKS = 2
+const CHEW_SPECK_RADIUS_PX = 1.5
+const CHEW_SPECK_REACH_TILES = 0.34
+const CHEW_SPECK_PER_FRAME = 0.03
 
 /** Slow: a disc a little wider than the glyph, so it reads as standing in something cold. */
 const SLOW_DISC_TILES = 0.42
@@ -88,6 +111,16 @@ interface EnemyFrame {
 	burn: number
 	poison: number
 	rooted: boolean
+	/**
+	 * Held at a barricade and eating it. Read off `barricadeHolding` while this pool is filled, and
+	 * deliberately not an event: an event per held enemy per tick is forty entries a tick in
+	 * `world.events`, which the HUD also drains, and events are for what a consumer must not miss
+	 * rather than for a state it can read (step 10C, decision 6).
+	 */
+	chewing: boolean
+	/** The path's direction where this enemy stands. Only meaningful while `chewing`. */
+	dirX: number
+	dirY: number
 }
 
 const frames: EnemyFrame[] = []
@@ -123,9 +156,24 @@ function frameAt(index: number): EnemyFrame {
 		burn: 0,
 		poison: 0,
 		rooted: false,
+		chewing: false,
+		dirX: 1,
+		dirY: 0,
 	}
 	frames.push(created)
 	return created
+}
+
+/**
+ * Whether asking `barricadeHolding` per enemy is worth it at all this frame.
+ *
+ * `barricadeAhead` builds its list of boxes per call, so a board with no barricade on it would pay an
+ * array per enemy per frame for an answer that is always null -- exactly the allocation
+ * ARCHITECTURE.md section 6 rules out on this layer. With a box down it is one short array per enemy,
+ * bounded by the number of boxes and not by the crowd.
+ */
+function anyBarricade(world: World): boolean {
+	return world.towers.some(tower => isBarricade(getTowerDef(tower.defId)))
 }
 
 /** Reads `enemy.statuses` onto the frame. Every field is written, so a reused entry cannot be stale. */
@@ -148,24 +196,44 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 	}
 }
 
+/** How far into its bite this enemy is, 0 to 1. Frames, so it does not treble its rate at 3x speed. */
+function lungePhase(entry: EnemyFrame): number {
+	return 0.5 + 0.5 * Math.sin(ageFrames * CHEW_LUNGE_PER_FRAME + entry.x + entry.y)
+}
+
 /**
- * A thin two-tone bar above a damaged enemy. Never text, and never drawn at full health -- a board
- * of sixty ants each wearing a full bar is a board you cannot read.
+ * Cardboard coming off the box: two specks per chewing enemy, thrown forward and falling.
+ *
+ * Batched the way the four status passes are -- one `beginPath`, many `arc`s, one `fill` -- because
+ * the whole point of this treatment is the frame where forty of them are eating at once.
  */
-function drawHealthBar(ctx: CanvasRenderingContext2D, entry: EnemyFrame, tilePx: number): void {
-	if (entry.hp >= entry.maxHp || entry.maxHp <= 0) {
-		return
+function drawChew(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const reach = CHEW_SPECK_REACH_TILES * tilePx
+	let any = false
+
+	ctx.fillStyle = CHEW_DEBRIS
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.chewing) {
+			continue
+		}
+		any = true
+		const phase = entry.x + entry.y
+		for (let speck = 0; speck < CHEW_SPECKS; speck++) {
+			const t = (ageFrames * CHEW_SPECK_PER_FRAME + phase + speck / CHEW_SPECKS) % 1
+			const x = entry.x + entry.dirX * reach * t
+			// Falling as it goes, so it reads as a piece coming off rather than as a moving dot.
+			const y = entry.y + entry.dirY * reach * t + reach * t * t * 0.6
+			const size = CHEW_SPECK_RADIUS_PX * (1 - t * 0.5)
+			ctx.moveTo(x + size, y)
+			ctx.arc(x, y, size, 0, Math.PI * 2)
+		}
 	}
 
-	const width = tilePx * HP_BAR_WIDTH_SCALE
-	const left = entry.x - width / 2
-	const top = entry.y - (tilePx * ENEMY_SCALE) / 2 - HP_BAR_GAP_PX - HP_BAR_HEIGHT_PX
-	const fraction = Math.min(Math.max(entry.hp / entry.maxHp, 0), 1)
-
-	ctx.fillStyle = HP_BAR_BACK
-	ctx.fillRect(left, top, width, HP_BAR_HEIGHT_PX)
-	ctx.fillStyle = HP_BAR_FILL
-	ctx.fillRect(left, top, width * fraction, HP_BAR_HEIGHT_PX)
+	if (any) {
+		ctx.fill()
+	}
 }
 
 /**
@@ -295,6 +363,11 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 	ageFrames++
 	liveCount = 0
 
+	const barricades = anyBarricade(world)
+	// How many enemies this frame has already placed in a queue. One box is the v1 case, and a second
+	// one on the same lane simply continues the rows -- which is what a second queue looks like anyway.
+	let chewIndex = 0
+
 	for (const enemy of world.enemies) {
 		const path = pathFor(world.map, enemy.pathId)
 		if (path === null) {
@@ -308,22 +381,43 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		entry.mirrored = Math.cos(at.angle) < 0
 		entry.hp = enemy.hp
 		entry.maxHp = enemy.maxHp
+		entry.dirX = Math.cos(at.angle)
+		entry.dirY = Math.sin(at.angle)
+		entry.chewing = barricades && barricadeHolding(world, enemy) !== null
 		readStatuses(entry, enemy)
+
+		if (entry.chewing) {
+			// Rows of three behind the box, across the track and back down it, so a queue can be
+			// counted. Drawn only -- `enemy.distance` is untouched.
+			const lane = (chewIndex % CHEW_LANES) - (CHEW_LANES - 1) / 2
+			const row = Math.floor(chewIndex / CHEW_LANES)
+			chewIndex++
+			const back = row * CHEW_ROW_GAP_TILES * tilePx
+			const across = lane * CHEW_LANE_GAP_TILES * tilePx
+			entry.x += -entry.dirX * back - entry.dirY * across
+			entry.y += -entry.dirY * back + entry.dirX * across
+		}
+
 		liveCount++
 	}
 
 	drawSlow(ctx, liveCount, tilePx)
 
 	const size = tilePx * ENEMY_SCALE
+	const lunge = CHEW_LUNGE_TILES * tilePx
 	for (let i = 0; i < liveCount; i++) {
 		const entry = frames[i]
 		if (entry === undefined) {
 			continue
 		}
-		blitGlyph(ctx, dpr, entry.glyph, size, entry.x, entry.y, entry.mirrored)
-		drawHealthBar(ctx, entry, tilePx)
+		// The lunge moves the glyph and not the frame: the bar and the treatments stay where the enemy
+		// is, so a queue reads as biting rather than as forty ants wobbling.
+		const bite = entry.chewing ? lungePhase(entry) * lunge : 0
+		blitGlyph(ctx, dpr, entry.glyph, size, entry.x + entry.dirX * bite, entry.y + entry.dirY * bite, entry.mirrored)
+		drawHpBar(ctx, entry.x, entry.y - size / 2, tilePx * HP_BAR_WIDTH_SCALE, entry.hp, entry.maxHp)
 	}
 
+	drawChew(ctx, liveCount, tilePx)
 	drawBurn(ctx, liveCount, tilePx)
 	drawPoison(ctx, liveCount, tilePx)
 	drawRooted(ctx, liveCount, tilePx)

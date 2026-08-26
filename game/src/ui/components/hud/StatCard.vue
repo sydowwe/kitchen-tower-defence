@@ -47,6 +47,22 @@
 					</span>
 				</dd>
 			</template>
+			<template v-if="stats.hitPoints !== null">
+				<dt>{{ t('hud.stat.hitPoints') }}</dt>
+				<dd>{{ stats.hitPoints }}</dd>
+			</template>
+			<template v-if="stats.blocksPath">
+				<dt>{{ t('hud.stat.blocks') }}</dt>
+				<dd>{{ t('hud.stat.blocksGround') }}</dd>
+			</template>
+			<template v-if="stats.charges !== null">
+				<dt>{{ t('hud.stat.charges') }}</dt>
+				<dd>{{ stats.charges }}</dd>
+			</template>
+			<template v-if="stats.rearmSeconds !== null">
+				<dt>{{ t('hud.stat.rearm') }}</dt>
+				<dd>{{ t('hud.stat.seconds', { n: stats.rearmSeconds }) }}</dd>
+			</template>
 			<template v-if="stats.crumbsPerSecond !== null">
 				<dt>{{ t('hud.stat.income') }}</dt>
 				<dd>{{ t('hud.stat.perSecond', { n: stats.crumbsPerSecond }) }}</dd>
@@ -72,6 +88,9 @@
 	 * stats a tower does not have precisely so a Cookie Jar shows no damage row rather than a damage
 	 * row reading 0 (see ui/viewModel.ts). `noise` is the exception -- every tower has one and silence
 	 * is genuinely zero, so that row is always drawn and reads as a word.
+	 *
+	 * `blocksPath` is the second exception and is `v-if`'d on **false** for the same reason: it is a
+	 * yes-or-no about the tower rather than a number it might not have.
 	 */
 
 	const { descriptionKey = null } = defineProps<{

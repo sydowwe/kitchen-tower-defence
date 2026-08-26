@@ -16,7 +16,7 @@
  * cannot translate, `ui/` resolves, and a snapshot is exactly where that gets broken first.
  */
 
-import { isAttack, isCollect, isConeAttack } from '@/core/content/behaviours.ts'
+import { isAttack, isCharge, isCollect, isConeAttack } from '@/core/content/behaviours.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { TOWERS, getTowerDef } from '@/core/content/index.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
@@ -85,6 +85,24 @@ export interface TowerStatsView {
 	 * tower that applies nothing.
 	 */
 	applies: { kind: StatusKind; perSecond: number | null }[]
+	/**
+	 * Null unless this tower can actually be destroyed -- in v1, unless it is a barricade.
+	 *
+	 * Every tower has a `maxHp`, and a HP row on the seven nothing in the game can damage is a row
+	 * that means nothing. Step 13's noise penalty is what turns it on for the rest (step 10C,
+	 * decision 9).
+	 */
+	hitPoints: number | null
+	/** Magazine size, for a tower with a charge behaviour. Null for the rest. */
+	charges: number | null
+	/**
+	 * Seconds between one charge coming back and the next, already converted. Null both for a tower
+	 * with no magazine and for one that never rearms -- the Sticky Tape is spent when it is spent, and
+	 * "rearms in 0s" is worse than no row.
+	 */
+	rearmSeconds: number | null
+	/** True for a tower enemies stop at instead of walking past. */
+	blocksPath: boolean
 }
 
 export interface ShopEntry {
@@ -177,8 +195,13 @@ function appliesOf(applications: readonly StatusApplication[]): TowerStatsView['
 }
 
 /**
- * Derives a card from the def's behaviours through `isAttack` / `isConeAttack` / `isCollect`, so a
- * tower that gains a behaviour gains a card line without this file learning its name.
+ * Derives a card from the def's behaviours through `isAttack` / `isConeAttack` / `isCollect` /
+ * `isCharge`, so a tower that gains a behaviour gains a card line without this file learning its name.
+ *
+ * **The def's numbers, never the live ones.** `buildTowerInspector` runs on selection change rather
+ * than at 15Hz, so a live rearm countdown here would sit frozen at whatever it read when the tower
+ * was clicked. What the charge machine is doing right now is drawn on the board, by
+ * `render/layers/towers.ts` (step 10C, decision 7).
  */
 function statsFor(def: TowerDef): TowerStatsView {
 	const stats: TowerStatsView = {
@@ -193,6 +216,10 @@ function statsFor(def: TowerDef): TowerStatsView {
 		collectRadiusTiles: null,
 		coneHalfAngleDeg: null,
 		applies: [],
+		hitPoints: null,
+		charges: null,
+		rearmSeconds: null,
+		blocksPath: false,
 	}
 
 	for (const behaviour of def.behaviours) {
@@ -212,6 +239,22 @@ function statsFor(def: TowerDef): TowerStatsView {
 
 		if (isCollect(behaviour)) {
 			stats.collectRadiusTiles = behaviour.radiusTiles
+			continue
+		}
+
+		if (isCharge(behaviour)) {
+			stats.charges = behaviour.charges
+			// Converted here, where every other derived number on this card is rounded. A component
+			// doing arithmetic on tick counts is a component that has to know what a tick is.
+			stats.rearmSeconds = behaviour.rearmTicks > 0 ? round2(behaviour.rearmTicks / TICKS_PER_SECOND) : null
+			continue
+		}
+
+		if (behaviour.kind === 'barricade') {
+			// The only place `maxHp` reaches a card. See the field's note: it is on every def and it
+			// means something on exactly this one.
+			stats.blocksPath = true
+			stats.hitPoints = def.maxHp
 			continue
 		}
 

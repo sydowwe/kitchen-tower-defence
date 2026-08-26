@@ -172,6 +172,40 @@ describe('the inspector', () => {
 		expect(stats?.applies).toEqual([{ kind: 'poison', perSecond: 2 }])
 	})
 
+	it('gives a charge tower its magazine and its rearm in seconds', () => {
+		const world = buildableWorld()
+		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'mousetrap')?.stats
+
+		// One charge, and 396 ticks is 6.6 seconds -- not 396, and not 6.6000000000000005.
+		expect(stats?.charges).toBe(1)
+		expect(stats?.rearmSeconds).toBe(6.6)
+		expect(stats?.damage).toBe(60)
+		// A trap is not a wall: nothing in v1 can damage it, so it carries no HP row.
+		expect(stats?.hitPoints).toBeNull()
+		expect(stats?.blocksPath).toBe(false)
+	})
+
+	it('gives a tape a magazine and no rearm at all, because it does not rearm', () => {
+		const world = buildableWorld()
+		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'stickyTape')?.stats
+
+		expect(stats?.charges).toBe(3)
+		expect(stats?.rearmSeconds).toBeNull()
+	})
+
+	it('gives a barricade its hit points and nothing that implies an attack', () => {
+		const world = buildableWorld()
+		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'cardboardBox')?.stats
+
+		// The doc's 200 HP, off `maxHp`, and the four rows a wall must not claim.
+		expect(stats?.hitPoints).toBe(200)
+		expect(stats?.blocksPath).toBe(true)
+		expect(stats?.damage).toBeNull()
+		expect(stats?.rangeTiles).toBeNull()
+		expect(stats?.charges).toBeNull()
+		expect(stats?.crumbsPerSecond).toBeNull()
+	})
+
 	it('carries a slow as a named status with no rate, because a magnitude is not damage', () => {
 		const world = buildableWorld()
 		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'iceCubeTray')?.stats

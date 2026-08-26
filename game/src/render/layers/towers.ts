@@ -13,8 +13,12 @@
 
 import { TOWERS } from '@/core/content/towers.ts'
 import { getTowerDef } from '@/core/content/index.ts'
-import type { Vec2, World } from '@/core/types.ts'
+import { chargeBehaviourOf, chargePhase, chargeStateOf } from '@/core/systems/charges.ts'
+import { isBarricade } from '@/core/systems/barricades.ts'
+import type { TowerDef } from '@/core/content/index.ts'
+import type { Tower, Vec2, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
+import { drawHpBar } from '@/render/hpBar.ts'
 import {
 	PROJECTILE_SHOT,
 	RANGE_INVALID,
@@ -23,8 +27,11 @@ import {
 	RANGE_NEUTRAL_FILL,
 	RANGE_VALID,
 	RANGE_VALID_FILL,
+	TOWER_CRACK,
 	TOWER_PAD,
 	TOWER_PAD_EDGE,
+	TOWER_REARM_SWEEP,
+	TOWER_REARM_TRACK,
 } from '@/render/palette.ts'
 
 /**
@@ -41,6 +48,64 @@ const PAD_RADIUS_SCALE = 0.16
 const GRAIN_RADIUS_TILES = 0.055
 /** How far the two trailing grains sit behind the leading one, in tiles. */
 const GRAIN_TRAIL_TILES = 0.16
+
+/**
+ * A rearming tower, as a treatment over the one glyph rather than a second glyph on the def: there is
+ * no flattened-mousetrap emoji, and a `glyphRearming` would be a field seven other towers leave empty
+ * (step 10C, decision 1).
+ *
+ * The alpha is the dim half and the sweep is the loud half. Alpha alone is not enough at 3x speed
+ * from across the room -- a dim glyph reads as a glyph -- so the sweep runs the whole way round the
+ * pad edge in the brightest colour on it, and the moment it completes the tower snaps back to full.
+ */
+const REARM_GLYPH_ALPHA = 0.3
+const REARM_RING_SCALE = 0.46
+const REARM_LINE_WIDTH_PX = 3.5
+/** Twelve o'clock, so a half-full sweep is unambiguously half and not "somewhere round the side". */
+const REARM_START_RAD = -Math.PI / 2
+
+/**
+ * The box's three damage states, off `hp / maxHp`. Drawn over the glyph for decision 1's reason, and
+ * `[0.66, 0.33]` rather than thirds so the last state opens at a third and not at 33.3%.
+ */
+const BOX_DENTED_AT = 0.66
+const BOX_COLLAPSING_AT = 0.33
+/** Squashed about its own centre. Wider and shorter, the way a box goes when the sides give. */
+const BOX_COLLAPSE_SCALE_X = 1.14
+const BOX_COLLAPSE_SCALE_Y = 0.68
+const CRACK_LINE_WIDTH_PX = 1.6
+
+/**
+ * Cracks in units of the tile, from the glyph's centre. A module constant and not a literal per
+ * frame: `drawTowers` runs at 60Hz and this is four arrays that never change.
+ *
+ * The first two are the dented state; all four are the collapsing one.
+ */
+const BOX_CRACKS: readonly (readonly Vec2[])[] = [
+	[
+		{ x: -0.17, y: -0.21 },
+		{ x: -0.05, y: -0.03 },
+		{ x: -0.14, y: 0.09 },
+		{ x: -0.02, y: 0.23 },
+	],
+	[
+		{ x: 0.2, y: -0.17 },
+		{ x: 0.08, y: -0.02 },
+		{ x: 0.18, y: 0.13 },
+	],
+	[
+		{ x: -0.24, y: 0.05 },
+		{ x: -0.09, y: 0.12 },
+		{ x: 0.07, y: 0.05 },
+	],
+	[
+		{ x: 0.03, y: -0.26 },
+		{ x: 0.07, y: -0.09 },
+	],
+]
+
+/** The tower bar is the enemy bar at the pad's width, so a box and an ant wear the same object. */
+const TOWER_BAR_WIDTH_SCALE = 0.7
 
 const RANGE_LINE_WIDTH_PX = 1.5
 /** The placement square, inset so it reads as sitting inside the tile rather than on the grid line. */
@@ -88,15 +153,138 @@ function drawPad(ctx: CanvasRenderingContext2D, center: Vec2, tilePx: number): v
 	ctx.stroke()
 }
 
+/**
+ * The rearm, as a ring round the pad that fills.
+ *
+ * The progress is read straight off the live counter -- `rearmTicksRemaining` against the def's
+ * `rearmTicks` -- and not off a frame counter here, because it is the *simulation's* clock the player
+ * is waiting on. That is the one thing in this file that legitimately moves with ticks: it is a
+ * gauge, not an animation, so at 3x speed it is meant to fill three times as fast.
+ */
+function drawRearm(ctx: CanvasRenderingContext2D, tower: Tower, def: TowerDef, center: Vec2, tilePx: number): void {
+	const state = chargeStateOf(tower)
+	const behaviour = chargeBehaviourOf(def)
+	if (state === null || behaviour === null || behaviour.rearmTicks <= 0) {
+		return
+	}
+
+	const progress = Math.min(Math.max(1 - state.rearmTicksRemaining / behaviour.rearmTicks, 0), 1)
+	const radius = tilePx * REARM_RING_SCALE
+
+	ctx.lineWidth = REARM_LINE_WIDTH_PX
+	ctx.strokeStyle = TOWER_REARM_TRACK
+	ctx.beginPath()
+	ctx.arc(center.x, center.y, radius, 0, Math.PI * 2)
+	ctx.stroke()
+
+	ctx.strokeStyle = TOWER_REARM_SWEEP
+	ctx.beginPath()
+	ctx.arc(center.x, center.y, radius, REARM_START_RAD, REARM_START_RAD + progress * Math.PI * 2)
+	ctx.stroke()
+}
+
+/** The cracks of one damage state, in the transform whoever called this has already set up. */
+function drawCracks(ctx: CanvasRenderingContext2D, center: Vec2, tilePx: number, count: number): void {
+	ctx.strokeStyle = TOWER_CRACK
+	ctx.lineWidth = CRACK_LINE_WIDTH_PX
+	ctx.beginPath()
+
+	for (let i = 0; i < count; i++) {
+		const crack = BOX_CRACKS[i]
+		if (crack === undefined) {
+			continue
+		}
+		for (let point = 0; point < crack.length; point++) {
+			const at = crack[point]
+			if (at === undefined) {
+				continue
+			}
+			const x = center.x + at.x * tilePx
+			const y = center.y + at.y * tilePx
+			if (point === 0) {
+				ctx.moveTo(x, y)
+			} else {
+				ctx.lineTo(x, y)
+			}
+		}
+	}
+
+	ctx.stroke()
+}
+
+/**
+ * A barricade, in whichever of its three states its HP puts it in.
+ *
+ * The squash is a `ctx.scale` about the box's own centre, wrapped in `save`/`restore` -- without the
+ * restore every tower drawn after it is squashed too, and the symptom is the whole counter going flat
+ * the moment one box gets low.
+ */
+function drawBox(
+	ctx: CanvasRenderingContext2D,
+	dpr: number,
+	glyph: string,
+	center: Vec2,
+	tilePx: number,
+	fraction: number,
+): void {
+	const size = tilePx * TOWER_SCALE
+
+	if (fraction > BOX_DENTED_AT) {
+		blitGlyph(ctx, dpr, glyph, size, center.x, center.y)
+		return
+	}
+
+	if (fraction > BOX_COLLAPSING_AT) {
+		blitGlyph(ctx, dpr, glyph, size, center.x, center.y)
+		drawCracks(ctx, center, tilePx, 2)
+		return
+	}
+
+	ctx.save()
+	ctx.translate(center.x, center.y)
+	ctx.scale(BOX_COLLAPSE_SCALE_X, BOX_COLLAPSE_SCALE_Y)
+	ctx.translate(-center.x, -center.y)
+	blitGlyph(ctx, dpr, glyph, size, center.x, center.y)
+	drawCracks(ctx, center, tilePx, BOX_CRACKS.length)
+	ctx.restore()
+}
+
 export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, tilePx: number, dpr: number): void {
 	if (world === null) {
 		return
 	}
 
 	for (const tower of world.towers) {
+		const def = getTowerDef(tower.defId)
 		const center = tileCenter(tower.tile, tilePx)
 		drawPad(ctx, center, tilePx)
-		blitGlyph(ctx, dpr, getTowerDef(tower.defId).glyph, tilePx * TOWER_SCALE, center.x, center.y)
+
+		// `'spent'` never lasts a frame -- `retireSpentTowers` takes that tower off the board -- and
+		// `'none'` is every tower without a magazine, so both take the plain path.
+		if (chargePhase(tower) === 'rearming') {
+			drawRearm(ctx, tower, def, center, tilePx)
+			// Set around the blit and put back immediately: `blitGlyph` hands out an opaque bitmap and
+			// cannot be tinted, and an alpha left set fades the projectiles, the theft animation and
+			// the whole overlay drawn after this layer (step 10C, decision 2).
+			ctx.globalAlpha = REARM_GLYPH_ALPHA
+			blitGlyph(ctx, dpr, def.glyph, tilePx * TOWER_SCALE, center.x, center.y)
+			ctx.globalAlpha = 1
+		} else if (isBarricade(def)) {
+			drawBox(ctx, dpr, def.glyph, center, tilePx, tower.hp / tower.maxHp)
+		} else {
+			blitGlyph(ctx, dpr, def.glyph, tilePx * TOWER_SCALE, center.x, center.y)
+		}
+
+		// Above the pad, not above the glyph: the pad is the tower's footprint and the bar wants to
+		// sit on a fixed edge, not on whatever the collapsing box is doing to its own height.
+		drawHpBar(
+			ctx,
+			center.x,
+			center.y - (tilePx * PAD_SCALE) / 2,
+			tilePx * TOWER_BAR_WIDTH_SCALE,
+			tower.hp,
+			tower.maxHp,
+		)
 	}
 }
 

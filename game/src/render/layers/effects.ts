@@ -1,5 +1,6 @@
 /**
- * Transient visuals: the item that just left the fridge, and the flash and number on every hit.
+ * Transient visuals: the item that just left the fridge, the flash and number on every hit, and the
+ * puff a tower leaves when it is chewed through.
  *
  * **This is the one layer with state, and it is deliberately not simulation state.** A flying glyph
  * is not part of the world -- putting it there would write animation frames into every replay and
@@ -18,7 +19,7 @@ import type { EntityId, GameEvent, Vec2, World } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
 import { forgetCrumbPositions, lastCrumbPosition } from '@/render/layers/crumbs.ts'
 import { foodGlyphSize, shelfSlot } from '@/render/layers/fridge.ts'
-import { CRUMB_POP, CRUMB_VALUE, DAMAGE_NUMBER, HIT_FLASH } from '@/render/palette.ts'
+import { CRUMB_POP, CRUMB_VALUE, DAMAGE_NUMBER, HIT_FLASH, TOWER_DEBRIS } from '@/render/palette.ts'
 
 /** ~0.6s at 60fps. Frames, because this ages with the display and not with the simulation. */
 const LIFE_FRAMES = 36
@@ -149,6 +150,34 @@ const pops: CrumbPop[] = []
 const crumbValues: CrumbValue[] = []
 
 /**
+ * A tower coming apart: a ring off its tile and the pieces going outward.
+ *
+ * `towerDestroyed` is the only event `render/` has for it, and it has to be acknowledged -- a box that
+ * vanishes between two frames with nothing where it stood reads as a rendering bug rather than as the
+ * thing the last twenty seconds were about (step 10C, build item 3).
+ *
+ * Eight is a generous cap: v1 can destroy exactly one kind of tower, and a night that loses eight
+ * boxes in half a second has lost anyway.
+ */
+const PUFF_LIFE_FRAMES = 26
+const PUFF_START_RADIUS_TILES = 0.15
+const PUFF_END_RADIUS_TILES = 0.85
+const PUFF_LINE_WIDTH_PX = 3
+const PUFF_PIECES = 7
+const PUFF_PIECE_RADIUS_PX = 2.4
+const PUFF_PIECE_REACH_TILES = 0.75
+const MAX_PUFFS = 8
+
+interface Puff {
+	/** Tile space, from `towerDestroyed.tile`. */
+	x: number
+	y: number
+	ageFrames: number
+}
+
+const puffs: Puff[] = []
+
+/**
  * Where a collected pile was standing.
  *
  * `collectCrumb` splices the pile out before it pushes the event, so the world cannot answer this --
@@ -221,6 +250,14 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 			})
 			if (crumbValues.length > MAX_CRUMB_VALUES) {
 				crumbValues.shift()
+			}
+			continue
+		}
+
+		if (event.kind === 'towerDestroyed') {
+			puffs.push({ x: event.tile.x, y: event.tile.y, ageFrames: 0 })
+			if (puffs.length > MAX_PUFFS) {
+				puffs.shift()
 			}
 			continue
 		}
@@ -387,6 +424,53 @@ function drawCrumbPops(ctx: CanvasRenderingContext2D, tilePx: number, dpr: numbe
 	crumbValues.length = liveValues
 }
 
+/** The ring and the pieces of a destroyed tower. Same shape as `drawCrumbPops`, minus the number. */
+function drawPuffs(ctx: CanvasRenderingContext2D, tilePx: number): void {
+	let live = 0
+	ctx.strokeStyle = TOWER_DEBRIS
+	ctx.fillStyle = TOWER_DEBRIS
+	ctx.lineWidth = PUFF_LINE_WIDTH_PX
+
+	for (const puff of puffs) {
+		puff.ageFrames++
+		if (puff.ageFrames >= PUFF_LIFE_FRAMES) {
+			continue
+		}
+
+		const t = puff.ageFrames / PUFF_LIFE_FRAMES
+		const eased = 1 - (1 - t) * (1 - t)
+		const x = (puff.x + 0.5) * tilePx
+		const y = (puff.y + 0.5) * tilePx
+
+		ctx.globalAlpha = 1 - t
+		ctx.beginPath()
+		const radius = PUFF_START_RADIUS_TILES + (PUFF_END_RADIUS_TILES - PUFF_START_RADIUS_TILES) * eased
+		ctx.arc(x, y, radius * tilePx, 0, Math.PI * 2)
+		ctx.stroke()
+
+		// Fixed angles off the tile's own position, the way `drawSpecks` does it: `render/` has no
+		// seeded rng and the world's belongs to the simulation.
+		const phase = puff.x + puff.y
+		const reach = PUFF_PIECE_REACH_TILES * tilePx * eased
+		ctx.beginPath()
+		for (let piece = 0; piece < PUFF_PIECES; piece++) {
+			const angle = phase + (piece / PUFF_PIECES) * Math.PI * 2
+			const pieceX = x + Math.cos(angle) * reach
+			const pieceY = y + Math.sin(angle) * reach + PUFF_PIECE_REACH_TILES * tilePx * t * t * 0.6
+			const size = PUFF_PIECE_RADIUS_PX * (1 - t * 0.4)
+			ctx.moveTo(pieceX + size, pieceY)
+			ctx.arc(pieceX, pieceY, size, 0, Math.PI * 2)
+		}
+		ctx.fill()
+
+		puffs[live] = puff
+		live++
+	}
+
+	ctx.globalAlpha = 1
+	puffs.length = live
+}
+
 /** Called from `drawFrame` at the particles slot of the draw order. Ages one frame per call. */
 export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: number): void {
 	const size = foodGlyphSize(tilePx)
@@ -414,6 +498,7 @@ export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: 
 	ctx.globalAlpha = 1
 	flights.length = live
 
+	drawPuffs(ctx, tilePx)
 	drawHits(ctx, tilePx, dpr)
 	drawCrumbPops(ctx, tilePx, dpr)
 }
@@ -426,5 +511,6 @@ export function resetEffects(): void {
 	numbers.length = 0
 	pops.length = 0
 	crumbValues.length = 0
+	puffs.length = 0
 	forgetCrumbPositions()
 }

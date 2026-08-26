@@ -26,7 +26,7 @@ fixes. It is the session that closes step 10.
 | `render/glyphCache.ts` | `blitGlyph(ctx, dpr, emoji, sizePx, x, y, flipX?, color?)` — an **opaque** pre-rasterised bitmap. It cannot be tinted, and it cannot be rotated (`dev/debug/overlay.ts` draws its own rotated glyph for exactly that reason) |
 | `ui/viewModel.ts` | `statsFor(def)` derives the card through `isAttack` / `isCollect` / `income` and 9C's cone branch; every field is null for a tower that does not have it, and the file re-exports the vocabulary types so no `hud/` component imports `core/` |
 | `ui/components/hud/StatCard.vue` | every row `v-if`'d on a **null**, never on a zero |
-| `ui/locales/en.ts` | 10A's and 10B's two tower entries, written blind; `debug.hint` still says `1-6 tower`, and the roster is now eight |
+| `ui/locales/en.ts` | 10A's and 10B's two tower entries, written blind. **`debug.hint` was already `1-8 tower`** — 10A or 10B updated it in the same breath as the bindings, so build item 5's last paragraph was already done when this session opened |
 | `core/systems/charges.ts` | 10A's `chargePhase(tower)` and `chargeAllowsFiring` |
 | `core/systems/barricades.ts` | 10B's `barricadeHolding(world, enemy)` and `isBarricade(def)` |
 | `core/types.ts` | the `towerDestroyed` event, carrying `towerId`, `defId` and `tile` |
@@ -120,10 +120,12 @@ lateral offset derived from the enemy's own id is a render-side answer that stay
 Decisions 7–9. `statsFor` gains the charge branch (`charges`, `rearmSeconds = rearmTicks / 60`,
 rounded through the existing `round2`) and the barricade branch (`hitPoints`, `blocksPath`).
 `StatCard.vue` gains the rows, still `v-if`'d on null and on false. New keys: `hud.stat.hitPoints`,
-`hud.stat.charges`, `hud.stat.rearm`, `hud.stat.blocks`.
+`hud.stat.charges`, `hud.stat.rearm`, `hud.stat.blocks` — **plus two this step did not foresee**:
+`hud.stat.blocksGround`, because the card is a two-column list and `blocks` is a label that needs an
+answer beside it, and `hud.stat.seconds`, because `perSecond`'s `{n}/sec` is the wrong shape for a
+duration. Six keys, not four.
 
-Then `debug.hint`: the roster is eight towers, and the line still says `1-6 tower`. Its own comment
-says to edit it in the same breath as the bindings.
+`debug.hint` needed nothing: it already read `1-8 tower`. See *Already in the repo*.
 
 ### 6. Play night 6, then tune
 
@@ -135,6 +137,14 @@ With `npm run dev` running, at 1× and at 3×, more than once. Night 6 is `night
   amount of time against night 6's opening, or is it either a formality or an unbreakable wall? If
   the number moves, it moves in `core/content/enemies.ts` and `tests/content.spec.ts` together, and
   `../../analytic-docs/CONTENT.md` §2 gains the column in the same commit.
+
+  **It did not move.** Measured headlessly on night 6 (a throwaway spec driving `createWorld` +
+  `tick`, deleted after): a box at 45% of the lane with two Salt Shakers beside it takes its first
+  chewer at 12.5s and dies at 36.3s with a peak queue of ten — **~24 seconds of the opening stopped
+  dead in front of two shakers**, for 25 crumbs. The same box with no shakers dies at 26.9s under a
+  queue of eighteen; two or three shakers with no box hold nothing at all, because nothing stops.
+  That is neither a formality nor a wall, so `hp / 10` stands and `CONTENT.md` §2 gains no column.
+  The feel of it at 1× and 3× is still a human's call.
 - **The box as a purchase.** A box plus two Salt Shakers should hold night 6's opening waves in a
   way neither does alone. If the box is strictly better than a third Salt Shaker, its 25 crumbs are
   mispriced against the doc and that is a finding for the doc, not a silent edit here.
@@ -167,8 +177,8 @@ that already runs, so a barricade silently losing its card is caught. Do not wri
 - [ ] The shop card for all eight towers says something true, and the box's card says what a 25-crumb
       tower with no attack is for.
 - [ ] Frame time is unchanged from step 9 with a full queue held at a box.
-- [ ] `render/` still writes nothing to the world, and no animation state reached `World`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `render/` still writes nothing to the world, and no animation state reached `World`.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
