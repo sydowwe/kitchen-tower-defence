@@ -320,6 +320,15 @@ export function contentSchemas() {
 		 * here -- so the bound is what catches a tiles-per-second value pasted in from the doc.
 		 */
 		speedTilesPerTick: z.number().min(0).max(0.5),
+		/**
+		 * Damage per **tick** dealt to a barricade this enemy is stopped at
+		 * (`core/systems/barricades.ts`). Bounded like the speed above, and for the same reason: 5.5
+		 * damage a second is 0.092 here, so the bound is what rejects a per-second number pasted in.
+		 *
+		 * **Required, not optional.** A default of 0 is an enemy that stands at a Cardboard Box
+		 * forever and never gets through it, which is a night that never ends.
+		 */
+		meleeDamagePerTick: z.number().min(0).max(0.5),
 		/** Crumbs dropped on death. */
 		reward: z.number().int().min(0).max(1000),
 		/** Food items taken at the fridge. */

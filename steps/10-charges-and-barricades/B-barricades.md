@@ -114,8 +114,11 @@ Per tick, in this order:
 Gotcha: `destroyTower` splices `world.towers` and rebuilds `world.index.towers`. If the box dies
 partway through the enemy loop, the **positions array you built in step 1 is now stale** — the
 towerId in it points at nothing. Look the tower up by id each time you damage it and treat a missing
-one as "no longer blocking" rather than caching the `Tower` object, and the rest of the queue is
-released on the same tick for free.
+one as "deals no damage" rather than caching the `Tower` object.
+
+Built: the clamp runs *before* that lookup, so the rest of the queue holds its ground for the
+remainder of the destroy tick and walks from the next one — which is what the fifth test below
+asserts. Releasing them mid-loop instead would move them on the very tick the box died.
 
 Then the slot: `SystemName`, `SYSTEMS` and the order comment on `tick()` in `core/sim.ts`, the export
 in `core/systems/index.ts`, and the literal list in `tests/sim.spec.ts`.
@@ -137,11 +140,16 @@ No ninth `PlacementRejection` is needed.
 
 ## Tests
 
-`tests/barricades.spec.ts`. The Counter's `crack` lane for most of it; a two-lane synthetic map for
-the lane test, in the style `tests/spawn.spec.ts` already builds one.
+`tests/barricades.spec.ts`. Built on `tests/fixtures/world.ts`'s lane `a` rather than the Counter's
+`crack` — it is the straight 40-tile lane every other system spec uses, and on it a tile's arc
+distance is its `x`, which is what lets the numbers below be written out. A two-lane synthetic map
+for the lane test, in the style `tests/spawn.spec.ts` already builds one.
 
-- An enemy at `boxDistance - 0.1` ends the tick at **exactly** the distance it started at — not
-  pushed back, not advanced — and the box's hp fell by exactly that enemy's `meleeDamagePerTick`.
+- An enemy at `boxDistance - 0.1` ends the tick at the distance it started at — not pushed back, not
+  advanced — and the box's hp fell by exactly that enemy's `meleeDamagePerTick`. (Built: to twelve
+  decimal places, not `toBe`. The clamp recovers the pre-move distance by subtracting the step
+  `movement` just added, and `(9.9 + 1/60) - 1/60` is 9.899999999999999. The assertion still
+  separates it from both the 0.5 push-back and one tick of advance by seven orders of magnitude.)
 - An enemy at `boxDistance + 0.1` advances by its full `speed * speedMultiplier` and the box takes
   nothing.
 - An enemy walking into a box from well behind it comes to rest at `boxDistance - 0.5` and stays
@@ -157,14 +165,14 @@ the lane test, in the style `tests/spawn.spec.ts` already builds one.
 
 ## Acceptance
 
-- [ ] `SYSTEM_ORDER` reads `... status, movement, barricades, targeting, combat ...` in `core/sim.ts`,
+- [x] `SYSTEM_ORDER` reads `... status, movement, barricades, targeting, combat ...` in `core/sim.ts`,
       in the comment on `tick()`, and in `tests/sim.spec.ts`.
-- [ ] `Enemy` gained no field, and `World` gained nothing at all — the world still survives its JSON
+- [x] `Enemy` gained no field, and `World` gained nothing at all — the world still survives its JSON
       round-trip assertion untouched.
-- [ ] No system file branches on a tower id or an enemy id.
-- [ ] Adding a hypothetical second barricade tower is a def in `core/content/towers.ts` plus an entry
+- [x] No system file branches on a tower id or an enemy id.
+- [x] Adding a hypothetical second barricade tower is a def in `core/content/towers.ts` plus an entry
       in `en.ts`, and nothing in `core/systems/`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 10C
 

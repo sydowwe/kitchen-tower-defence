@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { ant, beetle, ENEMIES, fruitFly } from '@/core/content/enemies.ts'
+import { ant, beetle, ENEMIES, fruitFly, roach } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { validateContent } from '@/core/content/schema.ts'
 import {
+	cardboardBox,
 	cookieJar,
 	iceCubeTray,
 	mousetrap,
@@ -192,6 +193,44 @@ describe('the Mousetrap', () => {
 		expect(attackOf(mousetrap.behaviours).cooldownTicks).toBe(396)
 		expect(396 / 60).toBeCloseTo(6.6, 10)
 		expect(Math.round((60 / 396) * 100) / 100).toBeCloseTo(0.15, 10)
+	})
+})
+
+describe('the Cardboard Box', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(cardboardBox.cost).toBe(25)
+		expect(cardboardBox.role).toBe('WALL')
+		expect(cardboardBox.glyph).toBe('📦')
+		/** The one HP number the doc's table gives, and the only tower that is not the 100 default. */
+		expect(cardboardBox.maxHp).toBe(200)
+		/** The one tower in Act I that goes *on* the track. */
+		expect(cardboardBox.placement).toBe('path_only')
+		expect(cardboardBox.noise).toBe(0)
+	})
+
+	it('is a wall and nothing else: one behaviour, and it carries no numbers', () => {
+		expect(cardboardBox.behaviours).toEqual([{ kind: 'barricade' }])
+	})
+})
+
+describe('every enemy s chew rate', () => {
+	/**
+	 * The `x 60` form, like the speeds: a per-second number pasted straight in fails here as well as
+	 * failing the schema's `[0, 0.5]` bound. Every rate is the enemy's own `hp / 10` per second, which
+	 * is the only thing tying the number to anything -- there is no column for it in
+	 * analytic-docs/CONTENT.md section 2, and step 10C adds one only if the rate moves off that rule.
+	 */
+	it('is hp / 10 per second, authored in ticks', () => {
+		expect(ant.meleeDamagePerTick * 60).toBeCloseTo(1.0, 10)
+		expect(roach.meleeDamagePerTick * 60).toBeCloseTo(1.8, 10)
+		expect(beetle.meleeDamagePerTick * 60).toBeCloseTo(5.5, 10)
+		expect(fruitFly.meleeDamagePerTick * 60).toBeCloseTo(0.8, 10)
+	})
+
+	it('chews the Cardboard Box s 200 HP down in the number of seconds that implies', () => {
+		// 200 / 1.0 per second for one Ant, and 200 / 5.5 for a Beetle.
+		expect(cardboardBox.maxHp / (ant.meleeDamagePerTick * 60)).toBeCloseTo(200, 6)
+		expect(cardboardBox.maxHp / (beetle.meleeDamagePerTick * 60)).toBeCloseTo(36.36, 2)
 	})
 })
 

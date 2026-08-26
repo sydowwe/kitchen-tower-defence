@@ -17,6 +17,18 @@ function tilesPerSecond(speed: number): number {
 	return speed / TICKS_PER_SECOND
 }
 
+/**
+ * The same conversion for a chew rate. Every enemy below chews a barricade at `hp / 10` per second,
+ * which is the one rule that ties the number to something -- an enemy that is twice as hard to kill
+ * takes half as long to get through a Cardboard Box.
+ *
+ * There is no column for this in analytic-docs/CONTENT.md section 2, on purpose: step 10C watches a
+ * queue eat a box and adds one only if the rate settles somewhere other than `hp / 10`.
+ */
+function damagePerSecond(rate: number): number {
+	return rate / TICKS_PER_SECOND
+}
+
 /** The enemy counterpart of `TowerDefOf` -- see the note there on why the keys are derived. */
 export interface EnemyDefOf<Id extends string> extends EnemyDef {
 	id: Id
@@ -39,6 +51,7 @@ export const ant: EnemyDefOf<'ant'> = {
 	glyph: '🐜',
 	hp: 10,
 	speedTilesPerTick: tilesPerSecond(1.0),
+	meleeDamagePerTick: damagePerSecond(1.0),
 	reward: 3,
 	steals: 1,
 	tags: ['ground', 'swarm', 'bug'],
@@ -58,6 +71,7 @@ export const roach: EnemyDefOf<'roach'> = {
 	glyph: '🪳',
 	hp: 18,
 	speedTilesPerTick: tilesPerSecond(1.8),
+	meleeDamagePerTick: damagePerSecond(1.8),
 	reward: 5,
 	steals: 1,
 	tags: ['ground', 'fast', 'bug'],
@@ -82,6 +96,8 @@ export const fruitFly: EnemyDefOf<'fruitFly'> = {
 	glyph: '🦟',
 	hp: 8,
 	speedTilesPerTick: tilesPerSecond(2.0),
+	/** Never read -- it flies, and a barricade holds nothing that is off the floor. Authored anyway. */
+	meleeDamagePerTick: damagePerSecond(0.8),
 	reward: 2,
 	steals: 1,
 	tags: ['air', 'swarm', 'self-spawning'],
@@ -103,6 +119,7 @@ export const beetle: EnemyDefOf<'beetle'> = {
 	glyph: '🪲',
 	hp: 55,
 	speedTilesPerTick: tilesPerSecond(0.7),
+	meleeDamagePerTick: damagePerSecond(5.5),
 	reward: 10,
 	steals: 2,
 	tags: ['ground', 'bug'],

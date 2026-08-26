@@ -140,7 +140,7 @@ export const en = {
 		// Every key the game route answers to. `dev/nightHud.ts` carried the other half of this list
 		// until step 8C deleted it, so this line is now the whole of it -- edit it in the same breath
 		// as the bindings in `ui/interaction.ts`, or the on-screen help lies.
-		hint: '1-6 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
+		hint: '1-8 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
 	},
 	settings: {
 		title: 'Settings',
@@ -179,6 +179,13 @@ export const en = {
 		mousetrap: {
 			name: 'Mousetrap',
 			description: 'Set once, and it deals with one thing properly. Resetting it takes a while.',
+		},
+		// Written in step 10B with an almost empty card behind it -- a wall has no damage, no rate and
+		// no range, so the description is the only line the shop has to explain it. **Step 10C revises
+		// it** once the card has the box's HP on it.
+		cardboardBox: {
+			name: 'Cardboard Box',
+			description: 'Flattened and set across the track. They will get through it, but not quickly.',
 		},
 	} satisfies TowerMessages,
 	enemy: {

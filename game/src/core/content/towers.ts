@@ -10,7 +10,7 @@
  * so the doc's number stays legible next to it.
  */
 
-import { attack, charge, collect, coneAttack, income } from '@/core/content/behaviours.ts'
+import { attack, barricade, charge, collect, coneAttack, income } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 
 /** `core/` has no clock, so the conversion from the doc's per-second rates lives here as a factor. */
@@ -306,7 +306,43 @@ export const mousetrap: TowerDefOf<'mousetrap'> = {
 	],
 }
 
+/**
+ * analytic-docs/CONTENT.md section 1, Act I: 25 crumbs, 200 HP, no damage, no rate, no range, no
+ * noise, **path_only** -- and section 1's behaviour note, "200 HP barricade placed *on* the track.
+ * Enemies stop and attack it; it does not damage them."
+ *
+ * `[barricade()]` and nothing else. It has no attack, no income and no charge: what happens at it is
+ * entirely `core/systems/barricades.ts` reading the descriptor, and the 200 is `maxHp` like every
+ * other tower rather than a second number on the behaviour.
+ *
+ * `defaultTargetingMode` is required by the schema and inert for a tower with no targeting behaviour;
+ * `CLOSEST` is what the other behaviourless towers carry. The T3 "enemies chewing it take 8/s reflect
+ * damage" is step 12's, not this def's.
+ */
+export const cardboardBox: TowerDefOf<'cardboardBox'> = {
+	id: 'cardboardBox',
+	nameKey: 'tower.cardboardBox.name',
+	descriptionKey: 'tower.cardboardBox.description',
+	glyph: '📦',
+	role: 'WALL',
+	cost: 25,
+	maxHp: 200,
+	placement: 'path_only',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [barricade()],
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
-export const TOWERS = [saltShaker, toasterCrumbTray, cookieJar, iceCubeTray, stickyTape, sprayBottle, mousetrap]
+export const TOWERS = [
+	saltShaker,
+	toasterCrumbTray,
+	cookieJar,
+	iceCubeTray,
+	stickyTape,
+	sprayBottle,
+	mousetrap,
+	cardboardBox,
+]
 
 export type TowerId = (typeof TOWERS)[number]['id']

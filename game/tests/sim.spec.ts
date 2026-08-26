@@ -69,6 +69,7 @@ describe('system order', () => {
 			'wave',
 			'status',
 			'movement',
+			'barricades',
 			'targeting',
 			'combat',
 			'projectiles',

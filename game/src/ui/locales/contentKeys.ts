@@ -33,7 +33,11 @@ export type FoodMessages = Record<(typeof FOODS)[number]['id'], { name: string }
 
 /**
  * The same trick over a vocabulary rather than a collection: `PlacementRejection` is eight string
- * literals in `core/systems/placement.ts`, and `hud.reject` has to answer all of them. When step 10
- * adds a ninth reason for barricades, the build fails here instead of a toast rendering `onTrack`.
+ * literals in `core/systems/placement.ts`, and `hud.reject` has to answer all of them. A ninth added
+ * later fails the build here instead of a toast rendering `onTrack`.
+ *
+ * Step 10B's Cardboard Box needed none: `canPlace` has answered `path_only` since step 3A, and
+ * `hud.reject.offTrack` -- "This one goes on the track itself." -- has been the English for it since
+ * step 8A.
  */
 export type RejectionMessages = Record<PlacementRejection, string>

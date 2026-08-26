@@ -288,6 +288,7 @@ describe('the other def schemas', () => {
 			glyph: '🐜',
 			hp: 10,
 			speedTilesPerTick: 1.0,
+			meleeDamagePerTick: 1 / 60,
 			reward: 3,
 			steals: 1,
 			tags: ['ground'],
