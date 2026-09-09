@@ -206,6 +206,29 @@ describe('the inspector', () => {
 		expect(stats?.crumbsPerSecond).toBeNull()
 	})
 
+	it('gives a lamp its radius and no targets, because it does not shoot', () => {
+		const world = buildableWorld()
+		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'nightlight')?.stats
+
+		// The def's `reveal({ radiusTiles: 4 })`, which is the only row this tower has.
+		expect(stats?.revealRadiusTiles).toBe(4)
+		// CONTENT.md section 1's "both" is what a lamp *covers*, and `targets` is derived from a firing
+		// behaviour. A "Targets: ground and air" row on a tower that fires nothing is a lie (11C,
+		// decision 9).
+		expect(stats?.targets).toBeNull()
+		expect(stats?.damage).toBeNull()
+		expect(stats?.rangeTiles).toBeNull()
+	})
+
+	it('gives every tower that is not a lamp a null reveal radius', () => {
+		const world = buildableWorld()
+		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'toaster')?.stats
+
+		expect(stats?.revealRadiusTiles).toBeNull()
+		// The row the Toaster exists for, and the one 11C moved to the top of the card.
+		expect(stats?.targets).toBe('air')
+	})
+
 	it('carries a slow as a named status with no rate, because a magnitude is not damage', () => {
 		const world = buildableWorld()
 		const stats = buildHudSnapshot(world, VIEW).shop.find(entry => entry.id === 'iceCubeTray')?.stats

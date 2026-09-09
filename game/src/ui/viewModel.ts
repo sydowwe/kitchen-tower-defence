@@ -16,7 +16,7 @@
  * cannot translate, `ui/` resolves, and a snapshot is exactly where that gets broken first.
  */
 
-import { isAttack, isCharge, isCollect, isConeAttack } from '@/core/content/behaviours.ts'
+import { isAttack, isCharge, isCollect, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { TOWERS, getTowerDef } from '@/core/content/index.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
@@ -103,6 +103,15 @@ export interface TowerStatsView {
 	rearmSeconds: number | null
 	/** True for a tower enemies stop at instead of walking past. */
 	blocksPath: boolean
+	/**
+	 * How far a lamp lights, in tiles. Null for everything that is not one.
+	 *
+	 * The only row the Nightlight has, which is the reason it exists: a 100-crumb tower whose card
+	 * would otherwise read `Noise: silent` and nothing else. There is deliberately **no**
+	 * `attractsLightDrawn` row beside it -- it is true for every light in v1, so it would be a row that
+	 * never varies, and what it *means* is a sentence rather than a value (step 11C, decision 8).
+	 */
+	revealRadiusTiles: number | null
 }
 
 export interface ShopEntry {
@@ -196,7 +205,8 @@ function appliesOf(applications: readonly StatusApplication[]): TowerStatsView['
 
 /**
  * Derives a card from the def's behaviours through `isAttack` / `isConeAttack` / `isCollect` /
- * `isCharge`, so a tower that gains a behaviour gains a card line without this file learning its name.
+ * `isCharge` / `isReveal`, so a tower that gains a behaviour gains a card line without this file
+ * learning its name.
  *
  * **The def's numbers, never the live ones.** `buildTowerInspector` runs on selection change rather
  * than at 15Hz, so a live rearm countdown here would sit frozen at whatever it read when the tower
@@ -220,6 +230,7 @@ function statsFor(def: TowerDef): TowerStatsView {
 		charges: null,
 		rearmSeconds: null,
 		blocksPath: false,
+		revealRadiusTiles: null,
 	}
 
 	for (const behaviour of def.behaviours) {
@@ -239,6 +250,15 @@ function statsFor(def: TowerDef): TowerStatsView {
 
 		if (isCollect(behaviour)) {
 			stats.collectRadiusTiles = behaviour.radiusTiles
+			continue
+		}
+
+		if (isReveal(behaviour)) {
+			// `targets` is deliberately left null. CONTENT.md section 1 says "both", and that column is
+			// describing what a lamp *covers*; every other line on this card comes off a firing behaviour
+			// and the Nightlight has none, so a "Targets: ground and air" row would be the card claiming
+			// it shoots (step 11C, decision 9).
+			stats.revealRadiusTiles = behaviour.radiusTiles
 			continue
 		}
 

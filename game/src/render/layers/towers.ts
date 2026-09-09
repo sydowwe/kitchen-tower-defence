@@ -13,6 +13,7 @@
 
 import { TOWERS } from '@/core/content/towers.ts'
 import { getTowerDef } from '@/core/content/index.ts'
+import { isReveal } from '@/core/content/behaviours.ts'
 import { chargeBehaviourOf, chargePhase, chargeStateOf } from '@/core/systems/charges.ts'
 import { isBarricade } from '@/core/systems/barricades.ts'
 import type { TowerDef } from '@/core/content/index.ts'
@@ -28,6 +29,8 @@ import {
 	RANGE_VALID,
 	RANGE_VALID_FILL,
 	TOWER_CRACK,
+	TOWER_LIGHT_CORE,
+	TOWER_LIGHT_EDGE,
 	TOWER_PAD,
 	TOWER_PAD_EDGE,
 	TOWER_REARM_SWEEP,
@@ -249,10 +252,64 @@ function drawBox(
 	ctx.restore()
 }
 
+/**
+ * The pools of light, built once and kept.
+ *
+ * A `createRadialGradient` per lamp per frame is step 3B's acceptance broken at 60Hz, so each pool is
+ * built at the **origin** and the context is translated onto the lamp before the fill -- a gradient
+ * carries its own centre, so one anchored at a tower's pixels could not be reused by a second lamp
+ * anyway.
+ *
+ * Keyed by `tilePx` **and** the behaviour's radius, not by `tilePx` alone: the radius is the other
+ * half of the geometry, and step 17's Candle (aura radius 2) sharing a Nightlight's 4-tile pool is
+ * one cache lookup away. Two entries on a board with both, and one on every board today.
+ */
+const lightPools = new Map<string, CanvasGradient>()
+
+function lightPool(ctx: CanvasRenderingContext2D, tilePx: number, radiusTiles: number): CanvasGradient {
+	const key = `${tilePx}|${radiusTiles}`
+	const cached = lightPools.get(key)
+	if (cached !== undefined) {
+		return cached
+	}
+
+	const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusTiles * tilePx)
+	gradient.addColorStop(0, TOWER_LIGHT_CORE)
+	gradient.addColorStop(1, TOWER_LIGHT_EDGE)
+	lightPools.set(key, gradient)
+	return gradient
+}
+
+/**
+ * Every lamp's pool, drawn before the first pad.
+ *
+ * A pass of its own rather than a line inside the tower loop: at the top of the pass the light falls
+ * on the floor and the crumbs and under every tower, and inside the loop it would fall over whichever
+ * towers happened to be earlier in `world.towers` and under the rest.
+ */
+function drawLightPools(ctx: CanvasRenderingContext2D, world: World, tilePx: number): void {
+	for (const tower of world.towers) {
+		for (const behaviour of getTowerDef(tower.defId).behaviours) {
+			if (!isReveal(behaviour)) {
+				continue
+			}
+			const center = tileCenter(tower.tile, tilePx)
+			const radius = behaviour.radiusTiles * tilePx
+			ctx.save()
+			ctx.translate(center.x, center.y)
+			ctx.fillStyle = lightPool(ctx, tilePx, behaviour.radiusTiles)
+			ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
+			ctx.restore()
+		}
+	}
+}
+
 export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, tilePx: number, dpr: number): void {
 	if (world === null) {
 		return
 	}
+
+	drawLightPools(ctx, world, tilePx)
 
 	for (const tower of world.towers) {
 		const def = getTowerDef(tower.defId)

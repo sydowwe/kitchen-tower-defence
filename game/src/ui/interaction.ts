@@ -13,7 +13,7 @@
  */
 
 import { getTowerDef, TOWERS } from '@/core/content/index.ts'
-import { isAttack, isConeAttack } from '@/core/content/behaviours.ts'
+import { isAttack, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { nearestPath, samplePath } from '@/core/path.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
@@ -143,6 +143,11 @@ function facingFor(world: World, tile: Vec2, tower: Tower | null): number {
  *
  * Resolved here, including the facing, because the caller resolving it is what keeps `drawRangeCone`
  * a pure draw (step 9C, decision 4). `tower` is null for the ghost.
+ *
+ * A `reveal` radius is a reach like any other: it is the whole of what a Nightlight does, and a
+ * 100-crumb tower whose only stat is a radius, aimed with no radius drawn, is the placement decision
+ * made blind. It comes last because a tower that both fires and lights -- step 17's Candle, once it
+ * has an aura -- should show what it covers, and the light pool on the board says where it reaches.
  */
 function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): OverlayReach | null {
 	const shot = def.behaviours.find(isAttack)
@@ -152,7 +157,8 @@ function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): 
 
 	const spray = def.behaviours.find(isConeAttack)
 	if (spray === undefined) {
-		return null
+		const lamp = def.behaviours.find(isReveal)
+		return lamp === undefined ? null : { kind: 'circle', radiusTiles: lamp.radiusTiles }
 	}
 
 	return {
@@ -416,10 +422,17 @@ export function createInteraction(
 			return
 		}
 
-		// 1-9 into the roster, in `TOWERS` order -- the order the shop panel renders and the number it
-		// prints on each button. The same key again disarms, so there is a way out that is not Escape.
-		const index = Number(event.key) - 1
-		if (!Number.isInteger(index) || index < 0 || index >= TOWERS.length) {
+		// 1-9 into the first nine of the roster and **0 into the tenth**, in `TOWERS` order -- the order
+		// the shop panel renders and the number it prints on each button. The same key again disarms, so
+		// there is a way out that is not Escape.
+		//
+		// `0` is the tenth rather than nothing because the badge on that button has to name a key that
+		// works: `Number('0') - 1` is -1, so a roster of ten shipped a button reading `10` and no way to
+		// press it (step 11C, decision 10). An eleventh tower gets no key at all until step 20 says what
+		// the shop looks like at that size, and `TowerShop.vue` prints no badge on one.
+		const typed = Number(event.key)
+		const index = !Number.isInteger(typed) ? -1 : typed === 0 ? 9 : typed - 1
+		if (index < 0 || index >= TOWERS.length) {
 			return
 		}
 		const def = TOWERS[index]

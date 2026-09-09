@@ -96,6 +96,9 @@ export const en = {
 			noise: 'Noise',
 			income: 'Income',
 			collect: 'Collects within',
+			// A lamp's one row, and it says what the tower *does* rather than what the behaviour is
+			// called: "Reveal radius" is the vocabulary word, and nobody is buying a radius.
+			lights: 'Lights up',
 			cone: 'Cone',
 			applies: 'Applies',
 			// A wall's rows. `blocks` is a label and `blocksGround` its answer: the card is a two-column
@@ -149,7 +152,7 @@ export const en = {
 		// Every key the game route answers to. `dev/nightHud.ts` carried the other half of this list
 		// until step 8C deleted it, so this line is now the whole of it -- edit it in the same breath
 		// as the bindings in `ui/interaction.ts`, or the on-screen help lies.
-		hint: '1-8 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
+		hint: '1-9 0 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
 	},
 	settings: {
 		title: 'Settings',
@@ -200,17 +203,21 @@ export const en = {
 			description:
 				'Set across the track so they stop and chew instead of walking past. It buys seconds, not the night.',
 		},
-		// Drafted in 11A with nothing on screen; 11C revises it against the card, and is also the session
-		// that can see whether the shop reads as having two toasters in it.
+		// Revised in 11C against the card. The draft's "the only thing here that can reach a fly" was two
+		// kinds of wrong once the card existed: `Targets Air` now sits at the top of it and says the same
+		// thing, and it was not true -- the Spray Bottle has reached air since step 9. So the sentence is
+		// spent on what the thing *is*, which is also what tells it apart from the 🧺 two rows along: that
+		// one is a tray of crumbs, this one is the appliance, on.
 		toaster: {
 			name: 'Toaster',
-			description: 'Left on, lever down, aimed at the ceiling. The only thing here that can reach a fly.',
+			description: 'Jammed on with the lever down, breathing at the ceiling. Nobody is making toast.',
 		},
-		// Drafted in 11B, revised in 11C against the card.
+		// Revised in 11C. This card is nearly empty -- one radius and a noise row -- so the sentence
+		// carries the whole tower: that it does not fight, and the two things it does instead.
 		nightlight: {
 			name: 'Nightlight',
 			description:
-				'Plugged in low by the skirting board. Nothing stays hidden near it, and moths cannot help themselves.',
+				'Plugged in low by the skirting board. It hurts nothing at all — but nothing stays hidden near it, and moths cannot leave it alone.',
 		},
 	} satisfies TowerMessages,
 	enemy: {
@@ -230,12 +237,14 @@ export const en = {
 			name: 'Fruit Fly',
 			description: 'Hatched out of something you left too long. It starts halfway across the kitchen.',
 		},
-		// Drafted in 11A, revised in 11C against the card.
+		// Read again in 11C against the card and kept: it says the one thing no row on it says, which is
+		// that it ignores the board you built rather than beating it.
 		fly: {
 			name: 'Fly',
 			description: 'Straight over everything you built, at a speed nothing else on the counter manages.',
 		},
-		// Drafted in 11B, revised in 11C against the card.
+		// Read again in 11C and kept. Nothing on a card can say "it does not go where it is pointed", and
+		// that is the whole of what makes a Moth different to read on the board.
 		moth: {
 			name: 'Moth',
 			description:

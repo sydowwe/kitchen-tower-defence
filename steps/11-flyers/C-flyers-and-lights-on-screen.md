@@ -54,6 +54,11 @@ edit this file, don't leave it lying.
    `tilePx`.** Step 3B's acceptance is that the per-frame path contains no `createRadialGradient`;
    one per lamp per frame is that rule broken at 60Hz. Drawn at the top of the tower pass, so it
    falls on the floor and the crumbs and under everything that moves.
+   *Built: keyed by `tilePx` **and** the behaviour's `radiusTiles`, not `tilePx` alone — the radius is
+   the other half of the geometry, and step 17's Candle (aura radius 2) beside a Nightlight would
+   otherwise read one lamp's pool at the other's size. The gradient is built at the origin and the
+   context translated onto the lamp, because a gradient carries its own centre and one anchored at a
+   tower's pixels cannot be reused by a second lamp at all.*
 6. **`reachOf` gains a `reveal` branch returning a circle of the behaviour's `radiusTiles`.** A
    100-crumb tower whose only stat is a radius, bought with no radius shown, is the placement
    decision made blind.
@@ -86,9 +91,21 @@ them **after** the slow discs and **before** the glyph loop, so a slowed fly sti
 Scale the shadow slightly with the bob (smaller and fainter at the top of the rise); that is the
 cheapest thing that turns two shapes into height. Two palette constants, named by role.
 
+*Built at a bob of 0.16 tiles and raised to **0.22** on a look at one — the rise has to clear the
+shadow by enough to be a gap and not a wobble. The rate (`FLYER_BOB_PER_FRAME`) did not move.*
+
+*Built: **one** palette constant (`FLYER_SHADOW`) and size variation only, no fade. `globalAlpha` is
+per-pass and the shadows are a single `beginPath`/`fill` for the whole board, so a per-enemy alpha
+costs a fill per fly — the batching this item asks for in its own previous sentence, given up for a
+difference a smaller ellipse already carries against a dark floor. The shadow is an ellipse rather
+than an arc (`FLYER_SHADOW_SQUASH`), because the board is drawn from slightly above.*
+
 Gotcha: `entry.mirrored` comes from the **path** angle, so a Moth curving hard toward a lamp still
 faces down the track. That is consistent with every other enemy on the board and is almost certainly
 right; look at one and decide, and if you change it, change it in the frame fill and say so here.
+
+*Built: kept, unchanged — but the session that built it could not run the game, so this is the
+argument standing rather than a look at one. It is on the handover list.*
 
 ### 2. The Nightlight on the board (`render/layers/towers.ts`, `render/palette.ts`, `ui/interaction.ts`)
 
@@ -111,6 +128,13 @@ behaviour is called; "Lights" or "Reveals within" beats "Reveal radius". Extend 
 
 Decision 10.
 
+*Built, plus one thing the step did not name: `hud.debug.hint` in `en.ts` still read `1-8 tower`,
+which has been wrong since the ninth tower landed in 11A. The comment above it says to edit it in the
+same breath as the bindings, so it now reads `1-9 0 tower`. `TowerShop.vue`'s badge is a `keyFor`
+function rather than `index + 1`, returning `'0'` for the tenth and **null** for an eleventh — the
+guard in `ui/interaction.ts` binds no key past the tenth, so a future roster gets no badge rather
+than a badge naming a key that does not exist, which is decision 10's own reasoning one slot along.*
+
 ### 5. The copy pass (`ui/locales/en.ts`)
 
 Four entries written blind by the earlier parts, revised now against the cards you can finally see —
@@ -122,10 +146,38 @@ card is nearly empty and its sentence has the most work to do of the four.
 While you are here, look at the shop with both toasters in it — 🧺 Toaster Crumb Tray and 🔥 Toaster,
 two rows apart. If they read as one tower listed twice, the fix is the English, not the roster.
 
+*Built: two of the four revised, two read again and kept with a note saying so. The Toaster's draft
+was the one that had to go: "the only thing here that can reach a fly" is now printed as `Targets
+Air` at the top of its own card, **and it was untrue** — the Spray Bottle has targeted `both` since
+step 9. Its sentence is now about the appliance being on, which is also what separates it from the
+tray. The Nightlight's carries the whole tower, since its card is one radius and a noise row.*
+
 ### 6. The tuning pass
 
 Four numbers, all authored blind by the earlier parts, all now judgeable. Change them where they are
 authored, and update the assertion that pins them in the same commit:
+
+**What the pass actually found: none of the four numbers moved, and three of them are now measured
+rather than assumed.** The session that ran this could not watch a night, so the questions that are
+arithmetic were answered by driving the headless sim from a throwaway spec (built, run, deleted —
+step 22's harness does not exist yet), and the two that are pictures are on the handover list
+unanswered. The measured half:
+
+- **Night 8 meets its criterion exactly, and needs no change.** Salt Shakers only, spread along the
+  Counter's lane, crumbs swept as they land: **lost** at wave 7 of 10 with all 20 food items taken and
+  **ground leaks of zero** — the fridge is emptied entirely by flies, which is precisely the question
+  the night is built to ask. Add one Toaster and it is won by a hair (3 of 20 food). Add two and it is
+  won properly (18 of 20). Nights 9 and 10 behave the same way against the boards their own unlocks
+  imply.
+- **Whether the floor is swept is a bigger variable than the board.** The same salt-only board on a
+  night where *nothing* is collected loses even with two Toasters, and the leak breakdown says why:
+  15 of the 20 items go to **fruit flies** hatched out of the player's own rot, against 4 or 5 to the
+  night's authored flies. That is the rot punishment working as designed rather than a mistuned night,
+  and it is the same measurement that closes the fruit fly gap below — but any future balance run has
+  to say which of the two it was doing, because the answers are opposite.
+- **The Spray Bottle is the other air answer**, from step 9 and `targets: 'both'`. Worth knowing
+  before anyone reads a night-8 result as the Toaster's doing: a board with one on it answers the air
+  without a Toaster at all.
 
 - **Nights 8, 9 and 10** (`core/content/nights.ts`). Play each at 1× and 3×. Night 8 must be lost by
   a Salt-Shaker-only board and won by one that adds two Toasters — if a ground-only board survives
@@ -134,15 +186,31 @@ authored, and update the assertion that pins them in the same commit:
   0.12 was arithmetic. Watch a shot cross four tiles at a Fly moving 2.2 tiles/sec: too slow and it
   chases and misses the feeling of a hit, too fast and there is nothing to see between the shot and
   the kill. 6C halved the Salt Shaker's for the second reason.
+  *Built: **not changed, and not judged.** One thing worth knowing before someone does judge it —
+  `core/systems/projectiles.ts` re-reads the target's position every tick, so a slow shot never
+  misses a fast fly; it only stays on screen longer. So this is purely a picture, and it is on the
+  handover list. The arithmetic it was left at: 4 tiles at 0.12 is 33 ticks (0.55s), against the Salt
+  Shaker's 3 tiles at 0.1, 30 ticks (0.5s) — the same register.*
 - **`LIGHT_DRIFT_TILES_PER_TICK`** (`core/systems/light.ts`). The first session that can see whether
   a moth *curves* or *snaps*. Slower is prettier; the 2-second return assertion in
   `tests/light.spec.ts` is the floor, so anything above ~0.025 keeps it green — if you go below that,
   move the assertion and say why in the same commit.
+  *Built: **0.04 → 0.03** (3 tiles in 100 ticks, 1.67s). The build session could not watch a moth and
+  left it at 11B's number; it was slowed on a look at one afterwards, which is the judgement this
+  bullet was waiting for. The floor held as predicted — `tests/light.spec.ts` asserts the return
+  inside 120 ticks and 0.03 needs 100, so the assertion did not move; only the comment in it that
+  quoted the old rate did. ~0.025 remains the slowest this can go without moving that assertion.*
 - **The fruit fly payoff** (`../../analytic-docs/OPEN-QUESTIONS.md`, "The fruit fly gap"). Let a night
   run with crumbs deliberately left to rot, then put one Toaster down. A single Toaster has to
   meaningfully clear the backlog. If it cannot, one of `HATCH_TICKS` in `core/systems/crumbs.ts` and
   the Toaster's rate is wrong — tune here, while both are in front of you, and write the answer back
   into that open question so it stops being open.
+  *Built: **answered, nothing moved.** Night 6 (crumbs pre-scattered), nothing collected all night so
+  every pile hatches, ground board carrying no Spray Bottle: with no air answer the night is **lost**
+  at wave 8 of 9 and all 20 food items are taken by fruit flies alone; with **one Toaster** it is
+  **won**, 16 of them shot down. One tower turns a lost night into a won one, so `HATCH_TICKS` and
+  the Toaster's rate are right against each other. Written back into the open question, which is now
+  struck through.*
 
 ## Tests
 
@@ -158,14 +226,21 @@ an under-tested part.
 - [ ] Flyers read as flying at a glance, at 3× speed, with no need to check a tooltip or a card.
 - [ ] Moths visibly curve toward a Nightlight and visibly straighten out after it, and a Nightlight
       surrounded by Toasters is an obviously good idea before you have paid for it.
-- [ ] Night 8 is genuinely lost by a player who built only Salt Shakers, and won by one who adds two
-      Toasters.
-- [ ] A single Toaster meaningfully cleans up a fruit-fly problem.
-- [ ] The shop tells you a tower is air-only *before* you spend 140 crumbs on it.
-- [ ] Every shop badge names a key that works, including the tenth.
+- [x] Night 8 is genuinely lost by a player who built only Salt Shakers, and won by one who adds two
+      Toasters. *(Measured headless: lost at wave 7 of 10 with 20 of 20 food taken and zero ground
+      leaks; won 18 of 20 with two Toasters. One Toaster wins by a hair, 3 of 20 — two is the honest
+      answer. Holds on a night the player sweeps; see the tuning pass on the night nobody sweeps.)*
+- [x] A single Toaster meaningfully cleans up a fruit-fly problem. *(Night 6 left entirely to rot with
+      no other air answer on the board: lost without one, won with one, 16 fruit flies shot down.)*
+- [x] The shop tells you a tower is air-only *before* you spend 140 crumbs on it. *(`Targets` is now
+      the first row of the card, above damage, and the Toaster's reads `Air`.)*
+- [x] Every shop badge names a key that works, including the tenth. *(`0` binds to the tenth slot and
+      the badge prints `0`; an eleventh would print no badge rather than a dead number.)*
 - [ ] The per-frame path still contains no `createRadialGradient`, no `fillText` and no per-tile
-      loop, and 60fps holds with a night's worth of flies on the board.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+      loop, and 60fps holds with a night's worth of flies on the board. *(First half verified by
+      construction — the light pool's gradients are built once into a module-local cache and the
+      shadows are one batched fill. The 60fps half needs a night on screen.)*
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

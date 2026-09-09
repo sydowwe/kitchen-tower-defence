@@ -42,11 +42,15 @@ export const LIGHT_MAX_OFFSET_TILES = 3
  * can disagree with the first, and "back at exactly 0" would then quietly pass at a thousandth of a
  * tile of permanent drift.
  *
- * 3 tiles at 0.04 is 75 ticks, 1.25 seconds, inside the two seconds the step asks for with headroom.
- * The curve still reads as a curve because the *target* is smooth, not because the follower is.
- * Authored here from arithmetic; 11C is the first session that can see whether a moth curves or snaps.
+ * 3 tiles at 0.03 is 100 ticks, 1.67 seconds, inside the two seconds the step asks for -- 20 ticks of
+ * headroom against `tests/light.spec.ts`, which is the floor and is what makes ~0.025 the slowest this
+ * can go without moving an assertion. The curve still reads as a curve because the *target* is smooth,
+ * not because the follower is.
+ *
+ * 11B authored 0.04 from arithmetic. Slowed to 0.03 on a look at a moth in 11C -- the drift is the one
+ * thing on screen that is *supposed* to look indecisive, and the faster rate took the wander out of it.
  */
-export const LIGHT_DRIFT_TILES_PER_TICK = 0.04
+export const LIGHT_DRIFT_TILES_PER_TICK = 0.03
 
 /** Every tower on the board that is a light. The Nightlight today; step 17's Candle joins it. */
 export function lightSources(world: World): Tower[] {

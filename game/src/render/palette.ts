@@ -45,6 +45,26 @@ export const TRACK_FILL = '#4c3f35'
 export const LAMP_CORE = 'rgba(245, 198, 107, 0.2)'
 export const LAMP_EDGE = 'rgba(245, 198, 107, 0)'
 
+/**
+ * What an enemy that is off the floor casts on it.
+ *
+ * Darker than the darkest floor and translucent, so it reads as a shadow over whatever it crosses --
+ * the track, a crumb pile, a pool of lamp light -- rather than as a hole punched in it. It is the
+ * *ground* half of "this thing is flying"; the bob is the other half, and neither works alone.
+ */
+export const FLYER_SHADOW = 'rgba(4, 6, 12, 0.38)'
+
+/**
+ * The pool a lamp *tower* throws, in the same two stops the terrain bake's lamps use.
+ *
+ * Deliberately the same hue as `LAMP_CORE`: this is the same kitchen light, and a Nightlight that
+ * glowed a colour the board does not already have would read as a status effect on the floor rather
+ * than as a lamp being on. A touch dimmer than the baked pools, which are half a board across and
+ * this is four tiles.
+ */
+export const TOWER_LIGHT_CORE = 'rgba(245, 198, 107, 0.16)'
+export const TOWER_LIGHT_EDGE = 'rgba(245, 198, 107, 0)'
+
 /** What is left of an enemy's health, and the socket it sits in. Only drawn on a damaged enemy. */
 export const HP_BAR_BACK = 'rgba(8, 10, 18, 0.8)'
 export const HP_BAR_FILL = '#7ad67a'

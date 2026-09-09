@@ -129,7 +129,7 @@ describe('a Moth passing a Nightlight', () => {
 		const enemy = addEnemy(world, moth)
 
 		// Level with the lamp: 375 ticks at 1.6 tiles/sec puts it at x = 10, and it has been in reach
-		// since x = 6 -- 150 ticks at 0.04 tiles/tick, which is past the 3-tile clamp.
+		// since x = 6 -- 150 ticks at 0.03 tiles/tick, which is past the 3-tile clamp.
 		run(world, 375)
 		expect(enemy.lateralOffsetTiles).toBeCloseTo(LIGHT_MAX_OFFSET_TILES, 10)
 

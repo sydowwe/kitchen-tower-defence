@@ -15,7 +15,12 @@
 					:title="t(entry.nameKey)"
 					@click="emit('select', entry.id)"
 				>
-					<span class="key">{{ index + 1 }}</span>
+					<span
+						v-if="keyFor(index) !== null"
+						class="key"
+					>
+						{{ keyFor(index) }}
+					</span>
 					<span class="glyph">{{ entry.glyph }}</span>
 					<span class="cost">
 						<FontAwesomeIcon
@@ -61,6 +66,20 @@
 	const emit = defineEmits<{ select: [defId: DefId] }>()
 
 	const { t } = useI18n()
+
+	/**
+	 * The key that arms the button at `index`, or null for a slot that has none.
+	 *
+	 * `ui/interaction.ts` binds 1-9 and then 0 to the tenth, so the tenth badge reads `0` and not `10`
+	 * -- a badge naming a key that does not exist is worse than no badge. An eleventh tower gets null
+	 * rather than a number, which is why this is a function and not `index + 1`.
+	 */
+	function keyFor(index: number): string | null {
+		if (index === 9) {
+			return '0'
+		}
+		return index < 9 ? String(index + 1) : null
+	}
 </script>
 
 <style scoped>

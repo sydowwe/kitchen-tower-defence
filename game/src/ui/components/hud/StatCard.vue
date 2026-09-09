@@ -7,6 +7,13 @@
 			{{ t(descriptionKey) }}
 		</p>
 		<dl>
+			<!-- First, above damage, and the only row that moved: it is the one line that decides
+				 whether a purchase is useful at all, and a Toaster that shoots nothing on the ground
+				 should say so before 140 crumbs are spent rather than seven rows down. -->
+			<template v-if="stats.targets !== null">
+				<dt>{{ t('hud.stat.targets') }}</dt>
+				<dd>{{ t(`hud.targetClass.${stats.targets}`) }}</dd>
+			</template>
 			<template v-if="stats.damage !== null">
 				<dt>{{ t('hud.stat.damage') }}</dt>
 				<dd>{{ stats.damage }}</dd>
@@ -30,10 +37,6 @@
 			<template v-if="stats.damageType !== null">
 				<dt>{{ t('hud.stat.damageType') }}</dt>
 				<dd>{{ t(`hud.damage.${stats.damageType}`) }}</dd>
-			</template>
-			<template v-if="stats.targets !== null">
-				<dt>{{ t('hud.stat.targets') }}</dt>
-				<dd>{{ t(`hud.targetClass.${stats.targets}`) }}</dd>
 			</template>
 			<template v-if="stats.applies.length > 0">
 				<dt>{{ t('hud.stat.applies') }}</dt>
@@ -70,6 +73,10 @@
 			<template v-if="stats.collectRadiusTiles !== null">
 				<dt>{{ t('hud.stat.collect') }}</dt>
 				<dd>{{ t('hud.stat.tiles', { n: stats.collectRadiusTiles }) }}</dd>
+			</template>
+			<template v-if="stats.revealRadiusTiles !== null">
+				<dt>{{ t('hud.stat.lights') }}</dt>
+				<dd>{{ t('hud.stat.tiles', { n: stats.revealRadiusTiles }) }}</dd>
 			</template>
 			<dt>{{ t('hud.stat.noise') }}</dt>
 			<dd>{{ stats.noise === 0 ? t('hud.stat.silent') : stats.noise }}</dd>

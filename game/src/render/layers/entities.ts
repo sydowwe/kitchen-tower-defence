@@ -18,11 +18,13 @@ import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
 import { applyLateralOffset, samplePath } from '@/core/path.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { barricadeHolding, isBarricade } from '@/core/systems/barricades.ts'
+import { isFlyer } from '@/core/systems/targeting.ts'
 import type { Enemy, MapDef, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
 import {
 	CHEW_DEBRIS,
+	FLYER_SHADOW,
 	STATUS_BURN_FLAME,
 	STATUS_POISON_BUBBLE,
 	STATUS_ROOTED_SHIMMER,
@@ -60,6 +62,32 @@ const CHEW_SPECKS = 2
 const CHEW_SPECK_RADIUS_PX = 1.5
 const CHEW_SPECK_REACH_TILES = 0.34
 const CHEW_SPECK_PER_FRAME = 0.03
+
+/**
+ * The air layer, as two halves of one picture.
+ *
+ * A bob without a shadow is a bug with a nervous walk and a shadow without a bob is a smudge, so
+ * neither is optional. The shadow holds still on the ground while the glyph rises off it -- exactly
+ * the chew lunge's rule, and the only thing that makes the gap between them read as height.
+ *
+ * Aged in frames like every other treatment in this file. A bob aged in `world.tick` runs three times
+ * as fast at 3x speed, which is the difference between a fly hovering and a fly vibrating.
+ */
+const FLYER_BOB_TILES = 0.22
+/** Radians per frame. ~0.6 of a rise-and-fall a second: a hover, not a flutter. */
+const FLYER_BOB_PER_FRAME = 0.06
+/** An ellipse rather than a disc, because the board is drawn from a little above. */
+const FLYER_SHADOW_RADIUS_TILES = 0.19
+const FLYER_SHADOW_SQUASH = 0.42
+/**
+ * How far the shadow shrinks at the top of the rise.
+ *
+ * The size is the whole of the variation and there is no alpha with it: `globalAlpha` is per-pass and
+ * the shadows are one `beginPath` and one `fill` for the entire board, so a per-enemy fade would cost
+ * a fill per fly -- the batching this file is built on, given up for a difference a smaller ellipse
+ * already carries against a dark floor (11C, build item 1).
+ */
+const FLYER_SHADOW_SHRINK = 0.28
 
 /** Slow: a disc a little wider than the glyph, so it reads as standing in something cold. */
 const SLOW_DISC_TILES = 0.42
@@ -118,6 +146,13 @@ interface EnemyFrame {
 	 * rather than for a state it can read (step 10C, decision 6).
 	 */
 	chewing: boolean
+	/**
+	 * Off the floor: `isFlyer` from `core/systems/targeting.ts`, which is the one predicate every
+	 * reader that asks about the floor already shares. Written for every entry every frame like the
+	 * rest of this pool -- an unwritten field on a reused entry is a stale one, and a stale `flying`
+	 * is an ant with a shadow.
+	 */
+	flying: boolean
 	/** The path's direction where this enemy stands. Only meaningful while `chewing`. */
 	dirX: number
 	dirY: number
@@ -157,6 +192,7 @@ function frameAt(index: number): EnemyFrame {
 		poison: 0,
 		rooted: false,
 		chewing: false,
+		flying: false,
 		dirX: 1,
 		dirY: 0,
 	}
@@ -199,6 +235,49 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 /** How far into its bite this enemy is, 0 to 1. Frames, so it does not treble its rate at 3x speed. */
 function lungePhase(entry: EnemyFrame): number {
 	return 0.5 + 0.5 * Math.sin(ageFrames * CHEW_LUNGE_PER_FRAME + entry.x + entry.y)
+}
+
+/**
+ * How far into its rise this enemy is, 0 on the floor to 1 at the top.
+ *
+ * Offset by its own position, the way every other treatment here is, so a queue of flies is a shoal
+ * and not a chorus line.
+ */
+function bobPhase(entry: EnemyFrame): number {
+	return 0.5 + 0.5 * Math.sin(ageFrames * FLYER_BOB_PER_FRAME + entry.x + entry.y)
+}
+
+/**
+ * The shadow on the floor under everything that is off it.
+ *
+ * Batched the way `drawSlow` and `drawChew` batch -- one `beginPath`, many `ellipse`s, one `fill` --
+ * and drawn **after** the slow discs so a slowed fly still reads as cold, and before the glyph loop so
+ * nothing on the floor sits over a bug.
+ */
+function drawFlyerShadows(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const radius = FLYER_SHADOW_RADIUS_TILES * tilePx
+	let any = false
+
+	ctx.fillStyle = FLYER_SHADOW
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.flying) {
+			continue
+		}
+		any = true
+		// Smallest at the top of the rise. The shadow itself never moves: it is the fixed thing the
+		// glyph's height is read against.
+		const scale = 1 - FLYER_SHADOW_SHRINK * bobPhase(entry)
+		const rx = radius * scale
+		const ry = rx * FLYER_SHADOW_SQUASH
+		ctx.moveTo(entry.x + rx, entry.y)
+		ctx.ellipse(entry.x, entry.y, rx, ry, 0, 0, Math.PI * 2)
+	}
+
+	if (any) {
+		ctx.fill()
+	}
 }
 
 /**
@@ -388,6 +467,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		entry.dirX = Math.cos(at.angle)
 		entry.dirY = Math.sin(at.angle)
 		entry.chewing = barricades && barricadeHolding(world, enemy) !== null
+		entry.flying = isFlyer(enemy)
 		readStatuses(entry, enemy)
 
 		if (entry.chewing) {
@@ -406,18 +486,31 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 	}
 
 	drawSlow(ctx, liveCount, tilePx)
+	drawFlyerShadows(ctx, liveCount, tilePx)
 
 	const size = tilePx * ENEMY_SCALE
 	const lunge = CHEW_LUNGE_TILES * tilePx
+	const bob = FLYER_BOB_TILES * tilePx
 	for (let i = 0; i < liveCount; i++) {
 		const entry = frames[i]
 		if (entry === undefined) {
 			continue
 		}
 		// The lunge moves the glyph and not the frame: the bar and the treatments stay where the enemy
-		// is, so a queue reads as biting rather than as forty ants wobbling.
+		// is, so a queue reads as biting rather than as forty ants wobbling. The bob is the same rule for
+		// the same reason -- a shadow and a health bar that rise with the fly are a fly that never leaves
+		// the floor.
 		const bite = entry.chewing ? lungePhase(entry) * lunge : 0
-		blitGlyph(ctx, dpr, entry.glyph, size, entry.x + entry.dirX * bite, entry.y + entry.dirY * bite, entry.mirrored)
+		const lift = entry.flying ? bobPhase(entry) * bob : 0
+		blitGlyph(
+			ctx,
+			dpr,
+			entry.glyph,
+			size,
+			entry.x + entry.dirX * bite,
+			entry.y + entry.dirY * bite - lift,
+			entry.mirrored,
+		)
 		drawHpBar(ctx, entry.x, entry.y - size / 2, tilePx * HP_BAR_WIDTH_SCALE, entry.hp, entry.maxHp)
 	}
 
