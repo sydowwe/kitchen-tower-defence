@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §2 *Art: emoji sprites* and §1
-(tone, for the copy pass), `../../analytic-docs/ARCHITECTURE.md` §6 (the frame budget),
-`../../analytic-docs/CONTENT.md` §4 (what each status is, and the two numbers you are here to
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §2 *Art: emoji sprites* and §1
+(tone, for the copy pass), `../../../analytic-docs/ARCHITECTURE.md` §6 (the frame budget),
+`../../../analytic-docs/CONTENT.md` §4 (what each status is, and the two numbers you are here to
 settle).
 **Prereq:** 9A and 9B.
 
@@ -62,7 +62,7 @@ Override one only if the code proves it wrong — and then edit this file, don't
    per kind. `perSecond` is null for the statuses that deal no damage. `StatusKind` joins the
    vocabulary `ui/viewModel.ts` re-exports, so `StatCard.vue` still imports nothing from `core/`.
 7. **Tune only the numbers the docs do not fix.** Cone half-angle, the Ice Cube Tray's projectile
-   speed and the night tables are yours. Anything in `../../analytic-docs/CONTENT.md` §1–§4 moves
+   speed and the night tables are yours. Anything in `../../../analytic-docs/CONTENT.md` §1–§4 moves
    only as an edit to that file in the same commit — the Spray Bottle's 2/s poison included, which
    is now §1's number authored as a per-application override rather than a contradiction waiting on
    this session.
@@ -75,7 +75,7 @@ Read off `enemy.statuses` per enemy, after the glyph and the HP bar. The languag
 brief: **Slow** a blue tint plus frost specks, **Burn** an orange flicker, **Poison** green bubbles,
 **Rooted** a white shimmer. Colours as role-named constants in `palette.ts`.
 
-- This is the 60Hz layer, and `../../analytic-docs/ARCHITECTURE.md` §6 is explicit about it: no
+- This is the 60Hz layer, and `../../../analytic-docs/ARCHITECTURE.md` §6 is explicit about it: no
   `fillText`, no gradients, **no allocation per entity per frame**. Batch by treatment the way
   `drawSpecks` does — one `beginPath`, many `arc`s, one `fill` — rather than a path per enemy.
 - Restore `ctx.globalAlpha = 1` at the end of every pass. Leaving it set fades everything drawn
@@ -135,16 +135,16 @@ With `npm run dev` running, at 1× and at 3×, more than once. Then:
   2/s as a per-application override, so changing it is a one-line edit in `towers.ts` that touches
   no other source of poison and no status default. Watch what it actually does on night 5: against
   `swarm`'s ×1.5 to chemical, one stack is 3/sec on an Ant and five stacks is 15, and a cone reaches
-  the whole queue. If it moves, `../../analytic-docs/CONTENT.md` §1 moves with it in the same
+  the whole queue. If it moves, `../../../analytic-docs/CONTENT.md` §1 moves with it in the same
   commit.
 - **Revise the English.** 9A and 9B wrote four entries with nothing on screen. Read them next to the
-  cards: `../../analytic-docs/DECISIONS.md` §1 is understated and dry, and a description that reads
+  cards: `../../../analytic-docs/DECISIONS.md` §1 is understated and dry, and a description that reads
   as a joke on a card read forty times a night is the wrong length.
 - Only then, the icon row from decision 5, if you still want it.
 
 ## Tests
 
-**None new over `render/`.** `../../analytic-docs/ARCHITECTURE.md` §7: the bugs there are visible,
+**None new over `render/`.** `../../../analytic-docs/ARCHITECTURE.md` §7: the bugs there are visible,
 and the acceptance criteria below are the instrumentation. 9A and 9B carry every assertion in step 9.
 
 The one exception is not a suite: if you extend `statsFor`, extend the existing stat-card assertion

@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the Act I table, the
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the Act I table, the
 *Behaviour notes* line for the Mousetrap, and *Economy rates* for the Cookie Jar),
-`../../analytic-docs/DECISIONS.md` §9 change 3 (why tower HP ships now).
+`../../../analytic-docs/DECISIONS.md` §9 change 3 (why tower HP ships now).
 **Prereq:** step 9, including 9C.
 
 ## Goal
@@ -69,7 +69,7 @@ edit this file, don't leave it lying.
 8. **No `towerDamaged` event.** Nothing consumes one — the HP bar reads `tower.hp` directly — and a
    `GameEvent` member is added by the step that reads it. `economy.ts`'s header states the same rule.
 9. **The destroy penalty is a field on `IncomeBehaviour`, not a new behaviour kind**:
-   `enemyCrumbsOnDestroy: number`, defaulting to 0. `../../analytic-docs/CONTENT.md` §1 puts the 200
+   `enemyCrumbsOnDestroy: number`, defaulting to 0. `../../../analytic-docs/CONTENT.md` §1 puts the 200
    in the *Economy rates* table beside the 9/sec, which is what it is a property of. A thirteenth
    union member would cost a schema entry, a `BEHAVIOUR_KINDS` line and a `behaviours.spec.ts` update
    for one number; a branch on `defId` in a system file is what the content rule forbids outright.
@@ -147,12 +147,12 @@ Gotchas, both worth four lines each:
   `'building'` anyway.
 
 Then delete the `TODO(step 10)` on `cookieJar`, set `enemyCrumbsOnDestroy: 200` on its `income`, and
-add the rule to `../../analytic-docs/DECISIONS.md` §4 as one bullet — the step asks for it to be
+add the rule to `../../../analytic-docs/DECISIONS.md` §4 as one bullet — the step asks for it to be
 written down, and §4 is where the crumb economy lives.
 
 ### 4. The Mousetrap (`core/content/towers.ts`, `ui/locales/en.ts`)
 
-`../../analytic-docs/CONTENT.md` §1, Act I: 90 crumbs, 60 damage, 0.15/sec, range 1, physical,
+`../../../analytic-docs/CONTENT.md` §1, Act I: 90 crumbs, 60 damage, 0.15/sec, range 1, physical,
 ground, noise **2**, `off_path`, and §1's behaviour note gives `STRONGEST` and the 6.6s rearm.
 `maxHp: 100` matches every non-wall tower's precedent, `role: 'BURST_DPS'`, glyph 🪤.
 
@@ -160,7 +160,7 @@ ground, noise **2**, `off_path`, and §1's behaviour note gives `STRONGEST` and 
 all. `behaviours: [attack({...}), charge({ charges: 1, rearmTicks: 396 })]`, both tick counts from
 the one named constant per decision 12.
 
-Write the `en.ts` entry now; 10C revises it after seeing the card. `../../analytic-docs/DECISIONS.md`
+Write the `en.ts` entry now; 10C revises it after seeing the card. `../../../analytic-docs/DECISIONS.md`
 §1 sets the voice — understated, dry, never jokey.
 
 ## Tests

@@ -26,7 +26,7 @@ that plays it.
 
 **A and B carry every test in the step. C has none.** Both of the first two parts are headless core
 work and each carries the assertions for its own system — A the status wiring, B the geometry. C is
-`render/` plus copy plus content tuning: `../analytic-docs/ARCHITECTURE.md` §7 rules out specs over
+`render/` plus copy plus content tuning: `../../analytic-docs/ARCHITECTURE.md` §7 rules out specs over
 the renderer, and the one headless thing C touches (`statsFor` in `ui/viewModel.ts`) extends an
 assertion that already exists rather than earning a suite. A part with no tests is not an
 under-tested part; do not invent coverage for C.
@@ -83,7 +83,7 @@ silently reinterpreted.
    rearmTicksRemaining }` in `core/types.ts`. What is missing is that nothing ever *fills it in*:
    `placeTower` builds every tower with `state: null`. A does the initialisation and the
    consumption, so step 17's "the field exists from step 9's Sticky Tape" stays true.
-3. **"Author nights 4–7"** — `../analytic-docs/CONTENT.md` §6 puts nights 4–6 on the Sink and night 7
+3. **"Author nights 4–7"** — `../../analytic-docs/CONTENT.md` §6 puts nights 4–6 on the Sink and night 7
    in the Pantry, and neither map exists: step 21 authors the other five maps and wires nights 1–18
    in full. Meanwhile `createWorld` throws when a night's `mapId` is not the map it was handed, and
    `GameView.vue` hard-codes `MAP_ID = 'counter'`. So B authors nights 4–7 **on the Counter**, and
@@ -109,8 +109,8 @@ silently reinterpreted.
    with it. `statuses.ts` stays the only truth; a later step that authors status content reconciles
    the two rather than adding a third.
 8. **Ice Cube Tray's targets.** The step's line names only its damage and its status;
-   `../analytic-docs/CONTENT.md` §1 says `ground`. A takes the doc.
-9. **The two poison rates.** `../analytic-docs/CONTENT.md` §1 gives the Spray Bottle "3 + 2/s";
+   `../../analytic-docs/CONTENT.md` §1 says `ground`. A takes the doc.
+9. **The two poison rates.** `../../analytic-docs/CONTENT.md` §1 gives the Spray Bottle "3 + 2/s";
    §4 gives Poison 4 dmg/s. The step says to add a per-application override "only if a tower
    actually needs one" — and one does, three times over: §1 authors a DoT rate per *tower* for the
    Spray Bottle, Vinegar Spray, the Candle and the Burner. So A makes the **magnitude** overridable

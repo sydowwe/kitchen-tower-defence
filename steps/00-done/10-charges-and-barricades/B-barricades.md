@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §3 (the fixed track, and the
-Cardboard Box redesign table), `../../analytic-docs/CONTENT.md` §1 (the Act I row and the *Behaviour
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §3 (the fixed track, and the
+Cardboard Box redesign table), `../../../analytic-docs/CONTENT.md` §1 (the Act I row and the *Behaviour
 notes* line for the box) and §2 (the enemy table).
 **Prereq:** step 10A.
 
@@ -96,7 +96,7 @@ because an optional field is decision 9's failure mode.
 Pin them in `tests/content.spec.ts` the way the speeds are pinned: `× 60` back to the doc's units, so
 a per-second value pasted in fails the assertion as well as the schema.
 
-`../../analytic-docs/CONTENT.md` §2 has **no column for this**. Leave the doc alone for now — 10C
+`../../../analytic-docs/CONTENT.md` §2 has **no column for this**. Leave the doc alone for now — 10C
 tunes the number after watching a queue eat a box, and adds the column only if it settles somewhere
 other than `hp / 10`.
 
@@ -125,7 +125,7 @@ in `core/systems/index.ts`, and the literal list in `tests/sim.spec.ts`.
 
 ### 3. The Cardboard Box (`core/content/towers.ts`, `ui/locales/en.ts`)
 
-`../../analytic-docs/CONTENT.md` §1, Act I: 25 crumbs, **200 HP**, `path_only`, role `WALL`, noise 0,
+`../../../analytic-docs/CONTENT.md` §1, Act I: 25 crumbs, **200 HP**, `path_only`, role `WALL`, noise 0,
 glyph 📦, and §1's note — "enemies stop and attack it; it does not damage them". `behaviours:
 [barricade()]` and nothing else: it has no attack, no income, no charge.
 
@@ -192,4 +192,4 @@ Draw anything. The box's damage states, the chew animation and the tower HP bar 
 `render/` is not this session's directory. Do not add a second damage path — everything goes through
 10A's `damageTower` and `destroyTower`, including the box reaching 0. Do not implement flyers as a
 system (step 11), tile effects (step 14) or pushback (step 18), and do not give the box the T3
-reflect damage `../../analytic-docs/CONTENT.md` §1 lists — upgrades are step 12.
+reflect damage `../../../analytic-docs/CONTENT.md` §1 lists — upgrades are step 12.

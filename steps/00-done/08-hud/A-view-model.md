@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §5 (the reactivity rule —
-this whole session exists because of it), `../../analytic-docs/DECISIONS.md` §5 (calling waves early)
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §5 (the reactivity rule —
+this whole session exists because of it), `../../../analytic-docs/DECISIONS.md` §5 (calling waves early)
 and §6 (the fridge is the health bar).
 **Prereq:** step 7.
 
@@ -152,7 +152,7 @@ nothing is ever spliced, so "the most recently lost" is the highest lost index, 
 ### 4. `ui/locales/en.ts` and `ui/locales/contentKeys.ts`
 
 Every string 8B and 8C will render. Write them now, in one pass, in the voice
-`../../analytic-docs/DECISIONS.md` §1 sets — 8C revises this copy after playing, and both files say
+`../../../analytic-docs/DECISIONS.md` §1 sets — 8C revises this copy after playing, and both files say
 so.
 
 - `hud.*` — extend what is there: the shop, the stat-card labels (damage / rate / dps / range / type
@@ -161,7 +161,7 @@ so.
 - `hud.reject.*` — one per `PlacementRejection`, satisfied through `RejectionMessages`. Write them as
   the player's problem, not the validator's: "can't build on the track", not "TRACK flag set".
 - `night.*` — the summary. `night.foodLost` is the line
-  `../../analytic-docs/DECISIONS.md` §6 calls the emotional payload; give it a list separator and use
+  `../../../analytic-docs/DECISIONS.md` §6 calls the emotional payload; give it a list separator and use
   `general.and` for the last item rather than inventing a second one.
 - Nothing English is added to `core/`, and no `t()` call appears in `viewModel.ts`.
 

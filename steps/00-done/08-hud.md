@@ -43,7 +43,7 @@ hold world state, or enqueue anything. C may enqueue commands and mutate the sel
 give a component a live reference into the world.
 
 Move that line — one component importing `world`, one handler writing a field a template reads — and
-Vue reactivity is over simulation state (`../analytic-docs/ARCHITECTURE.md` §5). Nothing fails; the
+Vue reactivity is over simulation state (`../../analytic-docs/ARCHITECTURE.md` §5). Nothing fails; the
 frame budget just goes, three steps later, and the diff that did it is by then invisible.
 
 ## Dependency order
@@ -98,7 +98,7 @@ rather than silently reinterpreted.
    drawn that row on the canvas since step 5C, and `effects.ts` launches a stolen item out of its
    slot. A second row in the DOM would disagree with the theft animation the moment an item goes. B
    keeps one shelf, on the board, and gives the TopBar the count plus **the name of the last item
-   lost** — which is the sting `../analytic-docs/DECISIONS.md` §6 actually asks for and the canvas
+   lost** — which is the sting `../../analytic-docs/DECISIONS.md` §6 actually asks for and the canvas
    cannot show.
 3. **"targeting mode selector (stubbed until step 12)"** — `SetTargetingMode` has been executed by
    `core/systems/commands.ts` and all six modes implemented in `core/systems/targeting.ts` since step

@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (Act I — the **Spray Bottle**
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (Act I — the **Spray Bottle**
 row), §2 (the **Beetle** row), §6 (nights 4–7 of the schedule),
-`../../analytic-docs/ARCHITECTURE.md` §6 (the range-query budget).
+`../../../analytic-docs/ARCHITECTURE.md` §6 (the range-query budget).
 **Prereq:** 9A.
 
 ## Goal
@@ -53,7 +53,7 @@ Override one only if the code proves it wrong — and then edit this file, don't
 6. **`Projectile` gains `targets: TargetClass`.** Splash needs the filter and the projectile
    outlives the tower that fired it. Two lines and one pooled field now, against a ground-only
    splash silently hitting flyers in step 12 — and like `applies`, it is overwritten on acquire.
-7. **The Spray Bottle defaults to `CLOSEST`** — `../../analytic-docs/CONTENT.md` §5: `FIRST` for
+7. **The Spray Bottle defaults to `CLOSEST`** — `../../../analytic-docs/CONTENT.md` §5: `FIRST` for
    DPS, `STRONGEST` for burst, `CLOSEST` for auras and cones.
 8. **Nights 4–7 are authored on the Counter** (`mapId: 'counter'`). §6 puts them on the Sink and in
    the Pantry, but neither map exists until step 21, which authors all five and re-wires the

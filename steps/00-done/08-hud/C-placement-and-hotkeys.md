@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §3 (commands are the only
-write path) and §6, `../../analytic-docs/DECISIONS.md` §5 (calling waves early, speed multipliers).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §3 (commands are the only
+write path) and §6, `../../../analytic-docs/DECISIONS.md` §5 (calling waves early, speed multipliers).
 **Prereq:** steps 8A and 8B.
 
 ## Goal
@@ -155,7 +155,7 @@ dynamic import of it out of `GameView.vue`.
   `onTrack` on every click and a stack of nine identical toasts is noise.
 
 Everything here **enqueues a command and never writes to `world`**
-(`../../analytic-docs/ARCHITECTURE.md` §3). The selection is UI state and may be written directly.
+(`../../../analytic-docs/ARCHITECTURE.md` §3). The selection is UI state and may be written directly.
 
 ### 4. `ui/views/GameView.vue`
 

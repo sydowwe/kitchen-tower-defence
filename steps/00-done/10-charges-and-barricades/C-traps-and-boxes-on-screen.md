@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §2 *Art: emoji sprites* and §1
-(tone, for the copy pass), `../../analytic-docs/ARCHITECTURE.md` §6 (the frame budget),
-`../../analytic-docs/CONTENT.md` §1 (the two rows you are writing cards for).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §2 *Art: emoji sprites* and §1
+(tone, for the copy pass), `../../../analytic-docs/ARCHITECTURE.md` §6 (the frame budget),
+`../../../analytic-docs/CONTENT.md` §1 (the two rows you are writing cards for).
 **Prereq:** 10A and 10B.
 
 ## Goal
@@ -59,7 +59,7 @@ Override one only if the code proves it wrong — and then edit this file, don't
    `world.events`, which is a per-tick array the HUD also drains — and events are for things a
    consumer must not miss, not for a state it can read.
 7. **The card shows the def's numbers, never the live ones.** `buildTowerInspector` runs on
-   *selection change*, not at 15Hz (`../../analytic-docs/ARCHITECTURE.md` §5 grants it that one
+   *selection change*, not at 15Hz (`../../../analytic-docs/ARCHITECTURE.md` §5 grants it that one
    exception deliberately narrowly), so a live rearm countdown in the panel would sit frozen at
    whatever it read when you clicked. The live state is read off the tower on the board, which is
    what decision 1's treatment is for.
@@ -70,7 +70,7 @@ Override one only if the code proves it wrong — and then edit this file, don't
 9. **`hitPoints` is null unless the tower can actually be destroyed** — in v1, unless it is a
    barricade. Every tower has a `maxHp`, but a HP row on seven towers nothing in the game can damage
    is a row that means nothing; step 13's noise penalty is what turns it on for the rest.
-10. **Tune only the numbers no doc fixes.** `../../analytic-docs/CONTENT.md` §1 fixes the box (25,
+10. **Tune only the numbers no doc fixes.** `../../../analytic-docs/CONTENT.md` §1 fixes the box (25,
     200 HP) and the Mousetrap (90, 60, 0.15/sec, range 1, noise 2) and §2 fixes every enemy stat —
     except `meleeDamagePerTick`, which has no column at all. That one is yours. Anything in §1–§2
     moves only as an edit to that file in the same commit.
@@ -105,7 +105,7 @@ A box that vanishes between two frames with no acknowledgement reads as a render
 
 Decision 6's flag, then a treatment: a small repeated lunge toward the box, or a bite mark, batched
 the way the other four are. Forty ants eating one box is one of the game's best images —
-`../../analytic-docs/ARCHITECTURE.md` §6 is explicit that this is the 60Hz layer, so no `fillText`,
+`../../../analytic-docs/ARCHITECTURE.md` §6 is explicit that this is the 60Hz layer, so no `fillText`,
 no gradients, and no allocation per entity per frame.
 
 Gotcha: an enemy is held at `boxDistance - 0.5`, so a whole queue sits at **the same arc distance**
@@ -136,7 +136,7 @@ With `npm run dev` running, at 1× and at 3×, more than once. Night 6 is `night
   1/sec an ant needs 200 seconds alone and ten of them need 20. Does a 25-crumb box buy a meaningful
   amount of time against night 6's opening, or is it either a formality or an unbreakable wall? If
   the number moves, it moves in `core/content/enemies.ts` and `tests/content.spec.ts` together, and
-  `../../analytic-docs/CONTENT.md` §2 gains the column in the same commit.
+  `../../../analytic-docs/CONTENT.md` §2 gains the column in the same commit.
 
   **It did not move.** Measured headlessly on night 6 (a throwaway spec driving `createWorld` +
   `tick`, deleted after): a box at 45% of the lane with two Salt Shakers beside it takes its first
@@ -152,12 +152,12 @@ With `npm run dev` running, at 1× and at 3×, more than once. Night 6 is `night
   tower being broken rather than as being spent, that is decision 1's treatment failing, not the
   balance.
 - **Revise the English.** 10A and 10B wrote two entries with nothing on screen. Read them next to the
-  cards; `../../analytic-docs/DECISIONS.md` §1 is understated and dry, and a description that reads
+  cards; `../../../analytic-docs/DECISIONS.md` §1 is understated and dry, and a description that reads
   as a joke on a card read forty times a night is the wrong length.
 
 ## Tests
 
-**None new over `render/`.** `../../analytic-docs/ARCHITECTURE.md` §7: the bugs there are visible,
+**None new over `render/`.** `../../../analytic-docs/ARCHITECTURE.md` §7: the bugs there are visible,
 and the acceptance criteria below are the instrumentation. 10A and 10B carry every assertion in
 step 10.
 
@@ -183,7 +183,7 @@ that already runs, so a barricade silently losing its card is caught. Do not wri
 ## Do not
 
 Add a repair button, a repair cost or a repair anything — repair is not a v1 feature and a destroyed
-tower is rebuilt (`../../analytic-docs/CONTENT.md` §1 has no row for it). Do not draw a noise meter,
+tower is rebuilt (`../../../analytic-docs/CONTENT.md` §1 has no row for it). Do not draw a noise meter,
 an aura radius, a heated tile or a light source — steps 13, 17, 14 and 11 own those and each brings
 its own visual language. Do not add an upgrade button (step 12). Do not add a tower, an enemy, a
 status or a night past 7. Do not put animation state on the world, and do not read `world.tick` for

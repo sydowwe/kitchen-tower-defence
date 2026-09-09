@@ -28,7 +28,7 @@ is the part that plays it.
 **A and B carry every test in the step. C has none.** Both of the first two are headless core work
 and each carries the assertions for its own machine — A the charge cycle and the destruction path, B
 the geometry of being stopped. C is `render/` plus copy plus content tuning:
-`../analytic-docs/ARCHITECTURE.md` §7 rules out specs over the renderer, and the one headless thing
+`../../analytic-docs/ARCHITECTURE.md` §7 rules out specs over the renderer, and the one headless thing
 C touches (`statsFor` in `ui/viewModel.ts`) extends an assertion that already exists rather than
 earning a suite. A part with no tests is not an under-tested part; do not invent coverage for C.
 
@@ -114,7 +114,7 @@ record rather than silently reinterpreted.
    puts a `path_only` tower in the shop.
 
 8. **The Mousetrap's rate and its rearm are the same interval, written twice.**
-   `../analytic-docs/CONTENT.md` §1 gives 0.15/sec and §1's behaviour note gives 6.6s. Two different
+   `../../analytic-docs/CONTENT.md` §1 gives 0.15/sec and §1's behaviour note gives 6.6s. Two different
    tick counts means one of them is dead machinery; A authors **one** number, 396, for both
    `cooldownTicks` and `rearmTicks`. `round2(60 / 396)` is 0.15, so the card still shows the doc's
    rate. → A.
@@ -126,9 +126,9 @@ record rather than silently reinterpreted.
 
 10. **"an immediate wave-strength boost **or** a burst of extra spawns"** — A picks the burst,
     delivered as extra `WaveSpawn` cursors on the running wave so it reuses the spawn machinery
-    whole, and writes the rule into `../analytic-docs/DECISIONS.md` §4 as the step asks.
+    whole, and writes the rule into `../../analytic-docs/DECISIONS.md` §4 as the step asks.
 
-11. **`meleeDamage` has no column in `../analytic-docs/CONTENT.md` §2.** The step's `hp / 10` per
+11. **`meleeDamage` has no column in `../../analytic-docs/CONTENT.md` §2.** The step's `hp / 10` per
     second is the only authority, so B authors it as `meleeDamagePerTick` — the unit every other
     rate field in the codebase carries — and C tunes it. If the number moves off `hp / 10`, §2 gains
     the column in the same commit.

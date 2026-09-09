@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §4 (the status table) and §1's
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §4 (the status table) and §1's
 Act I rows for **Sticky Tape** and **Ice Cube Tray**. §3 (the matrix) only if you want to check a
 multiplier by eye.
 **Prereq:** step 8.
@@ -55,7 +55,7 @@ edit this file, don't leave it lying.
    saved and replayed. `attack()` already normalises `projectileSpeed ?? 0` in the same place for the
    same reason.
 2. **Magnitude is overridable per application. Duration and stacking are not.**
-   `../../analytic-docs/CONTENT.md` §1 authors a DoT rate per *tower* — the Spray Bottle's 2/s,
+   `../../../analytic-docs/CONTENT.md` §1 authors a DoT rate per *tower* — the Spray Bottle's 2/s,
    Vinegar Spray's 4/s, the Candle's 4/s aura, the Burner's 14/s — against §4's one status-wide 4/s,
    so the roster disagrees with the status table in three places before Act II is out. Duration and
    the stack cap have no such second source: they stay single-copy on `STATUS_DEFS`, and Ice Cube
@@ -95,7 +95,7 @@ edit this file, don't leave it lying.
    the projectile has to carry it. Assign the behaviour's own array — `projectile.applies =
    attack.applies` — rather than copying: a behaviour descriptor is immutable content that outlives
    every world, the reference is overwritten on acquire like every other pooled field, and copying
-   an array of objects per shot allocates on the one path `../../analytic-docs/ARCHITECTURE.md` §6
+   an array of objects per shot allocates on the one path `../../../analytic-docs/ARCHITECTURE.md` §6
    budgets. **Never write through it.** Mutating that array edits the tower def for the rest of the
    session; the symptom is a tower whose second shot applies something its first one didn't.
 8. **`placeTower` initialises `Tower.state` from a `charge` behaviour** —
@@ -109,7 +109,7 @@ edit this file, don't leave it lying.
     `placement.ts` — splice plus reindex — and refactor `sellTower` to call it after paying.
     `TowerDestroyed` is step 10's event, and emitting `towerSold` with a refund of 0 would lie to a
     ledger the HUD reads.
-11. **Ice Cube Tray targets `ground`** (`../../analytic-docs/CONTENT.md` §1), and **Sticky Tape
+11. **Ice Cube Tray targets `ground`** (`../../../analytic-docs/CONTENT.md` §1), and **Sticky Tape
     defaults to `CLOSEST`** — §5 gives `FIRST` to DPS and `STRONGEST` to burst, and a tape is
     neither.
 
@@ -224,7 +224,7 @@ Neither overrides a magnitude — both take the status table's number, so both a
 form and the normaliser is exercised by the roster rather than only by a spec. The first real
 override is 9B's Spray Bottle; the synthetic def in your tests is what pins the mechanism.
 
-Then `ui/locales/en.ts` (both entries — the tone is `../../analytic-docs/DECISIONS.md` §1:
+Then `ui/locales/en.ts` (both entries — the tone is `../../../analytic-docs/DECISIONS.md` §1:
 understated, dry, never jokey), and `debug.hint`, which reads `'1-3 tower · …'` and is now `1-5`.
 
 ## Tests

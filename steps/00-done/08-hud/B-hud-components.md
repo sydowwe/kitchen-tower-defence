@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md` (the Vue block and *What goes in a store*),
-`../../analytic-docs/ARCHITECTURE.md` §5, `../../analytic-docs/DECISIONS.md` §1 (tone — reread it
+**Read first:** `../../../CLAUDE.md` (the Vue block and *What goes in a store*),
+`../../../analytic-docs/ARCHITECTURE.md` §5, `../../../analytic-docs/DECISIONS.md` §1 (tone — reread it
 before writing a single class name) and §6 (the fridge is the health bar).
 **Prereq:** step 8A.
 
@@ -39,7 +39,7 @@ edit this file, don't leave it lying.
    `GameView.vue` mounts `HudLayer` and nothing else: that file already owns the canvas, the loop,
    the world and the dev imports, and it is the most load-bearing file in the repo.
 2. **The HUD is over the board, not around it.** `.hud` stays the same box as the canvas. A DOM bar
-   *outside* it would shrink the board, and `../../analytic-docs/DECISIONS.md` §1 wants the board to
+   *outside* it would shrink the board, and `../../../analytic-docs/DECISIONS.md` §1 wants the board to
    be the brightest thing on screen — chrome floats at its edges on translucent panels.
 3. **HUD chrome is sized in `rem`, not in board units.** The board scales with the window; the HUD
    does not. At 1920 wide a scaled HUD would be printing 20px text, and at 1280 it would be
@@ -74,7 +74,7 @@ edit this file, don't leave it lying.
     as types. A component that reached past it for "just one type" is one refactor from reaching past
     it for a system, and the import graph is the only thing that catches that.
 11. **No Pinia.** Nothing here outlives the view: the snapshot is a `shallowRef` in `GameView.vue`
-    and the selection is 8A's module. `CLAUDE.md`'s *What goes in a store* names the HUD snapshot
+    and the selection is 8A's module. `../../../CLAUDE.md`'s *What goes in a store* names the HUD snapshot
     explicitly as something a store must not hold — in one, someone eventually `storeToRefs`es it
     into deep reactivity.
 
@@ -170,7 +170,7 @@ one to the queue is 8C's, and doing it here would be the second write path.
 **None.** `vite.config.ts` runs `environment: 'node'` with no jsdom, and neither `@vue/test-utils`
 nor a DOM environment has ever been a dependency of this repo — a component spec is not reachable,
 and adding the toolchain to assert that a button renders is not what
-`../../analytic-docs/ARCHITECTURE.md` §7 means by testing what silently drifts. Every assertion worth
+`../../../analytic-docs/ARCHITECTURE.md` §7 means by testing what silently drifts. Every assertion worth
 making about this session's numbers is already in 8A's `tests/viewModel.spec.ts`. The acceptance list
 below is the instrumentation.
 
