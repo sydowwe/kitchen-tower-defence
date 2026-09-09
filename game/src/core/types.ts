@@ -57,8 +57,13 @@ export type EnemyTag =
 /**
  * Runtime state an enemy is *in*, as opposed to what it *is*. Later steps extend this union --
  * step 16 owns burrowing, step 19 owns fleeing thieves.
+ *
+ * `hidden` and `revealed` are two different questions and both are needed: `hidden` is what the
+ * enemy *is*, and `revealed` is what a light is doing to it **right now**. `core/systems/light.ts`
+ * rewrites `revealed` from scratch every tick, so selling the lamp re-hides whatever it was lighting
+ * on the same tick with no field to clear anywhere.
  */
-export type EnemyFlag = 'hidden' | 'untargetable' | 'fleeing'
+export type EnemyFlag = 'hidden' | 'untargetable' | 'fleeing' | 'revealed'
 
 /** analytic-docs/CONTENT.md section 4. */
 export type StatusKind = 'slow' | 'freeze' | 'burn' | 'poison' | 'armorStrip' | 'marked' | 'rooted'
@@ -174,6 +179,21 @@ export interface Enemy {
 	pathId: string
 	/** Tiles travelled along `pathId`. Position is `samplePath(pathId, distance)`. */
 	distance: number
+	/**
+	 * How far this enemy is standing to the side of its lane, in tiles, **signed**: positive is the
+	 * `(-sin θ, cos θ)` side of it, and `applyLateralOffset` in `core/path.ts` is where that sign is
+	 * fixed once for every reader. 0 for everything but a
+	 * Moth being pulled toward a light, and `enemyPosition` returns early on that 0.
+	 *
+	 * **`distance` is never touched by it.** The offset is perpendicular to the arc, so `FIRST`/`LAST`,
+	 * `remainingToFridge`, the barricade projection and the leak check all keep reading the same float
+	 * they always did -- which is the whole reason the one enemy that leaves the polyline does not
+	 * need free movement (analytic-docs/DECISIONS.md section 3).
+	 *
+	 * State on the world rather than a derivation: the drift back is hysteretic -- it keeps going for
+	 * two seconds after the light is gone -- and no function of `distance` alone can answer that.
+	 */
+	lateralOffsetTiles: number
 	hp: number
 	maxHp: number
 	statuses: ActiveStatus[]

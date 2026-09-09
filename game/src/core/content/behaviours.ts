@@ -392,8 +392,14 @@ export function tileEffect(params: TileEffectParams): TileEffectBehaviour {
 }
 
 /**
- * Nightlight. Clears the `hidden` flag inside its radius, and pulls `light-drawn` enemies toward
- * it -- the two halves of "reveal" that the one tower does at once. Step 16.
+ * Nightlight. Reveals `hidden` enemies inside its radius, and pulls `light-drawn` ones toward it --
+ * the two halves of "reveal" that the one tower does at once. Read by `core/systems/light.ts`,
+ * step 11B.
+ *
+ * `attractsLightDrawn` is a **boolean and not a second radius**, which is why the moth's reach is
+ * `LIGHT_ATTRACTION_TILES` in that system: five tiles is a property of the moth's eyes, and
+ * `radiusTiles` below is what this lamp reveals within. Step 17's Candle gains one of these beside
+ * its aura and pulls from the same five tiles without authoring a third number.
  */
 export interface RevealBehaviour {
 	kind: 'reveal'
@@ -498,4 +504,12 @@ export function isIncome(behaviour: Behaviour): behaviour is IncomeBehaviour {
 /** And for charges: `placeTower` seeds `Tower.state` from one, and the rearm reads the same. */
 export function isCharge(behaviour: Behaviour): behaviour is ChargeBehaviour {
 	return behaviour.kind === 'charge'
+}
+
+/**
+ * And for lights. Two readers in `core/systems/light.ts` -- revelation and attraction -- and a third
+ * in 11C's `reachOf`, which is one more than hand-writing `b.kind === 'reveal'` survives.
+ */
+export function isReveal(behaviour: Behaviour): behaviour is RevealBehaviour {
+	return behaviour.kind === 'reveal'
 }

@@ -116,6 +116,26 @@ export function samplePath(path: Path, distance: number): { x: number; y: number
 }
 
 /**
+ * The sampled point displaced sideways off its own lane -- the one enemy in v1 that leaves the
+ * polyline (the Moth), expressed as an offset rather than as free movement.
+ *
+ * **The normal is `(-sin(angle), cos(angle))`: a positive `lateralTiles` displaces along the heading
+ * turned a quarter turn, so on a lane running `+x` it moves the point toward `+y`.** Nothing else in
+ * the codebase fixes that sign, and step 18's pushback will want it. The angle convention is
+ * `atan2(dy, dx)` (`core/systems/hitbox.ts`), which is what the two terms below are turning.
+ *
+ * One function and two callers -- `enemyPosition` and `render/layers/entities.ts`, which already
+ * holds the sample for its mirroring. A second copy of the trig is how the drawn moth and the shot
+ * moth end up in different places, with nothing failing.
+ */
+export function applyLateralOffset(at: { x: number; y: number; angle: number }, lateralTiles: number): Vec2 {
+	return {
+		x: at.x - Math.sin(at.angle) * lateralTiles,
+		y: at.y + Math.cos(at.angle) * lateralTiles,
+	}
+}
+
+/**
  * The inverse of `samplePath`: the arc distance of the point on the polyline closest to `point`, and
  * how far off the track `point` sits. Step 7B hatches a Fruit Fly at the returned distance; step 11's
  * moth deviation and step 18's pushback want the same projection rather than a second copy of it.

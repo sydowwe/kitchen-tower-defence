@@ -1,8 +1,8 @@
 /**
- * The night schedule -- nights 1 to 9 (analytic-docs/CONTENT.md section 6): 6, 7, 8, 8, 9, 9, 10, 10
- * and 10 waves, Ant from night 1, Roach from night 3, Beetle from night 5, Fly from night 8. All nine
- * are on the Counter; see the note above `night04` for why the last six are not on the maps section 6
- * names.
+ * The night schedule -- nights 1 to 10 (analytic-docs/CONTENT.md section 6): 6, 7, 8, 8, 9, 9, 10,
+ * 10, 10 and 11 waves, Ant from night 1, Roach from night 3, Beetle from night 5, Fly from night 8,
+ * Moth from night 10. All ten are on the Counter; see the note above `night04` for why the last
+ * seven are not on the maps section 6 names.
  *
  * Difficulty scalars are applied at runtime by `startWave` and are never baked in here.
  *
@@ -720,4 +720,137 @@ export const night09: NightDef = {
 	],
 }
 
-export const NIGHTS = [night01, night02, night03, night04, night05, night06, night07, night08, night09]
+/**
+ * Night 10 is authored **on the Counter, single-lane**, for the same reason nights 4-9 are: section 6
+ * puts it on the Stove and gives it the game's second spawn point, neither the map nor the lane
+ * exists, and step 21 is what authors both. `createWorld` throws on a night whose `mapId` is not the
+ * map it was handed. Wave count is section 6's: 11.
+ *
+ * The Moth is the new enemy, and it is the only one whose arrival is about watching rather than
+ * about pressure: it crosses the `crack`'s 31.1 tiles in ~19 seconds, between the Roach's ~17 and the
+ * Ant's ~31, and what makes it different is that it curves off the lane toward a Nightlight. So it
+ * arrives the way the Roach did on night 3, the Beetle on night 5 and the Fly on night 8 -- **two of
+ * them in wave 3**, released well behind that wave's ground column and 3 seconds apart. A moth in a
+ * clump of flies is a moth nobody notices curving, and there is no other way to see what the mechanic
+ * does.
+ *
+ * A draft, from arithmetic against night 9. Step 11C watches it at 1x and 3x and re-tunes it.
+ */
+export const night10: NightDef = {
+	id: 'night10',
+	index: 10,
+	mapId: 'counter',
+	waves: [
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 15, spacingTicks: 46, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 5, spacingTicks: 92, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 240, startDelayTicks: 440, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 4, spacingTicks: 105, startDelayTicks: 460, pathId: 'crack' },
+			],
+			countdownTicks: OPENING_TICKS,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 16, spacingTicks: 43, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 6, spacingTicks: 86, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 225, startDelayTicks: 420, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 5, spacingTicks: 95, startDelayTicks: 420, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The Moth arrives: two of them, 180 ticks apart and 9 seconds behind the wave's opening
+			// column, so the first is watched crossing before the second sets off.
+			entries: [
+				{ enemyDefId: 'ant', count: 16, spacingTicks: 42, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 6, spacingTicks: 82, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 215, startDelayTicks: 400, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 5, spacingTicks: 90, startDelayTicks: 400, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 2, spacingTicks: 180, startDelayTicks: 540, pathId: 'crack' },
+			],
+			countdownTicks: 9 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 17, spacingTicks: 38, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 7, spacingTicks: 76, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 200, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 85, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 3, spacingTicks: 150, startDelayTicks: 480, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 18, spacingTicks: 35, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 8, spacingTicks: 70, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 185, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 80, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 3, spacingTicks: 140, startDelayTicks: 440, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The night's flyers-only wave, and the first one with both kinds in it: the moths curve at
+			// whatever light is on the board while the flies go straight past it.
+			entries: [
+				{ enemyDefId: 'fly', count: 12, spacingTicks: 50, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 110, startDelayTicks: 120, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 19, spacingTicks: 33, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 9, spacingTicks: 64, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 175, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 7, spacingTicks: 74, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 4, spacingTicks: 130, startDelayTicks: 420, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 21, spacingTicks: 30, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 56, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 160, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 70, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 4, spacingTicks: 120, startDelayTicks: 400, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 22, spacingTicks: 28, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 50, startDelayTicks: 180, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 150, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 64, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 110, startDelayTicks: 380, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 24, spacingTicks: 26, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 13, spacingTicks: 46, startDelayTicks: 160, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 130, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 11, spacingTicks: 58, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 6, spacingTicks: 100, startDelayTicks: 360, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 26, spacingTicks: 24, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 42, startDelayTicks: 150, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 8, spacingTicks: 120, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 12, spacingTicks: 52, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 8, spacingTicks: 90, startDelayTicks: 340, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+	],
+}
+
+export const NIGHTS = [night01, night02, night03, night04, night05, night06, night07, night08, night09, night10]

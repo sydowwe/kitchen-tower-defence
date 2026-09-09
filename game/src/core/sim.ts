@@ -7,6 +7,7 @@ import {
 	crumbsSystem,
 	economySystem,
 	eventsSystem,
+	lightSystem,
 	movementSystem,
 	noiseSystem,
 	projectilesSystem,
@@ -30,6 +31,7 @@ export type SystemName =
 	| 'status'
 	| 'movement'
 	| 'barricades'
+	| 'light'
 	| 'targeting'
 	| 'combat'
 	| 'projectiles'
@@ -58,6 +60,9 @@ const SYSTEMS: readonly System[] = [
 	{ name: 'status', run: statusSystem },
 	{ name: 'movement', run: movementSystem },
 	{ name: 'barricades', run: barricadesSystem },
+	// After the clamp so it reads this tick's `distance`, before targeting so a Nightlight placed this
+	// tick reveals in the same tick it was placed.
+	{ name: 'light', run: lightSystem },
 	{ name: 'targeting', run: targetingSystem },
 	{ name: 'combat', run: combatSystem },
 	{ name: 'projectiles', run: projectilesSystem },
@@ -75,8 +80,8 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
 /**
  * One fixed step of the simulation.
  *
- * Order: commands -> spawn -> wave -> status -> movement -> barricades -> targeting -> combat ->
- * projectiles ->
+ * Order: commands -> spawn -> wave -> status -> movement -> barricades -> light -> targeting ->
+ * combat -> projectiles ->
  * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
  *
  * The queue is drained here, once, before anything else runs -- so player input lands at a tick

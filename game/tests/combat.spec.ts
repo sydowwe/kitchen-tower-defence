@@ -63,6 +63,7 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 		defId: 'ant',
 		pathId: overrides.pathId ?? PATH_ID,
 		distance: overrides.distance ?? 0,
+		lateralOffsetTiles: 0,
 		hp,
 		maxHp: hp,
 		statuses: [],
@@ -74,6 +75,7 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 			hidden: overrides.hidden ?? false,
 			untargetable: overrides.untargetable ?? false,
 			fleeing: false,
+			revealed: false,
 		},
 	}
 

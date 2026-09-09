@@ -39,6 +39,7 @@ function putEnemiesAtTheFridge(world: World, count: number, spawnedInWaveIndex =
 			defId: 'ant',
 			pathId,
 			distance: 1000,
+			lateralOffsetTiles: 0,
 			hp: 10,
 			maxHp: 10,
 			statuses: [],
@@ -46,7 +47,7 @@ function putEnemiesAtTheFridge(world: World, count: number, spawnedInWaveIndex =
 			speed: 0,
 			spawnedInWaveIndex,
 			stolenItems: [],
-			flags: { hidden: false, untargetable: false, fleeing: false },
+			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 		}
 		world.enemies.push(enemy)
 		world.index.enemies[enemy.id] = world.enemies.length - 1

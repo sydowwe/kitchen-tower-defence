@@ -25,7 +25,10 @@ import type { Enemy, Tower, World } from '@/core/types.ts'
  * extend this function rather than six call sites.
  */
 export function isTargetable(enemy: Enemy, targets: TargetClass): boolean {
-	if (enemy.flags.hidden || enemy.flags.untargetable) {
+	// `hidden` is what the enemy is; `revealed` is what a lamp is doing to it this tick
+	// (`core/systems/light.ts`). `untargetable` keeps its own unconditional no: that is step 16's
+	// burrow flag, and a lamp does not surface a Weevil -- the Bay Leaf's `suppress` does.
+	if ((enemy.flags.hidden && !enemy.flags.revealed) || enemy.flags.untargetable) {
 		return false
 	}
 	if (targets === 'both') {

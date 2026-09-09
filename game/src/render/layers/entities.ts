@@ -15,7 +15,7 @@
  */
 
 import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
-import { samplePath } from '@/core/path.ts'
+import { applyLateralOffset, samplePath } from '@/core/path.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { barricadeHolding, isBarricade } from '@/core/systems/barricades.ts'
 import type { Enemy, MapDef, World } from '@/core/types.ts'
@@ -374,9 +374,13 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 			continue
 		}
 		const at = samplePath(path, enemy.distance)
+		// Through the same helper `enemyPosition` uses, never a second copy of the trig: a moth drawn
+		// on the track while every tower shoots it three tiles off it fails nothing and reads as a
+		// targeting bug. The sample itself is kept -- the angle below is what mirrors the glyph.
+		const displaced = applyLateralOffset(at, enemy.lateralOffsetTiles)
 		const entry = frameAt(liveCount)
-		entry.x = (at.x + 0.5) * tilePx
-		entry.y = (at.y + 0.5) * tilePx
+		entry.x = (displaced.x + 0.5) * tilePx
+		entry.y = (displaced.y + 0.5) * tilePx
 		entry.glyph = glyphFor(enemy)
 		entry.mirrored = Math.cos(at.angle) < 0
 		entry.hp = enemy.hp

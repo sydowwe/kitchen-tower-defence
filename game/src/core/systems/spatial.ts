@@ -14,7 +14,7 @@
  * one".
  */
 
-import { samplePath } from '@/core/path.ts'
+import { applyLateralOffset, samplePath } from '@/core/path.ts'
 import type { Enemy, EntityId, Vec2, World } from '@/core/types.ts'
 
 /**
@@ -33,6 +33,14 @@ export function enemyById(world: World, enemyId: EntityId): Enemy | null {
 /**
  * Where an enemy is, or null when the map has no path by its `pathId` -- a half-edited map out of
  * step 4's editor. Every caller skips such an enemy rather than throwing on it.
+ *
+ * **The lateral offset is applied here and nowhere else in `core/`**, so a Moth curving toward a
+ * Nightlight is shot where it is drawn: targeting, the three hitbox shapes, splash, projectile aim
+ * and the death event's `at` all ask this function.
+ *
+ * The zero case returns early on purpose. This is the hottest function in `core/` --
+ * `queryEnemiesInRange` calls it once per enemy per tower per tick -- and two trig calls is a real
+ * cost for an answer that is the bare sample for every enemy in the game but one.
  */
 export function enemyPosition(world: World, enemy: Enemy): Vec2 | null {
 	const path = world.map.paths.find(candidate => candidate.id === enemy.pathId)
@@ -40,7 +48,10 @@ export function enemyPosition(world: World, enemy: Enemy): Vec2 | null {
 		return null
 	}
 	const at = samplePath(path, enemy.distance)
-	return { x: at.x, y: at.y }
+	if (enemy.lateralOffsetTiles === 0) {
+		return { x: at.x, y: at.y }
+	}
+	return applyLateralOffset(at, enemy.lateralOffsetTiles)
 }
 
 /**

@@ -206,6 +206,12 @@ export const en = {
 			name: 'Toaster',
 			description: 'Left on, lever down, aimed at the ceiling. The only thing here that can reach a fly.',
 		},
+		// Drafted in 11B, revised in 11C against the card.
+		nightlight: {
+			name: 'Nightlight',
+			description:
+				'Plugged in low by the skirting board. Nothing stays hidden near it, and moths cannot help themselves.',
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {
@@ -228,6 +234,12 @@ export const en = {
 		fly: {
 			name: 'Fly',
 			description: 'Straight over everything you built, at a speed nothing else on the counter manages.',
+		},
+		// Drafted in 11B, revised in 11C against the card.
+		moth: {
+			name: 'Moth',
+			description:
+				'The only thing out here with no plan. It wanders off toward any light and then remembers the fridge.',
 		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.

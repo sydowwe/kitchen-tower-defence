@@ -77,6 +77,7 @@ function addEnemy(world: World, distance: number): Enemy {
 		defId: 'ant',
 		pathId: PATH_ID,
 		distance,
+		lateralOffsetTiles: 0,
 		hp: 10_000,
 		maxHp: 10_000,
 		statuses: [],
@@ -84,7 +85,7 @@ function addEnemy(world: World, distance: number): Enemy {
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length

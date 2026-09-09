@@ -141,6 +141,9 @@ export function spawnEnemyAt(
 		defId: def.id,
 		pathId,
 		distance,
+		// 0 for everything but a Moth in a Nightlight's reach; `core/systems/light.ts` is the only
+		// writer, and `enemyPosition` returns the bare sample while it is 0.
+		lateralOffsetTiles: 0,
 		hp,
 		maxHp: hp,
 		statuses: [],
@@ -148,7 +151,7 @@ export function spawnEnemyAt(
 		speed: def.speedTilesPerTick,
 		spawnedInWaveIndex,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
 
 	world.enemies.push(enemy)

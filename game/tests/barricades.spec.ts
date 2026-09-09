@@ -52,6 +52,7 @@ function addEnemy(world: World, def: EnemyDef, distance: number, pathId = PATH_I
 		defId: def.id,
 		pathId,
 		distance,
+		lateralOffsetTiles: 0,
 		hp: 10_000,
 		maxHp: 10_000,
 		statuses: [],
@@ -59,7 +60,7 @@ function addEnemy(world: World, def: EnemyDef, distance: number, pathId = PATH_I
 		speed: def.speedTilesPerTick,
 		spawnedInWaveIndex: 0,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length

@@ -187,8 +187,12 @@ revises both. Then `tests/content.spec.ts`'s two night lists again: `[…, 10, 1
 - **The Moth's `distance` advances at its normal rate throughout the deviation.** Assert it
   explicitly against an identical Moth on a lamp-free lane, tick for tick. This is the assertion the
   whole design exists to make true.
-- The offset is clamped: a Nightlight 5 tiles off the lane never produces an offset past
-  `LIGHT_MAX_OFFSET_TILES`, at any point in the crossing.
+- The offset is clamped: a Nightlight **4** tiles off the lane never produces an offset past
+  `LIGHT_MAX_OFFSET_TILES`, at any point in the crossing — and reaches exactly it. *(Written as 5
+  tiles; the build proved that unassertable. At 5 the lamp is inside the moth's 5-tile reach for a
+  single tick of a straight lane, so the follower never gets near the clamp and the test passes
+  without exercising it. At 4 the lamp is in reach over 6 tiles of lane, 225 ticks, three times what
+  the follower needs to saturate.)*
 - `enemyPosition` for a Moth at a known offset is the base sample displaced along
   `(-sin θ, cos θ)` — the sign, pinned once, so 11C and step 18 inherit it.
 - A Fly (`air`, not `light-drawn`) walking the same lane past the same Nightlight keeps
@@ -204,14 +208,16 @@ revises both. Then `tests/content.spec.ts`'s two night lists again: `[…, 10, 1
 
 ## Acceptance
 
-- [ ] `grep -rn "samplePath" src/` finds it in `core/path.ts`, `core/systems/spatial.ts`,
+- [x] `grep -rn "samplePath" src/` finds it in `core/path.ts`, `core/systems/spatial.ts`,
       `render/layers/entities.ts` (via the helper), `ui/interaction.ts` (placement preview, not an
-      enemy) and `dev/debug/overlay.ts` (the track marker) — and in no new place.
-- [ ] Adding the Nightlight required **zero** changes to any tower system: it is a def plus an
+      enemy), `dev/debug/overlay.ts` (the track marker) — and in `core/systems/light.ts`, which
+      decision 10 requires: attraction is measured from the **base** path point, so the light system
+      has to sample one that `enemyPosition` would have displaced. No other new place.
+- [x] Adding the Nightlight required **zero** changes to any tower system: it is a def plus an
       `en.ts` entry, and the only new code is one system reading a descriptor that already existed.
-- [ ] `Serialisable<World>` still holds — `tests/types.spec.ts` compiles — and `createWorld()`
+- [x] `Serialisable<World>` still holds — `tests/types.spec.ts` compiles — and `createWorld()`
       survives the JSON round-trip.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 11C
 

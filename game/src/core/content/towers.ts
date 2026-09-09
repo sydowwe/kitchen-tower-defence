@@ -10,7 +10,7 @@
  * so the doc's number stays legible next to it.
  */
 
-import { attack, barricade, charge, collect, coneAttack, income } from '@/core/content/behaviours.ts'
+import { attack, barricade, charge, collect, coneAttack, income, reveal } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 
 /** `core/` has no clock, so the conversion from the doc's per-second rates lives here as a factor. */
@@ -377,6 +377,38 @@ export const toaster: TowerDefOf<'toaster'> = {
 	],
 }
 
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 100 crumbs, DETECTION, no damage, no rate, range 4,
+ * both, no noise, off the path -- and section 1's behaviour note, "reveals hidden enemies and pulls
+ * light-drawn ones (Moth) into its radius".
+ *
+ * **One `reveal` descriptor and nothing else.** It has no attack, so `targetingSystem` and
+ * `combatSystem` both skip it, and it needs no `cooldownTicks`, no `TowerState` and no plumbing
+ * anywhere: adding it changed not one line in `core/systems/` outside the new light system, which is
+ * the acceptance criterion this def exists to prove.
+ *
+ * The 4 is what it **reveals** within. The five tiles a Moth sees it from is
+ * `LIGHT_ATTRACTION_TILES` in `core/systems/light.ts` -- see the note on `RevealBehaviour` for why
+ * the moth's reach cannot live on the lamp.
+ *
+ * `defaultTargetingMode` is required by the schema and inert for a behaviourless tower; `CLOSEST` is
+ * what the Cardboard Box and the two economy towers carry. `maxHp: 100` is every non-wall tower's
+ * precedent. Section 1's "T3 upgrade adds damage (6/s)" is step 12's.
+ */
+export const nightlight: TowerDefOf<'nightlight'> = {
+	id: 'nightlight',
+	nameKey: 'tower.nightlight.name',
+	descriptionKey: 'tower.nightlight.description',
+	glyph: '💡',
+	role: 'DETECTION',
+	cost: 100,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [reveal({ radiusTiles: 4, attractsLightDrawn: true })],
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
 export const TOWERS = [
 	saltShaker,
@@ -388,6 +420,7 @@ export const TOWERS = [
 	mousetrap,
 	cardboardBox,
 	toaster,
+	nightlight,
 ]
 
 export type TowerId = (typeof TOWERS)[number]['id']

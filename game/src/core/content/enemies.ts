@@ -153,6 +153,34 @@ export const fly: EnemyDefOf<'fly'> = {
 	tags: ['air', 'bug'],
 }
 
-export const ENEMIES = [ant, roach, beetle, fruitFly, fly]
+/**
+ * analytic-docs/CONTENT.md section 2, night 10: 25 HP, 1.6 tiles/sec, 8 crumbs, steals 1,
+ * `air light-drawn`.
+ *
+ * **`light-drawn` is the only tag in the roster that a system reads by name.**
+ * `core/systems/light.ts` pulls one of these sideways off its lane toward a Nightlight; every other
+ * tag either has a matrix row or is descriptive. Neither of these two has a row, so a Moth takes
+ * every damage type at 1.0 except through `air`'s x1.2 to fire -- 35 x 1.2 = 42 from a Toaster, which
+ * one-shots its 25 HP the way it one-shots a Fly.
+ *
+ * It is the one enemy in v1 that leaves the polyline, and it does not: `distance` advances at the
+ * ordinary rate throughout, and what curves is `Enemy.lateralOffsetTiles`
+ * (analytic-docs/DECISIONS.md section 3).
+ */
+export const moth: EnemyDefOf<'moth'> = {
+	id: 'moth',
+	nameKey: 'enemy.moth.name',
+	descriptionKey: 'enemy.moth.description',
+	glyph: '🦋',
+	hp: 25,
+	speedTilesPerTick: tilesPerSecond(1.6),
+	/** Never read -- it flies, and a barricade holds nothing that is off the floor. Authored anyway. */
+	meleeDamagePerTick: damagePerSecond(2.5),
+	reward: 8,
+	steals: 1,
+	tags: ['air', 'light-drawn'],
+}
+
+export const ENEMIES = [ant, roach, beetle, fruitFly, fly, moth]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']

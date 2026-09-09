@@ -307,6 +307,7 @@ describe('detachment from the world', () => {
 			defId: 'ant',
 			pathId: 'a',
 			distance: 0,
+			lateralOffsetTiles: 0,
 			hp: 10,
 			maxHp: 10,
 			statuses: [],
@@ -314,7 +315,7 @@ describe('detachment from the world', () => {
 			speed: 0,
 			spawnedInWaveIndex: 0,
 			stolenItems: [],
-			flags: { hidden: false, untargetable: false, fleeing: false },
+			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 		})
 		dropCrumb(world, { x: 12, y: 0 }, 5)
 

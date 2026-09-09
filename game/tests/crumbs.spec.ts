@@ -49,6 +49,7 @@ function killAt(world: World, distance: number): void {
 		defId: 'ant' as DefId,
 		pathId: 'a',
 		distance,
+		lateralOffsetTiles: 0,
 		hp: 0,
 		maxHp: 10,
 		statuses: [],
@@ -56,7 +57,7 @@ function killAt(world: World, distance: number): void {
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
 	world.enemies.push(enemy)
 	world.index.enemies[enemy.id] = world.enemies.length - 1

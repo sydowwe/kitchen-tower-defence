@@ -9,6 +9,13 @@ export { commandsSystem } from '@/core/systems/commands.ts'
 export { crumbsSystem } from '@/core/systems/crumbs.ts'
 export { economySystem } from '@/core/systems/economy.ts'
 export { eventsSystem } from '@/core/systems/events.ts'
+export {
+	LIGHT_ATTRACTION_TILES,
+	LIGHT_DRIFT_TILES_PER_TICK,
+	LIGHT_MAX_OFFSET_TILES,
+	lightSources,
+	lightSystem,
+} from '@/core/systems/light.ts'
 export { movementSystem } from '@/core/systems/movement.ts'
 export { noiseSystem } from '@/core/systems/noise.ts'
 export { projectilesSystem } from '@/core/systems/projectiles.ts'

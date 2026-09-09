@@ -57,6 +57,7 @@ function addEnemyAt(world: World, at: Vec2, overrides: EnemyOverrides = {}): Ene
 		defId: 'ant',
 		pathId,
 		distance: 0,
+		lateralOffsetTiles: 0,
 		hp,
 		maxHp: hp,
 		statuses: [],
@@ -64,7 +65,7 @@ function addEnemyAt(world: World, at: Vec2, overrides: EnemyOverrides = {}): Ene
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length

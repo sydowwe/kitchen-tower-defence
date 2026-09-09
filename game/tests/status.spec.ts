@@ -50,6 +50,7 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 		defId: 'ant',
 		pathId: PATH_ID,
 		distance: overrides.distance ?? 0,
+		lateralOffsetTiles: 0,
 		hp,
 		maxHp: hp,
 		statuses: [],
@@ -57,7 +58,7 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 		speed: overrides.speed ?? 0,
 		spawnedInWaveIndex: 0,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length

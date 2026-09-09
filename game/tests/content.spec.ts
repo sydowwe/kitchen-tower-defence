@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ant, beetle, ENEMIES, fly, fruitFly, roach } from '@/core/content/enemies.ts'
+import { isReveal } from '@/core/content/behaviours.ts'
+import { ant, beetle, ENEMIES, fly, fruitFly, moth, roach } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
@@ -10,6 +11,7 @@ import {
 	cookieJar,
 	iceCubeTray,
 	mousetrap,
+	nightlight,
 	saltShaker,
 	sprayBottle,
 	stickyTape,
@@ -361,8 +363,8 @@ describe('the Beetle', () => {
 
 describe('nights 4 to 9', () => {
 	it('carries the wave counts of analytic-docs/CONTENT.md section 6', () => {
-		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10, 10, 10])
-		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
+		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10, 10, 10, 11])
+		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 	})
 
 	it('is authored on the Counter, on the lane the Counter actually has', () => {
@@ -478,7 +480,7 @@ describe('the Toaster', () => {
 
 	it('is the ninth tower in the shop, appended and not inserted', () => {
 		// `buildShop` prints `index + 1` on each button, so inserting a tower renumbers every hotkey.
-		expect(TOWERS[TOWERS.length - 1]?.id).toBe('toaster')
+		expect(TOWERS[8]?.id).toBe('toaster')
 	})
 })
 
@@ -515,6 +517,72 @@ describe('the Fly', () => {
 
 		// The Fruit Fly is `air swarm`, and section 3's rows multiply: 35 x 1.2 x 1.5.
 		expect(resolveDamage(shot.damage, shot.damageType, { tags: fruitFly.tags, statuses: [] })).toBeCloseTo(63, 10)
+	})
+})
+
+describe('the Nightlight', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(nightlight.cost).toBe(100)
+		expect(nightlight.role).toBe('DETECTION')
+		expect(nightlight.glyph).toBe('💡')
+		expect(nightlight.maxHp).toBe(100)
+		expect(nightlight.placement).toBe('off_path')
+		expect(nightlight.noise).toBe(0)
+		/** Required by the schema and inert: it has nothing that picks a target. */
+		expect(nightlight.defaultTargetingMode).toBe('CLOSEST')
+	})
+
+	it('is one `reveal` descriptor and nothing else -- no attack, no state, no plumbing', () => {
+		expect(nightlight.behaviours).toHaveLength(1)
+
+		const lamp = nightlight.behaviours.find(isReveal)
+		expect(lamp).toBeDefined()
+		/** Section 1's range 4. The five tiles a Moth sees it from is the light system's constant. */
+		expect(lamp?.radiusTiles).toBe(4)
+		expect(lamp?.attractsLightDrawn).toBe(true)
+	})
+
+	it('is the tenth tower in the shop, appended and not inserted', () => {
+		expect(TOWERS[TOWERS.length - 1]?.id).toBe('nightlight')
+	})
+})
+
+describe('the Moth', () => {
+	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
+		expect(moth.hp).toBe(25)
+		expect(moth.reward).toBe(8)
+		expect(moth.steals).toBe(1)
+		expect(moth.glyph).toBe('🦋')
+		/** The only tag in the roster a system reads by name: `core/systems/light.ts` pulls on it. */
+		expect(moth.tags).toEqual(['air', 'light-drawn'])
+	})
+
+	it('walks 1.6 tiles a second, in ticks and under the schema cap', () => {
+		expect(moth.speedTilesPerTick * 60).toBeCloseTo(1.6, 10)
+		expect(moth.speedTilesPerTick).toBeLessThan(0.5)
+	})
+
+	it('takes a Toaster shot at 42, which one-shots it the way it one-shots a Fly', () => {
+		const shot = attackOf(toaster.behaviours)
+
+		// air x1.2 on 35, and `light-drawn` has no matrix row.
+		expect(resolveDamage(shot.damage, shot.damageType, { tags: moth.tags, statuses: [] })).toBeCloseTo(42, 10)
+		expect(moth.hp).toBeLessThan(42)
+	})
+})
+
+describe('night 10', () => {
+	it('introduces the Moth in wave 3 and nowhere earlier', () => {
+		const scheduled = NIGHTS.filter(night => night.index < 10).flatMap(night =>
+			night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId)),
+		)
+		expect(scheduled).not.toContain('moth')
+
+		// Two of them, in wave 3, the way night 3 introduced the Roach and night 8 the Fly.
+		const night = NIGHTS.find(entry => entry.index === 10)
+		const first = night?.waves.findIndex(wave => wave.entries.some(entry => entry.enemyDefId === 'moth'))
+		expect(first).toBe(2)
+		expect(night?.waves[2]?.entries.find(entry => entry.enemyDefId === 'moth')?.count).toBe(2)
 	})
 })
 
