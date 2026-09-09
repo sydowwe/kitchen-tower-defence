@@ -200,6 +200,12 @@ export const en = {
 			description:
 				'Set across the track so they stop and chew instead of walking past. It buys seconds, not the night.',
 		},
+		// Drafted in 11A with nothing on screen; 11C revises it against the card, and is also the session
+		// that can see whether the shop reads as having two toasters in it.
+		toaster: {
+			name: 'Toaster',
+			description: 'Left on, lever down, aimed at the ceiling. The only thing here that can reach a fly.',
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {
@@ -217,6 +223,11 @@ export const en = {
 		fruitFly: {
 			name: 'Fruit Fly',
 			description: 'Hatched out of something you left too long. It starts halfway across the kitchen.',
+		},
+		// Drafted in 11A, revised in 11C against the card.
+		fly: {
+			name: 'Fly',
+			description: 'Straight over everything you built, at a speed nothing else on the counter manages.',
 		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.

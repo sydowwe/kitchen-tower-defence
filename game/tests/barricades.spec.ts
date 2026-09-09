@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ant, fruitFly } from '@/core/content/enemies.ts'
+import { ant, fly, fruitFly } from '@/core/content/enemies.ts'
 import { cardboardBox } from '@/core/content/towers.ts'
 import { createCommandQueue } from '@/core/commands.ts'
 import { TileFlags } from '@/core/map.ts'
@@ -158,15 +158,37 @@ describe('an enemy meeting a box', () => {
 	it('flies straight over it: a Fruit Fly is air, and a box is on the floor', () => {
 		const world = makeWorld()
 		const box = addBox(world)
-		const fly = addEnemy(world, fruitFly, BOX_DISTANCE - 1)
+		const hatched = addEnemy(world, fruitFly, BOX_DISTANCE - 1)
 
 		// 60 ticks at 2 tiles/sec carries it from 9 to 11, straight through the box's own distance.
 		run(world, 60)
 
-		expect(fly.distance).toBeCloseTo(BOX_DISTANCE + 1, 9)
+		expect(hatched.distance).toBeCloseTo(BOX_DISTANCE + 1, 9)
 		expect(box.hp).toBe(cardboardBox.maxHp)
-		expect(barricadeAhead(world, fly)).toBeNull()
-		expect(barricadeHolding(world, fly)).toBeNull()
+		expect(barricadeAhead(world, hatched)).toBeNull()
+		expect(barricadeHolding(world, hatched)).toBeNull()
+	})
+
+	/**
+	 * Step 11A moved `isFlyer` out of this file and into `core/systems/targeting.ts`. Nothing else
+	 * would fail if that refactor had quietly become `isTargetable` on the way -- the box would still
+	 * stop ants, and step 16's hidden Weevil would walk through it a hundred commits later.
+	 */
+	it('holds an Ant at the box and lets the Fly beside it cross unobstructed', () => {
+		const world = makeWorld()
+		const box = addBox(world)
+		const walker = addEnemy(world, ant, BOX_DISTANCE - 2)
+		const flyer = addEnemy(world, fly, BOX_DISTANCE - 2)
+
+		run(world, 300)
+
+		// 300 ticks at 1 tile/sec would carry the ant from 8 to 13; it stops at the 9.5 hold point.
+		expect(walker.distance).toBeCloseTo(HOLD_AT, 9)
+		// 300 ticks at 2.2 tiles/sec carries the fly from 8 to 19, straight over the box.
+		expect(flyer.distance).toBeCloseTo(BOX_DISTANCE - 2 + 11, 9)
+		// Only the ant chewed, and only for the 210 ticks after it arrived: it spends the first 90
+		// walking the 1.5 tiles from 8 to the hold point. Two chewers would be twice this.
+		expect(box.hp).toBeCloseTo(cardboardBox.maxHp - ant.meleeDamagePerTick * 210, 1)
 	})
 })
 

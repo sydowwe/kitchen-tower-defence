@@ -169,13 +169,16 @@ Then the two night assertions above: `[6, 7, 8, 8, 9, 9, 10, 10, 10]` and `[1 �
 
 ## Acceptance
 
-- [ ] `isFlyer` has exactly one definition in the codebase, and `grep "includes('air')"` finds it and
-      nothing else.
-- [ ] Adding the Toaster required **zero** changes in `core/systems/` — it is a def in
+- [x] `isFlyer` has exactly one definition in the codebase, and `grep "includes('air')"` finds it and
+      nothing else. `isTargetable` now asks `isFlyer` rather than repeating the tag test, so `src/`
+      carries the string once; the one other hit is a lambda in `tests/hitbox.spec.ts` whose whole
+      point is that `cone` passes an arbitrary filter through.
+- [x] Adding the Toaster required **zero** changes in `core/systems/` — it is a def in
       `core/content/towers.ts` and an entry in `en.ts`. If it did not, the behaviour composition is
-      wrong and this is the step to fix it.
-- [ ] Nothing in `core/` imports anything but itself and zod; no `Math.random`, no `Date.now`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+      wrong and this is the step to fix it. (The two `core/systems/` files this step touched are
+      decision 1's move of `isFlyer`, and nothing else.)
+- [x] Nothing in `core/` imports anything but itself and zod; no `Math.random`, no `Date.now`.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 11B and 11C
 

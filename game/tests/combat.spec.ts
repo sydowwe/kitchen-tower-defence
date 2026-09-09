@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { attack } from '@/core/content/behaviours.ts'
-import { ant } from '@/core/content/enemies.ts'
-import { saltShaker, TOWERS } from '@/core/content/towers.ts'
+import { ant, fly } from '@/core/content/enemies.ts'
+import { saltShaker, toaster, TOWERS } from '@/core/content/towers.ts'
 import { createCommandQueue } from '@/core/commands.ts'
 import { totalLength } from '@/core/path.ts'
 import { tick } from '@/core/sim.ts'
 import { placeTower } from '@/core/systems/placement.ts'
 import { queryEnemiesInRange } from '@/core/systems/spatial.ts'
-import { isTargetable, pickTarget } from '@/core/systems/targeting.ts'
+import { isFlyer, isTargetable, pickTarget } from '@/core/systems/targeting.ts'
 import { createWorld } from '@/core/world.ts'
 import type { AttackBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
@@ -263,6 +263,67 @@ describe('isTargetable', () => {
 
 		expect(pickTarget(world, tower, shotOf(saltShaker))).toBeNull()
 		expect(pickTarget(world, tower, { ...shotOf(saltShaker), targets: 'both' })?.tags).toEqual(['air'])
+	})
+})
+
+/**
+ * Step 11A. Both halves of the filter, with the two real defs that make the distinction matter --
+ * the Salt Shaker, which cannot touch a Fly, and the Toaster, which can touch nothing else.
+ *
+ * The counts are of `towerFired`, not of damage: a tower that aims at something it cannot hurt and
+ * spends its cooldown on it still fails these.
+ */
+describe('the air filter, both directions', () => {
+	it('never fires a ground tower with only a flyer in range, over 600 ticks', () => {
+		const world = makeWorld()
+		addEnemy(world, { distance: 10, hp: 10_000, tags: [...fly.tags] })
+		addTower(world, saltShaker, { x: 10, y: 1 })
+
+		expect(ticksOfKind(run(world, 600), 'towerFired')).toEqual([])
+	})
+
+	it('never fires an air tower with only ground enemies in range, over 600 ticks', () => {
+		const world = makeWorld()
+		// Three Ants standing on the Toaster's own tile. Nothing else in the codebase covers this
+		// direction: the Toaster is the first def in the game whose `targets` is `'air'`.
+		for (const distance of [9, 10, 11]) {
+			addEnemy(world, { distance, hp: 10_000, tags: [...ant.tags] })
+		}
+		addTower(world, toaster, { x: 10, y: 0 })
+
+		expect(ticksOfKind(run(world, 600), 'towerFired')).toEqual([])
+	})
+
+	it('picks the one Fly out of a board of Ants, and never the Fly for a ground reach', () => {
+		const world = makeWorld()
+		for (const distance of [8, 9, 10, 11, 12]) {
+			addEnemy(world, { distance, tags: [...ant.tags] })
+		}
+		const flyer = addEnemy(world, { distance: 10, tags: [...fly.tags] })
+		const tower = addTower(world, toaster, { x: 10, y: 0 })
+
+		expect(pickTarget(world, tower, shotOf(toaster))?.id).toBe(flyer.id)
+
+		// The same board, the same tower, the ground half of the filter: five candidates and never the
+		// sixth, whichever mode is asking.
+		for (const mode of ['FIRST', 'LAST', 'STRONGEST', 'WEAKEST', 'CLOSEST', 'RANDOM'] as const) {
+			tower.targetingMode = mode
+			expect(pickTarget(world, tower, { ...shotOf(saltShaker), rangeTiles: 4 })?.id).not.toBe(flyer.id)
+		}
+	})
+
+	it('answers the floor question with the same predicate a barricade asks', () => {
+		const world = makeWorld()
+		const walker = addEnemy(world, { tags: [...ant.tags] })
+		const flyer = addEnemy(world, { tags: [...fly.tags] })
+
+		expect(isFlyer(flyer)).toBe(true)
+		expect(isFlyer(walker)).toBe(false)
+
+		// And it is *not* `isTargetable`: a hidden flyer is off the floor whether or not it can be shot.
+		const hiddenFlyer = addEnemy(world, { tags: [...fly.tags], hidden: true })
+		expect(isFlyer(hiddenFlyer)).toBe(true)
+		expect(isTargetable(hiddenFlyer, 'air')).toBe(false)
 	})
 })
 

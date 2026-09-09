@@ -31,8 +31,22 @@ export function isTargetable(enemy: Enemy, targets: TargetClass): boolean {
 	if (targets === 'both') {
 		return true
 	}
-	const isAir = enemy.tags.includes('air')
+	// Through `isFlyer` below, so `tags.includes('air')` is written once in `core/`: what the two
+	// predicates disagree about is the `hidden` check above, never what counts as being off the floor.
+	const isAir = isFlyer(enemy)
 	return targets === 'air' ? isAir : !isAir
+}
+
+/**
+ * Whether this enemy is off the floor. `tags.includes('air')` and **not** `isTargetable`: that
+ * predicate answers what a tower may shoot at, and reusing it for the floor question would walk a
+ * `hidden` Weevil straight through a Cardboard Box in step 16.
+ *
+ * The one answer for every reader that asks about the floor rather than about a target:
+ * `core/systems/barricades.ts` today, step 14's tile effects, step 17's auras, step 18's pushback.
+ */
+export function isFlyer(enemy: Enemy): boolean {
+	return enemy.tags.includes('air')
 }
 
 /**

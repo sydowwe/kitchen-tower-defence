@@ -1,7 +1,8 @@
 /**
- * The night schedule -- nights 1 to 7 (analytic-docs/CONTENT.md section 6): 6, 7, 8, 8, 9, 9 and 10
- * waves, Ant from night 1, Roach from night 3, Beetle from night 5. All seven are on the Counter;
- * see the note above `night04` for why the last four are not on the maps section 6 names.
+ * The night schedule -- nights 1 to 9 (analytic-docs/CONTENT.md section 6): 6, 7, 8, 8, 9, 9, 10, 10
+ * and 10 waves, Ant from night 1, Roach from night 3, Beetle from night 5, Fly from night 8. All nine
+ * are on the Counter; see the note above `night04` for why the last six are not on the maps section 6
+ * names.
  *
  * Difficulty scalars are applied at runtime by `startWave` and are never baked in here.
  *
@@ -501,4 +502,222 @@ export const night07: NightDef = {
 	],
 }
 
-export const NIGHTS = [night01, night02, night03, night04, night05, night06, night07]
+/**
+ * Nights 8 and 9 are authored **on the Counter**, for the same reason nights 4-7 are: section 6 puts
+ * both in the Pantry, the Pantry does not exist, and `createWorld` throws on a night whose `mapId` is
+ * not the map it was handed. Wave counts are section 6's: 10 and 10.
+ *
+ * The Fly is the new enemy, and it changes what a spawn window means. It crosses the `crack`'s 31.1
+ * tiles in **~14 seconds** against an Ant's ~31, a Roach's ~17 and a Beetle's ~44 -- the shortest
+ * window any tower has ever had, and the reason a range-4 Toaster on the wrong side of the board is
+ * worth nothing. So the flies below are released in short, tight runs rather than trickled: a fly
+ * that is spaced out is a fly that is never in anyone's circle.
+ *
+ * **Wave 6 of night 8 is nothing but flies**, called while wave 5's ants and beetles are still
+ * crossing (waves overlap by design -- analytic-docs/DECISIONS.md section 5). A board of ground-only
+ * towers watches all of it go past, which is the question the night is asking. It is deliberately not
+ * the wave with the most ground pressure on it: `spawnDestroyPenalty` buys extra enemies from the
+ * *running wave's own composition*, so a Cookie Jar lost during a flies-only wave buys flies at 6
+ * crumbs each -- 33 of them for the jar's 200. Wave 7 is mixed rather than a second pure one.
+ *
+ * These are a draft, from arithmetic. Step 11C watches a night at 1x and 3x and re-tunes them, the
+ * way 5C tuned nights 1-3 and 9C tuned 4-7.
+ */
+export const night08: NightDef = {
+	id: 'night08',
+	index: 8,
+	mapId: 'counter',
+	waves: [
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 13, spacingTicks: 50, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 4, spacingTicks: 100, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 2, spacingTicks: 260, startDelayTicks: 460, pathId: 'crack' },
+			],
+			countdownTicks: OPENING_TICKS,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 14, spacingTicks: 46, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 5, spacingTicks: 92, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 2, spacingTicks: 240, startDelayTicks: 430, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The Fly arrives the way the Roach and the Beetle did: two of them, well behind the wave's
+			// opening column and far enough apart to be watched one at a time.
+			entries: [
+				{ enemyDefId: 'ant', count: 15, spacingTicks: 44, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 5, spacingTicks: 86, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 220, startDelayTicks: 410, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 2, spacingTicks: 150, startDelayTicks: 480, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 16, spacingTicks: 40, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 6, spacingTicks: 78, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 205, startDelayTicks: 390, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 3, spacingTicks: 120, startDelayTicks: 420, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 17, spacingTicks: 37, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 7, spacingTicks: 72, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 190, startDelayTicks: 370, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 4, spacingTicks: 100, startDelayTicks: 400, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// Flies and nothing else, over 8 seconds, on top of everything wave 5 still has walking.
+			entries: [{ enemyDefId: 'fly', count: 10, spacingTicks: 55, startDelayTicks: 0, pathId: 'crack' }],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 18, spacingTicks: 34, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 8, spacingTicks: 66, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 175, startDelayTicks: 350, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 4, spacingTicks: 95, startDelayTicks: 380, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 20, spacingTicks: 30, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 55, startDelayTicks: 190, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 150, startDelayTicks: 310, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 5, spacingTicks: 85, startDelayTicks: 360, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 21, spacingTicks: 28, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 11, spacingTicks: 50, startDelayTicks: 170, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 140, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 75, startDelayTicks: 340, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 22, spacingTicks: 26, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 45, startDelayTicks: 150, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 130, startDelayTicks: 270, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 65, startDelayTicks: 320, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+	],
+}
+
+/**
+ * **Night 9 introduces nothing.** Section 6 gives it the Nightlight unlock and no new enemy, and
+ * unlocks are step 20's -- so it is night 8 with more of everything, which is the honest content for
+ * a night whose job is to let the fly pressure settle before the Moth arrives on night 10.
+ *
+ * Flies are in every wave from the first one here, including a second pure-fly wave: what was a
+ * question on night 8 is the shape of the night on night 9, the way the Beetle went from a visitor on
+ * night 5 to the shape of night 6.
+ */
+export const night09: NightDef = {
+	id: 'night09',
+	index: 9,
+	mapId: 'counter',
+	waves: [
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 14, spacingTicks: 48, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 5, spacingTicks: 95, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 2, spacingTicks: 250, startDelayTicks: 440, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 3, spacingTicks: 110, startDelayTicks: 460, pathId: 'crack' },
+			],
+			countdownTicks: OPENING_TICKS,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 15, spacingTicks: 44, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 6, spacingTicks: 88, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 230, startDelayTicks: 420, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 4, spacingTicks: 100, startDelayTicks: 420, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 16, spacingTicks: 42, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 6, spacingTicks: 82, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 215, startDelayTicks: 400, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 5, spacingTicks: 90, startDelayTicks: 400, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 17, spacingTicks: 38, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 7, spacingTicks: 76, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 200, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 5, spacingTicks: 85, startDelayTicks: 380, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The second flies-only wave in the campaign, and the first one a player has seen coming.
+			entries: [{ enemyDefId: 'fly', count: 12, spacingTicks: 50, startDelayTicks: 0, pathId: 'crack' }],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 18, spacingTicks: 35, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 8, spacingTicks: 70, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 185, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 80, startDelayTicks: 360, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 19, spacingTicks: 32, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 9, spacingTicks: 62, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 170, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 7, spacingTicks: 72, startDelayTicks: 340, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 21, spacingTicks: 29, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 54, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 155, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 68, startDelayTicks: 320, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 22, spacingTicks: 27, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 48, startDelayTicks: 180, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 145, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 62, startDelayTicks: 300, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 24, spacingTicks: 25, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 13, spacingTicks: 44, startDelayTicks: 160, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 125, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 11, spacingTicks: 55, startDelayTicks: 280, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+	],
+}
+
+export const NIGHTS = [night01, night02, night03, night04, night05, night06, night07, night08, night09]

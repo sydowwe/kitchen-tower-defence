@@ -333,6 +333,50 @@ export const cardboardBox: TowerDefOf<'cardboardBox'> = {
 	behaviours: [barricade()],
 }
 
+/**
+ * analytic-docs/CONTENT.md section 1, Act I: 140 crumbs, 35 damage, 0.3/sec, range 4, fire,
+ * **air only**, noise 3, off the path. The first tower that can touch a flyer, and the only one that
+ * can touch nothing else.
+ *
+ * **`targets: 'air'` is the whole tower.** It needed no line in `core/systems/`: `isTargetable` in
+ * `core/systems/targeting.ts` has read the class since 6B, and `Projectile.targets` carries it onto
+ * the shot so a Toaster's projectile cannot land on an Ant after its tower is sold.
+ *
+ * 35 damage resolves to 42 against `air` (section 3's x1.2), which one-shots every flyer in v1. What
+ * makes it scarce is the 0.3/sec -- 200 ticks between shots -- against a Fly that crosses the
+ * Counter in ~14 seconds, the shortest window any tower has ever had.
+ *
+ * `noise: 3` is the highest in the game and nothing consumes it yet: `combatSystem` already
+ * publishes `towerFired` with the def's noise on it, and step 13 is what reads it.
+ *
+ * `projectileSpeed: 0.12` is authored blind -- section 1 has no column for it -- and re-tuned in 11C
+ * by watching a shot cross, the way 6C halved the Salt Shaker's. `splashRadiusTiles` stays 0: the T3
+ * "fires two projectiles" is step 12's, not splash. `maxHp: 100` is every non-wall tower's
+ * precedent. Section 1 gives the role, and section 5 gives `STRONGEST` to a burst tower.
+ */
+export const toaster: TowerDefOf<'toaster'> = {
+	id: 'toaster',
+	nameKey: 'tower.toaster.name',
+	descriptionKey: 'tower.toaster.description',
+	glyph: '🔥',
+	role: 'BURST_DPS',
+	cost: 140,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 3,
+	defaultTargetingMode: 'STRONGEST',
+	behaviours: [
+		attack({
+			damage: 35,
+			damageType: 'fire',
+			cooldownTicks: perSecond(0.3),
+			rangeTiles: 4,
+			targets: 'air',
+			projectileSpeed: 0.12,
+		}),
+	],
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
 export const TOWERS = [
 	saltShaker,
@@ -343,6 +387,7 @@ export const TOWERS = [
 	sprayBottle,
 	mousetrap,
 	cardboardBox,
+	toaster,
 ]
 
 export type TowerId = (typeof TOWERS)[number]['id']

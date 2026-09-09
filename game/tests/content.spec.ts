@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ant, beetle, ENEMIES, fruitFly, roach } from '@/core/content/enemies.ts'
+import { ant, beetle, ENEMIES, fly, fruitFly, roach } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
@@ -13,6 +13,7 @@ import {
 	saltShaker,
 	sprayBottle,
 	stickyTape,
+	toaster,
 	toasterCrumbTray,
 	TOWERS,
 } from '@/core/content/towers.ts'
@@ -358,10 +359,10 @@ describe('the Beetle', () => {
 	})
 })
 
-describe('nights 4 to 7', () => {
+describe('nights 4 to 9', () => {
 	it('carries the wave counts of analytic-docs/CONTENT.md section 6', () => {
-		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10])
-		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7])
+		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10, 10, 10])
+		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
 	})
 
 	it('is authored on the Counter, on the lane the Counter actually has', () => {
@@ -402,6 +403,118 @@ describe('nights 4 to 7', () => {
 				}
 			}
 		}
+	})
+
+	it('introduces the Fly on night 8 and nowhere earlier', () => {
+		function enemiesOf(index: number): string[] {
+			const night = NIGHTS.find(entry => entry.index === index)
+			return (night?.waves ?? []).flatMap(wave => wave.entries.map(entry => entry.enemyDefId))
+		}
+
+		expect(enemiesOf(7)).not.toContain('fly')
+		expect(enemiesOf(8)).toContain('fly')
+		// Two of them, in wave 3, the way night 3 introduced the Roach and night 5 the Beetle.
+		const firstWaveWithFlies = NIGHTS.find(night => night.index === 8)?.waves.findIndex(wave =>
+			wave.entries.some(entry => entry.enemyDefId === 'fly'),
+		)
+		expect(firstWaveWithFlies).toBe(2)
+	})
+
+	it('calls one wave of night 8 that is nothing but flies', () => {
+		const night = NIGHTS.find(entry => entry.index === 8)
+		const pure = (night?.waves ?? []).filter(wave => wave.entries.every(entry => entry.enemyDefId === 'fly'))
+
+		expect(pure).toHaveLength(1)
+		// A board of ground-only towers watches all ten of them go past. It is also the wave a lost
+		// Cookie Jar buys 33 more flies out of, at 6 crumbs each, which is why it is not also the wave
+		// carrying the most ground pressure.
+		expect(pure[0]?.entries[0]?.count).toBe(10)
+
+		// And the wave after it is mixed, not a second pure one.
+		const index = (night?.waves ?? []).findIndex(wave => wave.entries.every(entry => entry.enemyDefId === 'fly'))
+		expect(night?.waves[index + 1]?.entries.map(entry => entry.enemyDefId)).toEqual([
+			'ant',
+			'roach',
+			'beetle',
+			'fly',
+		])
+	})
+
+	it('introduces no enemy on night 9: it is night 8 with more of everything', () => {
+		function enemiesOf(index: number): Set<string> {
+			const night = NIGHTS.find(entry => entry.index === index)
+			return new Set((night?.waves ?? []).flatMap(wave => wave.entries.map(entry => entry.enemyDefId)))
+		}
+
+		expect([...enemiesOf(9)].sort()).toEqual([...enemiesOf(8)].sort())
+	})
+})
+
+describe('the Toaster', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(toaster.cost).toBe(140)
+		expect(toaster.role).toBe('BURST_DPS')
+		expect(toaster.glyph).toBe('🔥')
+		expect(toaster.maxHp).toBe(100)
+		expect(toaster.placement).toBe('off_path')
+		/** The loudest thing in the game. Nothing consumes it until step 13's noise meter. */
+		expect(toaster.noise).toBe(3)
+		/** Section 5 gives `STRONGEST` to a burst tower. */
+		expect(toaster.defaultTargetingMode).toBe('STRONGEST')
+
+		const shot = attackOf(toaster.behaviours)
+		expect(shot.damage).toBe(35)
+		expect(shot.damageType).toBe('fire')
+		expect(shot.rangeTiles).toBe(4)
+		/** The whole tower: the only def in the game that can touch nothing on the floor. */
+		expect(shot.targets).toBe('air')
+		/** 0.3 shots per second at 60 ticks per second, well under the schema's 600. */
+		expect(shot.cooldownTicks).toBe(200)
+		/** Section 1's T3 is "fires two projectiles", not splash. Upgrades are step 12. */
+		expect(shot.splashRadiusTiles).toBe(0)
+		/** Authored blind in 11A -- no column in the doc -- and re-tuned in 11C by watching one cross. */
+		expect(shot.projectileSpeed).toBeCloseTo(0.12, 10)
+	})
+
+	it('is the ninth tower in the shop, appended and not inserted', () => {
+		// `buildShop` prints `index + 1` on each button, so inserting a tower renumbers every hotkey.
+		expect(TOWERS[TOWERS.length - 1]?.id).toBe('toaster')
+	})
+})
+
+describe('the Fly', () => {
+	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
+		expect(fly.hp).toBe(14)
+		expect(fly.reward).toBe(6)
+		expect(fly.steals).toBe(1)
+		expect(fly.glyph).toBe('🪰')
+		/** `air bug`, and deliberately **not** `swarm` -- that is the Fruit Fly's, and it multiplies. */
+		expect(fly.tags).toEqual(['air', 'bug'])
+	})
+
+	it('walks 2.2 tiles a second, in ticks and under the schema cap', () => {
+		expect(fly.speedTilesPerTick * 60).toBeCloseTo(2.2, 10)
+		expect(fly.speedTilesPerTick).toBeLessThan(0.5)
+	})
+
+	it('crosses the Counter in about 14 seconds, the shortest window any tower gets', () => {
+		const counter = MAP_SOURCES.find(map => map.id === 'counter')
+		const crack = counter?.paths.find(path => path.id === 'crack')
+		expect(crack).toBeDefined()
+
+		expect((crack?.lengthTiles ?? 0) / (fly.speedTilesPerTick * 60)).toBeCloseTo(14.1, 0)
+	})
+
+	it('takes a Toaster shot at 42, and a Fruit Fly takes the same shot at 63', () => {
+		const shot = attackOf(toaster.behaviours)
+
+		// air x1.2 on 35, and the Fly's `bug` has no matrix row. One shot kills it four times over --
+		// the Toaster's scarcity is its 0.3/sec rate and its range-4 circle, never its damage.
+		expect(resolveDamage(shot.damage, shot.damageType, { tags: fly.tags, statuses: [] })).toBeCloseTo(42, 10)
+		expect(fly.hp).toBeLessThan(42)
+
+		// The Fruit Fly is `air swarm`, and section 3's rows multiply: 35 x 1.2 x 1.5.
+		expect(resolveDamage(shot.damage, shot.damageType, { tags: fruitFly.tags, statuses: [] })).toBeCloseTo(63, 10)
 	})
 })
 

@@ -21,6 +21,7 @@ import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
 import { speedMultiplier } from '@/core/content/statuses.ts'
 import { nearestOnPath } from '@/core/path.ts'
 import { damageTower, destroyTower, towerById } from '@/core/systems/placement.ts'
+import { isFlyer } from '@/core/systems/targeting.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { Enemy, EntityId, Tower, World } from '@/core/types.ts'
 
@@ -73,14 +74,6 @@ function barricadePositions(world: World): BarricadePosition[] {
 	}
 
 	return positions
-}
-
-/**
- * `tags.includes('air')` and **not** `isTargetable`. That predicate answers what a tower may shoot
- * at, and reusing it here would walk a `hidden` Weevil straight through a box in step 16.
- */
-function isFlyer(enemy: Enemy): boolean {
-	return enemy.tags.includes('air')
 }
 
 /** The nearest position strictly ahead of the enemy on its own lane. Flyers are never blocked. */

@@ -1,5 +1,5 @@
 /**
- * The enemy roster (analytic-docs/CONTENT.md section 2). Three enemies waves can schedule, and the
+ * The enemy roster (analytic-docs/CONTENT.md section 2). Four enemies waves can schedule, and the
  * Fruit Fly, which no night schedules at all.
  *
  * An enemy is stats plus tags. The tags are the only thing that decides how it takes damage: they
@@ -125,6 +125,34 @@ export const beetle: EnemyDefOf<'beetle'> = {
 	tags: ['ground', 'bug'],
 }
 
-export const ENEMIES = [ant, roach, beetle, fruitFly]
+/**
+ * analytic-docs/CONTENT.md section 2, night 8: 14 HP, 2.2 tiles/sec, 6 crumbs, steals 1, `air bug`.
+ *
+ * **`air` and not `swarm`.** The Fruit Fly above has both and the Fly has only the first, and that
+ * is the whole difference in how the two take a Toaster shot: section 3's matrix gives `air` x1.2 to
+ * fire, and `swarm` multiplies another x1.5 on top of it.
+ *
+ * The number that makes night 8 work: a Toaster shot resolves to 35 x 1.2 = 42 against `air`, which
+ * one-shots a Fly, a Moth and a Fruit Fly alike. The Toaster's scarcity is its 0.3/sec rate and its
+ * range-4 circle, never its damage.
+ *
+ * 2.2 tiles/sec is the fastest thing in v1 -- ~14 seconds to cross the Counter's `crack` against an
+ * Ant's ~31 -- which is what the schema's `max(0.5)` on `speedTilesPerTick` exists to keep in ticks.
+ */
+export const fly: EnemyDefOf<'fly'> = {
+	id: 'fly',
+	nameKey: 'enemy.fly.name',
+	descriptionKey: 'enemy.fly.description',
+	glyph: '🪰',
+	hp: 14,
+	speedTilesPerTick: tilesPerSecond(2.2),
+	/** Never read -- it flies, and a barricade holds nothing that is off the floor. Authored anyway. */
+	meleeDamagePerTick: damagePerSecond(1.4),
+	reward: 6,
+	steals: 1,
+	tags: ['air', 'bug'],
+}
+
+export const ENEMIES = [ant, roach, beetle, fruitFly, fly]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']
