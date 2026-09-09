@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §2 *Art: emoji sprites* and §1
-(tone, for the copy pass), `../../analytic-docs/ARCHITECTURE.md` §6 (the frame budget) and §7 (why
-this session writes no specs), `../../analytic-docs/CONTENT.md` §1 (the two rows you are writing
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §2 *Art: emoji sprites* and §1
+(tone, for the copy pass), `../../../analytic-docs/ARCHITECTURE.md` §6 (the frame budget) and §7 (why
+this session writes no specs), `../../../analytic-docs/CONTENT.md` §1 (the two rows you are writing
 cards for) and §6 (nights 8–10).
 **Prereq:** 11A and 11B.
 
@@ -73,7 +73,7 @@ edit this file, don't leave it lying.
    card tells about a tower whose whole point is that it does not fire.
 10. **`'0'` binds to the tenth shop slot**, and its badge prints `0`. The alternative is a badge that
     names a key that does not exist. Update the "1-9 into the roster" comment above it.
-11. **This session has no tests.** `../../analytic-docs/ARCHITECTURE.md` §7: no specs over `render/`,
+11. **This session has no tests.** `../../../analytic-docs/ARCHITECTURE.md` §7: no specs over `render/`,
     and the tuning below is content. The one headless change — `revealRadiusTiles` — extends the
     `statsFor` assertions that already exist in `tests/viewModel.spec.ts`. Do not invent coverage.
 
@@ -200,7 +200,7 @@ unanswered. The measured half:
   bullet was waiting for. The floor held as predicted — `tests/light.spec.ts` asserts the return
   inside 120 ticks and 0.03 needs 100, so the assertion did not move; only the comment in it that
   quoted the old rate did. ~0.025 remains the slowest this can go without moving that assertion.*
-- **The fruit fly payoff** (`../../analytic-docs/OPEN-QUESTIONS.md`, "The fruit fly gap"). Let a night
+- **The fruit fly payoff** (`../../../analytic-docs/OPEN-QUESTIONS.md`, "The fruit fly gap"). Let a night
   run with crumbs deliberately left to rot, then put one Toaster down. A single Toaster has to
   meaningfully clear the backlog. If it cannot, one of `HATCH_TICKS` in `core/systems/crumbs.ts` and
   the Toaster's rate is wrong — tune here, while both are in front of you, and write the answer back
@@ -214,7 +214,7 @@ unanswered. The measured half:
 
 ## Tests
 
-**None.** `../../analytic-docs/ARCHITECTURE.md` §7: no specs over `render/`, and the bugs this
+**None.** `../../../analytic-docs/ARCHITECTURE.md` §7: no specs over `render/`, and the bugs this
 session can introduce are all bugs you are looking at. The `revealRadiusTiles` line extends the
 `statsFor` assertions that already exist in `tests/viewModel.spec.ts` rather than earning a suite of
 its own, and the tuning above is content — `tests/spawn.spec.ts` and `tests/night.spec.ts` build

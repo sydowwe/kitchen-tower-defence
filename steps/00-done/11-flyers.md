@@ -28,7 +28,7 @@ that ran first would draw every moth on the track.
 **A and B carry every test in the step. C has none.** Both of the first two are headless core work
 and each carries the assertions for the mechanic it introduces — A the two directions of the air
 filter, B the offset's shape and the reveal's timing. C is `render/` plus copy plus content tuning:
-`../analytic-docs/ARCHITECTURE.md` §7 rules out specs over the renderer, and the one headless thing
+`../../analytic-docs/ARCHITECTURE.md` §7 rules out specs over the renderer, and the one headless thing
 C touches (`statsFor` in `ui/viewModel.ts`) extends an assertion that already exists rather than
 earning a suite. A part with no tests is not an under-tested part; do not invent coverage for C.
 
@@ -38,7 +38,7 @@ earning a suite. A part with no tests is not an under-tested part; do not invent
   the way nights 4–7 were drafted; C re-tunes them after watching one at 1× and 3×, the way 5C and
   9C did. In particular the step's "a single Toaster meaningfully cleans up a fly problem" cannot be
   judged before there is a fly on screen to watch it shoot.
-- **The Toaster's `projectileSpeed`.** No column in `../analytic-docs/CONTENT.md` §1 fixes it. A
+- **The Toaster's `projectileSpeed`.** No column in `../../analytic-docs/CONTENT.md` §1 fixes it. A
   authors it blind and C re-tunes it by watching a shot cross, exactly as 6C re-tuned the Salt
   Shaker's 0.2 down to 0.1.
 - **The drift rate.** B authors `LIGHT_DRIFT_TILES_PER_TICK` from arithmetic against the step's "back
@@ -80,7 +80,7 @@ in the same files; that is the same shape 10A and 10B had.
       obviously good idea.
 - [ ] Flyers read as flying at a glance, with no need to check a tooltip or a stat card.
 - [ ] A single Toaster meaningfully cleans up a fruit-fly problem. If it does not, one of the rot
-      punishment and the Toaster is mistuned — `../analytic-docs/OPEN-QUESTIONS.md`, "The fruit fly
+      punishment and the Toaster is mistuned — `../../analytic-docs/OPEN-QUESTIONS.md`, "The fruit fly
       gap", is the note this closes.
 - [ ] Adding a hypothetical second light source is a def in `core/content/towers.ts` plus an entry in
       `en.ts` — step 17's Candle gains `reveal({ attractsLightDrawn: true })` beside its aura and
@@ -93,7 +93,7 @@ Auras (step 17, and the Candle with them), the noise meter (step 13 — the Toas
 emitted by `combatSystem` today and consumed then), upgrades (step 12), burrowing and the Booklouse
 (step 16 and Act III — this step ships the `hidden` plumbing with no content that uses it),
 pushback (step 18), tile effects (step 14). Do not author a night past 10, and do not add a second
-lane to the Counter — `../analytic-docs/CONTENT.md` §6 puts a second spawn point at night 10 and step
+lane to the Counter — `../../analytic-docs/CONTENT.md` §6 puts a second spawn point at night 10 and step
 21 is what authors the map that has one.
 
 ## Reconciled while splitting
@@ -105,12 +105,12 @@ than silently reinterpreted.
 1. **"any tower with a `light` behaviour"** — there is no `light` behaviour and there is not going to
    be one. Step 2B shipped `reveal({ radiusTiles, attractsLightDrawn })` in
    `core/content/behaviours.ts`, it is in the `BEHAVIOUR_KINDS` list, it is schema-validated, and
-   `CLAUDE.md` names `reveal` in the vocabulary. B uses it and adds no member to the union.
+   `../../CLAUDE.md` names `reveal` in the vocabulary. B uses it and adds no member to the union.
 
 2. **`RevealBehaviour`'s doc comment says "Step 16".** It is this step's. Fixed in B.
 
 3. **"radius 4" and "within 5 tiles" are two different radii, and both are right.**
-   `../analytic-docs/CONTENT.md` §1 gives the Nightlight range 4; §2 says a Moth deviates toward a
+   `../../analytic-docs/CONTENT.md` §1 gives the Nightlight range 4; §2 says a Moth deviates toward a
    light "within 5 tiles". B keeps both: 4 is the def's `radiusTiles` and is what reveals, 5 is
    `LIGHT_ATTRACTION_TILES`, a constant in the light system. The reason it is not the def's radius is
    that `attractsLightDrawn` is a **boolean** — the reach is a property of the moth's eyes, not of
@@ -136,7 +136,7 @@ than silently reinterpreted.
 7. **"Unlocks the same night flies arrive"** describes a system that does not exist. `ShopEntry`
    carries `unlocked` and `buildShop` hard-codes it to `true` for every tower, with a comment saying
    step 20's progression is what turns it on. Both new towers are buyable from night 1 in this step,
-   and the doc's unlock column is `../analytic-docs/CONTENT.md` §6's business, not this step's.
+   and the doc's unlock column is `../../analytic-docs/CONTENT.md` §6's business, not this step's.
 
 8. **Nights 8–10 are authored on the Counter**, not on the Pantry and the Stove. §6 names two maps
    that do not exist; `createWorld` throws on a night whose `mapId` is not the map it was handed and

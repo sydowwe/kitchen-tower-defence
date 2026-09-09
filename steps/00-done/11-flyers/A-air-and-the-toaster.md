@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the Act I table — the Toaster
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the Act I table — the Toaster
 row), §2 (the Fly row and the note under the table about the Fruit Fly), §3 (the `air` row of the
-matrix) and §6 (nights 8 and 9), `../../analytic-docs/OPEN-QUESTIONS.md`, "The fruit fly gap".
+matrix) and §6 (nights 8 and 9), `../../../analytic-docs/OPEN-QUESTIONS.md`, "The fruit fly gap".
 **Prereq:** step 10, all three parts.
 
 ## Goal
@@ -58,7 +58,7 @@ edit this file, don't leave it lying.
    empty stub; there is nothing to add a check to. Decision 1 is what that bullet is worth — one
    predicate, so step 14 opens with `if (isFlyer(enemy)) continue` instead of inventing a second
    answer. Correct the bullet in `../11-flyers.md` if you touch it; the index already records it.
-3. **The Fly's tags are `['air', 'bug']`** — `../../analytic-docs/CONTENT.md` §2, exactly. **Not
+3. **The Fly's tags are `['air', 'bug']`** — `../../../analytic-docs/CONTENT.md` §2, exactly. **Not
    `swarm`.** The Fruit Fly has `swarm` and the Fly does not, and that is the whole difference in how
    the two take a Toaster shot: §3's matrix gives `air` ×1.2 to fire and `swarm` another ×1.5 on top.
 4. **`meleeDamagePerTick` is authored for the Fly anyway**, at `hp / 10` per second like every other
@@ -124,7 +124,7 @@ is what makes a range-4 circle on the wrong side of the board worth nothing.
 
 The one wave the step is specific about: **night 8 needs a wave that is nothing but flies, called
 while ground pressure is still walking.** Waves overlap by design
-(`../../analytic-docs/DECISIONS.md` §5), so this is a mid-night wave whose `entries` contain only
+(`../../../analytic-docs/DECISIONS.md` §5), so this is a mid-night wave whose `entries` contain only
 `fly` — the previous wave's ants and beetles are still crossing when it lands, and a board of
 ground-only towers watches all of it go past. Put it late enough that the player has had two waves'
 worth of crumbs to react with, and follow it with a mixed wave rather than another pure one.
@@ -161,7 +161,7 @@ Then the two night assertions above: `[6, 7, 8, 8, 9, 9, 10, 10, 10]` and `[1 �
 - A Fly walking into a Cardboard Box's tile is never held: its `distance` after 300 ticks equals its
   unobstructed distance, while an Ant released beside it stops. `barricadesSystem` already does this;
   the assertion is what stops decision 1's refactor breaking it silently.
-- The Toaster row and the Fly row against `../../analytic-docs/CONTENT.md`, every number literal,
+- The Toaster row and the Fly row against `../../../analytic-docs/CONTENT.md`, every number literal,
   including `projectileSpeed` and the tick conversions — the same shape as the Salt Shaker's and the
   Beetle's blocks in `tests/content.spec.ts`.
 - Nights 8 and 9 are on `'counter'` and on a lane the Counter has, and night 8 has at least one wave

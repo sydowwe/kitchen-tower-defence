@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the Act II table — the
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the Act II table — the
 Nightlight row — and the *Behaviour notes* line for it), §2 (the Moth row and the **Moth** paragraph
-under the table), §6 (night 10), `../../analytic-docs/DECISIONS.md` §3 (the path model, and why this
+under the table), §6 (night 10), `../../../analytic-docs/DECISIONS.md` §3 (the path model, and why this
 is an offset rather than free movement).
 **Prereq:** 11A.
 
@@ -72,7 +72,7 @@ edit this file, don't leave it lying.
    for. It skips terminal phases like every other system, or moths keep drifting behind the summary
    screen.
 6. **Attraction range is `LIGHT_ATTRACTION_TILES = 5`, a constant in the light system — not the
-   behaviour's `radiusTiles`.** `../../analytic-docs/CONTENT.md` §2 says a Moth deviates toward a
+   behaviour's `radiusTiles`.** `../../../analytic-docs/CONTENT.md` §2 says a Moth deviates toward a
    light "within 5 tiles"; §1 gives the Nightlight range 4, which is its **reveal** radius. Both are
    right about different things, and `attractsLightDrawn` being a *boolean* is the tell: the reach
    belongs to the moth's eyes, not to the lamp, so step 17's Candle (aura radius 2) pulls from the

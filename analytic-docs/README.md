@@ -89,7 +89,7 @@ Eight reference documents plus 23 step files. Each step file in `../steps` is a 
 **Phase 2 — Act I systems**
 9. [Status effects](../steps/00-done/09-status-effects.md)
 10. [Charge state, tower HP, barricades](../steps/00-done/10-charges-and-barricades.md)
-11. [Flyers and light attraction](../steps/11-flyers.md)
+11. [Flyers and light attraction](../steps/00-done/11-flyers.md)
 12. [Upgrades and targeting modes](../steps/12-upgrades.md)
 13. [Noise meter](../steps/13-noise.md) — **MILESTONE: Act I**
 
