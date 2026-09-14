@@ -17,8 +17,9 @@ import { MAPS } from '@/core/content/maps/index.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContentInDev } from '@/core/content/schema.ts'
 import { TOWERS } from '@/core/content/towers.ts'
+import { foldUpgrades } from '@/core/content/upgrades.ts'
 import type { EnemyDef, FoodDef, NightDef, TowerDef } from '@/core/content/schema.ts'
-import type { DefId, MapDef } from '@/core/types.ts'
+import type { DefId, MapDef, Tower } from '@/core/types.ts'
 
 export * from '@/core/content/behaviours.ts'
 export * from '@/core/content/difficulty.ts'
@@ -28,6 +29,7 @@ export * from '@/core/content/matrix.ts'
 export * from '@/core/content/nights.ts'
 export * from '@/core/content/statuses.ts'
 export * from '@/core/content/towers.ts'
+export * from '@/core/content/upgrades.ts'
 export { MAP_SOURCES, MAPS } from '@/core/content/maps/index.ts'
 export type {
 	EnemyDef,
@@ -76,4 +78,40 @@ export function getMapDef(id: DefId): MapDef {
 
 export function getNightDef(id: DefId): NightDef {
 	return lookup('night', NIGHTS, id)
+}
+
+/**
+ * Every folded def, keyed `` `${defId}|${tier}` ``. Forty entries at most, every one immutable, and
+ * **nothing ever invalidates it**: a different tier is a different key, so "invalidated on upgrade"
+ * is true by construction rather than by a call someone forgets.
+ *
+ * Module-level and never on `World`: the `Serialisable<World>` guard in `tests/types.spec.ts`
+ * rejects a `Map` on the world, and `core/path.ts`'s arc-length cache is the precedent.
+ */
+const effectiveDefs = new Map<string, TowerDef>()
+
+/**
+ * The def a tower of this type at this tier actually has -- the numbers every system should read
+ * about a *placed* tower, where `getTowerDef` is the base def a shop button and `PlaceTower` read.
+ *
+ * **Step 17's aura buffs are not folded in here.** The fold is content, a pure function of
+ * `(defId, tier)`. A buff is world state and belongs at the damage site: folding one in would make
+ * this key depend on the board, and the memo would have to die.
+ */
+export function effectiveDef(defId: DefId, tier: number): TowerDef {
+	const key = `${defId}|${tier}`
+	const cached = effectiveDefs.get(key)
+	if (cached !== undefined) {
+		return cached
+	}
+
+	const folded = foldUpgrades(getTowerDef(defId), tier)
+	effectiveDefs.set(key, folded)
+
+	return folded
+}
+
+/** The same, for a tower standing on the board. Every reader of a placed tower's def wants this. */
+export function effectiveDefOf(tower: Tower): TowerDef {
+	return effectiveDef(tower.defId, tower.tier)
 }

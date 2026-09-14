@@ -10,7 +10,7 @@
  * No event. Nothing consumes one, and a `GameEvent` member is added by the step that reads it.
  */
 
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import type { World } from '@/core/types.ts'
 
 export function economySystem(world: World): void {
@@ -20,7 +20,7 @@ export function economySystem(world: World): void {
 	}
 
 	for (const tower of world.towers) {
-		for (const behaviour of getTowerDef(tower.defId).behaviours) {
+		for (const behaviour of effectiveDefOf(tower).behaviours) {
 			if (behaviour.kind !== 'income' || world.tick % behaviour.payoutIntervalTicks !== 0) {
 				continue
 			}

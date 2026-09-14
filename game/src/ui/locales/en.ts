@@ -163,30 +163,62 @@ export const en = {
 	// One entry per def in core/content/, keyed by its id. The `satisfies` is the enforcement: a
 	// tower or enemy authored without an English name fails type-check here rather than rendering
 	// its own key on screen.
+	//
+	// The `tier1` / `tier2` / `tier3` blocks are the upgrade names, keyed the way
+	// core/content/towers.ts derives them. **They were written blind in step 12A** -- nothing on
+	// screen reads them until 12C builds the inspector, and 12C rewrites every one of them against
+	// it. Tiers 1 and 2 are names only; the diff above them is the description.
 	tower: {
 		saltShaker: {
 			name: 'Salt Shaker',
 			description: 'Table salt, thrown a handful at a time. Ants will not cross it.',
+			tier1: { name: 'Coarse Grind' },
+			tier2: { name: 'Rock Salt' },
+			tier3: {
+				name: 'Scattered',
+				description: 'A whole handful at once. Whatever is standing next to the target gets some too.',
+			},
 		},
 		toasterCrumbTray: {
 			name: 'Toaster Crumb Tray',
 			description: 'Pull it out and a week of breakfast comes with it. Somebody has to sweep up.',
+			tier1: { name: 'Emptied Nightly' },
+			tier2: { name: 'Deeper Tray' },
+			tier3: {
+				name: 'Straight In',
+				description: 'No trip. A pile that falls inside the radius is counted where it lands.',
+			},
 		},
 		cookieJar: {
 			name: 'Cookie Jar',
 			description: 'The lid never sits straight. Crumbs collect around it faster than you can eat them.',
+			tier1: { name: 'Lid Ajar' },
+			tier2: { name: 'Lid Off' },
+			tier3: {
+				name: 'Sealed',
+				description: 'Screwed down properly. Breaking it open gets them nothing to spend.',
+			},
 		},
 		iceCubeTray: {
 			name: 'Ice Cube Tray',
 			description: 'Left out to thaw on the counter. Whatever walks through it slows right down.',
+			tier1: { name: 'Fresh Cubes' },
+			tier2: { name: 'Straight From The Freezer' },
+			tier3: { name: 'Deep Freeze', description: 'Every fourth cube stops it where it stands.' },
 		},
 		stickyTape: {
 			name: 'Sticky Tape',
 			description: 'Three strips off the roll. One thing gets stuck to each, and that is the roll gone.',
+			tier1: { name: 'Wider Roll' },
+			tier2: { name: 'Double Sided' },
+			tier3: { name: 'Laid Across', description: 'Three at a time, stuck to the same strip.' },
 		},
 		sprayBottle: {
 			name: 'Spray Bottle',
 			description: 'Kitchen cleaner, one pull at a time. Whatever the mist settles on keeps going over.',
+			tier1: { name: 'Neat, Not Diluted' },
+			tier2: { name: 'The Strong Stuff' },
+			tier3: { name: 'Soaked Through', description: 'It goes on thick enough to keep working.' },
 		},
 		// Revised in step 10C against the card: the old line spent itself on "resetting takes a while",
 		// which the `Resets in 6.6s` row now says exactly. What it says instead is the part no row
@@ -194,6 +226,9 @@ export const en = {
 		mousetrap: {
 			name: 'Mousetrap',
 			description: 'The old wooden kind, on a hair trigger. It takes one thing at a time, properly.',
+			tier1: { name: 'Stronger Spring' },
+			tier2: { name: 'Steel Bar' },
+			tier3: { name: 'Set Again At Once', description: 'Reset in half the time, and armed twice as often.' },
 		},
 		// Revised in step 10C for the same reason. `Hit points 200` and `Blocks` are on the card now,
 		// so the description is free to answer the only question a 25-crumb tower with no attack raises:
@@ -202,6 +237,9 @@ export const en = {
 			name: 'Cardboard Box',
 			description:
 				'Set across the track so they stop and chew instead of walking past. It buys seconds, not the night.',
+			tier1: { name: 'Double Walled' },
+			tier2: { name: 'Packed Solid' },
+			tier3: { name: 'Taped Shut', description: 'Chewing through it costs them something now.' },
 		},
 		// Revised in 11C against the card. The draft's "the only thing here that can reach a fly" was two
 		// kinds of wrong once the card existed: `Targets Air` now sits at the top of it and says the same
@@ -211,6 +249,9 @@ export const en = {
 		toaster: {
 			name: 'Toaster',
 			description: 'Jammed on with the lever down, breathing at the ceiling. Nobody is making toast.',
+			tier1: { name: 'Setting 4' },
+			tier2: { name: 'Setting 6' },
+			tier3: { name: 'Both Slots', description: 'Two at once, at whatever is over it.' },
 		},
 		// Revised in 11C. This card is nearly empty -- one radius and a noise row -- so the sentence
 		// carries the whole tower: that it does not fight, and the two things it does instead.
@@ -218,6 +259,9 @@ export const en = {
 			name: 'Nightlight',
 			description:
 				'Plugged in low by the skirting board. It hurts nothing at all — but nothing stays hidden near it, and moths cannot leave it alone.',
+			tier1: { name: 'Brighter Bulb' },
+			tier2: { name: 'Two In The Socket' },
+			tier3: { name: 'Bare Filament', description: 'Hot enough now that getting close to it costs something.' },
 		},
 	} satisfies TowerMessages,
 	enemy: {

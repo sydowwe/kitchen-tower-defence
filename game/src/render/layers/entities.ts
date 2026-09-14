@@ -14,7 +14,7 @@
  * for (step 9C, decision 1). `render/` reads core state and never writes it.
  */
 
-import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { applyLateralOffset, samplePath } from '@/core/path.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { barricadeHolding, isBarricade } from '@/core/systems/barricades.ts'
@@ -209,7 +209,7 @@ function frameAt(index: number): EnemyFrame {
  * bounded by the number of boxes and not by the crowd.
  */
 function anyBarricade(world: World): boolean {
-	return world.towers.some(tower => isBarricade(getTowerDef(tower.defId)))
+	return world.towers.some(tower => isBarricade(effectiveDefOf(tower)))
 }
 
 /** Reads `enemy.statuses` onto the frame. Every field is written, so a reused entry cannot be stale. */

@@ -13,7 +13,7 @@
  */
 
 import { isCharge } from '@/core/content/behaviours.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import { endsWithItsSource } from '@/core/content/statuses.ts'
 import { removeTower } from '@/core/systems/placement.ts'
 import type { ChargeBehaviour } from '@/core/content/behaviours.ts'
@@ -105,7 +105,7 @@ export function tickRearms(world: World): void {
 			continue
 		}
 
-		const behaviour = chargeBehaviourOf(getTowerDef(tower.defId))
+		const behaviour = chargeBehaviourOf(effectiveDefOf(tower))
 		if (behaviour === null) {
 			continue
 		}

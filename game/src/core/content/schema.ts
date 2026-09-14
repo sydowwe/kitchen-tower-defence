@@ -28,7 +28,9 @@
  */
 
 import { z } from 'zod'
+import { MAX_TIER } from '@/core/content/upgrades.ts'
 import type { Behaviour } from '@/core/content/behaviours.ts'
+import type { DeltaTarget, TowerUpgrade } from '@/core/content/upgrades.ts'
 import type {
 	DamageType,
 	DifficultyId,
@@ -165,6 +167,28 @@ const TOWER_ROLES = [
 
 const TARGET_CLASSES = ['ground', 'air', 'both'] as const
 
+/**
+ * What an upgrade tier's delta may point at: every behaviour kind, plus `'def'` for the fields that
+ * are genuinely on the def rather than on a behaviour (`maxHp`, `noise`). Restated as values here
+ * for the same reason every vocabulary above is -- zod needs them at runtime -- and `satisfies` is
+ * what stops it drifting from `DeltaTarget`.
+ */
+const DELTA_TARGETS = [
+	'attack',
+	'coneAttack',
+	'aura',
+	'income',
+	'collect',
+	'charge',
+	'barricade',
+	'bait',
+	'suppress',
+	'pushback',
+	'tileEffect',
+	'reveal',
+	'def',
+] as const satisfies readonly DeltaTarget[]
+
 /** A barricade goes *on* the track; everything else goes beside it. `core/map.ts` reads it. */
 const PLACEMENTS = ['off_path', 'path_only'] as const satisfies readonly Placement[]
 
@@ -284,12 +308,32 @@ export function contentSchemas() {
 		}),
 	]) satisfies z.ZodType<Behaviour>
 
+	// --- upgrades -----------------------------------------------------------------------------
+	// A tier is a delta over the def below it and never a replacement: see the header of
+	// core/content/upgrades.ts. The fold is what reads these; what the schema catches is a `fields`
+	// entry that is not a number, and a tier named in English rather than by a key.
+
+	/** Field names are strings on purpose -- that is what makes a tier data rather than code. */
+	const statDelta = z.object({
+		kind: z.enum(DELTA_TARGETS),
+		fields: z.record(z.string(), z.number()),
+	})
+
+	const upgrade = z.object({
+		multiply: z.array(statDelta),
+		add: z.array(statDelta),
+		addBehaviours: z.array(behaviour),
+		nameKey: i18nKey(),
+		/** Null for tiers 1 and 2: the before -> after diff is the description. */
+		descriptionKey: i18nKey().nullable(),
+	}) satisfies z.ZodType<TowerUpgrade>
+
 	// --- towers -------------------------------------------------------------------------------
 	// A tower is its numbers plus a list of behaviour descriptors. There is no `class`, no
 	// `extends`, and no field naming a system: what the tower *does* is entirely in `behaviours`.
 	//
-	// Absent on purpose -- the step that adds the mechanic extends this schema: upgrade tiers
-	// (step 12), loadout and unlock state (step 20).
+	// Absent on purpose -- the step that adds the mechanic extends this schema: loadout and
+	// unlock state (step 20).
 
 	const tower = z.object({
 		id: defId(),
@@ -305,6 +349,12 @@ export function contentSchemas() {
 		noise: z.number().min(0).max(20),
 		defaultTargetingMode: targetingMode,
 		behaviours: z.array(behaviour).min(1),
+		/**
+		 * The three tiers, in order. **Bounded rather than fixed at three**: "exactly three for every
+		 * tower in the roster" is a *collection* invariant and lives in `validateContent` beside the
+		 * duplicate-id check, so a synthetic def a spec registers can pass an empty list.
+		 */
+		upgrades: z.array(upgrade).max(MAX_TIER),
 	})
 
 	// --- enemies ------------------------------------------------------------------------------
@@ -661,6 +711,24 @@ function validateCollection<T extends { id: string }>(
 }
 
 /**
+ * Exactly three tiers per tower, from analytic-docs/CONTENT.md section 1.
+ *
+ * A **collection** check rather than a per-entry one, the same split the duplicate-id check above
+ * already makes: the per-entry schema bounds `upgrades` at three, and this is what says a tower may
+ * not have fewer. It runs over the towers that parsed, so a def with a bad `nameKey` reports that
+ * and not also this.
+ */
+function checkUpgradeTiers(towers: readonly TowerDef[], problems: string[]): void {
+	for (const tower of towers) {
+		if (tower.upgrades.length !== MAX_TIER) {
+			problems.push(
+				`tower '${tower.id}': upgrades: expected exactly ${MAX_TIER} tiers, got ${tower.upgrades.length}`,
+			)
+		}
+	}
+}
+
+/**
  * Validates every collection and throws once, with **every** problem it found. Failing on the
  * first would mean fourteen restarts to fix fourteen typos.
  */
@@ -677,6 +745,8 @@ export function validateContent(raw: RawContent): Content {
 		statuses: validateCollection('status', schemas.status, raw.statuses, problems),
 		installations: validateCollection('installation', schemas.installation, raw.installations, problems),
 	}
+
+	checkUpgradeTiers(content.towers, problems)
 
 	if (problems.length > 0) {
 		throw new ContentValidationError(problems)

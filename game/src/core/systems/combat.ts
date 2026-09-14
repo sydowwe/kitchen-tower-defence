@@ -11,7 +11,7 @@
  */
 
 import { isConeAttack, isFiring } from '@/core/content/behaviours.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
 import { chargeAllowsFiring, chargeBehaviourOf, spendCharge } from '@/core/systems/charges.ts'
@@ -122,7 +122,7 @@ export function combatSystem(world: World): void {
 	}
 
 	for (const tower of world.towers) {
-		const def = getTowerDef(tower.defId)
+		const def = effectiveDefOf(tower)
 		const firing = def.behaviours.find(isFiring)
 		if (firing === undefined) {
 			continue

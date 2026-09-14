@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { z } from 'zod'
 import { attack } from '@/core/content/behaviours.ts'
+import { tier } from '@/core/content/upgrades.ts'
 import type { Behaviour } from '@/core/content/behaviours.ts'
 import { ContentValidationError, contentSchemas, validateContent } from '@/core/content/schema.ts'
 import type { ContentSchemas, MapSource, TowerDef } from '@/core/content/schema.ts'
@@ -33,6 +34,9 @@ export type BehaviourSchemaMatchesUnion = Assert<Exact<Behaviour, z.infer<Conten
 /**
  * A synthetic def, not a real tower -- step 2D authors the Salt Shaker. It is deliberately a plain
  * object literal so a schema change that breaks real content breaks this first.
+ *
+ * **It carries three tiers**, unlike the synthetic defs the other spec files register into `TOWERS`:
+ * this one goes through `validateContent`, and "exactly three" is a collection check there.
  */
 function validTower(): TowerDef {
 	return {
@@ -48,6 +52,11 @@ function validTower(): TowerDef {
 		defaultTargetingMode: 'FIRST',
 		behaviours: [
 			attack({ damage: 5, damageType: 'physical', cooldownTicks: 60, rangeTiles: 3, targets: 'ground' }),
+		],
+		upgrades: [
+			tier({ nameKey: 'tower.testTurret.tier1.name' }),
+			tier({ nameKey: 'tower.testTurret.tier2.name' }),
+			tier({ nameKey: 'tower.testTurret.tier3.name', descriptionKey: 'tower.testTurret.tier3.description' }),
 		],
 	}
 }

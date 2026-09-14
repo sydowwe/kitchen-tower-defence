@@ -12,7 +12,7 @@
  */
 
 import { TOWERS } from '@/core/content/towers.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import { isReveal } from '@/core/content/behaviours.ts'
 import { chargeBehaviourOf, chargePhase, chargeStateOf } from '@/core/systems/charges.ts'
 import { isBarricade } from '@/core/systems/barricades.ts'
@@ -289,7 +289,7 @@ function lightPool(ctx: CanvasRenderingContext2D, tilePx: number, radiusTiles: n
  */
 function drawLightPools(ctx: CanvasRenderingContext2D, world: World, tilePx: number): void {
 	for (const tower of world.towers) {
-		for (const behaviour of getTowerDef(tower.defId).behaviours) {
+		for (const behaviour of effectiveDefOf(tower).behaviours) {
 			if (!isReveal(behaviour)) {
 				continue
 			}
@@ -312,7 +312,7 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 	drawLightPools(ctx, world, tilePx)
 
 	for (const tower of world.towers) {
-		const def = getTowerDef(tower.defId)
+		const def = effectiveDefOf(tower)
 		const center = tileCenter(tower.tile, tilePx)
 		drawPad(ctx, center, tilePx)
 

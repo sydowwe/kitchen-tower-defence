@@ -17,7 +17,7 @@
  */
 
 import { isReveal } from '@/core/content/behaviours.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import { samplePath } from '@/core/path.ts'
 import { enemyPosition } from '@/core/systems/spatial.ts'
 import type { Enemy, Tower, World } from '@/core/types.ts'
@@ -54,7 +54,7 @@ export const LIGHT_DRIFT_TILES_PER_TICK = 0.03
 
 /** Every tower on the board that is a light. The Nightlight today; step 17's Candle joins it. */
 export function lightSources(world: World): Tower[] {
-	return world.towers.filter(tower => getTowerDef(tower.defId).behaviours.some(isReveal))
+	return world.towers.filter(tower => effectiveDefOf(tower).behaviours.some(isReveal))
 }
 
 /** One lamp, flattened. Built once per tick and shared across every enemy, like `barricadePositions`. */
@@ -69,7 +69,7 @@ function lightsOf(world: World): LightSource[] {
 	const lights: LightSource[] = []
 
 	for (const tower of lightSources(world)) {
-		for (const behaviour of getTowerDef(tower.defId).behaviours) {
+		for (const behaviour of effectiveDefOf(tower).behaviours) {
 			if (isReveal(behaviour)) {
 				lights.push({
 					x: tower.tile.x,

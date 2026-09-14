@@ -20,7 +20,7 @@
  */
 
 import { isCollect } from '@/core/content/behaviours.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import type { Crumb, EntityId, Vec2, World } from '@/core/types.ts'
@@ -89,7 +89,7 @@ export function crumbPosition(world: World, crumb: Crumb): Vec2 {
 		return crumb.position
 	}
 
-	const behaviour = getTowerDef(tower.defId).behaviours.find(isCollect)
+	const behaviour = effectiveDefOf(tower).behaviours.find(isCollect)
 	if (behaviour === undefined || behaviour.travelTicks <= 0) {
 		return crumb.position
 	}

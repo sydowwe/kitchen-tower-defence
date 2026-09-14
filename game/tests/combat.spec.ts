@@ -159,6 +159,9 @@ const testSprayer: TowerDef = {
 	placement: 'off_path',
 	noise: 3,
 	defaultTargetingMode: 'FIRST',
+	// Not the roster, so no tiers. The per-entry schema bounds `upgrades` at three and the
+	// collection check in `validateContent` is what requires three of a real tower.
+	upgrades: [],
 	behaviours: [
 		attack({
 			damage: 10,

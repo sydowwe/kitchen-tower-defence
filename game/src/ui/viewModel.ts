@@ -18,7 +18,7 @@
 
 import { isAttack, isCharge, isCollect, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
-import { TOWERS, getTowerDef } from '@/core/content/index.ts'
+import { TOWERS, effectiveDefOf } from '@/core/content/index.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
 import { refundFor, towerById } from '@/core/systems/placement.ts'
@@ -358,7 +358,7 @@ export function buildTowerInspector(world: World, towerId: EntityId): TowerInspe
 		return null
 	}
 
-	const def = getTowerDef(tower.defId)
+	const def = effectiveDefOf(tower)
 
 	return {
 		towerId: tower.id,

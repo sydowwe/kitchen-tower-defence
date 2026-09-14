@@ -16,7 +16,7 @@
  */
 
 import { isCollect } from '@/core/content/behaviours.ts'
-import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { nearestPath } from '@/core/path.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
@@ -174,7 +174,7 @@ export function collectCrumb(world: World, crumb: Crumb, byTowerId: EntityId | n
  */
 function claimCrumbs(world: World): void {
 	for (const tower of world.towers) {
-		for (const behaviour of getTowerDef(tower.defId).behaviours) {
+		for (const behaviour of effectiveDefOf(tower).behaviours) {
 			if (!isCollect(behaviour)) {
 				continue
 			}

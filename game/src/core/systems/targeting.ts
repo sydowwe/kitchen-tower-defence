@@ -13,7 +13,7 @@
 
 import { isFiring } from '@/core/content/behaviours.ts'
 import type { TargetClass } from '@/core/content/behaviours.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import { remainingToFridge } from '@/core/path.ts'
 import { bindRng } from '@/core/rng.ts'
 import { chargeAllowsFiring } from '@/core/systems/charges.ts'
@@ -142,7 +142,7 @@ export function targetingSystem(world: World): void {
 	}
 
 	for (const tower of world.towers) {
-		const firing = getTowerDef(tower.defId).behaviours.find(isFiring)
+		const firing = effectiveDefOf(tower).behaviours.find(isFiring)
 		if (firing === undefined) {
 			continue
 		}

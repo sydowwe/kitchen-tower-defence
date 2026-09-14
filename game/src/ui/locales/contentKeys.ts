@@ -20,7 +20,21 @@ interface Entry {
 	description: string
 }
 
-export type TowerMessages = Record<(typeof TOWERS)[number]['id'], Entry>
+/**
+ * The three upgrade tiers, nested under the tower's own entry, because that is where the key
+ * `core/content/towers.ts` derives lands: `tower.saltShaker.tier1.name`.
+ *
+ * **Tiers 1 and 2 have no description.** The inspector's before -> after diff says "5 -> 7", and a
+ * sentence under it reading "more damage" is noise. Tier 3 changes what the tower *does*, so it has
+ * one -- and `TowerUpgrade.descriptionKey` is null for the other two to match.
+ */
+export interface TowerUpgradeMessages {
+	tier1: { name: string }
+	tier2: { name: string }
+	tier3: Entry
+}
+
+export type TowerMessages = Record<(typeof TOWERS)[number]['id'], Entry & TowerUpgradeMessages>
 
 export type EnemyMessages = Record<(typeof ENEMIES)[number]['id'], Entry>
 

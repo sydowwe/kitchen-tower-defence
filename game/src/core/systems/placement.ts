@@ -13,7 +13,7 @@
  */
 
 import { isCharge, isIncome } from '@/core/content/behaviours.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf } from '@/core/content/index.ts'
 import { flagsAt, canPlace, TileFlags } from '@/core/map.ts'
 import { spawnDestroyPenalty } from '@/core/systems/spawn.ts'
 import type { TowerDef } from '@/core/content/index.ts'
@@ -225,7 +225,8 @@ export function destroyTower(world: World, towerId: EntityId): boolean {
 		return false
 	}
 
-	const def = getTowerDef(tower.defId)
+	// The *effective* def, not the base one: the Cookie Jar's tier 3 is what takes the 200 to 0.
+	const def = effectiveDefOf(tower)
 	const tile = { x: tower.tile.x, y: tower.tile.y }
 
 	// The penalty is a field on `income`, not a branch on this tower's id: the Cookie Jar owes 200

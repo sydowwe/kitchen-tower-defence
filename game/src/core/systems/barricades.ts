@@ -17,7 +17,7 @@
  * it stands, and a rooted or slowed one still chews at its full rate.
  */
 
-import { getEnemyDef, getTowerDef } from '@/core/content/index.ts'
+import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { speedMultiplier } from '@/core/content/statuses.ts'
 import { nearestOnPath } from '@/core/path.ts'
 import { damageTower, destroyTower, towerById } from '@/core/systems/placement.ts'
@@ -62,7 +62,7 @@ function barricadePositions(world: World): BarricadePosition[] {
 	const halfWidth = world.map.trackWidthTiles / 2
 
 	for (const tower of world.towers) {
-		if (!isBarricade(getTowerDef(tower.defId))) {
+		if (!isBarricade(effectiveDefOf(tower))) {
 			continue
 		}
 		for (const path of world.map.paths) {

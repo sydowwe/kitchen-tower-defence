@@ -35,10 +35,15 @@ fix each one as you pass it.
 | `tests/behaviours.spec.ts:128` | asserts `Object.keys(attack(...))` is **exactly** nine names. Any field you add to `AttackBehaviour` fails here |
 | `tests/schema.spec.ts` | asserts each inferred schema union is exactly its `core/types.ts` counterpart |
 
-**Seven spec files hand-build a `TowerDef` literal or a `Tower` literal** — `barricades`, `charges`,
-`combat`, `crumbs`, `hitbox`, `light`, `status`. There is a `tests/fixtures/world.ts` but no tower
-fixture. Making `upgrades` a required field on `TowerDef` breaks every one of them at `type-check`;
-decision 8 below is how, and it is one line per literal.
+**Five spec files hand-build a `TowerDef` literal** — `combat`, `hitbox`, `status`, `light` and
+`schema`. There is a `tests/fixtures/world.ts` but no tower fixture. Making `upgrades` a required
+field on `TowerDef` breaks them at `type-check`; decision 8 below is how, and it is one line per
+literal. `light`'s spreads `nightlight` and needs nothing.
+
+> *12A, corrected against the repo.* The original line named `barricades`, `charges` and `crumbs`
+> instead. Those three build a **`Tower`** literal, which this step does not change, and it missed
+> `schema.spec.ts` — the one literal that goes through `validateContent`, so it carries three real
+> tiers rather than the empty list the others pass (decision 8).
 
 ## Decisions already made
 
@@ -78,20 +83,29 @@ edit this file, don't leave it lying.
    one glyph, which is the call step 10C already made for the rearming Mousetrap ("there is no
    flattened-mousetrap emoji"). 12C owns it.
 
-7. **Any field whose name ends in `Ticks` is `Math.round`ed after the fold.** `cooldownTicks` is
-   `z.number().int()` in the schema, so an unrounded multiply produces a def that would fail its own
-   validation — and the symptom before it gets there is the shop card printing `0.15000000000000002`
-   for a rate, which reads as a simulation bug. A name-suffix rule rather than a list, because the
-   list is what goes stale when 12B adds a field.
+7. **Any field whose name ends in `Ticks` is `Math.round`ed after the fold**, and **every other
+   numeric field is rounded to six decimal places.** `cooldownTicks` is `z.number().int()` in the
+   schema, so an unrounded multiply produces a def that would fail its own validation — and the
+   symptom before it gets there is the shop card printing `0.15000000000000002` for a rate, which
+   reads as a simulation bug. A name-suffix rule rather than a list, because the list is what goes
+   stale when 12B adds a field.
+
+   > *12A.* The suffix rule alone does not catch its own stated symptom: `5 × 1.4 × 1.4` is
+   > `9.799999999999999`, and `ui/viewModel.ts` puts `damage` on the inspector **raw**. So the
+   > six-place clean-up is the general half and the `Ticks` integer round sits on top of it. Six
+   > places is far finer than anything authored, so a deliberately fractional stat survives it.
 
 8. **`upgrades` is required on `TowerDef`, and the schema bounds it `.max(3)` rather than requiring
    three.** "Exactly three for every tower in the roster" is a *collection* invariant and belongs
    beside the duplicate-id check in `validateContent`, not in the per-entry schema — the synthetic
-   defs the seven spec files register are not the roster, and they pass `upgrades: []`. This is the
-   same split `validateCollection` already uses.
+   defs the spec files register into `TOWERS` are not the roster, and they pass `upgrades: []`. This
+   is the same split `validateCollection` already uses.
 
-9. **`core/content/upgrades.ts` imports only `behaviours.ts` and `types.ts`.** It holds
-   `TowerUpgrade`, the `tier()` factory, `foldUpgrades(def, n)` and `upgradeCost(def, n)`, all pure,
+   > *12A.* The check runs over every tower `validateContent` is handed, so the one synthetic def
+   > that goes *through* it — `schema.spec.ts`'s `validTower()` — carries three real tiers.
+
+9. **`core/content/upgrades.ts` imports only `behaviours.ts` and `schema.ts`, both type-only.** It
+   holds `TowerUpgrade`, the `tier()` factory, `foldUpgrades(def, n)` and `upgradeCost(def, n)`, all pure,
    all taking a def rather than looking one up. The **lookup** half — `effectiveDef(defId, tier)`
    with its memo, and `effectiveDefOf(tower)` — lives in `core/content/index.ts` beside
    `getTowerDef`. Putting the fold where it can call `getTowerDef` makes
@@ -115,14 +129,21 @@ edit this file, don't leave it lying.
 ### 1. `core/content/upgrades.ts` — the tier shape and the fold
 
 ```
+DeltaTarget = BehaviourKind | 'def'
+
 TowerUpgrade = {
-    multiply: { kind: BehaviourKind; fields: Record<string, number> }[]
-    add:      { kind: BehaviourKind; fields: Record<string, number> }[]
+    multiply: { kind: DeltaTarget; fields: Record<string, number> }[]
+    add:      { kind: DeltaTarget; fields: Record<string, number> }[]
     addBehaviours: Behaviour[]
     nameKey: string
     descriptionKey: string | null
 }
 ```
+
+> *12A.* The sketch had `kind: BehaviourKind`, which item 5 below then contradicts: `maxHp` is on
+> the def, not on a behaviour, so a delta has to be able to point at the def. `'def'` reaches the two
+> fields that are genuinely def-level (`maxHp`, `noise`) and nothing else, and the tier shape stays
+> at decision 2's five fields.
 
 `tier(params)` writes every field out rather than spreading, exactly the way every factory in
 `behaviours.ts` does and for the same reason.
@@ -213,6 +234,12 @@ Nightlight, `maxHp`… — `maxHp` is on the def, not on a behaviour, so the Car
 no night to feel them in; 12C re-tunes these with both. Getting them right now means judging them by
 reading TypeScript.
 
+> *12A, two towers that are not a `multiply` on damage.* The **Sticky Tape** gains `add: { charges: 1 }`
+> instead — 3 × 1.4 is 4.2 strips, and `TowerState.charges` is a counter the charge system spends
+> down by one. The **Ice Cube Tray** bumps its *rate* (`multiply: { cooldownTicks: 1 / 1.4 }`) rather
+> than its damage: its own def comment says the 2 damage is not meant to matter, and the magnitude of
+> `slow` is on the status def where a tier cannot reach it.
+
 ### 6. The four tier-3s that are pure deltas
 
 These need no new field and no line in any system, which is the acceptance criterion this part
@@ -248,6 +275,11 @@ to exist before this part is green. Derive the keys from the id the way `nameKey
 per tier and a description for tier 3 only. Tiers 1 and 2 get no description: the before → after
 diff says "5 → 7" and a sentence under it reading "more damage" is noise.
 
+> *12A.* `TowerUpgradeMessages` is the `tier1` / `tier2` / `tier3` block and `TowerMessages` becomes
+> `Record<TowerId, Entry & TowerUpgradeMessages>`, so the tiers sit **inside** each tower's entry.
+> That is where the derived key lands — `tower.saltShaker.tier1.name` — and a second top-level block
+> would have resolved a different key.
+
 Write them quickly. **12C rewrites every one of them against the inspector**, and polishing them
 here means writing forty lines of flavour for a panel you cannot see.
 
@@ -282,10 +314,11 @@ New file `tests/upgrades.spec.ts`, plus the edits the table above warns about.
 
 ## Acceptance
 
-- [ ] No system file, and no file under `render/` or `ui/`, contains a branch on a tower id or on a
-      tier number.
-- [ ] `core/` still imports nothing but itself and zod; nothing added to `World`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] No system file, and no file under `render/` or `ui/`, contains a branch on a tower id or on a
+      tier number. *(The one comparison against a tier number anywhere is `tower.tier >= MAX_TIER` in
+      `commands.ts`, twice — the "already at the top" boundary of the mechanic, not a special case.)*
+- [x] `core/` still imports nothing but itself and zod; nothing added to `World`.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 12B and 12C
 

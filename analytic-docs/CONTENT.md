@@ -73,8 +73,10 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 - Cardboard Box T3 — enemies chewing it take 8/s reflect damage
 - Ice Cube Tray T3 — slow becomes a 1.5s freeze on every 4th hit
 - Toaster T3 — fires two projectiles
-- Candle T3 — burn applied by the aura stacks to 3
-- Fan T3 — pushback also applies `Marked`
+- Toaster Crumb Tray T3 — collected piles arrive instantly (no travel time)
+- Cookie Jar T3 — the jar owes the enemy side nothing when it is destroyed
+- Candle T3 — burn applied by the aura stacks to 3 *(arrives with the Candle, step 17)*
+- Fan T3 — pushback also applies `Marked` *(arrives with the Fan, step 18)*
 
 ### Selling
 

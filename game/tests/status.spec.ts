@@ -119,6 +119,8 @@ function towerApplying(id: string, applies: Parameters<typeof attack>[0]['applie
 		placement: 'off_path',
 		noise: 0,
 		defaultTargetingMode: 'FIRST',
+		/** Not the roster, so no tiers. */
+		upgrades: [],
 		behaviours: [attack({ damage: 0, damageType, cooldownTicks: 60, rangeTiles: 3, targets: 'ground', applies })],
 	} satisfies TowerDef
 }

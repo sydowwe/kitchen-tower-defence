@@ -127,6 +127,8 @@ const testGroundCone: TowerDef = {
 	placement: 'off_path',
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
+	/** Not the roster, so no tiers -- see `tests/upgrades.spec.ts` for what the roster must carry. */
+	upgrades: [],
 	behaviours: [
 		coneAttack({
 			damage: 7,

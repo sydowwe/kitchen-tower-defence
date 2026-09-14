@@ -12,7 +12,7 @@
  * (analytic-docs/ARCHITECTURE.md section 3). The selection is UI state and is written directly.
  */
 
-import { getTowerDef, TOWERS } from '@/core/content/index.ts'
+import { effectiveDefOf, TOWERS } from '@/core/content/index.ts'
 import { isAttack, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { nearestPath, samplePath } from '@/core/path.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
@@ -461,7 +461,7 @@ export function createInteraction(
 			selected:
 				tower === null
 					? null
-					: { tile: tower.tile, reach: reachOf(getTowerDef(tower.defId), world, tower.tile, tower) },
+					: { tile: tower.tile, reach: reachOf(effectiveDefOf(tower), world, tower.tile, tower) },
 			ghost:
 				def === null || tile === null || tone === null
 					? null

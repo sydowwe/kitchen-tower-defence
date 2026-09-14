@@ -11,7 +11,9 @@
  */
 
 import { attack, barricade, charge, collect, coneAttack, income, reveal } from '@/core/content/behaviours.ts'
+import { tier } from '@/core/content/upgrades.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
+import type { DeltaTarget, TierParams, TowerUpgrade } from '@/core/content/upgrades.ts'
 
 /** `core/` has no clock, so the conversion from the doc's per-second rates lives here as a factor. */
 const TICKS_PER_SECOND = 60
@@ -23,6 +25,64 @@ function perSecond(rate: number): number {
 
 /** The doc's "~1.5s to travel in" for an auto-collected pile, in ticks. Shared by both collectors. */
 const COLLECT_TRAVEL_TICKS = 90
+
+// --- upgrade tiers --------------------------------------------------------------------------------
+// Authored inline beside each def rather than in a second file keyed by tower id: `TowerDefOf<Id>`
+// already derives every key from the id in this file, and a parallel table would be a second place a
+// tower can be missing from with nothing to catch it.
+//
+// **Structurally correct, not balanced.** Step 12A had no inspector to read a before -> after diff
+// in and no night to feel these in; 12C re-tunes them with both. The six tier-3s that are empty are
+// 12B's -- they need a field or a system that does not exist yet, and a tier that does nothing for
+// one session is visible where a missing one is a crash.
+
+/**
+ * Roughly +40% to the tower's defining stat, per tier (analytic-docs/CONTENT.md section 1). One
+ * constant rather than twenty numbers, because 12C re-tunes all of them at once.
+ */
+const TIER_STAT_MULT = 1.4
+
+/** The Mousetrap's T3 is "rearm time halved", and it halves two fields to mean it. */
+const HALVED = 0.5
+
+/** Salt Shaker T3, analytic-docs/CONTENT.md section 1: "gains splash (0.8 tile radius)". */
+const SALT_SHAKER_SPLASH_TILES = 0.8
+
+/** One tier, minus the keys `upgradesFor` derives. */
+type TierBody = Omit<TierParams, 'nameKey' | 'descriptionKey'>
+
+/**
+ * The three tiers of one tower, with every key derived from the tower's own id the way `nameKey`
+ * already is: `tower.saltShaker.tier1.name`. `ui/locales/contentKeys.ts` requires an English entry
+ * per tower per tier, so a key that drifts from its def fails `type-check` there.
+ *
+ * **Tiers 1 and 2 carry no description.** The inspector's before -> after diff says "5 -> 7", and a
+ * sentence under it reading "more damage" is noise. Tier 3 changes what the tower *does*.
+ */
+function upgradesFor(id: string, one: TierBody, two: TierBody, three: TierBody): TowerUpgrade[] {
+	return [
+		tier({ ...one, nameKey: `tower.${id}.tier1.name` }),
+		tier({ ...two, nameKey: `tower.${id}.tier2.name` }),
+		tier({ ...three, nameKey: `tower.${id}.tier3.name`, descriptionKey: `tower.${id}.tier3.description` }),
+	]
+}
+
+/** A tier that multiplies one field on one behaviour kind by `TIER_STAT_MULT`. Most of them. */
+function bump(kind: DeltaTarget, field: string): TierBody {
+	return { multiply: [{ kind, fields: { [field]: TIER_STAT_MULT } }] }
+}
+
+/**
+ * A tier that fires `TIER_STAT_MULT` times as often, as a *division of the cooldown*. There is no
+ * `rate` field anywhere and inventing one would need a translation into `cooldownTicks / 1.4`, which
+ * is where the rounding bug lives -- see the header of `core/content/upgrades.ts`.
+ */
+function quicken(kind: DeltaTarget): TierBody {
+	return { multiply: [{ kind, fields: { cooldownTicks: 1 / TIER_STAT_MULT } }] }
+}
+
+/** A tier 12B authors. It exists so the roster has three of them, and it does nothing until then. */
+const PENDING: TierBody = {}
 
 /**
  * A def whose id is known statically, so `nameKey` and `descriptionKey` are *derived* from it
@@ -47,7 +107,10 @@ export interface TowerDefOf<Id extends string> extends TowerDef {
  * `maxHp` is not in the table (only the Cardboard Box's 200 is); 100 is the value the worked
  * example in analytic-docs/ARCHITECTURE.md section 4 uses for a tower that is not a wall.
  *
- * Splash stays 0 -- it is what the T3 upgrade adds, and upgrades are step 12.
+ * Splash stays 0 on the base def -- it is what the T3 upgrade adds, as a flat `add` of 0.8 tiles on
+ * this same `attack`. Both paths for it already exist: instant AoE in `core/systems/combat.ts` and a
+ * projectile's arrival in `core/systems/projectiles.ts`, and this tower takes the second because its
+ * `projectileSpeed` is above 0.
  */
 export const saltShaker: TowerDefOf<'saltShaker'> = {
 	id: 'saltShaker',
@@ -81,6 +144,9 @@ export const saltShaker: TowerDefOf<'saltShaker'> = {
 			projectileSpeed: 0.1,
 		}),
 	],
+	upgrades: upgradesFor('saltShaker', bump('attack', 'damage'), bump('attack', 'damage'), {
+		add: [{ kind: 'attack', fields: { splashRadiusTiles: SALT_SHAKER_SPLASH_TILES } }],
+	}),
 }
 
 /**
@@ -121,6 +187,15 @@ export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
 		income({ crumbsPerPayout: 4, payoutIntervalTicks: TICKS_PER_SECOND }),
 		collect({ radiusTiles: 2.5, travelTicks: COLLECT_TRAVEL_TICKS }),
 	],
+	/**
+	 * T3 is not in analytic-docs/CONTENT.md section 1 -- that list was written for the towers with
+	 * interesting tiers -- so it is authored here and added to the doc: the collected piles arrive
+	 * instantly. It removes the tower's one drawback, which is a real tier-3-shaped decision, and it
+	 * is one number. `crumbPosition` in `render/layers/crumbs.ts` already guards `travelTicks <= 0`.
+	 */
+	upgrades: upgradesFor('toasterCrumbTray', bump('income', 'crumbsPerPayout'), bump('income', 'crumbsPerPayout'), {
+		multiply: [{ kind: 'collect', fields: { travelTicks: 0 } }],
+	}),
 }
 
 /**
@@ -143,6 +218,10 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
 		income({ crumbsPerPayout: 9, payoutIntervalTicks: TICKS_PER_SECOND, enemyCrumbsOnDestroy: 200 }),
 		collect({ radiusTiles: 3, travelTicks: COLLECT_TRAVEL_TICKS }),
 	],
+	/** T3, authored here and added to the doc for the same reason: the jar stops owing the 200. */
+	upgrades: upgradesFor('cookieJar', bump('income', 'crumbsPerPayout'), bump('income', 'crumbsPerPayout'), {
+		multiply: [{ kind: 'income', fields: { enemyCrumbsOnDestroy: 0 } }],
+	}),
 }
 
 /**
@@ -190,6 +269,12 @@ export const iceCubeTray: TowerDefOf<'iceCubeTray'> = {
 			applies: ['slow'],
 		}),
 	],
+	/**
+	 * The rate and not the damage. This tower's output is the slow, and its 2 damage is explicitly
+	 * not meant to matter (see above); the magnitude of `slow` is on the status def, which a tier
+	 * cannot reach, so how *often* it lands is the defining stat. T3 is 12B's.
+	 */
+	upgrades: upgradesFor('iceCubeTray', quicken('attack'), quicken('attack'), PENDING),
 }
 
 /**
@@ -226,6 +311,16 @@ export const stickyTape: TowerDefOf<'stickyTape'> = {
 		}),
 		charge({ charges: 3, rearmTicks: 0 }),
 	],
+	/**
+	 * Strips of tape, so the tiers `add` one rather than multiplying: 3 x 1.4 is 4.2 strips, and
+	 * `TowerState.charges` is a counter `core/systems/charges.ts` spends down by one. T3 is 12B's.
+	 */
+	upgrades: upgradesFor(
+		'stickyTape',
+		{ add: [{ kind: 'charge', fields: { charges: 1 } }] },
+		{ add: [{ kind: 'charge', fields: { charges: 1 } }] },
+		PENDING,
+	),
 }
 
 /**
@@ -264,6 +359,8 @@ export const sprayBottle: TowerDefOf<'sprayBottle'> = {
 			applies: [{ kind: 'poison', magnitude: 2 / TICKS_PER_SECOND }],
 		}),
 	],
+	/** Against the `coneAttack`, because that is the behaviour this tower's damage is on. T3 is 12B's. */
+	upgrades: upgradesFor('sprayBottle', bump('coneAttack', 'damage'), bump('coneAttack', 'damage'), PENDING),
 }
 
 /**
@@ -304,6 +401,18 @@ export const mousetrap: TowerDefOf<'mousetrap'> = {
 		}),
 		charge({ charges: 1, rearmTicks: MOUSETRAP_TICKS }),
 	],
+	/**
+	 * T3 is analytic-docs/CONTENT.md section 1's "rearm time halved", and it has to halve **both**
+	 * numbers. `MOUSETRAP_TICKS` above is one value doing two jobs; halving only the rearm leaves the
+	 * 396-tick cooldown gating every shot, the tower fires at exactly the rate it did before, and
+	 * every test still passes.
+	 */
+	upgrades: upgradesFor('mousetrap', bump('attack', 'damage'), bump('attack', 'damage'), {
+		multiply: [
+			{ kind: 'attack', fields: { cooldownTicks: HALVED } },
+			{ kind: 'charge', fields: { rearmTicks: HALVED } },
+		],
+	}),
 }
 
 /**
@@ -317,7 +426,7 @@ export const mousetrap: TowerDefOf<'mousetrap'> = {
  *
  * `defaultTargetingMode` is required by the schema and inert for a tower with no targeting behaviour;
  * `CLOSEST` is what the other behaviourless towers carry. The T3 "enemies chewing it take 8/s reflect
- * damage" is step 12's, not this def's.
+ * damage" is 12B's: it needs the chew system to read something this def cannot yet carry.
  */
 export const cardboardBox: TowerDefOf<'cardboardBox'> = {
 	id: 'cardboardBox',
@@ -331,6 +440,12 @@ export const cardboardBox: TowerDefOf<'cardboardBox'> = {
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
 	behaviours: [barricade()],
+	/**
+	 * `maxHp` is the whole tower, and it is on the def rather than on a behaviour -- which is why a
+	 * delta may name `'def'` at all. Keep that to the two fields that are genuinely def-level,
+	 * `maxHp` and `noise`; anything else a tier wants belongs on a behaviour, where a system reads it.
+	 */
+	upgrades: upgradesFor('cardboardBox', bump('def', 'maxHp'), bump('def', 'maxHp'), PENDING),
 }
 
 /**
@@ -351,7 +466,7 @@ export const cardboardBox: TowerDefOf<'cardboardBox'> = {
  *
  * `projectileSpeed: 0.12` is authored blind -- section 1 has no column for it -- and re-tuned in 11C
  * by watching a shot cross, the way 6C halved the Salt Shaker's. `splashRadiusTiles` stays 0: the T3
- * "fires two projectiles" is step 12's, not splash. `maxHp: 100` is every non-wall tower's
+ * "fires two projectiles" is 12B's, and it is not splash. `maxHp: 100` is every non-wall tower's
  * precedent. Section 1 gives the role, and section 5 gives `STRONGEST` to a burst tower.
  */
 export const toaster: TowerDefOf<'toaster'> = {
@@ -375,6 +490,7 @@ export const toaster: TowerDefOf<'toaster'> = {
 			projectileSpeed: 0.12,
 		}),
 	],
+	upgrades: upgradesFor('toaster', bump('attack', 'damage'), bump('attack', 'damage'), PENDING),
 }
 
 /**
@@ -393,7 +509,8 @@ export const toaster: TowerDefOf<'toaster'> = {
  *
  * `defaultTargetingMode` is required by the schema and inert for a behaviourless tower; `CLOSEST` is
  * what the Cardboard Box and the two economy towers carry. `maxHp: 100` is every non-wall tower's
- * precedent. Section 1's "T3 upgrade adds damage (6/s)" is step 12's.
+ * precedent. Section 1's "T3 upgrade adds damage (6/s)" is 12B's -- it is an `aura` this def gains,
+ * and `core/systems/aura.ts` is that session's.
  */
 export const nightlight: TowerDefOf<'nightlight'> = {
 	id: 'nightlight',
@@ -407,6 +524,8 @@ export const nightlight: TowerDefOf<'nightlight'> = {
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
 	behaviours: [reveal({ radiusTiles: 4, attractsLightDrawn: true })],
+	/** What it reveals within is the whole tower, so that is what the tiers bump. T3 is 12B's. */
+	upgrades: upgradesFor('nightlight', bump('reveal', 'radiusTiles'), bump('reveal', 'radiusTiles'), PENDING),
 }
 
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
