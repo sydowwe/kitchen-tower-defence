@@ -1,61 +1,69 @@
 # Step 13 — The noise meter — **MILESTONE: Act I complete**
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is three sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index — it exists to say what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/DECISIONS.md` §8, `../analytic-docs/CONTENT.md` §1 (noise column), §8 (installations).
 **Prereq:** step 12.
 
 ## Goal
 
-Make power cost something. Every tower already carries a `noise` value and step 6 has been emitting it on every shot — now it accumulates, and when it fills, a human walks in.
+Make power cost something. Every tower already carries a `noise` value and `combatSystem` has been
+publishing it on `towerFired` since step 6B — now it accumulates, and when it fills, a human walks
+in, everything on the board runs for the skirting board, and you pay for the night in crumbs and
+tower HP. This is the mechanic people describe to each other; the three parts below are the
+simulation, the way it is felt, and whether the numbers actually reach the cap in Act I.
 
-This is the mechanic people describe to each other. Give it weight.
+## Parts
 
-## Build
+Each part names its own `Read first:` sections, so a session only loads the docs it needs.
 
-1. **The meter** (`core/systems/noise.ts`).
-   - `world.noise`, 0 → `noiseCap` (default **100**, raised by installations and difficulty).
-   - Towers add their `noise` value **per shot**. Aura and tile towers add `noise` per second while active.
-   - Decays at **1.5/sec**, always, including between waves.
-   - Track a per-night `peakNoise` and `wakeCount` for step 20's scoring.
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](13-noise/A-meter-and-wake.md) | The meter, the wake, and what it costs | `core/systems/noise.ts`, the banked/unbanked split in `economy.ts`, fleeing in `movement.ts` / `resolve.ts`, `NoiseState` and the `humanWoke` event |
+| [B](13-noise/B-noise-on-screen.md) | Noise on screen | `TopBar.vue`'s meter, the per-shot ripple, the warm wash and desaturation in `render/`, `WakeCard.vue`, projected noise on the shop card and the ghost |
+| [C](13-noise/C-counterplay-and-the-curve.md) | The three installations, the dev toggles, and the Act I noise curve | `core/content/installations.ts`, a dev panel, the night 1–8 pass, the answer to `OPEN-QUESTIONS.md` §3 |
 
-2. **The wake event.** When noise reaches the cap:
-   - Emit `HumanWoke`. Everything below is consequence, driven off that event.
-   - **All enemies flee** — they reverse along their path at 2× speed and despawn at the spawn point. They are *not* killed and drop *no* crumbs. You keep the night.
-   - **Every uncollected crumb on the board is forfeited** and removed.
-   - **The current wave's unbanked income is forfeited.** This requires tracking income earned since the last wave boundary as a separate bankable pool — add that now.
-   - **Every tower takes 20% of max HP** in damage. Towers at low HP die. This is where step 10's tower HP finally does something.
-   - Noise resets to 0. The wave counter does **not** advance; the fled wave is simply gone, and the next wave proceeds normally.
+Strictly in order. B draws what A publishes; C tunes numbers A authored blind and needs B on screen
+to judge the one claim that is about feel.
 
-3. **Counterplay** (`../analytic-docs/DECISIONS.md` §8 — without this, loud towers are a trap rather than a choice). Wire the hooks now, even though the installations themselves are bought in step 20:
-   - `noiseCap` and `noiseDecay` read from a modifiers object on the world, populated from owned installations.
-   - Close the Kitchen Door: cap +25. White-noise Machine: cap +30. Oil the Hinges: decay +0.5/s.
-   - For testing before step 20 exists, expose them as dev toggles.
+**A carries every test this step has.** The meter, the flee, the forfeits and the tower damage sweep
+share one suite because they share one assertion — that the cap fills exactly once and everything
+below it is consequence — and splitting them costs the test that catches a double wake. B and C add
+none, by `../analytic-docs/ARCHITECTURE.md` §7; each says so in its own `Tests` section so neither
+invents coverage to look thorough.
 
-4. **Presentation — this deserves real effort.** The meter is the game's tension mechanic and it must be *felt*, not read:
-   - A prominent meter in `TopBar` that changes colour and starts pulsing past 70%, with an audible-looking "creak" indicator near the top.
-   - Every noisy shot puts a small ripple on the meter, so the player connects cause and effect immediately.
-   - On wake: the screen washes to warm light (someone flipped the switch), the board desaturates, enemies scatter visibly, and a quiet card explains what it cost — *"You woke someone up. Lost: 340 crumbs, one Salt Shaker."* Understated, not a fail buzzer. This is the tone from `../analytic-docs/DECISIONS.md` §1.
-   - Show the projected noise cost in the shop's stat card and in the placement ghost, so a player can anticipate rather than only react.
+The noise numbers are authored twice on purpose. A ships the doc's cap 100 and decay 1.5/s as they
+stand and does not tune them; C measures whether Act I can reach the cap at all and re-tunes. Judging
+the curve in A means judging it with no meter on screen and no dev toggles to vary it with.
 
-5. **Author nights 1–8 in full** and balance the noise curve across them. Night 3's Mousetrap (noise 2) and night 8's Toaster (noise 3) are the teachers: with default decay, a player spamming Mousetraps on night 6 should be able to wake a human — once — and learn from it without losing the night.
+## The seam that can't be split
 
-## Tests
+**The wake and the banked/unbanked income pool are one session.** The pool exists only so a wake can
+take it, and the invariant that makes it correct — spending draws the unbanked pool down first, so a
+wake after a big build forfeits nothing and the wallet can never go negative — is only visible when
+the same session writes both the earn path and the forfeit. Put the pool in its own part and it
+lands as an unread field that the wake part then has to re-derive the rules for.
 
-- Noise accumulates per shot at exactly the def's value, and decays at exactly 1.5/sec.
-- Reaching the cap emits exactly one `HumanWoke`, never two in consecutive ticks.
-- After a wake: enemy count reaches 0 via fleeing, crumbs on board is 0, banked income is unchanged, unbanked income is 0, every tower is at 80% or less of max HP, and any tower below 20% is destroyed.
-- Cap and decay modifiers apply correctly and stack additively.
-- A wake during the inter-wave countdown doesn't skip or duplicate the next wave.
-
-## Acceptance
+## Step acceptance
 
 - [ ] Waking a human hurts, is clearly your own fault, and does not end the night.
-- [ ] Loud towers are a real decision — a Toaster-heavy air defence and a quiet ground line have visibly different noise profiles.
+- [ ] Loud towers are a real decision — a Toaster-heavy air defence and a quiet ground line have
+      visibly different noise profiles.
 - [ ] Nights 1–8 are all winnable and all require different builds.
+- [ ] `OPEN-QUESTIONS.md` §3's "Noise cap 100 with 1.5/s decay" is answered with a measurement, not
+      an opinion, and struck through the way 11C struck the fruit fly gap.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## **MILESTONE: Act I**
 
-Nine towers, five enemies, statuses, flyers, barricades, upgrades, targeting, crumbs, noise. This is a complete-feeling tower defence game.
+Ten towers, six enemies, statuses, flyers, barricades, upgrades, targeting, crumbs, noise. This is a
+complete-feeling tower defence game.
 
-Play all eight nights start to finish before continuing. Check specifically: does difficulty rise smoothly, does each new tower feel like it opens something, and can you afford roughly 1.5 new towers per night? If income is off, fix it here — Act II content will only obscure the problem.
+Play all eight nights start to finish before continuing. Check specifically: does difficulty rise
+smoothly, does each new tower feel like it opens something, and can you afford roughly 1.5 new towers
+per night? If income is off, fix it here — Act II content will only obscure the problem.
+
+## Do not
+
+Buy installations with Grocery Money, unlock towers per night, or pay a night out — all step 20's.
+C exposes the three noise installations as dev toggles and nothing else.
