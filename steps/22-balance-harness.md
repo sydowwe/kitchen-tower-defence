@@ -33,6 +33,8 @@ This is the step the entire architecture was built for. `core/` has no DOM depen
 
 3. **Metrics per night**, to CSV: night, map, difficulty, policy, seed, won, waves survived, food remaining, crumbs earned / spent / wasted-at-sunrise, crumbs dropped vs collected, towers built, peak noise, wake count, Grocery Money, and **`towersAffordablePerNight`** — the headline number.
 
+   `peakNoise` is the harness's own running maximum of `world.noise.level`, **not a field on the world** — step 13A deliberately kept one off `NoiseState`, because nothing in the game reads it and a field with no reader goes into every save and every replay for nothing. `wakeCount` is on `NoiseState` and is read straight off it.
+
 4. **The sweep mode.** Vary one global parameter across a range and re-run everything:
    ```
    npm run balance -- --sweep income=0.6:1.6:0.1 --nights 1-18 --runs 20
@@ -50,7 +52,23 @@ This is the step the entire architecture was built for. `core/` has no DOM depen
 
    **Write the resulting numbers back into `../analytic-docs/CONTENT.md`** so the reference doc is never stale.
 
-7. **CI-friendly smoke run**: 3 nights × 5 seeds × 2 policies, asserting no crashes and no NaN. Fast enough to run on every commit.
+7. **Answer the noise curve.** `OPEN-QUESTIONS.md` §3 has carried this since before the meter existed and step 13 deliberately shipped without touching a number, because the question needs a measurement rather than a judgement. The arithmetic step 13 handed over:
+
+   - a Mousetrap is `noise: 2` every 396 ticks — **0.30/sec**, and only while something is inside its range of 1;
+   - a Toaster is `noise: 3` every 200 ticks — **0.90/sec**, and only while something is in the air inside its range of 4;
+   - decay is **1.5/sec**, always.
+
+   So five Mousetraps firing without a pause merely hold the meter level. Measure what `greedy` and `casual` actually reach on nights 3, 6 and 8 across all three difficulties, then decide — and change **one** thing, in this order of preference:
+
+   1. **Nothing**, if a plausible night 6 board wakes a human once and still wins. Write that down and stop.
+   2. **The decay**, if it is only just out of reach. It is one number in `core/world.ts`, it is what Oil the Hinges is priced against, and it is already sweepable here.
+   3. **The per-shot values**, if the towers are the problem rather than the decay. `CONTENT.md` §1's noise column and `tests/content.spec.ts`'s two pinned literals move together.
+
+   Whichever moves, **change `DECISIONS.md` §8 and/or `CONTENT.md` §1 first**, then the code: one source of truth per decision. Then strike the `OPEN-QUESTIONS.md` §3 bullet and replace it with what you measured — the boards, the peaks, what moved and what did not — in the shape 11C's fruit-fly entry uses. A balance question answered in a commit message is a question that gets asked again in six months.
+
+   The failure this is looking for is the one the doc names: if nothing in Act I can fill the meter, the mechanic is inert until Act IV, which defeats the point of shipping it early.
+
+8. **CI-friendly smoke run**: 3 nights × 5 seeds × 2 policies, asserting no crashes and no NaN. Fast enough to run on every commit.
 
 ## Tests
 
@@ -63,6 +81,7 @@ This is the step the entire architecture was built for. `core/` has no DOM depen
 - [ ] `npm run balance` runs the whole campaign and writes a CSV in seconds.
 - [ ] The report's flag list points at real problems you can feel when you play those nights.
 - [ ] `../analytic-docs/CONTENT.md` has been updated with the tuned numbers.
+- [ ] `../analytic-docs/OPEN-QUESTIONS.md` §3's "Noise cap 100 with 1.5/s decay" is struck through and answered with a measurement, not an opinion.
 
 ## Do not
 

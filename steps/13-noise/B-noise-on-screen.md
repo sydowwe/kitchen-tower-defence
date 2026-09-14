@@ -13,6 +13,10 @@ ripple on it every time something loud goes off so cause and effect are one glan
 wash of someone flipping the kitchen light, and a quiet card that says what it cost by name. This is
 the part the mechanic is remembered by; give it the effort the simulation got in 13A.
 
+**Build the dev panel first.** It is Build item 1 and about fifteen minutes of work, and it is what
+lets you look at a wake twenty times in two minutes instead of playing to the cap each time. Every
+other item in this file is tuned by looking at it.
+
 ## Already in the repo
 
 | File | What's there now |
@@ -28,7 +32,10 @@ the part the mechanic is remembered by; give it the effort the simulation got in
 | `render/layers/entities.ts:464` | `entry.mirrored = Math.cos(at.angle) < 0` — the path's forward heading |
 | `render/layers/towers.ts:337` | `drawHpBar` per tower, and `hpBar.ts:32` draws nothing at full health. After a wake every tower on the board grows a bar for free |
 | `render/palette.ts` | every colour as a named export. `LAMP_CORE` / `TOWER_LIGHT_CORE` are the existing warm amber, `rgba(245, 198, 107, …)` |
-| `ui/locales/en.ts:31, 44, 96` | `hud.noise`, `hud.noiseLevel`, `hud.stat.noise`, `hud.stat.silent` |
+| `ui/locales/en.ts:31, 44, 96` | `hud.noise`, `hud.noiseLevel`, `hud.stat.noise`, `hud.stat.silent`, plus 13A's three `installation.*` entries |
+| `dev/debug/state.ts` | `createDebugController(canvas, getMap)` — owns the `` ` `` toggle, guards against keys firing while an input is focused, has a `destroy()`. `GameView.vue:269` imports it dynamically inside `import.meta.env.DEV` so nothing in `dev/` reaches the production bundle |
+| `ui/views/GameView.vue:186` | `restart(index)` — builds a fresh world, re-bakes, resets effects, clears the selection |
+| `core/content/installations.ts` | 13A's three defs and `resolveNoiseModifiers(ids)` |
 
 **No spec will break.** There are no tests over `render/`, and `tests/viewModel.spec.ts` asserts the
 snapshot holds no reference into the world — keep every field you add a copied primitive.
@@ -58,10 +65,32 @@ snapshot holds no reference into the world — keep every field you add a copied
    from 13A. A Mousetrap at `noise: 2` and a Toaster at `noise: 3` read as almost the same tower; at
    0.3/sec against 0.9/sec they read as what they are, and 1.5/sec of decay is the number both are
    being compared against.
+7. **The dev panel's installation toggles rebuild the night.** Checking a box calls
+   `restart(nightIndex)` with a new options object. It does *not* write to `world.noise` mid-night —
+   that would be a dev tool reaching inside the determinism guarantee, which is the same reason 3C's
+   debug marker is a plain number in dev state and not a command.
+8. **"Wake now" sets `world.noise.level = world.noise.cap` and lets `noiseSystem` do the rest** on
+   its next tick. A dev button that called the wake itself would be a second copy of what a wake is,
+   and the copy is the one that goes stale.
 
 ## Build
 
-### 1. The meter in `TopBar.vue`
+### 1. The dev panel — the instrument, built first
+
+Three installation checkboxes, a **"wake now"** button and a live readout of `world.noise` (level,
+cap, decay per second, wake count). In `dev/`, behind `import.meta.env.DEV`, dynamically imported the
+way `GameView.vue` already imports the debug controller and the editor preview.
+
+- The checkboxes resolve through `resolveNoiseModifiers` and restart the night. Say "restarts the
+  night" on the panel: a silent restart mid-play looks like a crash.
+- The names come from the i18n keys 13A added, not from literals.
+- Verify in the build output that none of it reaches the production bundle, the way 3C and step 4
+  both did. That is an acceptance criterion below, not a nicety.
+
+This is a dev tool and it ships nothing. Do not grow it into a settings screen — step 20 is what
+sells installations for Grocery Money, and this panel's whole job is to let that arrive later.
+
+### 2. The meter in `TopBar.vue`
 
 It is a 3.5rem bar sharing a row with two wallets today. Past 70% it has to be the thing you are
 looking at without the bar ever becoming the brightest object on screen — the board is
@@ -74,7 +103,7 @@ looking at without the bar ever becoming the brightest object on screen — the 
   are near it. Understated. A word, not a siren.
 - The `volume-high` icon already switches on `level > 0`; give it the loud state too.
 
-### 2. The ripple
+### 3. The ripple
 
 Every noisy shot puts a small ripple on the meter. `HudSnapshot` gains a counter of loud shots — sum
 `towerFired` events with `noise > 0` — and `TopBar.vue` keys a ripple element on it.
@@ -87,7 +116,7 @@ Second gotcha: the counter must be a **count**, not a boolean or a tick number. 
 and forth and replays the animation on the way down too; a tick number changes every publish and the
 ripple never stops.
 
-### 3. The wake, on the board — `render/layers/effects.ts` and `renderer.ts`
+### 4. The wake, on the board — `render/layers/effects.ts` and `renderer.ts`
 
 `pushEvents` learns `humanWoke` and starts a module-local wake timer. `drawWake(ctx, tilePx)` is
 called from `drawFrame` **after** `drawOverlay`, and ages one frame per call. `resetEffects()` clears
@@ -108,7 +137,7 @@ Two passes over the whole board, over roughly a second and a half, easing out:
 Peak alpha and duration are the two numbers to get right, and you can only get them right by
 watching one. Author them, wake a human with a dev toggle or by hand, and re-tune.
 
-### 4. The enemies scattering — `render/layers/entities.ts`
+### 5. The enemies scattering — `render/layers/entities.ts`
 
 They already walk backwards, because 13A reverses `distance`. What they do not do is turn round:
 `entry.mirrored` reads the path's forward heading, so forty ants moonwalk off the board. Flip it for
@@ -117,7 +146,7 @@ a fleeing enemy.
 `entry.dirX` / `dirY` drive the chew nudge and are harmless here — a fleeing enemy is never chewing,
 because 13A's `barricadesSystem` skips it.
 
-### 5. The card — `ui/components/hud/WakeCard.vue`
+### 6. The card — `ui/components/hud/WakeCard.vue`
 
 *"You woke someone up. Lost: 340 crumbs, one Salt Shaker."*
 
@@ -132,7 +161,7 @@ buttons: the night is still running and the player has a board to look at. Copy 
 
 A second wake in one night replaces the first card rather than stacking one under it.
 
-### 6. Anticipation — the shop card and the ghost
+### 7. Anticipation — the shop card and the ghost
 
 - `StatCard.vue`'s noise row shows `projectedNoisePerSecond` and says it is per second, so it can be
   compared against the decay. Keep `Silent` for 0.
@@ -145,11 +174,18 @@ A second wake in one night replaces the first card rather than stacking one unde
 ## Tests
 
 **None.** `../../analytic-docs/ARCHITECTURE.md` §7 — no tests over `render/`, and bugs here are
-visible. 13A's suite is the regression net for everything underneath. If you find yourself wanting a
-test for the wash, what you actually want is a dev toggle to fire a wake on demand, and that is 13C's.
+visible. 13A's suite is the regression net for everything underneath, and the dev panel is a dev
+tool: a spec over it would assert that a button you are looking at exists.
+
+Re-run `npm run test` after Build item 1 anyway. The panel is the first caller of
+`resolveNoiseModifiers` outside a spec, and an id typo there surfaces as a throw at the moment you
+tick a box.
 
 ## Acceptance
 
+- [ ] "Wake now" fires a wake, and ticking Close the Kitchen Door and White-noise Machine together
+      shows a cap of 155 in the panel's readout with Oil the Hinges taking the decay to 2/sec.
+- [ ] The production bundle contains no `dev/` code — check the build output.
 - [ ] At 65% the meter is legible and calm; at 75% you notice it without looking for it; at 95% you
       are doing something about it. Judge this while playing, not from a screenshot.
 - [ ] Placing a Mousetrap and watching it fire, you can point at the ripple and say "that one".
@@ -167,5 +203,14 @@ test for the wash, what you actually want is a dev toggle to fire a wake on dema
 
 Touch `core/`. Every number on screen here already exists on the snapshot or on the event; if one
 does not, the missing piece is 13A's and this part adds a field to `viewModel.ts`, never a field to
-the world. Do not build the dev toggles or re-tune a single noise value or a night — both 13C's. Do
-not put the wake in a store or the wash in `world`. Do not add a second rAF.
+the world. Do not put the wake in a store or the wash in `world`. Do not add a second rAF.
+
+**Do not re-tune a noise value or a night.** You will be looking at the meter for the first time and
+it is the moment the temptation lands — but whether Act I can reach the cap at all needs a
+measurement, and step 22 is the step that measures, with peak noise, wake count and a sweepable noise
+decay already on its metrics list. If a night feels wrong, write down what you saw and leave the
+number where it is. The dev panel's cap and decay toggles are how you explore the question without
+committing to an answer.
+
+Do not grow the panel into a Grocery Money shop, an unlock schedule or a loadout screen — all step
+20's.

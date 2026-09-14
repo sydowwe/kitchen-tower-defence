@@ -3,15 +3,45 @@
 > Paste this entire file as your prompt into a fresh session.
 
 **Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §8,
-`../../analytic-docs/ARCHITECTURE.md` §3.
+`../../analytic-docs/ARCHITECTURE.md` §3, `../../analytic-docs/CONTENT.md` §8 (the Installations
+table — the three noise rows only).
 **Prereq:** step 12.
 
 ## Goal
 
-The meter fills, a human walks in, and the night costs you something. Entirely headless — nothing
-about noise looks any different on screen until 13B. Every test step 13 has lives here, because this
-is the half that can silently be wrong: a meter that decays at 1.5 per *tick*, a wake that fires on
-two consecutive ticks, a forfeit that takes money you already spent.
+The meter fills, a human walks in, and the night costs you something — and the three installations
+that make a loud tower a choice rather than a trap exist as content. Entirely headless: nothing about
+noise looks any different on screen until 13B. Every test step 13 has lives here, because this is the
+half that can silently be wrong — a meter that decays at 1.5 per *tick*, a wake that fires on two
+consecutive ticks, a forfeit that takes money you already spent.
+
+## The risk this part knowingly ships
+
+**You will probably never see the meter fill by playing, and that is not a bug in your code.**
+
+A Mousetrap is `noise: 2` every 396 ticks — 0.30/sec, and only while something stands inside its
+range of 1. A Toaster is `noise: 3` every 200 ticks — 0.90/sec, and only while something is in the
+air inside its range of 4. Decay is 1.5/sec, always. So five Mousetraps firing without a pause merely
+hold the meter level, and neither tower's range makes a full duty cycle plausible. On a hand-played
+night 6 the level will very likely hover near zero all night.
+
+That question — can Act I fill the cap at all — is `OPEN-QUESTIONS.md` §3's, and it is answered in
+step 22, which sweeps noise decay across a range and plays five hundred nights headless. It is not
+answered by one person watching one night with no meter on screen, which is all this session has. So
+**this part ships a mechanic that may be inert until step 22 tunes it**, deliberately, and the two
+consequences for you are:
+
+- **Do not diagnose a quiet meter as a broken system.** The specs below are how you know the
+  accumulation, the decay and the wake are right; they drive the level to the cap directly rather
+  than waiting for towers to get it there. If they pass, this part is done, whatever a played night
+  looks like.
+- **Do not fix it by moving a number.** Every instinct will say the decay is too strong. It may well
+  be — that is exactly what step 22 is for, and moving it here means moving it on one person's
+  impression of one night. Write down what you saw in the session's closing notes instead.
+
+13B gets a dev panel with a "wake now" button and cap/decay toggles, which is the first point anyone
+can look at the wake without hand-editing the world. If you need to see one before the specs
+convince you, set `world.noise.level = world.noise.cap` in a scratch spec and step a tick.
 
 ## Already in the repo
 
@@ -35,6 +65,10 @@ Most of the wiring exists. These are the files you edit rather than create.
 | `core/systems/targeting.ts:31` | `isTargetable` — `hidden && !revealed`, then `untargetable`, then the air/ground class |
 | `core/types.ts:66` | `EnemyFlag = 'hidden' \| 'untargetable' \| 'fleeing' \| 'revealed'`. **`fleeing` has no writer yet** — its comment says step 19 owns it; you are the first writer |
 | `ui/viewModel.ts:92` | `hitPoints` is null for every tower that is not a barricade, with a comment reading "Step 13's noise penalty is what turns it on for the rest" |
+| `core/content/installations.ts` | **empty**. Zero bytes, no exports |
+| `core/content/schema.ts:530` | the `installation` schema — `{ id, nameKey, descriptionKey, cost }` and a comment saying step 20 extends it with the effect field |
+| `core/content/index.ts:51` | `validateContentInDev({ towers, enemies, food, nights })` — `installations` deliberately absent, with a comment saying why |
+| `ui/locales/contentKeys.ts` | `TowerMessages` / `EnemyMessages` / `FoodMessages` make a def without an English entry a **type error**. There is no `InstallationMessages` yet |
 
 **The specs that will break:**
 
@@ -104,6 +138,16 @@ edit this file, don't leave it lying.
     into `isTargetable`'s reading of `fleeing`.
 12. **Fleeing ignores `speedMultiplier`.** A frozen or rooted enemy that can never leave is a board
     that never empties and a night that never ends. Flee speed is exactly `speed * 2`.
+13. **Only the three noise installations are authored.** `CONTENT.md` §8 has fourteen; the other
+    eleven touch eleven different systems and belong to step 20. Three defs is the smallest thing
+    that makes the counterplay real and gives 13B something to toggle.
+14. **Their effect is two optional fields on the schema, `noiseCapDelta` and
+    `noiseDecayPerSecondDelta`** — not a generic `effect` union. Step 20 has fourteen effects across
+    as many systems and will pick that shape when it can see all fourteen; guessing it now from a
+    sample of three is how you get a union the step it was built for has to rewrite.
+15. **The decay delta is authored per second and converted once**, in `core/world.ts`, beside the
+    existing `1.5 / 60`. `CONTENT.md` §8 says "+0.5/sec" and a def should read the way the doc does;
+    `core/` holds ticks, and there is exactly one place the conversion happens.
 
 ## Build
 
@@ -119,7 +163,7 @@ The shape is a **resolved pair, not a list of installation ids**, and the fold h
 construction rather than being read every tick from a modifiers object. That is exactly what
 `resolveDifficulty` already does and for the same reason: the world carries the numbers it was built
 with, so a replay of tonight is not at the mercy of a balance patch that re-prices White-noise
-Machine next month. 13C authors the three installations and resolves them into this pair.
+Machine next month. Build item 7 is what resolves installations into this pair.
 
 Then `tests/fixtures/world.ts`, which spells every field out and will fail `type-check` until you do.
 
@@ -223,6 +267,33 @@ Every tower can now be damaged, so `hitPoints = def.maxHp` for all of them, and 
 Also publish `noise.wakeCount` and `unbankedCrumbs` in `HudSnapshot` — 13B's card and the top bar
 read both. Nothing else in `ui/` changes here.
 
+### 7. The three noise installations
+
+`CONTENT.md` §8, in the doc's own order and prices:
+
+```
+oilTheHinges          90   noiseDecayPerSecondDelta: 0.5
+closeTheKitchenDoor  100   noiseCapDelta: 25
+whiteNoiseMachine    260   noiseCapDelta: 30
+```
+
+`cost` is Grocery Money and nothing spends it yet — that is step 20's, and the field is on the schema
+already. Add the two optional fields to the `installation` schema and bound them the way every other
+number there is bounded: a cap delta is tens rather than hundreds, and a decay delta is a per-second
+rate under 10 — which is what rejects a per-*tick* value pasted in, the same job `MAX_COOLDOWN_TICKS`
+does for a millisecond one.
+
+Wire `installations: INSTALLATIONS` into `core/content/index.ts`'s `validateContentInDev` call and
+correct the comment above it that says the slot stays empty until step 20.
+
+Export the resolver — `resolveNoiseModifiers(ids: DefId[]): { capDelta, decayPerSecondDelta }` — so
+13B's dev panel and step 20 fold the same way. Sums, additively; an unknown id throws with the id in
+the message, like every other lookup in `core/content/index.ts`.
+
+Add `InstallationMessages` to `ui/locales/contentKeys.ts` and the three entries to `en.ts`. The type
+is four lines and 13B's panel renders these names, so an installation without English is a type error
+rather than `installation.oilTheHinges.name` on screen — which is the whole job that file does.
+
 ## Tests
 
 New `tests/noise.spec.ts`. The fixture's night is terminal, so move it to `'wave'` first.
@@ -247,8 +318,14 @@ New `tests/noise.spec.ts`. The fixture's night is terminal, so move it to `'wave
 - A wake during `'countdown'` leaves `countdownTicks` unchanged and the next wave starts exactly
   once, at the same tick it would have.
 - A wake on the **last** wave still lets the night reach `'won'` once the board empties.
-- `createWorld` with `noise: { capDelta: 25, decayPerSecondDelta: 0.5 }` on top of
-  `{ capDelta: 30 }` gives cap 155 and decay `2 / 60`: additive, both, on top of the tier.
+- `createWorld` with `noise: { capDelta: 55, decayPerSecondDelta: 0.5 }` gives cap 155 and decay
+  `2 / 60` on `normal`: additive, both, on top of the tier.
+- `resolveNoiseModifiers(['closeTheKitchenDoor', 'whiteNoiseMachine', 'oilTheHinges'])` is
+  `{ capDelta: 55, decayPerSecondDelta: 0.5 }`, and driven through `createWorld` gives the same cap
+  155 and decay `2 / 60`. **Assert against the resolved defs, not against literals copied out of the
+  doc** — that is what makes this a test of the fold rather than a second transcription of
+  `CONTENT.md` §8.
+- `resolveNoiseModifiers` on an unknown id throws with the id in the message.
 - Extend `tests/world.spec.ts`'s round-trip assertion rather than writing a second one, so
   `unbankedCrumbs` and `wakeCount` are covered by the test that already guards this.
 
@@ -261,11 +338,13 @@ New `tests/noise.spec.ts`. The fixture's night is terminal, so move it to `'wave
       `core/systems/economy.ts`.
 - [ ] `SYSTEM_ORDER` is unchanged — the noise slot was already in the right place and this part does
       not move it.
+- [ ] No number in `core/content/towers.ts`, `core/content/nights.ts` or `NOISE_DECAY_PER_TICK`
+      changed. If one looks wrong, write it down for step 22 rather than moving it.
 
-## Hands to 13B and 13C
+## Hands to 13B
 
-These exports are the contract the next two sessions build against. If you change a signature, change
-it here too.
+These exports are the contract the next session builds against. If you change a signature, change it
+here too.
 
 ```
 core/types.ts            NoiseState { level, cap, decayPerTick, wakeCount }
@@ -280,14 +359,22 @@ core/systems/economy.ts  earnCrumbs(world: World, amount: number, banked?: boole
 core/systems/placement.ts destroyTower(world, towerId, options?: { payPenalty?: boolean }): boolean
 core/world.ts            CreateWorldOptions { …, noise?: { capDelta?: number
                                                            decayPerSecondDelta?: number } }
+core/content/
+  installations.ts       INSTALLATIONS: InstallationDef[]
+                         resolveNoiseModifiers(ids: DefId[]): { capDelta: number
+                                                                decayPerSecondDelta: number }
 ui/viewModel.ts          HudSnapshot.noise { level, cap, wakeCount }
                          HudSnapshot.unbankedCrumbs: number
 ```
 
 ## Do not
 
-Draw anything, change a colour, or touch a `.vue` file beyond `viewModel.ts`'s two fields — 13B owns
-every pixel of this, including the flee. Do not author the installations or a dev toggle (13C). Do
-not re-tune the cap, the decay or any tower's `noise` value: those are numbers 13C measures, and
-moving them here means moving them with no meter on screen. Do not add a `noiseSource` behaviour for
-enemies — the Cricket is Act III.
+Draw anything, change a colour, or touch a `.vue` file beyond `viewModel.ts`'s two fields and
+`en.ts`'s three installation entries — 13B owns every pixel of this, including the flee. Do not build
+the dev panel (13B's, and it is that session's own instrument).
+
+**Do not re-tune the cap, the decay or any tower's `noise` value** — see *The risk this part
+knowingly ships* at the top of this file. The number that looks wrong is step 22's to move.
+
+Do not author the other eleven installations or spend Grocery Money (step 20). Do not add a
+`noiseSource` behaviour for enemies — the Cricket is Act III.
