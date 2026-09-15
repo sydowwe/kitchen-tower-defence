@@ -8,6 +8,18 @@
 			</span>
 		</header>
 
+		<!-- Above the card and above the ladder, because it is the one thing in this panel a player
+			 standing on tier 0 has to read: the third tier is what 250% of a tower's cost buys, and
+			 five of the six behaviours it can add show up in no diff row anywhere below. Inside its
+			 own slot it was the fourth block down and under the fold. -->
+		<p
+			v-if="tierThreeDescriptionKey !== null"
+			class="lead"
+		>
+			<span class="lead-label">{{ t('hud.tierThreeLead') }}</span>
+			{{ t(tierThreeDescriptionKey) }}
+		</p>
+
 		<StatCard :stats="inspector.stats" />
 
 		<ul class="slots">
@@ -87,6 +99,17 @@
 
 	/** Every slot bought. Said once, where the button was, so the panel does not just lose a row. */
 	const maxed = computed(() => inspector.upgrades.every(slot => slot.state === 'owned'))
+
+	/**
+	 * The tier-3 sentence, hoisted out of its slot to the top of the panel.
+	 *
+	 * Found by the description rather than by index, because `descriptionKey` being tier 3's alone is
+	 * the contract `UpgradeSlotView` states -- `upgrades[2]` would be a second place that has to know
+	 * which tier carries a sentence, and it would quietly pick the wrong one the day a tower has two.
+	 */
+	const tierThreeDescriptionKey = computed(
+		() => inspector.upgrades.find(slot => slot.descriptionKey !== null)?.descriptionKey ?? null,
+	)
 </script>
 
 <style scoped>
@@ -135,6 +158,27 @@
 		color: var(--kd-text-dim);
 		font-size: 0.7rem;
 		font-style: normal;
+	}
+
+	/* The loudest block in the panel, and deliberately louder than the diff rows further down:
+	   brighter than body text, on its own ground, with the lamp colour down its edge. */
+	.lead {
+		margin: 0;
+		padding: 0.4rem 0.5rem;
+		border-left: 2px solid var(--kd-owned);
+		border-radius: 0 var(--kd-radius) var(--kd-radius) 0;
+		background: var(--kd-panel-raise);
+		color: var(--kd-text);
+		font-size: 0.75rem;
+		line-height: 1.4;
+	}
+
+	.lead-label {
+		display: block;
+		color: var(--kd-owned);
+		font-size: 0.58rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
 	}
 
 	.slots {

@@ -3,17 +3,6 @@
 		class="slot"
 		:class="entry.state"
 	>
-		<!-- First in the markup and first in the reading order, because on a tier-0 tower this is the
-			 sentence that has to land before the numbers do: the third tier is the reason to save 250%
-			 of a tower's cost, and five of the six behaviours it can add show up in no diff row. -->
-		<p
-			v-if="entry.descriptionKey !== null"
-			class="lead"
-		>
-			<span class="lead-label">{{ t('hud.tierThreeLead') }}</span>
-			{{ t(entry.descriptionKey) }}
-		</p>
-
 		<header class="head">
 			<span class="tier">{{ t('hud.tier', { n: entry.tier }) }}</span>
 			<b class="name">{{ t(entry.nameKey) }}</b>
@@ -146,27 +135,6 @@
 	.name {
 		color: var(--kd-text);
 		font-size: 0.78rem;
-	}
-
-	/* The loudest thing in the slot, and deliberately louder than the diff below it: brighter than
-	   body text, on its own ground, above the tier's own name. */
-	.lead {
-		margin: 0;
-		padding: 0.35rem 0.45rem;
-		border-left: 2px solid var(--kd-owned);
-		border-radius: 0 var(--kd-radius) var(--kd-radius) 0;
-		background: var(--kd-panel);
-		color: var(--kd-text);
-		font-size: 0.75rem;
-		line-height: 1.4;
-	}
-
-	.lead-label {
-		display: block;
-		color: var(--kd-owned);
-		font-size: 0.58rem;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
 	}
 
 	.diff {
