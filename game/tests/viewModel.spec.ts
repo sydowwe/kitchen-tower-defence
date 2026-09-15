@@ -8,7 +8,8 @@ import { createWorld } from '@/core/world.ts'
 import { buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
 import { createTestWorld } from './fixtures/world.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
-import type { FoodItem, Tower, World } from '@/core/types.ts'
+import type { UpgradeSlotView } from '@/ui/viewModel.ts'
+import type { FoodItem, Tower, Vec2, World } from '@/core/types.ts'
 
 /**
  * The half of step 8 that can be silently wrong: a bonus preview that disagrees with what the wallet
@@ -237,6 +238,104 @@ describe('the inspector', () => {
 	})
 })
 
+describe('the upgrade slots', () => {
+	function slotsFor(world: World, defId: string, at: Vec2 = LEGAL_TILE): UpgradeSlotView[] {
+		const tower = placeTower(world, getTowerDef(defId), at)
+		if (tower === null) {
+			throw new Error(`the fixture refused a legal '${defId}'`)
+		}
+		const slots = buildTowerInspector(world, tower.id)?.upgrades
+		if (slots === undefined) {
+			throw new Error('a tower that was just placed has no inspector')
+		}
+		return slots
+	}
+
+	it('emits a row for the stat the tier moved and no row for any stat it did not', () => {
+		const world = buildableWorld()
+		const first = slotsFor(world, 'saltShaker')[0]
+
+		// The Salt Shaker's first tier is +2 damage, so the diff is that row and the dps it carries
+		// with it -- `dps` is `damage x rate` and a diff that showed the damage moving while the
+		// damage-per-second sat still would be the panel contradicting the card above it.
+		//
+		// Everything else stays off the list. A diff that emitted every field is the failure worth
+		// catching: it is not visibly wrong, it is eleven rows of unchanged numbers with the one that
+		// moved buried among them.
+		expect(first?.diff).toEqual([
+			{
+				labelKey: 'hud.stat.damage',
+				from: { textKey: 'hud.stat.plain', params: { n: 5 } },
+				to: { textKey: 'hud.stat.plain', params: { n: 7 } },
+			},
+			{
+				labelKey: 'hud.stat.dps',
+				from: { textKey: 'hud.stat.plain', params: { n: 5 } },
+				to: { textKey: 'hud.stat.plain', params: { n: 7 } },
+			},
+		])
+		expect(first?.diff.map(row => row.labelKey)).not.toContain('hud.stat.range')
+		expect(first?.diff.map(row => row.labelKey)).not.toContain('hud.stat.rate')
+		expect(first?.diff.map(row => row.labelKey)).not.toContain('hud.stat.noise')
+	})
+
+	it('moves the rate and the dps together when a tier moves the cooldown, and nothing else', () => {
+		const world = buildableWorld()
+		// 75 ticks -> 60 is 0.8/sec -> 1/sec, and 2 damage makes it 1.6 dps -> 2. The damage row does
+		// not move, which is what tells the player what this tier is actually for.
+		const first = slotsFor(world, 'iceCubeTray')[0]
+
+		expect(first?.diff).toEqual([
+			{
+				labelKey: 'hud.stat.rate',
+				from: { textKey: 'hud.stat.perSecond', params: { n: 0.8 } },
+				to: { textKey: 'hud.stat.perSecond', params: { n: 1 } },
+			},
+			{
+				labelKey: 'hud.stat.dps',
+				from: { textKey: 'hud.stat.plain', params: { n: 1.6 } },
+				to: { textKey: 'hud.stat.plain', params: { n: 2 } },
+			},
+		])
+	})
+
+	it('prices all three tiers and states them against the tier the tower is standing on', () => {
+		const world = buildableWorld()
+		const tower = placeTower(world, getTowerDef('saltShaker'), LEGAL_TILE)
+		if (tower === null) {
+			throw new Error('the fixture refused a legal placement')
+		}
+		tower.tier = 1
+		// Exactly the second tier's price, so `>=` and not `>` is what decides the flag.
+		world.crumbs = 60
+
+		const slots = buildTowerInspector(world, tower.id)?.upgrades ?? []
+
+		// 60% / 120% / 250% of the Salt Shaker's 50.
+		expect(slots.map(slot => slot.cost)).toEqual([30, 60, 125])
+		expect(slots.map(slot => slot.state)).toEqual(['owned', 'next', 'locked'])
+		expect(slots.map(slot => slot.affordable)).toEqual([true, true, false])
+		// Tier 3 is the only one with a sentence: the other two have their diff.
+		expect(slots.map(slot => slot.descriptionKey)).toEqual([null, null, 'tower.saltShaker.tier3.description'])
+	})
+
+	it('reports the dps of a tier-3 tower off the folded def and not the base one', () => {
+		const world = buildableWorld()
+		const tower = placeTower(world, getTowerDef('saltShaker'), LEGAL_TILE)
+		if (tower === null) {
+			throw new Error('the fixture refused a legal placement')
+		}
+
+		// 5 damage at 1/sec at tier 0; 9 at the same rate once all three tiers are folded in. This is
+		// the number step 12C's acceptance checks with a stopwatch against a single ant.
+		expect(buildTowerInspector(world, tower.id)?.stats.dps).toBe(5)
+
+		tower.tier = 3
+		expect(buildTowerInspector(world, tower.id)?.stats.dps).toBe(9)
+		expect(buildTowerInspector(world, tower.id)?.stats.damage).toBe(9)
+	})
+})
+
 describe('the clock', () => {
 	function clockAt(waveIndex: number, waveCount: number): { hour: number; minute: number } {
 		const world = createTestWorld()
@@ -319,10 +418,18 @@ describe('detachment from the world', () => {
 		const world = buildableWorld()
 		world.night.food = [foodItem(1, 'cheese', false), foodItem(2, 'apple', false)]
 		dropCrumb(world, { x: 5, y: 0 }, 7)
+		// With an inspector in it, so the `upgrades` array is covered by the assertion that already
+		// guards this rather than by a second one beside it.
+		const tower = placeTower(world, getTowerDef('saltShaker'), LEGAL_TILE)
 
-		const snapshot = buildHudSnapshot(world, VIEW)
+		const snapshot = buildHudSnapshot(world, VIEW, buildTowerInspector(world, tower?.id ?? -1))
 		const before = structuredClone(snapshot)
 
+		// A tier folded after the snapshot was built. `effectiveDef` hands out a shared, memoised def,
+		// and a slot holding one by reference would follow it.
+		if (tower !== null) {
+			tower.tier = 3
+		}
 		world.crumbs -= 50
 		world.night.food[0]!.lost = true
 		world.enemies.push({

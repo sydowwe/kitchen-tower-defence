@@ -81,6 +81,15 @@
 			<dt>{{ t('hud.stat.noise') }}</dt>
 			<dd>{{ stats.noise === 0 ? t('hud.stat.silent') : stats.noise }}</dd>
 		</dl>
+		<!-- Only where there is a dps row to qualify. `damage x rate` is single-target, and once a
+			 tier-3 Salt Shaker splashes or a tier-3 Toaster throws a second projectile the unqualified
+			 number would quietly mean "against a crowd" (step 12C, decision 5). -->
+		<p
+			v-if="stats.dps !== null"
+			class="note"
+		>
+			{{ t('hud.stat.dpsNote') }}
+		</p>
 	</div>
 </template>
 
@@ -154,6 +163,13 @@
 		color: var(--kd-text);
 		text-align: right;
 		font-variant-numeric: tabular-nums;
+	}
+
+	.note {
+		margin: 0;
+		color: var(--kd-text-dim);
+		font-size: 0.65rem;
+		opacity: 0.8;
 	}
 
 	/* One status per line rather than a joined list: two of them on one line wraps mid-name. */

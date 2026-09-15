@@ -87,6 +87,19 @@ export const TOWER_PAD_EDGE = 'rgba(226, 232, 255, 0.22)'
 export const TOWER_REARM_TRACK = 'rgba(226, 232, 255, 0.14)'
 export const TOWER_REARM_SWEEP = 'rgba(255, 196, 71, 0.95)'
 
+/**
+ * What an upgraded tower wears: a wash inside the pad at tier 1, a ring at its edge at tier 2, and a
+ * badge in its corner at tier 3.
+ *
+ * Deliberately **not** the rearm sweep's colour. A rearm is a gauge that moves and a tier is a fact
+ * that does not, and the one thing step 10C bought with that yellow was "this tower is not ready" --
+ * a maxed tower wearing it would be reading as mid-rearm from across the room. This is the panel's
+ * own `--kd-owned-dim` family, which is the colour the HUD already spends on "you own this".
+ */
+export const TOWER_TIER_GLOW = 'rgba(245, 198, 107, 0.1)'
+export const TOWER_TIER_RING = 'rgba(245, 198, 107, 0.55)'
+export const TOWER_TIER_BADGE = 'rgba(255, 214, 120, 0.95)'
+
 /** Cracks drawn over a damaged barricade. Darker than anything under it, so it reads as a split. */
 export const TOWER_CRACK = 'rgba(24, 14, 8, 0.75)'
 

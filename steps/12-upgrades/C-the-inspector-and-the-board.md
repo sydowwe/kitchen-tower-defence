@@ -22,7 +22,7 @@ night played on the real numbers.
 | `ui/components/hud/TowerInspector.vue:87` | `TARGETING_MODES` — six chips, already wired end to end through `HudLayer.vue:22` and `GameView.vue` to `SetTargetingMode`, and all six modes have worked in `targeting.ts` since step 6B. This control is **real**, not a stub; it is being re-shaped, not built |
 | `ui/viewModel.ts:64` | `TowerStatsView` — seventeen fields, every one nullable except `noise` and `blocksPath`, with the rule that a missing stat is `null` and never `0` |
 | `ui/viewModel.ts:216` | `statsFor(def)` — derives the card from the def's behaviours through the `isX` narrowers, so a tower that gains a behaviour gains a row without this file learning its name |
-| `ui/viewModel.ts:355` | `buildTowerInspector` — built on **selection change**, not at 15Hz. The one exception ARCHITECTURE.md §5 carves out |
+| `ui/viewModel.ts:355` | `buildTowerInspector` — the one exception ARCHITECTURE.md §5 carves out. **Corrected in 12C:** `GameView.vue:337` calls `refreshInspector()` from `publish()` as well as from the `watch`, so it is rebuilt on selection change *and* at 15Hz. The exception buys the click feeling instant, not a lower rate |
 | `ui/components/hud/StatCard.vue` | the shared stat block, every row `v-if`'d on a null |
 | `ui/icons.ts` | thirteen per-icon imports. `library.add(fas)` is forbidden and ESLint enforces it |
 | `render/layers/towers.ts:307` | `drawTowers` — the pad, the rearm ring, the box damage states, the HP bar |
@@ -39,11 +39,22 @@ edit this file, don't leave it lying.
    `statsFor(effectiveDef(defId, n))` and `statsFor(effectiveDef(defId, n + 1))` and compare them
    field by field, emitting a row for every field that changed. Any other approach means a second
    list of which stats exist, and it drifts from `StatCard.vue` the first time a behaviour gains a
-   row. It also means 12B's six tiers show their numeric side for free.
+   row.
 
-2. **All three slots are built, for every tier, on selection change.** That is nine `statsFor` calls
-   over a memoised fold — microseconds, once per click — and it is what lets the panel show tier 3's
-   description while the player is still standing on tier 0, which is the reason to save for it.
+   **Corrected in 12C:** the draft finished "and it means 12B's six tiers show their numeric side for
+   free", and they do not. `statsFor` derives from the behaviour vocabulary it already reads, and
+   none of `splashRadiusTiles`, `projectilesPerShot`, `maxOutstanding`, `reflectDamagePerTick` or an
+   added `aura` is on it — only the Ice Cube Tray's freeze surfaces, through `applies`. Five of the
+   six tier 3s are carried by their description, which is what decision 5's layout gives the room to.
+   Widening `TowerStatsView` would widen `StatCard.vue` with it, and an aura row belongs to step 17.
+
+2. **All three slots are built, for every tier, on selection change.** That is a handful of `statsFor`
+   calls over a memoised fold — microseconds, once per click — and it is what lets the panel show
+   tier 3's description while the player is still standing on tier 0, which is the reason to save for
+   it.
+
+   **Corrected in 12C:** the draft said nine. It is **six** — each tier's diff reads the fold at
+   `tier - 1` and at `tier`, so the three slots share their boundaries rather than each costing three.
 
 3. **The targeting control becomes one cycling button, not six chips.** Six chips plus three upgrade
    slots is a panel taller than the board. One button showing the current mode's icon and name,
@@ -64,6 +75,12 @@ edit this file, don't leave it lying.
    corner badge. All three drawn in `drawTowers`, none of them a second glyph and none of them a
    change to `preloadTowerGlyphs`.
 
+   **Corrected in 12C:** the draft put all three between the pad and the glyph, and the badge cannot
+   go there. Under the glyph a corner badge is mostly covered by it, which loses the acceptance
+   criterion it exists for — and on a tier-3 Cardboard Box it would land inside `drawBox`'s
+   `ctx.scale` and be squashed flat with the box. The glow and the ring go between pad and glyph; the
+   badge goes after the glyph, outside every transform.
+
 ## Build
 
 ### 1. `ui/viewModel.ts`
@@ -78,24 +95,37 @@ UpgradeSlotView = {
     state: 'owned' | 'next' | 'locked'
     nameKey: string
     descriptionKey: string | null // tier 3 only
-    diff: { labelKey: string; from: string | null; to: string | null }[]
+    diff: { labelKey: string; from: StatValueView | null; to: StatValueView | null }[]
 }
 ```
 
-`from` and `to` are **strings, already formatted**, not numbers: a range is "3 tiles", a rate is
-"1.4/sec" and a damage type is a word, and a component that formatted them would have to know what
-each field means — the same call step 9C made when it resolved `applies` into
-`{ kind, perSecond }` here rather than in `StatCard.vue`.
+`from` and `to` are **resolved here, not in the component**: a range is `hud.stat.tiles` with
+`{ n: 3 }`, a rate is `hud.stat.perSecond` with `{ n: 1.4 }` and a damage type is `hud.damage.fire`,
+and a component that picked those would have to know what each field means — the same call step 9C
+made when it resolved `applies` into `{ kind, perSecond }` here rather than in `StatCard.vue`.
+
+**Corrected in 12C:** the draft said "strings, already formatted" — "3 tiles" — which is English in
+the view model, and both CLAUDE.md's *Strings* rule and this file's own header forbid that. A
+`StatValueView` is `{ textKey, params }` instead: the field still chooses the key, the component
+still only calls `t`, and a bare number gets the pass-through key `hud.stat.plain`.
+
+The diff covers the **scalar** rows only. `applies` is a list and `blocksPath` is a yes-or-no that no
+tier moves, so neither gets a row — an `applies` row would need a multi-valued `StatValueView` for
+the one tier in the roster that rewrites it, and the Ice Cube Tray's tier-3 sentence already says it.
 
 `affordable` uses `>=`, matching `ShopEntry.affordable`'s note: a 30-crumb upgrade with exactly 30
 crumbs is buyable, and a panel that dims it is lying about the one purchase the player has been
 saving for.
 
-Gotcha: `buildTowerInspector` runs on selection change, so `affordable` is **stale the moment the
-wallet moves** — and the wallet moves constantly. `HudSnapshot.crumbs` is republished at 15Hz, so
-compare against that in the component rather than baking the boolean here, or the Upgrade button
-stays grey for up to a wave after the crumbs arrive. This is the same reason `refreshHover` in
-`interaction.ts` re-asks `canPlaceTower` once a frame instead of only on pointermove.
+The draft's gotcha here read: *`buildTowerInspector` runs on selection change, so `affordable` is
+stale the moment the wallet moves — compare against `HudSnapshot.crumbs` in the component instead.*
+**It is wrong**, for the reason in the table above: `GameView.vue:337` rebuilds the inspector from
+`publish()`, so `affordable` is exactly as fresh as `ShopEntry.affordable` and is baked here for the
+same reason that one is. The cost of being wrong the other way is a second answer to one question.
+
+The real gotcha is what that rebuild rate does to decision 2: those six `statsFor` calls are no
+longer once per click, they are fifteen times a second. Still microseconds over a memoised fold — but
+they have to stay pure reads of `effectiveDef`, with no allocation the fold does not already make.
 
 ### 2. `TowerInspector.vue`
 
@@ -149,7 +179,8 @@ Range circles updating on upgrade needs nothing here — `ui/interaction.ts:464`
 
 ## Tests
 
-Two assertions in `tests/viewModel.spec.ts`, and nothing over `render/` —
+Three assertions in `tests/viewModel.spec.ts` (the draft said two and listed three), and nothing over
+`render/` —
 `../../analytic-docs/ARCHITECTURE.md` §7, the bugs there are visible.
 
 - The slot for a tier that raises damage from 5 to 7 carries a diff row for damage reading 5 → 7,
@@ -174,7 +205,7 @@ Two assertions in `tests/viewModel.spec.ts`, and nothing over `render/` —
       maxed without clicking one. This is 10C's armed-state criterion applied to the same problem.
 - [ ] The tier-3 description is the thing you read first when you open the panel on a tier-0 tower.
       If the diff rows are louder than it, the layout is upside down.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

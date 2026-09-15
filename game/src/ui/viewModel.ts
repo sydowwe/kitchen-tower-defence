@@ -18,14 +18,15 @@
 
 import { isAttack, isCharge, isCollect, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
-import { TOWERS, effectiveDefOf } from '@/core/content/index.ts'
+import { TOWERS, effectiveDef, effectiveDefOf, getTowerDef } from '@/core/content/index.ts'
+import { upgradeCost } from '@/core/content/upgrades.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
 import { refundFor, towerById } from '@/core/systems/placement.ts'
 import { nightClock } from '@/core/systems/wave.ts'
 import type { StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { DamageType, DefId, EntityId, NightPhase, StatusKind, TargetingMode, World } from '@/core/types.ts'
+import type { DamageType, DefId, EntityId, NightPhase, StatusKind, TargetingMode, Tower, World } from '@/core/types.ts'
 import type { Speed } from '@/loop.ts'
 
 /**
@@ -114,6 +115,60 @@ export interface TowerStatsView {
 	revealRadiusTiles: number | null
 }
 
+/**
+ * One number as the card prints it: the key that formats it, and what it formats.
+ *
+ * **Not a formatted string.** "3 tiles" in this file would be English in the view model, which
+ * CLAUDE.md's *Strings* rule and this file's own header both forbid -- the catalogue owns the words
+ * and `ui/` resolves them. What this file owns is the *choice* of key, which is the part that needs
+ * to know a range is tiles and a cooldown is a rate. A component holding that knowledge is a
+ * component that has to be edited every time a behaviour gains a field (step 12C, decision 1).
+ *
+ * `hud.stat.plain` is the pass-through key, `'{n}'`, so a bare number and a word are the same shape
+ * and the renderer is one `t()` call with no branch.
+ */
+export interface StatValueView {
+	textKey: string
+	params: Record<string, number>
+}
+
+/**
+ * One line of an upgrade's before -> after.
+ *
+ * Null on either side means the tower does not have that stat at that tier -- a genuinely added row,
+ * not a zero, exactly as `TowerStatsView` treats a missing stat.
+ */
+export interface UpgradeDiffRow {
+	labelKey: string
+	from: StatValueView | null
+	to: StatValueView | null
+}
+
+/**
+ * One of the three tiers, whether or not it can be bought yet.
+ *
+ * All three are built for every tower on every rebuild, which is what lets the panel show tier 3's
+ * sentence while the player is still standing on tier 0 -- that sentence is the reason to save 250%
+ * of a tower's cost, and a slot that appeared only once it was affordable would hide it (step 12C,
+ * decision 2).
+ */
+export interface UpgradeSlotView {
+	/** 1, 2 or 3. `Tower.tier` is 0-based and this is the tier the slot *buys*. */
+	tier: number
+	cost: number
+	/**
+	 * `world.crumbs >= cost`, with `>=` and not `>`, for `ShopEntry.affordable`'s reason: a 30-crumb
+	 * upgrade with exactly 30 crumbs is buyable, and a panel that dims it is lying about the one
+	 * purchase the player has been saving for.
+	 */
+	affordable: boolean
+	state: 'owned' | 'next' | 'locked'
+	nameKey: string
+	/** Tier 3 only. Tiers 1 and 2 have the diff, and a sentence reading "more damage" is noise. */
+	descriptionKey: string | null
+	diff: UpgradeDiffRow[]
+}
+
 export interface ShopEntry {
 	id: DefId
 	glyph: string
@@ -141,6 +196,8 @@ export interface TowerInspectorView {
 	nameKey: string
 	tier: number
 	stats: TowerStatsView
+	/** Always three, in tier order, whatever tier the tower is standing on. */
+	upgrades: UpgradeSlotView[]
 	targetingMode: TargetingMode
 	/** From `refundFor`, never a second 0.7: the number under the button is what the sale pays. */
 	refund: number
@@ -345,10 +402,121 @@ function foodView(world: World): HudSnapshot['food'] {
 	}
 }
 
+/** A number the card prints bare, the way `StatCard.vue` prints damage and hit points. */
+function plain(value: number | null): StatValueView | null {
+	return value === null ? null : { textKey: 'hud.stat.plain', params: { n: value } }
+}
+
+/** A number with a unit on it: `'{n} tiles'`, `'{n}/sec'`, `'{n}s'`, `'±{n}°'`. */
+function measured(textKey: string, value: number | null): StatValueView | null {
+	return value === null ? null : { textKey, params: { n: value } }
+}
+
+/** A row whose value is a word out of the catalogue -- a damage type, a target class. */
+function word(textKey: string | null): StatValueView | null {
+	return textKey === null ? null : { textKey, params: {} }
+}
+
 /**
- * The selected tower's live numbers, built on **selection change** rather than at 15Hz: the one
- * exception ARCHITECTURE.md section 5 carves out, because a number the player is actively watching
- * reads as laggy at a fifteenth of a second.
+ * Every row of `TowerStatsView` a tier can move, paired with the label `StatCard.vue` gives it, in
+ * the order that card lists them.
+ *
+ * **One table, read by both sides of the diff**, which is the whole of decision 1: the alternative is
+ * a second list of which stats exist, and it drifts from the card the first time a behaviour gains a
+ * row. `applies` and `blocksPath` are deliberately absent -- see `diffStats`.
+ */
+const DIFF_ROWS: readonly { labelKey: string; read: (stats: TowerStatsView) => StatValueView | null }[] = [
+	{ labelKey: 'hud.stat.targets', read: s => word(s.targets === null ? null : `hud.targetClass.${s.targets}`) },
+	{ labelKey: 'hud.stat.damage', read: s => plain(s.damage) },
+	{ labelKey: 'hud.stat.rate', read: s => measured('hud.stat.perSecond', s.ratePerSecond) },
+	{ labelKey: 'hud.stat.dps', read: s => plain(s.dps) },
+	{ labelKey: 'hud.stat.range', read: s => measured('hud.stat.tiles', s.rangeTiles) },
+	{ labelKey: 'hud.stat.cone', read: s => measured('hud.stat.degrees', s.coneHalfAngleDeg) },
+	{ labelKey: 'hud.stat.damageType', read: s => word(s.damageType === null ? null : `hud.damage.${s.damageType}`) },
+	{ labelKey: 'hud.stat.hitPoints', read: s => plain(s.hitPoints) },
+	{ labelKey: 'hud.stat.charges', read: s => plain(s.charges) },
+	{ labelKey: 'hud.stat.rearm', read: s => measured('hud.stat.seconds', s.rearmSeconds) },
+	{ labelKey: 'hud.stat.income', read: s => measured('hud.stat.perSecond', s.crumbsPerSecond) },
+	{ labelKey: 'hud.stat.collect', read: s => measured('hud.stat.tiles', s.collectRadiusTiles) },
+	{ labelKey: 'hud.stat.lights', read: s => measured('hud.stat.tiles', s.revealRadiusTiles) },
+	// The one row the card always draws, and the one that reads as a word at zero.
+	{ labelKey: 'hud.stat.noise', read: s => (s.noise === 0 ? word('hud.stat.silent') : plain(s.noise)) },
+]
+
+function sameValue(before: StatValueView | null, after: StatValueView | null): boolean {
+	if (before === null || after === null) {
+		return before === after
+	}
+	if (before.textKey !== after.textKey) {
+		return false
+	}
+
+	const names = Object.keys(before.params)
+	return names.length === Object.keys(after.params).length && names.every(n => before.params[n] === after.params[n])
+}
+
+/**
+ * The rows that **changed**, and only those.
+ *
+ * A diff that emitted every row is the failure mode worth the test: it is not visibly wrong, it is
+ * just eleven lines of unchanged numbers with the one that moved buried in them.
+ *
+ * `applies` and `blocksPath` have no row here. `applies` is a list, so a row for it would need a
+ * multi-valued `StatValueView` for the one tier in the roster that rewrites one -- and that tier is
+ * the Ice Cube Tray's third, whose own sentence says it better than "Slow -> Freeze, Slow" would.
+ * `blocksPath` is a yes-or-no about the tower that no tier moves.
+ */
+function diffStats(before: TowerStatsView, after: TowerStatsView): UpgradeDiffRow[] {
+	const rows: UpgradeDiffRow[] = []
+
+	for (const row of DIFF_ROWS) {
+		const from = row.read(before)
+		const to = row.read(after)
+		if (!sameValue(from, to)) {
+			rows.push({ labelKey: row.labelKey, from, to })
+		}
+	}
+
+	return rows
+}
+
+/**
+ * All three tiers, every time, whatever the tower is standing on.
+ *
+ * Six `statsFor` calls over `effectiveDef`'s memo, which is a `Map` lookup after the first tower of
+ * a type is inspected. Cheap enough to do from `publish()`, which is where `GameView.vue` rebuilds
+ * the inspector from -- but it has to stay a pure read: an allocation the fold does not already make
+ * would be one per tier per publish, forever.
+ *
+ * Priced with `upgradeCost`, the same function `upgradeCostFor` calls, and never a 60/120/250 of its
+ * own: a panel with its own copy of the curve is a button promising 30 while the wallet loses 31.
+ */
+function buildUpgradeSlots(world: World, tower: Tower): UpgradeSlotView[] {
+	const base = getTowerDef(tower.defId)
+
+	return base.upgrades.map((upgrade, index) => {
+		const tier = index + 1
+		const cost = upgradeCost(base, tier)
+
+		return {
+			tier,
+			cost,
+			affordable: world.crumbs >= cost,
+			state: tier <= tower.tier ? 'owned' : tier === tower.tier + 1 ? 'next' : 'locked',
+			nameKey: upgrade.nameKey,
+			descriptionKey: upgrade.descriptionKey,
+			diff: diffStats(statsFor(effectiveDef(tower.defId, tier - 1)), statsFor(effectiveDef(tower.defId, tier))),
+		}
+	})
+}
+
+/**
+ * The selected tower's live numbers.
+ *
+ * Built on **selection change** as well as on every publish, which is the exception
+ * ARCHITECTURE.md section 5 carves out: a number the player is actively watching reads as laggy when
+ * it only moves at a fifteenth of a second, and the click has to feel instant. `GameView.vue` owns
+ * both calls.
  *
  * Null for an id that has been sold -- normal, not an error, exactly like `towerById`.
  */
@@ -367,6 +535,7 @@ export function buildTowerInspector(world: World, towerId: EntityId): TowerInspe
 		nameKey: def.nameKey,
 		tier: tower.tier,
 		stats: statsFor(def),
+		upgrades: buildUpgradeSlots(world, tower),
 		targetingMode: tower.targetingMode,
 		refund: refundFor(world, tower),
 		refundIsPenalised: world.night.phase === 'wave',

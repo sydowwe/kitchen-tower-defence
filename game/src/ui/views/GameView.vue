@@ -15,6 +15,7 @@
 				:canContinue="canContinue"
 				@select="onSelect"
 				@sell="onSell"
+				@upgrade="onUpgrade"
 				@setTargetingMode="onSetTargetingMode"
 				@callWave="onCallWave"
 				@setSpeed="applySpeed"
@@ -250,6 +251,15 @@
 	function onSell(towerId: EntityId): void {
 		queue.enqueue({ kind: 'SellTower', towerId })
 		selection.selectedTowerId.value = null
+	}
+
+	/**
+	 * The selection is kept, unlike `onSell`: the tower is still there, and the panel has two more
+	 * tiers to offer. The next `publish()` rebuilds the inspector, so the slot the player just bought
+	 * flips to `'owned'` on the same frame the ring and the range circle change on the board.
+	 */
+	function onUpgrade(towerId: EntityId): void {
+		queue.enqueue({ kind: 'UpgradeTower', towerId })
 	}
 
 	function onSetTargetingMode(towerId: EntityId, mode: TargetingMode): void {

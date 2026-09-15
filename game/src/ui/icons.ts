@@ -1,13 +1,20 @@
 import { library } from '@fortawesome/fontawesome-svg-core'
 import {
+	faAnglesLeft,
+	faAnglesRight,
 	faArrowUp,
 	faBan,
+	faCheck,
 	faCoins,
+	faCrosshairs,
+	faDumbbell,
+	faFeather,
 	faForward,
 	faGear,
 	faLock,
 	faPause,
 	faPlay,
+	faShuffle,
 	faTrash,
 	faTriangleExclamation,
 	faVolumeHigh,
@@ -33,9 +40,19 @@ export function registerIcons(): void {
 		faLock,
 		faBan,
 		faArrowUp,
+		faCheck,
 		faTrash,
 		faCoins,
 		faTriangleExclamation,
 		faXmark,
+		// The six targeting modes, one each, for the cycling control in `hud/TargetingControl.vue`.
+		// FontAwesome and not emoji: they are HUD chrome, and DECISIONS.md section 2 reserves emoji
+		// for things standing on the board (step 12C, decision 4).
+		faAnglesRight,
+		faAnglesLeft,
+		faDumbbell,
+		faFeather,
+		faCrosshairs,
+		faShuffle,
 	)
 }

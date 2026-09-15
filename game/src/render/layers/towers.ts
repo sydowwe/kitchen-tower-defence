@@ -35,6 +35,9 @@ import {
 	TOWER_PAD_EDGE,
 	TOWER_REARM_SWEEP,
 	TOWER_REARM_TRACK,
+	TOWER_TIER_BADGE,
+	TOWER_TIER_GLOW,
+	TOWER_TIER_RING,
 } from '@/render/palette.ts'
 
 /**
@@ -66,6 +69,21 @@ const REARM_RING_SCALE = 0.46
 const REARM_LINE_WIDTH_PX = 3.5
 /** Twelve o'clock, so a half-full sweep is unambiguously half and not "somewhere round the side". */
 const REARM_START_RAD = -Math.PI / 2
+
+/**
+ * The three tier treatments, per step 12C's decision 6: a wash inside the pad at tier 1, a ring at
+ * the pad edge at tier 2, a badge in the corner at tier 3 -- each one keeping the one before it, so
+ * the answer is cumulative and a glance at a maxed tower finds three things and not one.
+ *
+ * None of them is a second glyph and none changes `preloadTowerGlyphs`, for step 10C's decision 1's
+ * reason: the cache hands out an opaque bitmap at one size, and there is no upgraded-mousetrap emoji.
+ */
+const TIER_GLOW_INSET_SCALE = 0.72
+const TIER_RING_SCALE = 0.48
+const TIER_RING_LINE_WIDTH_PX = 2
+/** In tiles, from the pad's top-right corner, and the badge's own radius in the same units. */
+const TIER_BADGE_OFFSET = 0.33
+const TIER_BADGE_RADIUS = 0.1
 
 /**
  * The box's three damage states, off `hp / maxHp`. Drawn over the glyph for decision 1's reason, and
@@ -184,6 +202,58 @@ function drawRearm(ctx: CanvasRenderingContext2D, tower: Tower, def: TowerDef, c
 	ctx.beginPath()
 	ctx.arc(center.x, center.y, radius, REARM_START_RAD, REARM_START_RAD + progress * Math.PI * 2)
 	ctx.stroke()
+}
+
+/**
+ * Tiers 1 and 2, drawn between the pad and the glyph so the tower still sits on top of its own
+ * furniture.
+ *
+ * **No `globalAlpha` anywhere in here**, for step 10C's decision 2's reason: the rearm branch below
+ * sets one and puts it back in the same breath, and an alpha left set by this function would fade
+ * every tower later in `world.towers` -- the symptom being half the board dim, and which half
+ * depending on the order they were built in.
+ */
+function drawTierMarks(ctx: CanvasRenderingContext2D, tier: number, center: Vec2, tilePx: number): void {
+	if (tier >= 1) {
+		const size = tilePx * TIER_GLOW_INSET_SCALE
+		ctx.beginPath()
+		ctx.roundRect(center.x - size / 2, center.y - size / 2, size, size, tilePx * PAD_RADIUS_SCALE)
+		ctx.fillStyle = TOWER_TIER_GLOW
+		ctx.fill()
+	}
+
+	if (tier >= 2) {
+		ctx.beginPath()
+		ctx.arc(center.x, center.y, tilePx * TIER_RING_SCALE, 0, Math.PI * 2)
+		ctx.lineWidth = TIER_RING_LINE_WIDTH_PX
+		ctx.strokeStyle = TOWER_TIER_RING
+		ctx.stroke()
+	}
+}
+
+/**
+ * Tier 3's badge, drawn **after** the glyph and outside every transform.
+ *
+ * Two reasons it is not in `drawTierMarks` with the other two. Under the glyph a corner badge is
+ * mostly hidden by it, and the acceptance this exists for is reading a maxed tower from across the
+ * room. And a tier-3 Cardboard Box goes through `drawBox`, which wraps a `ctx.scale` around its own
+ * blit -- a badge drawn inside that transform is squashed flat with the box it is labelling.
+ */
+function drawTierBadge(ctx: CanvasRenderingContext2D, tier: number, center: Vec2, tilePx: number): void {
+	if (tier < 3) {
+		return
+	}
+
+	ctx.beginPath()
+	ctx.arc(
+		center.x + TIER_BADGE_OFFSET * tilePx,
+		center.y - TIER_BADGE_OFFSET * tilePx,
+		TIER_BADGE_RADIUS * tilePx,
+		0,
+		Math.PI * 2,
+	)
+	ctx.fillStyle = TOWER_TIER_BADGE
+	ctx.fill()
 }
 
 /** The cracks of one damage state, in the transform whoever called this has already set up. */
@@ -315,6 +385,7 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 		const def = effectiveDefOf(tower)
 		const center = tileCenter(tower.tile, tilePx)
 		drawPad(ctx, center, tilePx)
+		drawTierMarks(ctx, tower.tier, center, tilePx)
 
 		// `'spent'` never lasts a frame -- `retireSpentTowers` takes that tower off the board -- and
 		// `'none'` is every tower without a magazine, so both take the plain path.
@@ -331,6 +402,8 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 		} else {
 			blitGlyph(ctx, dpr, def.glyph, tilePx * TOWER_SCALE, center.x, center.y)
 		}
+
+		drawTierBadge(ctx, tower.tier, center, tilePx)
 
 		// Above the pad, not above the glyph: the pad is the tower's footprint and the bar wants to
 		// sit on a fixed edge, not on whatever the collapsing box is doing to its own height.

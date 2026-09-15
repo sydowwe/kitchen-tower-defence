@@ -19,6 +19,7 @@
 		v-if="snapshot.inspector !== null"
 		:inspector="snapshot.inspector"
 		@sell="emit('sell', $event)"
+		@upgrade="emit('upgrade', $event)"
 		@setTargetingMode="(towerId, mode) => emit('setTargetingMode', towerId, mode)"
 	/>
 
@@ -82,6 +83,7 @@
 	const emit = defineEmits<{
 		select: [defId: DefId]
 		sell: [towerId: EntityId]
+		upgrade: [towerId: EntityId]
 		setTargetingMode: [towerId: EntityId, mode: TargetingMode]
 		callWave: []
 		setSpeed: [speed: Speed]

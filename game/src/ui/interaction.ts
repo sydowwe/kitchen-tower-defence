@@ -421,6 +421,17 @@ export function createInteraction(
 			}
 			return
 		}
+		// Beside `x`, and **keeps the selection** where selling drops it: the tower is still standing
+		// and there may be two more tiers to buy. `upgradeTower` refuses silently at the top tier and
+		// on an empty wallet, which is why this enqueues without asking first -- the same contract
+		// every other command naming an entity has.
+		if (event.key === 'u') {
+			const towerId = selection.selectedTowerId.value
+			if (towerId !== null) {
+				queue.enqueue({ kind: 'UpgradeTower', towerId })
+			}
+			return
+		}
 
 		// 1-9 into the first nine of the roster and **0 into the tenth**, in `TOWERS` order -- the order
 		// the shop panel renders and the number it prints on each button. The same key again disarms, so

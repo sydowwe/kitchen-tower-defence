@@ -31,19 +31,20 @@ const COLLECT_TRAVEL_TICKS = 90
 // already derives every key from the id in this file, and a parallel table would be a second place a
 // tower can be missing from with nothing to catch it.
 //
-// **Structurally correct, not balanced.** Step 12A had no inspector to read a before -> after diff
-// in and no night to feel these in; 12C re-tunes them with both.
-//
 // Every tier below is a delta against a field of the behaviour vocabulary. **No system file branches
 // on a tower id or a tier number**, which is the acceptance criterion the whole of step 12 exists to
 // prove: a second tower gaining any of these six tier-3 effects is an entry in this file and no code
 // at all.
-
-/**
- * Roughly +40% to the tower's defining stat, per tier (analytic-docs/CONTENT.md section 1). One
- * constant rather than twenty numbers, because 12C re-tunes all of them at once.
- */
-const TIER_STAT_MULT = 1.4
+//
+// **Tiers 1 and 2 are flat adds, re-tuned in 12C against the inspector's diff.** 12A authored them
+// as one shared `x1.4` -- analytic-docs/CONTENT.md section 1's "roughly +40% to the defining stat" --
+// with nothing on screen to read the result in. With the before -> after diff drawn, a multiplier is
+// the wrong shape: it compounds into 9.8 damage, 117.6 damage, a 5.6-tile reveal radius and a
+// 1.11/sec rate, and a diff row reading `9.8` is a number the player distrusts on sight. Each tower
+// below now adds a round amount, sized at roughly the same +40% of its **base**, so both tiers land
+// somewhere a person would have written down. The curve is shallower at tier 2 as a result, which is
+// the honest trade: the second bump of a stat bought at 120% of the tower is not meant to be the
+// best crumbs on the board.
 
 /** The Mousetrap's T3 is "rearm time halved", and it halves two fields to mean it. */
 const HALVED = 0.5
@@ -84,18 +85,17 @@ function upgradesFor(id: string, one: TierBody, two: TierBody, three: TierBody):
 	]
 }
 
-/** A tier that multiplies one field on one behaviour kind by `TIER_STAT_MULT`. Most of them. */
-function bump(kind: DeltaTarget, field: string): TierBody {
-	return { multiply: [{ kind, fields: { [field]: TIER_STAT_MULT } }] }
-}
-
 /**
- * A tier that fires `TIER_STAT_MULT` times as often, as a *division of the cooldown*. There is no
- * `rate` field anywhere and inventing one would need a translation into `cooldownTicks / 1.4`, which
- * is where the rounding bug lives -- see the header of `core/content/upgrades.ts`.
+ * A tier that adds `amount` to one field on one behaviour kind. Most of them.
+ *
+ * `amount` is negative for a cooldown, which is the one field a tower wants *less* of: there is no
+ * `rate` field anywhere and inventing one would need a translation into `cooldownTicks / rate`,
+ * which is where the rounding bug lives -- see the header of `core/content/upgrades.ts`. So a rate
+ * bump is authored as the tick gap it lands on, and the gaps are picked to land on rates the card
+ * can print: 75 ticks is 0.8/sec, 60 is 1.0 and 50 is 1.2.
  */
-function quicken(kind: DeltaTarget): TierBody {
-	return { multiply: [{ kind, fields: { cooldownTicks: 1 / TIER_STAT_MULT } }] }
+function raise(kind: DeltaTarget, field: string, amount: number): TierBody {
+	return { add: [{ kind, fields: { [field]: amount } }] }
 }
 
 /**
@@ -158,7 +158,8 @@ export const saltShaker: TowerDefOf<'saltShaker'> = {
 			projectileSpeed: 0.1,
 		}),
 	],
-	upgrades: upgradesFor('saltShaker', bump('attack', 'damage'), bump('attack', 'damage'), {
+	/** 5 -> 7 -> 9 damage, so the dps row reads 5, 7 and 9 and the baseline stays countable. */
+	upgrades: upgradesFor('saltShaker', raise('attack', 'damage', 2), raise('attack', 'damage', 2), {
 		add: [{ kind: 'attack', fields: { splashRadiusTiles: SALT_SHAKER_SPLASH_TILES } }],
 	}),
 }
@@ -207,9 +208,15 @@ export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
 	 * instantly. It removes the tower's one drawback, which is a real tier-3-shaped decision, and it
 	 * is one number. `crumbPosition` in `render/layers/crumbs.ts` already guards `travelTicks <= 0`.
 	 */
-	upgrades: upgradesFor('toasterCrumbTray', bump('income', 'crumbsPerPayout'), bump('income', 'crumbsPerPayout'), {
-		multiply: [{ kind: 'collect', fields: { travelTicks: 0 } }],
-	}),
+	upgrades: upgradesFor(
+		'toasterCrumbTray',
+		// 4 -> 6 -> 8 a second. A payout is a whole crumb -- the schema has `crumbsPerPayout` as an
+		// integer -- so +2 is the smallest round step, and an income tower that compounds is the
+		// reason to buy the tier at all.
+		raise('income', 'crumbsPerPayout', 2),
+		raise('income', 'crumbsPerPayout', 2),
+		{ multiply: [{ kind: 'collect', fields: { travelTicks: 0 } }] },
+	),
 }
 
 /**
@@ -233,9 +240,13 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
 		collect({ radiusTiles: 3, travelTicks: COLLECT_TRAVEL_TICKS }),
 	],
 	/** T3, authored here and added to the doc for the same reason: the jar stops owing the 200. */
-	upgrades: upgradesFor('cookieJar', bump('income', 'crumbsPerPayout'), bump('income', 'crumbsPerPayout'), {
-		multiply: [{ kind: 'income', fields: { enemyCrumbsOnDestroy: 0 } }],
-	}),
+	upgrades: upgradesFor(
+		'cookieJar',
+		/** 9 -> 13 -> 17 a second. */
+		raise('income', 'crumbsPerPayout', 4),
+		raise('income', 'crumbsPerPayout', 4),
+		{ multiply: [{ kind: 'income', fields: { enemyCrumbsOnDestroy: 0 } }] },
+	),
 }
 
 /**
@@ -288,6 +299,10 @@ export const iceCubeTray: TowerDefOf<'iceCubeTray'> = {
 	 * not meant to matter (see above); the magnitude of `slow` is on the status def, which a tier
 	 * cannot reach, so how *often* it lands is the defining stat.
 	 *
+	 * 75 -> 60 -> 50 ticks, which the card reads as 0.8/sec -> 1/sec -> 1.2/sec. 12A's `x1.4` on the
+	 * cooldown gave 54 and 39 ticks -- 1.11/sec and 1.54/sec -- and a control tower's whole pitch is
+	 * how often it lands, which is not a pitch you can make with 1.11.
+	 *
 	 * T3 is analytic-docs/CONTENT.md section 1's "slow becomes a 1.5s freeze on every 4th hit", and
 	 * **the freeze being first in the list is load-bearing and free**: `STATUS_DEFS.slow.suppressedBy`
 	 * is already `['freeze']`, so on the fourth hit the freeze lands and `applyStatus` turns the slow
@@ -295,9 +310,9 @@ export const iceCubeTray: TowerDefOf<'iceCubeTray'> = {
 	 * would land and the freeze overwrite it -- the same damage and a different story in the code.
 	 *
 	 * The 90 is the doc's 1.5 seconds and not the status def's 4: a 4-second freeze landing every
-	 * fourth shot of a tower that fires every 39 ticks is a permanent freeze.
+	 * fourth shot of a tower that fires every 50 ticks is a permanent freeze.
 	 */
-	upgrades: upgradesFor('iceCubeTray', quicken('attack'), quicken('attack'), {
+	upgrades: upgradesFor('iceCubeTray', raise('attack', 'cooldownTicks', -15), raise('attack', 'cooldownTicks', -10), {
 		replaceApplies: [
 			{
 				kind: 'attack',
@@ -349,12 +364,9 @@ export const stickyTape: TowerDefOf<'stickyTape'> = {
 	 * 1 -> 3, which is the same roll of tape laid across three of them at once instead of one at a
 	 * time. It is not more charges -- the tiers above already bought those.
 	 */
-	upgrades: upgradesFor(
-		'stickyTape',
-		{ add: [{ kind: 'charge', fields: { charges: 1 } }] },
-		{ add: [{ kind: 'charge', fields: { charges: 1 } }] },
-		{ add: [{ kind: 'charge', fields: { maxOutstanding: 2 } }] },
-	),
+	upgrades: upgradesFor('stickyTape', raise('charge', 'charges', 1), raise('charge', 'charges', 1), {
+		add: [{ kind: 'charge', fields: { maxOutstanding: 2 } }],
+	}),
 }
 
 /**
@@ -402,7 +414,8 @@ export const sprayBottle: TowerDefOf<'sprayBottle'> = {
 	 * rather than inherited because `replaceApplies` rewrites the whole list -- see
 	 * `ApplicationDelta` in `core/content/upgrades.ts` for why it cannot merge.
 	 */
-	upgrades: upgradesFor('sprayBottle', bump('coneAttack', 'damage'), bump('coneAttack', 'damage'), {
+	/** 3 -> 4 -> 5 on the hit. The poison is the tower and the tiers only firm up what carries it. */
+	upgrades: upgradesFor('sprayBottle', raise('coneAttack', 'damage', 1), raise('coneAttack', 'damage', 1), {
 		replaceApplies: [
 			{
 				kind: 'coneAttack',
@@ -456,7 +469,8 @@ export const mousetrap: TowerDefOf<'mousetrap'> = {
 	 * 396-tick cooldown gating every shot, the tower fires at exactly the rate it did before, and
 	 * every test still passes.
 	 */
-	upgrades: upgradesFor('mousetrap', bump('attack', 'damage'), bump('attack', 'damage'), {
+	/** 60 -> 85 -> 110. One bar of the trap is one number, and 117.6 was never going to be it. */
+	upgrades: upgradesFor('mousetrap', raise('attack', 'damage', 25), raise('attack', 'damage', 25), {
 		multiply: [
 			{ kind: 'attack', fields: { cooldownTicks: HALVED } },
 			{ kind: 'charge', fields: { rearmTicks: HALVED } },
@@ -497,7 +511,7 @@ export const cardboardBox: TowerDefOf<'cardboardBox'> = {
 	 * is the one field the `barricade` descriptor grew. It resolves through the tag matrix like every
 	 * other damage source, so an `armored` Roach gets a good deal less of it back than an Ant does.
 	 */
-	upgrades: upgradesFor('cardboardBox', bump('def', 'maxHp'), bump('def', 'maxHp'), {
+	upgrades: upgradesFor('cardboardBox', raise('def', 'maxHp', 80), raise('def', 'maxHp', 80), {
 		add: [{ kind: 'barricade', fields: { reflectDamagePerTick: CARDBOARD_BOX_REFLECT_PER_TICK } }],
 	}),
 }
@@ -550,7 +564,8 @@ export const toaster: TowerDefOf<'toaster'> = {
 	 * and the Fly has 14 HP, so a second grain at the same fly is a 350-crumb upgrade the player
 	 * cannot tell is working.
 	 */
-	upgrades: upgradesFor('toaster', bump('attack', 'damage'), bump('attack', 'damage'), {
+	/** 35 -> 50 -> 65. Both bumps are wasted on a 14-HP Fly and bought for the Act III air. */
+	upgrades: upgradesFor('toaster', raise('attack', 'damage', 15), raise('attack', 'damage', 15), {
 		add: [{ kind: 'attack', fields: { projectilesPerShot: 1 } }],
 	}),
 }
@@ -597,7 +612,12 @@ export const nightlight: TowerDefOf<'nightlight'> = {
 	 * - **`fire` and not `physical`.** The matrix gives fire x1.2 against `air` and physical x0.5,
 	 *   and a lamp whose whole job is moths should not carry the worst damage type against them.
 	 */
-	upgrades: upgradesFor('nightlight', bump('reveal', 'radiusTiles'), bump('reveal', 'radiusTiles'), {
+	/**
+	 * 4 -> 5 -> 6 tiles. A radius is the one stat where a multiplier lies about its own size: 12A's
+	 * x1.4 gave 5.6 and 7.84, which is a third of the board lit for 160 crumbs, and a whole tile is
+	 * already +56% of the area at the first step.
+	 */
+	upgrades: upgradesFor('nightlight', raise('reveal', 'radiusTiles', 1), raise('reveal', 'radiusTiles', 1), {
 		addBehaviours: [
 			aura({
 				radiusTiles: NIGHTLIGHT_RADIUS_TILES,

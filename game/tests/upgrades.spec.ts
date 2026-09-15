@@ -12,7 +12,7 @@ import { tick } from '@/core/sim.ts'
 import { commandsSystem, upgradeCostFor } from '@/core/systems/commands.ts'
 import { damageTower, placeTower, refundFor, sellTower } from '@/core/systems/placement.ts'
 import { TileFlags } from '@/core/map.ts'
-import type { AttackBehaviour, ChargeBehaviour } from '@/core/content/behaviours.ts'
+import type { AttackBehaviour, ChargeBehaviour, RevealBehaviour } from '@/core/content/behaviours.ts'
 import type { StatusHolder } from '@/core/content/statuses.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 import type { TowerUpgrade } from '@/core/content/upgrades.ts'
@@ -180,6 +180,12 @@ function chargeOf(def: TowerDef): ChargeBehaviour {
 	const found = def.behaviours.find((behaviour): behaviour is ChargeBehaviour => behaviour.kind === 'charge')
 	expect(found).toBeDefined()
 	return found as ChargeBehaviour
+}
+
+function revealOf(def: TowerDef): RevealBehaviour {
+	const found = def.behaviours.find((behaviour): behaviour is RevealBehaviour => behaviour.kind === 'reveal')
+	expect(found).toBeDefined()
+	return found as RevealBehaviour
 }
 
 // --- the fold ---------------------------------------------------------------------------------
@@ -456,7 +462,7 @@ describe('UpgradeTower', () => {
 
 		upgrade(world, tower)
 
-		// 200 x 1.4 = 280, so the box gains 80 of maxHp and 80 of hp. The 50 it had been chewed for
+		// 200 + 80 = 280, so the box gains 80 of maxHp and 80 of hp. The 50 it had been chewed for
 		// is still missing: upgrading mid-chew is not a free repair.
 		expect(tower.maxHp).toBe(280)
 		expect(tower.hp).toBe(230)
@@ -579,7 +585,9 @@ describe('the six tier-3s that needed a field', () => {
 		let hits = 0
 		let wasFrozen = false
 
-		for (let index = 0; index < 300; index++) {
+		// 500 and not 300: the 12C re-tune leaves tier 3 firing every 50 ticks rather than every 39,
+		// so the eighth hit lands on tick 360.
+		for (let index = 0; index < 500; index++) {
 			tick(world, queue)
 			hits += world.events.filter(event => event.kind === 'enemyDamaged' && event.enemyId === enemy.id).length
 
@@ -594,7 +602,7 @@ describe('the six tier-3s that needed a field', () => {
 		// Not the 1st and the 5th, which is what incrementing `shotsFired` *after* the filter gives.
 		expect(frozenOnHit).toEqual([4, 8])
 		// The doc's 1.5 seconds, not `STATUS_DEFS.freeze.durationTicks` -- 4 seconds on every fourth
-		// shot of a tower firing every 39 ticks is a permanent freeze.
+		// shot of a tower firing every 50 ticks is a permanent freeze.
 		expect(freezeTicksOnLanding).toEqual([90, 90])
 	})
 
@@ -767,11 +775,23 @@ describe('the roster', () => {
 	})
 
 	it('bumps the defining stat of the four towers whose tier 3 is authored here', () => {
-		// The documented placeholder curve: +40% a tier, re-tuned in 12C against the inspector.
+		// 12C's re-tune: flat adds at roughly the same +40% of base, landing on numbers the diff can
+		// print. 12A's shared x1.4 gave 9.8, 117.6 and 392 for these three.
 		expect(attackOf(effectiveDef('saltShaker', 1)).damage).toBe(7)
-		expect(attackOf(effectiveDef('saltShaker', 2)).damage).toBe(9.8)
-		expect(attackOf(effectiveDef('mousetrap', 2)).damage).toBe(117.6)
-		expect(effectiveDef('cardboardBox', 2).maxHp).toBe(392)
+		expect(attackOf(effectiveDef('saltShaker', 2)).damage).toBe(9)
+		expect(attackOf(effectiveDef('mousetrap', 2)).damage).toBe(110)
+		expect(effectiveDef('cardboardBox', 2).maxHp).toBe(360)
 		expect(chargeOf(effectiveDef('stickyTape', 2)).charges).toBe(5)
+	})
+
+	it('lands every re-tuned rate on a number the card can print', () => {
+		// A cooldown is authored as the tick gap, never as a rate: 75 ticks is 0.8/sec, 60 is 1.0 and
+		// 50 is 1.2. 12A's x1.4 on the cooldown gave 54 and 39 -- 1.11/sec and 1.54/sec.
+		expect(attackOf(effectiveDef('iceCubeTray', 0)).cooldownTicks).toBe(75)
+		expect(attackOf(effectiveDef('iceCubeTray', 1)).cooldownTicks).toBe(60)
+		expect(attackOf(effectiveDef('iceCubeTray', 2)).cooldownTicks).toBe(50)
+		// And the radius that a multiplier would have taken to 5.6 and 7.84.
+		expect(revealOf(effectiveDef('nightlight', 1)).radiusTiles).toBe(5)
+		expect(revealOf(effectiveDef('nightlight', 2)).radiusTiles).toBe(6)
 	})
 })

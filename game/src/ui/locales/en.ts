@@ -43,8 +43,7 @@ export const en = {
 		groceryMoney: 'Grocery money',
 		noiseLevel: '{level} of {cap}',
 		speedShort: '{n}×',
-		upgradeUnavailable: 'Upgrades come later.',
-		// Keyed by the `TargetingMode` literal, so the selector renders the union directly.
+		// Keyed by the `TargetingMode` literal, so the control renders the union directly.
 		mode: {
 			FIRST: 'First',
 			LAST: 'Last',
@@ -77,19 +76,50 @@ export const en = {
 		selected: 'Selected',
 		tier: 'Tier {n}',
 		targeting: 'Targeting',
+		// The cycling control's tooltip: what the click does, then the whole order, so the six modes
+		// are still written down somewhere now that they are no longer six chips (12C, decision 3).
+		targetingCycle: 'Click to change, shift-click to go back',
+		targetingOrder: 'First · Last · Strongest · Weakest · Closest · Random',
 		sellFor: 'Sell for {n}',
 		sellPenalty: 'Half price while a wave is running',
 		// Tooltips, and the only place the two hotkeys that have no on-screen badge are written down.
 		// `dev/nightHud.ts` carried a hint line for all of them until step 8C deleted it; the shop
 		// prints its own numbers, and these two are what was left over.
 		sellKey: 'Sell this tower  (x)',
+		upgradeKey: 'Buy the next tier  (u)',
 		callWaveKey: 'Call the next wave in early  (n)',
+
+		// --- step 12C, the upgrade panel -------------------------------------------------------
+		// A tier's own name is two or three words of kitchen and never "Damage +40%": the diff row
+		// beside it already says that, and a name repeating it wastes the only line the tier has.
+		// These are the words *around* the tiers.
+		// `hud.tier` above is the readout in the header and is reused on a slot -- one string for one
+		// idea, so a tier is spelled the same way in both places it appears.
+		tierOwned: 'Bought',
+		upgradeFor: 'Upgrade · {n}',
+		// The one modal fact about the third tier, said once at the top of it rather than on each
+		// slot: the first two are numbers and this one is a different tower.
+		tierThreeLead: 'At tier 3',
+		// The tower is finished. Shown where the button was, so the panel does not simply lose a row.
+		tierMaxed: 'Nothing left to buy.',
+		// Between the two halves of a diff row. A word rather than an arrow glyph would not survive
+		// a narrow panel, and this is the one place in the HUD an arrow means something exact.
+		diffArrow: '→',
+		// A stat the tier adds outright, on the side of the row that has no number yet.
+		diffNone: '—',
 		// One line per stat on the hover card. A tower with no attack shows none of the first six
 		// rather than showing them as zero -- see `TowerStatsView` in ui/viewModel.ts.
 		stat: {
 			damage: 'Damage',
 			rate: 'Rate',
-			dps: 'Damage per second',
+			// **Per target.** A tier-3 Salt Shaker splashes and a tier-3 Toaster throws a second
+			// projectile, so an unqualified "damage per second" is a number that silently means
+			// "against a crowd" -- and this one is checkable with a stopwatch against one ant, which
+			// is exactly what step 12C's acceptance does to it (12C, decision 5).
+			dps: 'Damage/sec',
+			// One sentence under the card rather than an attempt to encode the matrix in the number.
+			// CONTENT.md section 3 is a nine-row table and no row of a stat block is going to hold it.
+			dpsNote: 'Per target, before the type matrix.',
 			range: 'Range',
 			damageType: 'Type',
 			targets: 'Targets',
@@ -115,6 +145,10 @@ export const en = {
 			// Half the opening, the way the behaviour authors it: a 30 here is a 60-degree spray.
 			degrees: '±{n}°',
 			silent: 'Silent',
+			// The pass-through, for a row whose value carries no unit. It exists so `StatValueView`
+			// in ui/viewModel.ts has one shape for a bare number and a word alike, and the upgrade
+			// diff is one `t()` call with no branch in it.
+			plain: '{n}',
 		},
 		// Keyed by the `StatusKind` literal, so the card renders the union directly the way
 		// `hud.mode` and `hud.damage` already do.
@@ -152,7 +186,7 @@ export const en = {
 		// Every key the game route answers to. `dev/nightHud.ts` carried the other half of this list
 		// until step 8C deleted it, so this line is now the whole of it -- edit it in the same breath
 		// as the bindings in `ui/interaction.ts`, or the on-screen help lies.
-		hint: '1-9 0 tower · shift-click keeps building · x sell · n next wave · space pause · , . speed',
+		hint: '1-9 0 tower · shift-click keeps building · u upgrade · x sell · n next wave · space pause · , . speed',
 	},
 	settings: {
 		title: 'Settings',
@@ -165,9 +199,14 @@ export const en = {
 	// its own key on screen.
 	//
 	// The `tier1` / `tier2` / `tier3` blocks are the upgrade names, keyed the way
-	// core/content/towers.ts derives them. **They were written blind in step 12A** -- nothing on
-	// screen reads them until 12C builds the inspector, and 12C rewrites every one of them against
-	// it. Tiers 1 and 2 are names only; the diff above them is the description.
+	// core/content/towers.ts derives them. Drafted blind in 12A and 12B and **rewritten in 12C
+	// against the panel**, which is the half of the author-twice this catalogue owes.
+	//
+	// A tier name is two or three words of kitchen, never "Damage +40%": the diff row beside it
+	// already says what moved, and a name repeating it wastes the only line the tier has. Tiers 1 and
+	// 2 are names only; their diff is their description. A tier-3 sentence says the thing no diff row
+	// carries -- five of the six behaviours 12B added are invisible to `statsFor`, so this sentence
+	// is the whole of what the player is saving 250% of a tower for.
 	tower: {
 		saltShaker: {
 			name: 'Salt Shaker',
@@ -175,8 +214,9 @@ export const en = {
 			tier1: { name: 'Coarse Grind' },
 			tier2: { name: 'Rock Salt' },
 			tier3: {
-				name: 'Scattered',
-				description: 'A whole handful at once. Whatever is standing next to the target gets some too.',
+				name: 'By The Handful',
+				description:
+					'It stops being aimed at anything in particular. Whatever is standing next to the target gets some as well.',
 			},
 		},
 		toasterCrumbTray: {
@@ -186,7 +226,7 @@ export const en = {
 			tier2: { name: 'Deeper Tray' },
 			tier3: {
 				name: 'Straight In',
-				description: 'No trip. A pile that falls inside the radius is counted where it lands.',
+				description: 'No trip across the floor. A pile inside the radius is in the tray the moment it lands.',
 			},
 		},
 		cookieJar: {
@@ -195,30 +235,40 @@ export const en = {
 			tier1: { name: 'Lid Ajar' },
 			tier2: { name: 'Lid Off' },
 			tier3: {
-				name: 'Sealed',
-				description: 'Screwed down properly. Breaking it open gets them nothing to spend.',
+				name: 'Screwed Down',
+				description: 'Nothing spills when it goes. Breaking it open stops paying for the next thing through.',
 			},
 		},
 		iceCubeTray: {
 			name: 'Ice Cube Tray',
 			description: 'Left out to thaw on the counter. Whatever walks through it slows right down.',
 			tier1: { name: 'Fresh Cubes' },
-			tier2: { name: 'Straight From The Freezer' },
-			tier3: { name: 'Deep Freeze', description: 'Every fourth cube stops it where it stands.' },
+			tier2: { name: 'Straight From Frozen' },
+			tier3: {
+				name: 'Deep Freeze',
+				description:
+					'Every fourth cube does not slow it down. It stops it where it stands, for a second and a half.',
+			},
 		},
 		stickyTape: {
 			name: 'Sticky Tape',
 			description: 'Three strips off the roll. One thing gets stuck to each, and that is the roll gone.',
 			tier1: { name: 'Wider Roll' },
-			tier2: { name: 'Double Sided' },
-			tier3: { name: 'Laid Across', description: 'Three at a time, stuck to the same strip.' },
+			tier2: { name: 'Whole New Roll' },
+			tier3: {
+				name: 'Laid Across',
+				description: 'One strip, down across the track. Three of them get stuck to it at once instead of one.',
+			},
 		},
 		sprayBottle: {
 			name: 'Spray Bottle',
 			description: 'Kitchen cleaner, one pull at a time. Whatever the mist settles on keeps going over.',
 			tier1: { name: 'Neat, Not Diluted' },
 			tier2: { name: 'The Strong Stuff' },
-			tier3: { name: 'Soaked Through', description: 'Two coats a pull, so it gets to full strength in three.' },
+			tier3: {
+				name: 'Soaked Through',
+				description: 'Two coats a pull. It reaches full strength in three sprays instead of five.',
+			},
 		},
 		// Revised in step 10C against the card: the old line spent itself on "resetting takes a while",
 		// which the `Resets in 6.6s` row now says exactly. What it says instead is the part no row
@@ -228,7 +278,10 @@ export const en = {
 			description: 'The old wooden kind, on a hair trigger. It takes one thing at a time, properly.',
 			tier1: { name: 'Stronger Spring' },
 			tier2: { name: 'Steel Bar' },
-			tier3: { name: 'Set Again At Once', description: 'Reset in half the time, and armed twice as often.' },
+			tier3: {
+				name: 'Set Straight Away',
+				description: 'Reset in half the time. It is armed again before you have finished looking away.',
+			},
 		},
 		// Revised in step 10C for the same reason. `Hit points 200` and `Blocks` are on the card now,
 		// so the description is free to answer the only question a 25-crumb tower with no attack raises:
@@ -239,7 +292,10 @@ export const en = {
 				'Set across the track so they stop and chew instead of walking past. It buys seconds, not the night.',
 			tier1: { name: 'Double Walled' },
 			tier2: { name: 'Packed Solid' },
-			tier3: { name: 'Taped Shut', description: 'Chewing through it costs them something now.' },
+			tier3: {
+				name: 'Taped Shut',
+				description: 'Packing tape, wound round twice. Chewing through it now costs them something.',
+			},
 		},
 		// Revised in 11C against the card. The draft's "the only thing here that can reach a fly" was two
 		// kinds of wrong once the card existed: `Targets Air` now sits at the top of it and says the same
@@ -251,7 +307,10 @@ export const en = {
 			description: 'Jammed on with the lever down, breathing at the ceiling. Nobody is making toast.',
 			tier1: { name: 'Setting 4' },
 			tier2: { name: 'Setting 6' },
-			tier3: { name: 'Both Slots', description: 'Two at once, at whatever is over it.' },
+			tier3: {
+				name: 'Both Slots',
+				description: 'Both elements on. It takes two of them a shot, rather than one of them twice.',
+			},
 		},
 		// Revised in 11C. This card is nearly empty -- one radius and a noise row -- so the sentence
 		// carries the whole tower: that it does not fight, and the two things it does instead.
@@ -260,8 +319,11 @@ export const en = {
 			description:
 				'Plugged in low by the skirting board. It hurts nothing at all — but nothing stays hidden near it, and moths cannot leave it alone.',
 			tier1: { name: 'Brighter Bulb' },
-			tier2: { name: 'Two In The Socket' },
-			tier3: { name: 'Bare Filament', description: 'Hot enough now that getting close to it costs something.' },
+			tier2: { name: 'Shade Off' },
+			tier3: {
+				name: 'Bare Filament',
+				description: 'Running hot. Whatever it has pulled in close now burns for as long as it stays there.',
+			},
 		},
 	} satisfies TowerMessages,
 	enemy: {
