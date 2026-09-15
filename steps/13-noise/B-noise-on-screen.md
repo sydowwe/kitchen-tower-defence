@@ -69,9 +69,18 @@ snapshot holds no reference into the world — keep every field you add a copied
    `restart(nightIndex)` with a new options object. It does *not* write to `world.noise` mid-night —
    that would be a dev tool reaching inside the determinism guarantee, which is the same reason 3C's
    debug marker is a plain number in dev state and not a command.
-8. **"Wake now" sets `world.noise.level = world.noise.cap` and lets `noiseSystem` do the rest** on
+8. **"Wake now" pushes `world.noise.level` just over the cap and lets `noiseSystem` do the rest** on
    its next tick. A dev button that called the wake itself would be a second copy of what a wake is,
    and the copy is the one that goes stale.
+
+   **Corrected while building: `= world.noise.cap` does not wake anyone.** `noiseSystem` accumulates,
+   then decays, *then* tests the cap, so a level parked exactly on the cap is one tick's decay under
+   it by the time the cap is read. The panel writes `cap + 1`. Any comfortable overshoot works and
+   `cap + 1` is the one to prefer over `cap + decayPerTick`: the decay clamps back to the cap before
+   the test, so the wake starts from exactly the state a real one does, while
+   `cap + decayPerTick - decayPerTick` is not guaranteed to land on the cap in floating point — and an
+   undershoot of 1e-15 is a debug button that silently does nothing once in a while. The decision's
+   reasoning is unchanged; only the value moved.
 
 ## Build
 
@@ -118,9 +127,14 @@ ripple never stops.
 
 ### 4. The wake, on the board — `render/layers/effects.ts` and `renderer.ts`
 
-`pushEvents` learns `humanWoke` and starts a module-local wake timer. `drawWake(ctx, tilePx)` is
-called from `drawFrame` **after** `drawOverlay`, and ages one frame per call. `resetEffects()` clears
-it — without that, a retry opens with last night's light still on.
+`pushEvents` learns `humanWoke` and starts a module-local wake timer. `drawWake(ctx, width, height)`
+is called from `drawFrame` **after** `drawOverlay`, and ages one frame per call. `resetEffects()`
+clears it — without that, a retry opens with last night's light still on.
+
+(Built as `drawWake(ctx, width, height)` rather than the `tilePx` this file first said: both passes
+fill the whole logical canvas and neither needs a tile size. They are parameters and not an import of
+`LOGICAL_WIDTH` / `LOGICAL_HEIGHT`, because `renderer.ts` already imports `effects.ts` through
+`layers/index.ts` and naming it back would close the cycle.)
 
 Two passes over the whole board, over roughly a second and a half, easing out:
 
@@ -185,7 +199,9 @@ tick a box.
 
 - [ ] "Wake now" fires a wake, and ticking Close the Kitchen Door and White-noise Machine together
       shows a cap of 155 in the panel's readout with Oil the Hinges taking the decay to 2/sec.
-- [ ] The production bundle contains no `dev/` code — check the build output.
+      *(Half of this is confirmed: the readout shows 155 and 2.00/sec with those boxes ticked. The
+      "Wake now" half was not watched — see the note under Acceptance.)*
+- [x] The production bundle contains no `dev/` code — check the build output.
 - [ ] At 65% the meter is legible and calm; at 75% you notice it without looking for it; at 95% you
       are doing something about it. Judge this while playing, not from a screenshot.
 - [ ] Placing a Mousetrap and watching it fire, you can point at the ripple and say "that one".
@@ -197,7 +213,14 @@ tick a box.
 - [ ] The card names what it cost, by name, in one sentence, and is gone before you have finished
       reacting to it.
 - [ ] Standing in the shop, you can tell the Toaster is the loud one without doing arithmetic.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+
+Everything still unticked above needs a human in front of a running night. The build session got the
+dev panel on screen and confirmed the cap and decay readout, then lost the browser before it could
+watch a wake — so **the wash's peak alpha and duration are authored but unwatched**, which is exactly
+the pair this file says can only be got right by looking at one. `WAKE_WASH_PEAK`, `WAKE_LIFE_FRAMES`
+and `WAKE_DESATURATE_PEAK` in `render/layers/effects.ts` are the three numbers to re-tune, and the
+"Wake now" button is how to see them.
 
 ## Do not
 

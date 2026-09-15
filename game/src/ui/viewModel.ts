@@ -22,11 +22,22 @@ import { TOWERS, effectiveDef, effectiveDefOf, getTowerDef } from '@/core/conten
 import { upgradeCost } from '@/core/content/upgrades.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
+import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { refundFor, towerById } from '@/core/systems/placement.ts'
 import { nightClock } from '@/core/systems/wave.ts'
 import type { StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { DamageType, DefId, EntityId, NightPhase, StatusKind, TargetingMode, Tower, World } from '@/core/types.ts'
+import type {
+	DamageType,
+	DefId,
+	EntityId,
+	GameEvent,
+	NightPhase,
+	StatusKind,
+	TargetingMode,
+	Tower,
+	World,
+} from '@/core/types.ts'
 import type { Speed } from '@/loop.ts'
 
 /**
@@ -69,6 +80,16 @@ export interface TowerStatsView {
 	rangeTiles: number | null
 	damageType: DamageType | null
 	targets: TargetClass | null
+	/**
+	 * **Per second of continuous fire, not the per-shot value.** `noise: 2` on a Mousetrap and
+	 * `noise: 3` on a Toaster read as almost the same tower; 0.3/sec against 0.9/sec read as what they
+	 * are, and the 1.5/sec the meter decays at is the number both are being compared against
+	 * (step 13B, decision 6).
+	 *
+	 * Always a number, never null -- every tower has one and silence is genuinely 0. A tower that never
+	 * fires is 0 whatever its `noise` says, which is why this is `projectedNoisePerSecond` and not
+	 * arithmetic on `def.noise` here.
+	 */
 	noise: number
 	/** Economy towers only. Null for everything that does not pay out. */
 	crumbsPerSecond: number | null
@@ -215,6 +236,58 @@ export interface NightSummaryView {
 	crumbsDropped: number
 }
 
+/**
+ * What a wake cost, in the words the card reads it out in.
+ *
+ * **Deliberately not part of `HudSnapshot`.** The snapshot is rebuilt from the world at 15Hz and a
+ * wake is a one-tick event carrying totals the world no longer has: by the time anyone reads it the
+ * crumbs are off the board and the towers are out of `world.towers`. Putting it in the snapshot would
+ * mean either parking it on the world or losing it between two publishes, so `GameView.vue` holds it
+ * in a `shallowRef` and hands it to the HUD as a prop -- the way `ToastStack.vue` is already fed
+ * (step 13B, decision 1).
+ */
+export interface WakeView {
+	/**
+	 * Bumped per wake. The card keys on it, so a second wake in one night **replaces** the first and
+	 * replays its fade rather than stacking a second card under it.
+	 */
+	id: number
+	/**
+	 * The two forfeits as one number: the wave's unbanked income plus the value swept off the floor.
+	 * They are different things to the simulation and the same sentence to the player, and a card
+	 * itemising them stops being a sentence.
+	 */
+	crumbs: number
+	/** One entry per *kind* of tower lost, in the order they were destroyed. */
+	towers: { nameKey: string; count: number }[]
+}
+
+/**
+ * The `humanWoke` event, resolved into keys `ui/` can translate.
+ *
+ * Here rather than in the component because `ui/components/hud/` imports nothing from `core/` -- a
+ * `defId` becomes a `nameKey` at this seam, exactly as `ShopEntry` and `TowerInspectorView` do it.
+ *
+ * Duplicates are folded to a count rather than listed twice: a wake takes 20% of max HP off every
+ * tower standing, so it destroys only what was already nearly dead and two of a kind is rare. When it
+ * does happen, "a Salt Shaker and a Salt Shaker" is not a sentence anyone wrote on purpose.
+ */
+export function buildWakeView(id: number, event: Extract<GameEvent, { kind: 'humanWoke' }>): WakeView {
+	const towers: { nameKey: string; count: number }[] = []
+
+	for (const defId of event.towersDestroyed) {
+		const nameKey = getTowerDef(defId).nameKey
+		const seen = towers.find(entry => entry.nameKey === nameKey)
+		if (seen === undefined) {
+			towers.push({ nameKey, count: 1 })
+		} else {
+			seen.count++
+		}
+	}
+
+	return { id, crumbs: event.crumbsForfeited + event.crumbsOnBoardForfeited, towers }
+}
+
 export interface HudSnapshot {
 	/** `{ hour, minute }` from `nightClock`. Formatted in `ui/`, never here and never on the world. */
 	clock: { hour: number; minute: number }
@@ -234,8 +307,18 @@ export interface HudSnapshot {
 	 */
 	crumbsOnBoard: { piles: number; value: number; rotting: number }
 	food: { remaining: number; total: number; lostNameKeys: string[]; lastLostNameKey: string | null }
-	/** `wakeCount` is what 13B's night-end card counts and what the no-wake bonus reads at 0. */
-	noise: { level: number; cap: number; wakeCount: number }
+	/**
+	 * `wakeCount` is what the no-wake bonus reads at 0.
+	 *
+	 * `loudShots` is a **running count**, not a boolean and not a tick number: `TopBar.vue` keys a
+	 * ripple element on it, and a changed key is what replays the CSS animation. A boolean flips back
+	 * and forth and plays the ripple on the way down too; a tick number changes every publish and the
+	 * ripple never stops (step 13B, decision 5).
+	 *
+	 * Several loud shots can land between two publishes, so one ripple plays for the batch. That is
+	 * deliberate -- at 3x speed with six Toasters, one ripple per shot is a strobe.
+	 */
+	noise: { level: number; cap: number; wakeCount: number; loudShots: number }
 	countdownTicks: number
 	earlyCallBonus: number
 	speed: Speed
@@ -282,7 +365,7 @@ function statsFor(def: TowerDef): TowerStatsView {
 		rangeTiles: null,
 		damageType: null,
 		targets: null,
-		noise: def.noise,
+		noise: round2(projectedNoisePerSecond(def)),
 		crumbsPerSecond: null,
 		collectRadiusTiles: null,
 		coneHalfAngleDeg: null,
@@ -440,8 +523,13 @@ const DIFF_ROWS: readonly { labelKey: string; read: (stats: TowerStatsView) => S
 	{ labelKey: 'hud.stat.income', read: s => measured('hud.stat.perSecond', s.crumbsPerSecond) },
 	{ labelKey: 'hud.stat.collect', read: s => measured('hud.stat.tiles', s.collectRadiusTiles) },
 	{ labelKey: 'hud.stat.lights', read: s => measured('hud.stat.tiles', s.revealRadiusTiles) },
-	// The one row the card always draws, and the one that reads as a word at zero.
-	{ labelKey: 'hud.stat.noise', read: s => (s.noise === 0 ? word('hud.stat.silent') : plain(s.noise)) },
+	// The one row the card always draws, and the one that reads as a word at zero. Per second since
+	// 13B, so a tier that halves a cooldown shows up here as the tower getting louder -- which is
+	// exactly what the Mousetrap's third tier does, and what no other row on the card would say.
+	{
+		labelKey: 'hud.stat.noise',
+		read: s => (s.noise === 0 ? word('hud.stat.silent') : measured('hud.stat.perSecond', s.noise)),
+	},
 ]
 
 function sameValue(before: StatValueView | null, after: StatValueView | null): boolean {
@@ -572,7 +660,7 @@ export function buildNightSummary(world: World): NightSummaryView {
  */
 export function buildHudSnapshot(
 	world: World,
-	view: { speed: Speed; paused: boolean },
+	view: { speed: Speed; paused: boolean; loudShots?: number },
 	inspector: TowerInspectorView | null = null,
 ): HudSnapshot {
 	const night = world.night
@@ -587,7 +675,14 @@ export function buildHudSnapshot(
 		groceryMoney: world.groceryMoney,
 		crumbsOnBoard: crumbsOnBoard(world),
 		food: foodView(world),
-		noise: { level: world.noise.level, cap: world.noise.cap, wakeCount: world.noise.wakeCount },
+		noise: {
+			level: world.noise.level,
+			cap: world.noise.cap,
+			wakeCount: world.noise.wakeCount,
+			// Counted by the caller and passed in, like `inspector`: `towerFired` lives on
+			// `world.events` for one tick, and this is rebuilt from the world at 15Hz.
+			loudShots: view.loudShots ?? 0,
+		},
 		countdownTicks: night.countdownTicks,
 		earlyCallBonus: earlyCallBonus(world),
 		speed: view.speed,

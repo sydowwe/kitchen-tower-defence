@@ -12,6 +12,7 @@
 				:snapshot="hud"
 				:selection="selection"
 				:toasts="toasts"
+				:wake="wake"
 				:canContinue="canContinue"
 				@select="onSelect"
 				@sell="onSell"
@@ -32,17 +33,24 @@
 				:speed="snapshot.speed"
 				:paused="snapshot.paused"
 			/>
+			<component
+				:is="NoisePanel"
+				v-if="NoisePanel !== null && noiseDev !== null"
+				:readout="noiseDev"
+				@restart="onDevNoise"
+				@wakeNow="onDevWakeNow"
+			/>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type Component } from 'vue'
 	import { createLoop, type Loop, type Speed } from '@/loop.ts'
 	import { getMapDef, NIGHTS } from '@/core/content/index.ts'
 	import { createCommandQueue } from '@/core/commands.ts'
 	import { tick as stepWorld } from '@/core/sim.ts'
-	import { createWorld } from '@/core/world.ts'
+	import { createWorld, type CreateWorldOptions } from '@/core/world.ts'
 	import {
 		createRenderer,
 		LOGICAL_HEIGHT,
@@ -59,8 +67,8 @@
 	import HudLayer from '@/ui/components/hud/HudLayer.vue'
 	import { createInteraction, type Interaction, type Toast } from '@/ui/interaction.ts'
 	import { createSelection } from '@/ui/selection.ts'
-	import { buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
-	import type { HudSnapshot, TowerInspectorView } from '@/ui/viewModel.ts'
+	import { buildHudSnapshot, buildTowerInspector, buildWakeView } from '@/ui/viewModel.ts'
+	import type { HudSnapshot, TowerInspectorView, WakeView } from '@/ui/viewModel.ts'
 	import type { DefId, EntityId, GameEvent, MapDef, TargetingMode, World } from '@/core/types.ts'
 	import type { DebugController } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
@@ -88,6 +96,8 @@
 	const MAP_ID = 'counter'
 	/** Fixed, so retrying a night reopens the same one: same ants, same fridge, same order. */
 	const SEED = 1234
+	/** `core/` holds ticks; the dev panel reads a decay a human can compare against a tower. */
+	const TICKS_PER_SECOND = 60
 
 	/**
 	 * Which of `NIGHTS` is on the board. Retry rebuilds this one, Continue steps to the next and stops
@@ -107,8 +117,32 @@
 	 */
 	const frameEvents: GameEvent[] = []
 
+	/**
+	 * Loud shots so far tonight, and the last wake.
+	 *
+	 * Both are read out of `world.events` inside `tick()` rather than from `frameEvents` in `draw()`,
+	 * because that is the one place every tick is seen: `frameEvents` is drained and cleared by the
+	 * renderer, and at 3x speed a wake and the shot that caused it can land in the same frame.
+	 *
+	 * `loudShots` only ever goes up -- it is a key for a CSS animation, not a statistic
+	 * (see `HudSnapshot.noise.loudShots`).
+	 */
+	let loudShots = 0
+	const wake = shallowRef<WakeView | null>(null)
+
 	/** Dev only: the editor's preview map, stashed until there is a world to hang it on. */
 	let previewMap: MapDef | null = null
+
+	/**
+	 * Dev only: the noise panel, dynamically imported below so none of it reaches production, plus the
+	 * readout it draws and the installation modifiers it restarts the night with.
+	 *
+	 * `devNoise` is `undefined` for the whole of a production build -- nothing ever assigns it there --
+	 * so `createWorld` sees exactly the options it saw before this panel existed.
+	 */
+	const NoisePanel = shallowRef<Component | null>(null)
+	const noiseDev = shallowRef<{ level: number; cap: number; decayPerSecond: number; wakeCount: number } | null>(null)
+	let devNoise: CreateWorldOptions['noise']
 
 	/**
 	 * The map the debug controller works against: **the world's clone**, not the authored def. It
@@ -191,7 +225,13 @@
 		}
 		nightIndex.value = index
 
-		const next = createWorld({ seed: SEED, mapId: MAP_ID, nightId: night.id, difficulty: 'normal' })
+		const next = createWorld({
+			seed: SEED,
+			mapId: MAP_ID,
+			nightId: night.id,
+			difficulty: 'normal',
+			noise: devNoise,
+		})
 		// A world cannot be built from an unregistered map, so the editor's preview is assigned on
 		// afterwards. A preview whose paths were renamed has no 'crack', and `startWave` throws with
 		// both ids in the message -- the right failure for a dev-only route.
@@ -201,6 +241,10 @@
 
 		world = next
 		frameEvents.length = 0
+		loudShots = 0
+		// Without this a retry opens with last night's card still fading and the ripple replaying off a
+		// count that belongs to a world that no longer exists -- the same reason `resetEffects` is here.
+		wake.value = null
 		resetEffects()
 		// Both selections point at a world that no longer exists.
 		selection.clear()
@@ -270,6 +314,29 @@
 		queue.enqueue({ kind: 'CallWaveEarly' })
 	}
 
+	/**
+	 * Dev only. A different set of installations is a differently-built world, so it rebuilds the night
+	 * rather than writing to `world.noise` -- the cap and the decay a night was built with are part of
+	 * what `(seed, mapId, nightId, commandLog)` has to reproduce.
+	 */
+	function onDevNoise(noise: { capDelta: number; decayPerSecondDelta: number }): void {
+		devNoise = noise
+		restart(nightIndex.value)
+	}
+
+	/**
+	 * Dev only. One over the cap, and `noiseSystem` is still the only thing that knows what a wake is.
+	 *
+	 * **Not `cap` exactly.** The system accumulates, *then* decays, *then* tests, so a level parked on
+	 * the cap is a tick's decay under it by the time the cap is read and nothing happens. Any
+	 * comfortable overshoot works, because the decay clamps back to the cap before the test.
+	 */
+	function onDevWakeNow(): void {
+		if (world !== null) {
+			world.noise.level = world.noise.cap + 1
+		}
+	}
+
 	onMounted(async () => {
 		if (board.value === null) {
 			return
@@ -279,11 +346,15 @@
 		if (import.meta.env.DEV) {
 			// Dynamic import keeps dev/ entirely out of the production bundle -- the same pattern
 			// router.ts uses for the step 4 editor route.
-			const [{ createDebugController }, { drawDebugOverlay: draw }, { takePreviewMap }] = await Promise.all([
-				import('@/dev/debug/state.ts'),
-				import('@/dev/debug/overlay.ts'),
-				import('@/dev/editor/preview.ts'),
-			])
+			const [{ createDebugController }, { drawDebugOverlay: draw }, { takePreviewMap }, { default: noisePanel }] =
+				await Promise.all([
+					import('@/dev/debug/state.ts'),
+					import('@/dev/debug/overlay.ts'),
+					import('@/dev/editor/preview.ts'),
+					import('@/dev/noise/NoisePanel.vue'),
+				])
+
+			NoisePanel.value = noisePanel
 
 			// One-shot: the editor's preview slot is read and cleared here, so a stale preview
 			// cannot hijack this route on the next visit. It is stashed rather than used, because
@@ -317,6 +388,19 @@
 				}
 				stepWorld(world, queue)
 				frameEvents.push(...world.events)
+
+				for (const event of world.events) {
+					if (event.kind === 'towerFired' && event.noise > 0) {
+						loudShots++
+						continue
+					}
+					if (event.kind === 'humanWoke') {
+						// `wakeCount` is already incremented on the world by the time this runs, and it is
+						// the one number that is exactly "which wake is this" -- so the card's key comes
+						// off the simulation rather than off a counter here that could drift from it.
+						wake.value = buildWakeView(world.noise.wakeCount, event)
+					}
+				}
 			},
 			draw() {
 				// Before `drawFrame`, which is what runs the effects layer: pushing after it puts
@@ -343,11 +427,20 @@
 					debugEnabled: debug?.state.enabled ?? false,
 				}
 
+				if (import.meta.env.DEV && world !== null) {
+					noiseDev.value = {
+						level: world.noise.level,
+						cap: world.noise.cap,
+						decayPerSecond: world.noise.decayPerTick * TICKS_PER_SECOND,
+						wakeCount: world.noise.wakeCount,
+					}
+				}
+
 				if (world !== null) {
 					refreshInspector()
 					hud.value = buildHudSnapshot(
 						world,
-						{ speed: activeLoop.speed, paused: activeLoop.paused },
+						{ speed: activeLoop.speed, paused: activeLoop.paused, loudShots },
 						inspector,
 					)
 				}
@@ -370,12 +463,16 @@
 		inspector = null
 		selection.clear()
 		frameEvents.length = 0
+		loudShots = 0
+		wake.value = null
 		resetEffects()
 		interaction?.destroy()
 		interaction = null
 		debug?.destroy()
 		debug = null
 		drawOverlay = null
+		NoisePanel.value = null
+		noiseDev.value = null
 	})
 </script>
 

@@ -170,6 +170,23 @@ export const STATUS_BURN_FLAME = 'rgba(255, 146, 52, 0.9)'
 export const STATUS_POISON_BUBBLE = 'rgba(138, 226, 106, 0.85)'
 export const STATUS_ROOTED_SHIMMER = 'rgba(236, 242, 255, 0.8)'
 
+/**
+ * Somebody flipped the kitchen light on.
+ *
+ * `WAKE_WASH` is the same warm amber as `LAMP_CORE` and `TOWER_LIGHT_CORE` -- it is the *same light*,
+ * turned all the way up, rather than a new colour the board has never shown. Its alpha is authored at
+ * the draw, because the wash rises and falls.
+ *
+ * `WAKE_DESATURATE` is drawn through `globalCompositeOperation = 'saturation'`, so what matters about
+ * it is that it has none: the blend hands its saturation to everything already on the canvas, and a
+ * grey drains the colour out of the board under the light.
+ */
+export const WAKE_WASH = 'rgb(245, 198, 107)'
+export const WAKE_DESATURATE = 'rgb(128, 128, 128)'
+
+/** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */
+export const GHOST_NOISE = '#f5c66b'
+
 /** The panel the fridge's remaining items sit on, so a row of glyphs reads as a shelf and not as litter. */
 export const SHELF_BACKDROP = 'rgba(12, 16, 28, 0.55)'
 export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'

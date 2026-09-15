@@ -21,6 +21,7 @@ export {
 	drawEntities,
 	drawFridge,
 	drawEffects,
+	drawWake,
 	pushEvents,
 	resetEffects,
 	drawCrumbs,

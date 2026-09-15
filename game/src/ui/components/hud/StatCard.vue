@@ -78,8 +78,10 @@
 				<dt>{{ t('hud.stat.lights') }}</dt>
 				<dd>{{ t('hud.stat.tiles', { n: stats.revealRadiusTiles }) }}</dd>
 			</template>
+			<!-- Per second, so it can be held against the 1.5/sec the meter decays at. The raw per-shot
+				 number makes a Mousetrap and a Toaster read as the same tower (step 13B, decision 6). -->
 			<dt>{{ t('hud.stat.noise') }}</dt>
-			<dd>{{ stats.noise === 0 ? t('hud.stat.silent') : stats.noise }}</dd>
+			<dd>{{ stats.noise === 0 ? t('hud.stat.silent') : t('hud.stat.perSecond', { n: stats.noise }) }}</dd>
 		</dl>
 		<!-- Only where there is a dps row to qualify. `damage x rate` is single-target, and once a
 			 tier-3 Salt Shaker splashes or a tier-3 Toaster throws a second projectile the unqualified

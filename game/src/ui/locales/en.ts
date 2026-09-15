@@ -48,6 +48,9 @@ export const en = {
 		lastLost: 'Lost: {item}',
 		groceryMoney: 'Grocery money',
 		noiseLevel: '{level} of {cap}',
+		// The word at the cap end of the meter past 70%. A floorboard, not a siren -- somebody upstairs
+		// is close to turning over, and DECISIONS.md section 1 does not do alarms.
+		noiseCreak: 'Creak',
 		speedShort: '{n}×',
 		// Keyed by the `TargetingMode` literal, so the control renders the union directly.
 		mode: {
@@ -395,6 +398,22 @@ export const en = {
 			description: 'A steady hush in the bedroom down the hall. Nothing short of a dropped pan gets through it.',
 		},
 	} satisfies InstallationMessages,
+	// The card that goes up when the meter fills. Same idiom as `night.foodLost` and deliberately the
+	// same understatement: somebody came in and turned the light on, which is a thing that happened
+	// rather than a fail state (analytic-docs/DECISIONS.md section 1). It reuses `night.listSeparator`
+	// and `general.and` rather than carrying a second copy of either.
+	//
+	// `towers` is `{n} × {name}` rather than a plural, because there is no suffix that survives both
+	// "Mousetraps" and "Cardboard Boxs". Two of a kind in one wake is rare anyway: a wake takes 20% of
+	// max HP, so it only finishes off what was already nearly gone.
+	wake: {
+		title: 'You woke someone up.',
+		lost: 'Lost: {items}.',
+		nothingLost: 'It cost you nothing, this time.',
+		crumbs: '{n} crumbs',
+		tower: 'a {name}',
+		towers: '{n} × {name}',
+	},
 	// The night-end summary. `foodLost` is the line analytic-docs/DECISIONS.md section 6 calls the
 	// emotional payload -- the specificity is the whole joke, so it lists items by name and never
 	// collapses them into a count. The UI joins them with `listSeparator` and `general.and` for the

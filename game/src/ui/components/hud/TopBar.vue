@@ -24,14 +24,38 @@
 
 			<span
 				class="reading noise"
-				:title="t('hud.noiseLevel', { level: noise.level, cap: noise.cap })"
+				:title="t('hud.noiseLevel', { level: Math.round(noise.level), cap: noise.cap })"
 			>
-				<FontAwesomeIcon :icon="noise.level > 0 ? 'volume-high' : 'volume-xmark'" />
-				<span class="meter">
+				<FontAwesomeIcon
+					:icon="noise.level > 0 ? 'volume-high' : 'volume-xmark'"
+					:class="{ loud }"
+				/>
+				<span class="meter-wrap">
+					<span class="meter">
+						<span
+							class="meter-fill"
+							:class="{ pulsing: loud }"
+							:style="{ width: `${noiseFraction}%`, background: noiseColour }"
+						/>
+						<!-- The creak mark: the meter has a top, and this is where it is. -->
+						<span class="cap-mark" />
+					</span>
+					<!--
+						Keyed on the count, never on a timer: a changed key remounts the element and replays
+						the CSS animation, the same trick `food.lastLostNameKey` uses below. One ripple per
+						publish rather than one per shot -- see `HudSnapshot.noise.loudShots`.
+					-->
 					<span
-						class="meter-fill threat"
-						:style="{ width: `${noiseFraction}%` }"
+						v-if="noise.loudShots > 0"
+						:key="noise.loudShots"
+						class="ripple"
 					/>
+				</span>
+				<span
+					class="creak"
+					:class="{ showing: loud }"
+				>
+					{{ t('hud.noiseCreak') }}
 				</span>
 			</span>
 
@@ -91,11 +115,37 @@
 
 	const { t } = useI18n()
 
+	/**
+	 * Where the meter stops being a reading and starts being the thing you are looking at, as a
+	 * percentage. Past it the bar warms, pulses, and says so in a word (step 13B, decision 4).
+	 */
+	const PULSE_AT = 70
+
 	/** `2:5am` is a typo on screen; the clock is the one place a raw number needs padding. */
 	const minute = computed(() => String(clock.minute).padStart(2, '0'))
 
 	const foodFraction = computed(() => (food.total === 0 ? 0 : (food.remaining / food.total) * 100))
 	const noiseFraction = computed(() => (noise.cap === 0 ? 0 : (noise.level / noise.cap) * 100))
+
+	const loud = computed(() => noiseFraction.value >= PULSE_AT)
+
+	/**
+	 * Calm below the threshold and continuously warmer above it: amber at 70%, and all the way over to
+	 * the danger colour at the cap.
+	 *
+	 * **Rounded to whole percent** so the string only changes when the colour visibly does. It is
+	 * rebuilt at 15Hz, and an unrounded mix writes a new `style` attribute to the DOM every publish for
+	 * a difference nobody can see.
+	 *
+	 * Deliberately not red: this is a kitchen at 2am, not a fail state (DECISIONS.md section 1).
+	 */
+	const noiseColour = computed(() => {
+		if (!loud.value) {
+			return 'var(--kd-threat)'
+		}
+		const hot = Math.round(Math.min(1, (noiseFraction.value - PULSE_AT) / (100 - PULSE_AT)) * 100)
+		return `color-mix(in oklab, var(--kd-lamp), var(--kd-danger) ${hot}%)`
+	})
 </script>
 
 <style scoped>
@@ -161,6 +211,7 @@
 	}
 
 	.meter {
+		position: relative;
 		display: block;
 		overflow: hidden;
 		width: 3.5rem;
@@ -175,12 +226,87 @@
 		border-radius: 999px;
 	}
 
-	.meter-fill.threat {
-		background: var(--kd-threat);
-	}
-
 	.meter-fill.owned {
 		background: var(--kd-owned);
+	}
+
+	/* The noise meter, and the ripple that has to be able to leave its edges. */
+	.meter-wrap {
+		position: relative;
+		display: block;
+	}
+
+	/*
+		Slow enough to read as tension rather than as an alarm, and a dip in opacity rather than a jump
+		in size: the board is the brightest thing on screen and the chrome floats at its edges, so this
+		bar must never become the brightest object on it (DECISIONS.md section 1).
+	*/
+	.meter-fill.pulsing {
+		animation: noise-pulse 1.7s ease-in-out infinite;
+	}
+
+	@keyframes noise-pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+
+		50% {
+			opacity: 0.55;
+		}
+	}
+
+	/* Understated on purpose: it says the meter has a top, it does not shout about it. */
+	.cap-mark {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 1px;
+		background: rgba(232, 230, 240, 0.45);
+	}
+
+	.ripple {
+		position: absolute;
+		inset: -0.22rem;
+		border: 1px solid var(--kd-lamp);
+		border-radius: 999px;
+		opacity: 0;
+		animation: noise-ripple 460ms ease-out forwards;
+		pointer-events: none;
+	}
+
+	@keyframes noise-ripple {
+		0% {
+			opacity: 0.75;
+			transform: scaleX(0.92) scaleY(0.6);
+		}
+
+		100% {
+			opacity: 0;
+			transform: scaleX(1.06) scaleY(1.9);
+		}
+	}
+
+	/*
+		Rendered at every level and only *shown* past the threshold: appearing would reflow the whole
+		bar, and a top bar that jumps sideways at 70% is worse than the word it was trying to add.
+	*/
+	.creak {
+		color: var(--kd-danger);
+		font-size: 0.65rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		opacity: 0;
+		transition: opacity 600ms ease;
+	}
+
+	.creak.showing {
+		opacity: 0.85;
+	}
+
+	.noise .loud {
+		color: var(--kd-danger);
 	}
 
 	.food {

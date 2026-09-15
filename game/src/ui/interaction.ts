@@ -15,6 +15,7 @@
 import { effectiveDefOf, TOWERS } from '@/core/content/index.ts'
 import { isAttack, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { nearestPath, samplePath } from '@/core/path.ts'
+import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import {
@@ -476,7 +477,15 @@ export function createInteraction(
 			ghost:
 				def === null || tile === null || tone === null
 					? null
-					: { glyph: def.glyph, tile, reach: reachOf(def, world, tile, null), tone },
+					: {
+							glyph: def.glyph,
+							tile,
+							reach: reachOf(def, world, tile, null),
+							tone,
+							// Resolved here like the reach and the tone, so `render/` never looks a def up
+							// and never learns what a cooldown is (step 13B, decision on the ghost).
+							noisePerSecond: projectedNoisePerSecond(def),
+						},
 		}
 	}
 

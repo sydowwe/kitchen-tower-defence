@@ -34,6 +34,11 @@
 		@togglePause="emit('togglePause')"
 	/>
 
+	<WakeCard
+		v-if="wake !== null"
+		:wake="wake"
+	/>
+
 	<ToastStack :toasts="toasts" />
 
 	<NightSummary
@@ -52,9 +57,10 @@
 	import TopBar from '@/ui/components/hud/TopBar.vue'
 	import TowerInspector from '@/ui/components/hud/TowerInspector.vue'
 	import TowerShop from '@/ui/components/hud/TowerShop.vue'
+	import WakeCard from '@/ui/components/hud/WakeCard.vue'
 	import WaveControl from '@/ui/components/hud/WaveControl.vue'
 	import type { Selection } from '@/ui/selection.ts'
-	import type { DefId, EntityId, HudSnapshot, Speed, TargetingMode } from '@/ui/viewModel.ts'
+	import type { DefId, EntityId, HudSnapshot, Speed, TargetingMode, WakeView } from '@/ui/viewModel.ts'
 
 	/**
 	 * The whole interface, laid out over the board.
@@ -71,11 +77,18 @@
 		snapshot,
 		selection,
 		toasts = [],
+		wake = null,
 		canContinue = true,
 	} = defineProps<{
 		snapshot: HudSnapshot
 		selection: Selection
 		toasts?: { id: number; messageKey: string }[]
+		/**
+		 * The last wake, or null. A prop rather than a field of `snapshot` for the same reason `toasts`
+		 * is one: it is a one-tick event with a payload the world no longer has, and the snapshot is
+		 * rebuilt from the world at 15Hz (step 13B, decision 1).
+		 */
+		wake?: WakeView | null
 		/** False on the last authored night. `GameView.vue` steps through `NIGHTS` and stops. */
 		canContinue?: boolean
 	}>()

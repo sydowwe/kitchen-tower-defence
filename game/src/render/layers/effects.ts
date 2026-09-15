@@ -19,7 +19,15 @@ import type { EntityId, GameEvent, Vec2, World } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
 import { forgetCrumbPositions, lastCrumbPosition } from '@/render/layers/crumbs.ts'
 import { foodGlyphSize, shelfSlot } from '@/render/layers/fridge.ts'
-import { CRUMB_POP, CRUMB_VALUE, DAMAGE_NUMBER, HIT_FLASH, TOWER_DEBRIS } from '@/render/palette.ts'
+import {
+	CRUMB_POP,
+	CRUMB_VALUE,
+	DAMAGE_NUMBER,
+	HIT_FLASH,
+	TOWER_DEBRIS,
+	WAKE_DESATURATE,
+	WAKE_WASH,
+} from '@/render/palette.ts'
 
 /** ~0.6s at 60fps. Frames, because this ages with the display and not with the simulation. */
 const LIFE_FRAMES = 36
@@ -178,6 +186,35 @@ interface Puff {
 const puffs: Puff[] = []
 
 /**
+ * The light coming on: a warm wash over the whole board and the colour draining out from under it.
+ *
+ * **Animation, not simulation.** A wash driven off `world.noise` would be in every save and every
+ * replay, and at 3x speed it would run three times as fast -- so it ages in frames here like
+ * everything else in this file (step 13B, decision 2).
+ *
+ * One at a time: a second wake while the first is still fading restarts it rather than adding a
+ * second pass, because two washes at once is just a brighter wash.
+ */
+const WAKE_LIFE_FRAMES = 96
+/** Frames the wash takes to arrive. Someone hit a switch; it does not fade up. */
+const WAKE_ATTACK_FRAMES = 7
+/** Peak alpha of the warm fill. Unmistakable, and still short of hiding the board under it. */
+const WAKE_WASH_PEAK = 0.3
+/** Peak alpha of the desaturating pass. The board is visibly grey at the top of the wash. */
+const WAKE_DESATURATE_PEAK = 0.8
+
+let wakeAgeFrames: number | null = null
+
+/** Fast in, slow out: 0 to 1 over the attack, then eased back down across the rest of the life. */
+function wakeEnvelope(ageFrames: number): number {
+	if (ageFrames <= WAKE_ATTACK_FRAMES) {
+		return ageFrames / WAKE_ATTACK_FRAMES
+	}
+	const t = (ageFrames - WAKE_ATTACK_FRAMES) / (WAKE_LIFE_FRAMES - WAKE_ATTACK_FRAMES)
+	return (1 - t) * (1 - t)
+}
+
+/**
  * Where a collected pile was standing.
  *
  * `collectCrumb` splices the pile out before it pushes the event, so the world cannot answer this --
@@ -251,6 +288,11 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 			if (crumbValues.length > MAX_CRUMB_VALUES) {
 				crumbValues.shift()
 			}
+			continue
+		}
+
+		if (event.kind === 'humanWoke') {
+			wakeAgeFrames = 0
 			continue
 		}
 
@@ -503,6 +545,54 @@ export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: 
 	drawCrumbPops(ctx, tilePx, dpr)
 }
 
+/**
+ * The wake wash, drawn **after `drawOverlay`** and from its own call in `drawFrame` rather than from
+ * inside `drawEffects`.
+ *
+ * `drawEffects` runs at the particles slot and the overlay is drawn over it; a wash the placement
+ * ghost sits on top of is a wash that does not read as the room (step 13B, decision 3). Ages one
+ * frame per call, like every other pass in this file.
+ *
+ * `width` and `height` are the logical canvas rather than `tilePx`, because both passes fill the
+ * whole board. They are parameters and not an import of `renderer.ts`: that module imports this one
+ * through `layers/index.ts`, and naming it here would close the cycle.
+ *
+ * **`'saturation'` is sticky and composites against the entire canvas.** Left set, the next frame's
+ * first draw composites into the last one, and the board turns progressively and irreversibly grey
+ * over about ten seconds -- which reads exactly like a memory leak. Both passes are therefore bracketed
+ * by a save and a restore of the composite op and the alpha, the way `drawHits` already restores
+ * `globalAlpha`.
+ */
+export function drawWake(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+	if (wakeAgeFrames === null) {
+		return
+	}
+
+	wakeAgeFrames++
+	if (wakeAgeFrames >= WAKE_LIFE_FRAMES) {
+		wakeAgeFrames = null
+		return
+	}
+
+	const strength = wakeEnvelope(wakeAgeFrames)
+	const previousOperation = ctx.globalCompositeOperation
+	const previousAlpha = ctx.globalAlpha
+
+	// The colour goes first, so the warm pass lands on a board that has already lost it.
+	ctx.globalCompositeOperation = 'saturation'
+	ctx.globalAlpha = strength * WAKE_DESATURATE_PEAK
+	ctx.fillStyle = WAKE_DESATURATE
+	ctx.fillRect(0, 0, width, height)
+
+	ctx.globalCompositeOperation = 'source-over'
+	ctx.globalAlpha = strength * WAKE_WASH_PEAK
+	ctx.fillStyle = WAKE_WASH
+	ctx.fillRect(0, 0, width, height)
+
+	ctx.globalAlpha = previousAlpha
+	ctx.globalCompositeOperation = previousOperation
+}
+
 /** Called on restart. Without it, items keep flying out of the night before and the first pop of the new one lands on last night's floor. */
 export function resetEffects(): void {
 	flights.length = 0
@@ -512,5 +602,7 @@ export function resetEffects(): void {
 	pops.length = 0
 	crumbValues.length = 0
 	puffs.length = 0
+	// Without this a retry opens with last night's light still on.
+	wakeAgeFrames = null
 	forgetCrumbPositions()
 }

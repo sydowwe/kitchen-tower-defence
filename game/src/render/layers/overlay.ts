@@ -14,11 +14,27 @@
 
 import { blitGlyph } from '@/render/glyphCache.ts'
 import { drawPlacementTile, drawRangeCircle, drawRangeCone, towerGlyphSize } from '@/render/layers/towers.ts'
+import { GHOST_NOISE } from '@/render/palette.ts'
 import type { PlacementTone } from '@/render/layers/towers.ts'
 import type { Vec2 } from '@/core/types.ts'
 
 /** How solid the tower-to-be is drawn under the cursor. Solid enough to identify, faint enough to read as not-yet. */
 const GHOST_ALPHA = 0.45
+
+/**
+ * The noise a loud tower is about to start making, under the tile it would stand on.
+ *
+ * A speaker glyph and a number, and **no words**: `render/` cannot translate, and the one thing it is
+ * allowed to draw is what the damage numbers and the floating `+N` already draw -- a rounded numeral.
+ * The glyph is what says which number it is, the way every other entity on this board is an emoji.
+ *
+ * Rounded to one decimal before it becomes a cache key, for `getGlyph`'s reason: the key space has to
+ * stay finite, and an unrounded rate is a fresh rasterised bitmap per pointer move.
+ */
+const GHOST_NOISE_GLYPH = '🔊'
+const GHOST_NOISE_SIZE_SCALE = 0.3
+/** Tiles below the tile's centre, so it clears the ghost rather than sitting under its feet. */
+const GHOST_NOISE_OFFSET_TILES = 0.62
 
 /**
  * What shape a tower's reach is, already resolved.
@@ -43,6 +59,14 @@ export interface OverlayGhost {
 	tile: Vec2
 	reach: OverlayReach | null
 	tone: PlacementTone
+	/**
+	 * What this tower would add to the meter per second of continuous fire, **already resolved** by the
+	 * caller out of `projectedNoisePerSecond` -- the same number the shop card shows.
+	 *
+	 * 0 for the eight towers that make none, and nothing is drawn for those: a silent tower announcing
+	 * its silence on every tile the cursor crosses is noise of a different kind.
+	 */
+	noisePerSecond: number
 }
 
 export interface OverlayView {
@@ -109,4 +133,17 @@ export function drawOverlay(
 		(ghost.tile.y + 0.5) * tilePx,
 	)
 	ctx.globalAlpha = 1
+
+	if (ghost.noisePerSecond > 0) {
+		blitGlyph(
+			ctx,
+			dpr,
+			`${GHOST_NOISE_GLYPH}${ghost.noisePerSecond.toFixed(1)}`,
+			tilePx * GHOST_NOISE_SIZE_SCALE,
+			(ghost.tile.x + 0.5) * tilePx,
+			(ghost.tile.y + 0.5 + GHOST_NOISE_OFFSET_TILES) * tilePx,
+			false,
+			GHOST_NOISE,
+		)
+	}
 }

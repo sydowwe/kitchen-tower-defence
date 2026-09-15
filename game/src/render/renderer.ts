@@ -9,6 +9,7 @@ import {
 	drawOverlay,
 	drawTowers,
 	drawTrack,
+	drawWake,
 } from '@/render/layers/index.ts'
 import { BACKGROUND } from '@/render/palette.ts'
 import type { OverlayView } from '@/render/layers/index.ts'
@@ -148,7 +149,10 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// none of them can quietly insert itself in the wrong place.
 		//
 		//   terrain -> track -> tile effects -> crumbs -> towers -> fridge -> enemies
-		//   -> projectiles -> particles -> overlay
+		//   -> projectiles -> particles -> overlay -> wake
+		//
+		// The wake wash is last, after the overlay: it is the room the board is standing in, and a
+		// placement ghost drawn on top of it would be a ghost the light does not reach (step 13B).
 		//
 		// The fridge's shelf sits between towers and enemies so an ant standing at the fridge is
 		// drawn over the shelf it is robbing (step 5C, decision 4).
@@ -176,6 +180,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// drawn.
 		drawEffects(ctx, tilePx, dpr)
 		drawOverlay(ctx, overlay, tilePx, dpr)
+		drawWake(ctx, LOGICAL_WIDTH, LOGICAL_HEIGHT)
 	}
 
 	resize()

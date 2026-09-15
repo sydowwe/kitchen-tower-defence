@@ -461,7 +461,13 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		entry.x = (displaced.x + 0.5) * tilePx
 		entry.y = (displaced.y + 0.5) * tilePx
 		entry.glyph = glyphFor(enemy)
-		entry.mirrored = Math.cos(at.angle) < 0
+		// The path's forward heading, **reversed for anything running for it**: a wake sends every
+		// enemy back down the track, and the sampled angle still points the way they came. Without the
+		// flip, forty ants moonwalk off the board.
+		//
+		// `dirX` / `dirY` below are deliberately left on the forward heading. They place a chewing queue
+		// behind a barricade, and a fleeing enemy is never chewing -- `barricadesSystem` skips one.
+		entry.mirrored = (enemy.flags.fleeing ? -Math.cos(at.angle) : Math.cos(at.angle)) < 0
 		entry.hp = enemy.hp
 		entry.maxHp = enemy.maxHp
 		entry.dirX = Math.cos(at.angle)
