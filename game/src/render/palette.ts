@@ -178,15 +178,21 @@ export const STATUS_ROOTED_SHIMMER = 'rgba(236, 242, 255, 0.8)'
 /**
  * Somebody flipped the kitchen light on.
  *
- * `WAKE_WASH` is the same warm amber as `LAMP_CORE` and `TOWER_LIGHT_CORE` -- it is the *same light*,
- * turned all the way up, rather than a new colour the board has never shown. Its alpha is authored at
- * the draw, because the wash rises and falls.
+ * `WAKE_WASH` is a warm off-white rather than the full-chroma amber of `LAMP_CORE`, and that is
+ * load-bearing rather than a shade preference. It is drawn **over** the desaturating pass, so its own
+ * saturation lands on top of what that pass just drained: authored at the amber's own
+ * `rgb(245, 198, 107)` it measured the board *more* saturated at the peak of the wash than at rest
+ * (0.38 against a 0.27 baseline), which is the exact opposite of what the wake is supposed to look
+ * like. A warm white adds the brightness and the temperature without putting the colour back.
+ *
+ * It is also the more honest picture: a ceiling light coming on at full does not tint the room
+ * orange, it flattens it. Alpha is authored at the draw, because the wash rises and falls.
  *
  * `WAKE_DESATURATE` is drawn through `globalCompositeOperation = 'saturation'`, so what matters about
  * it is that it has none: the blend hands its saturation to everything already on the canvas, and a
  * grey drains the colour out of the board under the light.
  */
-export const WAKE_WASH = 'rgb(245, 198, 107)'
+export const WAKE_WASH = 'rgb(255, 243, 222)'
 export const WAKE_DESATURATE = 'rgb(128, 128, 128)'
 
 /** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */

@@ -197,39 +197,56 @@ tick a box.
 
 ## Acceptance
 
-- [ ] "Wake now" fires a wake, and ticking Close the Kitchen Door and White-noise Machine together
+- [x] "Wake now" fires a wake, and ticking Close the Kitchen Door and White-noise Machine together
       shows a cap of 155 in the panel's readout with Oil the Hinges taking the decay to 2/sec.
-      *(Half of this is confirmed: the readout shows 155 and 2.00/sec with those boxes ticked. The
-      "Wake now" half was not watched — see the note under Acceptance.)*
 - [x] The production bundle contains no `dev/` code — check the build output.
 - [ ] At 65% the meter is legible and calm; at 75% you notice it without looking for it; at 95% you
       are doing something about it. Judge this while playing, not from a screenshot.
-- [ ] Placing a Mousetrap and watching it fire, you can point at the ripple and say "that one".
+      *(Not judgeable yet, and not only by a session: night 1 cannot reach 70% of a cap of 100 with
+      the towers it can afford — one Mousetrap is 0.3/sec against 1.5/sec of decay, which is the
+      measurement `core/systems/noise.ts` hands to step 22. At rest the calm state is confirmed
+      correct: `--kd-threat`, no pulse, creak at opacity 0, `volume-xmark`. The warm, pulsing, creaking
+      state above 70% has never been on screen.)*
+- [x] Placing a Mousetrap and watching it fire, you can point at the ripple and say "that one".
+      *(Three shots over one wave; the ripple element was replaced and its animation replayed on the
+      same publish the level jumped ~2.0, fading 0.66 → 0.06 over ~340ms each time.)*
 - [ ] The wake reads as *someone came in*, not as a game-over screen. Watch it three times; if the
       third one still makes you flinch rather than wince, it is too loud.
-- [ ] The board is unmistakably desaturated at the peak of the wash and is back to full colour
+- [x] The board is unmistakably desaturated at the peak of the wash and is back to full colour
       afterwards — and stays that way over ten more wakes. This is decision 3's sticky composite op.
-- [ ] Enemies face the direction they are running.
-- [ ] The card names what it cost, by name, in one sentence, and is gone before you have finished
+      *(Measured off the canvas over the fridge shelf. Rest: mean saturation 0.277. Peak of the wash:
+      **0.097**, a 65% drop, coinciding with the brightest frame. Back to 0.277 exactly afterwards,
+      and still 0.277 after ten overlapping wakes. `globalCompositeOperation` reads `source-over` at
+      rest, mid-wash and late in the wash, so the op is not leaking.)*
+- [x] Enemies face the direction they are running.
+      *(Walking right before the wake, drawn mirrored and running left after it, heads leading.)*
+- [x] The card names what it cost, by name, in one sentence, and is gone before you have finished
       reacting to it.
+      *("You woke someone up. Lost: 6 crumbs." against a top bar reading `+6` on the floor. The
+      zero case reads "It cost you nothing, this time." No tower was destroyed in either observed
+      wake, so the `{n} × {name}` branch has not been on screen.)*
 - [x] Standing in the shop, you can tell the Toaster is the loud one without doing arithmetic.
       *(Confirmed on screen: the Toaster's card reads `Noise 0.9/sec` against the Mousetrap's
       `0.3/sec`. The placement ghost carries the same number under the tile.)*
 - [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
-Everything still unticked above needs a human in front of a running night.
+Two left, and they are the two this file always said were a human's.
 
-What the build session did get on screen: the dev panel, the cap and decay readout, both shop cards
-and the placement ghost. What it could not: **anything that needs the simulation to actually run.**
-The board is a 60Hz `requestAnimationFrame` app, and a Chrome tab that is not the foreground window
-never fires one — the loop does not tick, `publish()` never runs, the HUD never mounts, and the canvas
-sits showing its last painted frame, which looks exactly like a working board. So the wake, the
-ripple and the meter above 70% went unwatched.
+**The wake's tone** — whether it reads as *someone came in* rather than as a fail state, watched three
+times — is the one criterion no measurement reaches. `WAKE_WASH_PEAK` (0.3), `WAKE_DESATURATE_PEAK`
+(0.8) and `WAKE_LIFE_FRAMES` (96) in `render/layers/effects.ts` are the three numbers to move, and the
+dev panel's "Wake now" button is how to see them.
 
-That leaves **the wash's peak alpha and duration authored but unwatched**, which is exactly the pair
-this file says can only be got right by looking at one. `WAKE_WASH_PEAK` (0.3), `WAKE_DESATURATE_PEAK`
-(0.8) and `WAKE_LIFE_FRAMES` (96) in `render/layers/effects.ts` are the three numbers to re-tune, and
-the dev panel's "Wake now" button is how to see them.
+**The meter above 70% has never been on screen**, and that is a fact about the noise curve rather than
+about the HUD: one Mousetrap is 0.3/sec against 1.5/sec of decay, so a night-1 board cannot get near a
+cap of 100 at all. Seeing the warm, pulsing, creaking state needs either a stack of loud towers bought
+with crumbs a night does not hand out yet, or step 22's sweep. **Do not tune the curve to make it
+visible** — that is exactly the trade this file's *Do not* section forbids.
+
+One thing found by watching and already fixed: authored at the lamp's full-chroma amber, the wash came
+out measuring the board *more* saturated at its peak than at rest (0.38 against 0.27), because the
+warm pass is drawn over the desaturating one and put the colour straight back. `WAKE_WASH` is now a
+warm off-white and the peak measures 0.097. See the note on it in `render/palette.ts`.
 
 ## Do not
 
