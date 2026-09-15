@@ -6,6 +6,7 @@ import {
 	drawFridge,
 	drawProjectiles,
 	drawTerrain,
+	drawTileEffects,
 	drawOverlay,
 	drawTowers,
 	drawTrack,
@@ -165,7 +166,10 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 			ctx.drawImage(bake, 0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT)
 		}
 
-		// tile effects: step 15
+		// Tile state is the floor itself, so it goes straight over the bake and under everything
+		// standing on it. Deliberately not *in* the bake, permanent though scorch and mold are
+		// (step 14B, decision 4).
+		drawTileEffects(ctx, world, tilePx)
 		// Crumbs sit under the towers and under the enemies: the litter is on the floor, and an ant
 		// walking over a pile is the right picture (step 7C, decision 9).
 		drawCrumbs(ctx, world, tilePx, dpr)

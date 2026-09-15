@@ -195,6 +195,33 @@ export const STATUS_ROOTED_SHIMMER = 'rgba(236, 242, 255, 0.8)'
 export const WAKE_WASH = 'rgb(255, 243, 222)'
 export const WAKE_DESATURATE = 'rgb(128, 128, 128)'
 
+/**
+ * What the floor itself is carrying: the five tile effects, one colour family each.
+ *
+ * Told apart by **shape as well as colour**, for the reason the status treatments above are and one
+ * more besides. Several kinds sit on one cell routinely -- slimed *and* on fire is the canonical
+ * case -- and two coloured washes over one 48px square are one muddy square, so the shapes are a
+ * blotch, a speckled patch, a glossy puddle, a pulsing ring and a flat wash.
+ *
+ * `TILE_HEAT_PULSE` is an ember red and emphatically **not** the `LAMP_CORE` / `TOWER_LIGHT_CORE`
+ * amber. Those two are already on the board in quantity, and a heat glow in their family is a tile
+ * that reads as *lit* rather than as lethal -- which is the one thing a heated tile has to say.
+ *
+ * `TILE_RESIDUE_MIST` is `STATUS_POISON_BUBBLE`'s green at a fraction of the alpha, because what
+ * standing in residue does is apply poison, and the tell for that already means that.
+ *
+ * `TILE_SCORCH_STAIN` is the quiet one on purpose. It is permanent and it accumulates all night, so
+ * any real contrast turns the board into soot by the end of a Toaster's shift.
+ */
+export const TILE_SCORCH_STAIN = 'rgba(14, 10, 8, 0.36)'
+export const TILE_MOLD_PATCH = 'rgba(118, 146, 92, 0.34)'
+export const TILE_MOLD_SPECK = 'rgba(186, 214, 148, 0.7)'
+export const TILE_SLIME_SHEEN = 'rgba(86, 214, 190, 0.3)'
+export const TILE_SLIME_GLOSS = 'rgba(214, 255, 246, 0.5)'
+export const TILE_HEAT_PULSE = 'rgba(255, 96, 40, 0.85)'
+export const TILE_HEAT_CORE = 'rgba(255, 152, 72, 0.45)'
+export const TILE_RESIDUE_MIST = 'rgba(138, 226, 106, 0.17)'
+
 /** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */
 export const GHOST_NOISE = '#f5c66b'
 

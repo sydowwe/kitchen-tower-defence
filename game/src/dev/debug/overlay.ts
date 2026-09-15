@@ -1,17 +1,19 @@
 /**
- * The debug overlay's draw pass: tile flags, waypoints, path lengths, the hover readout and the
- * marker. Drawn straight onto the **live** context, never baked -- unlike `render/layers/terrain.ts`
- * and `track.ts`, every element here changes from frame to frame.
+ * The debug overlay's draw pass: tile flags, waypoints, path lengths, the armed brush, the hover
+ * readout and the marker. Drawn straight onto the **live** context, never baked -- unlike
+ * `render/layers/terrain.ts` and `track.ts`, every element here changes from frame to frame.
  *
- * A pure draw, like its `render/layers/` counterparts: state and the map in, pixels out, no module
- * state of its own. `dev/debug/state.ts` owns everything mutable.
+ * A pure draw, like its `render/layers/` counterparts: state, the map and the world in, pixels out,
+ * no module state of its own. `dev/debug/state.ts` owns everything mutable.
  */
 
 import { TileFlags } from '@/core/map.ts'
 import { samplePath, totalLength } from '@/core/path.ts'
+import { tileStateAt } from '@/core/tiles.ts'
+import { BRUSH_KEYS } from '@/dev/debug/state.ts'
 import type { DebugState } from '@/dev/debug/state.ts'
 import { EMOJI_FONT } from '@/render/glyphCache.ts'
-import type { MapDef, Path } from '@/core/types.ts'
+import type { MapDef, Path, World } from '@/core/types.ts'
 
 const FLAG_TINTS: ReadonlyArray<{ flag: number; label: string; color: string }> = [
 	{ flag: TileFlags.BUILDABLE, label: 'buildable', color: 'rgba(100, 200, 255, 0.22)' },
@@ -74,6 +76,28 @@ function drawLegend(ctx: CanvasRenderingContext2D): void {
 	}
 }
 
+/**
+ * What the brush is armed with and what every key does, under the flag legend.
+ *
+ * It is here so that "why is nothing painting" is answerable by looking rather than by reading
+ * `state.ts`: the brush only writes while its key is *held*, so an armed-but-idle brush and a
+ * disarmed one look identical on the board.
+ */
+function drawBrush(ctx: CanvasRenderingContext2D, state: DebugState): void {
+	const keys = BRUSH_KEYS.map(binding => `${binding.key}:${binding.kind}`).join(' ')
+	drawLabel(ctx, `brush ${state.brush ?? 'none'}  (hold ${keys}, Backspace clears)`, 10, 10 + FLAG_TINTS.length * 16)
+}
+
+/** A tick count the way 14A stores it: negative is permanent, and the readout says so. */
+function formatRemaining(remainingTicks: number): string {
+	return remainingTicks < 0 ? '∞' : `${remainingTicks}t`
+}
+
+/** Mold's stage is an integer; heat's per-tick damage is not. Print each as what it is. */
+function formatMagnitude(magnitude: number): string {
+	return Number.isInteger(magnitude) ? String(magnitude) : magnitude.toFixed(3)
+}
+
 function drawWaypointsAndArrows(ctx: CanvasRenderingContext2D, path: Path, tilePx: number, isActive: boolean): void {
 	ctx.strokeStyle = isActive ? ACTIVE_PATH_COLOR : INACTIVE_PATH_COLOR
 	ctx.lineWidth = isActive ? 2 : 1
@@ -134,7 +158,20 @@ function drawPathLengths(ctx: CanvasRenderingContext2D, map: MapDef, activeIndex
 	})
 }
 
-function drawHover(ctx: CanvasRenderingContext2D, map: MapDef, state: DebugState, tilePx: number): void {
+/**
+ * The hovered cell's flags, and then a line per live effect on it.
+ *
+ * That second part is the only place in the game where 14A's numbers are visible at all, and it is
+ * what tells a wrong expiry from a wrong draw: a slime that vanished because `remainingTicks` hit
+ * zero and one that vanished because the layer stopped drawing it look the same on the board.
+ */
+function drawHover(
+	ctx: CanvasRenderingContext2D,
+	map: MapDef,
+	world: World | null,
+	state: DebugState,
+	tilePx: number,
+): void {
 	if (state.hoverTile === null) {
 		return
 	}
@@ -144,6 +181,15 @@ function drawHover(ctx: CanvasRenderingContext2D, map: MapDef, state: DebugState
 		.join(',')
 	const { x, y } = tileCenter(state.hoverTile, tilePx)
 	drawLabel(ctx, `${state.hoverTile.x},${state.hoverTile.y} [${names || 'none'}]`, x + 8, y - 18)
+
+	const cell = world === null ? null : tileStateAt(world, state.hoverTile)
+	if (cell === null) {
+		return
+	}
+	cell.effects.forEach((effect, index) => {
+		const text = `${effect.kind} ${formatRemaining(effect.remainingTicks)} m${formatMagnitude(effect.magnitude)}`
+		drawLabel(ctx, text, x + 8, y - 4 + index * 15)
+	})
 }
 
 /** `samplePath` returns tile-space coordinates, like every waypoint in `Path`; the draw needs pixels. */
@@ -169,7 +215,13 @@ function drawMarker(ctx: CanvasRenderingContext2D, path: Path, distance: number,
  * `Renderer.drawFrame`, and only when `state.enabled` -- behind the same `import.meta.env.DEV`
  * branch that keeps this file out of the production bundle entirely.
  */
-export function drawDebugOverlay(ctx: CanvasRenderingContext2D, map: MapDef, state: DebugState, tilePx: number): void {
+export function drawDebugOverlay(
+	ctx: CanvasRenderingContext2D,
+	map: MapDef,
+	state: DebugState,
+	tilePx: number,
+	world: World | null,
+): void {
 	drawFlagTints(ctx, map, tilePx)
 
 	map.paths.forEach((path, index) => {
@@ -182,6 +234,7 @@ export function drawDebugOverlay(ctx: CanvasRenderingContext2D, map: MapDef, sta
 	}
 
 	drawLegend(ctx)
+	drawBrush(ctx, state)
 	drawPathLengths(ctx, map, state.activePathIndex)
-	drawHover(ctx, map, state, tilePx)
+	drawHover(ctx, map, world, state, tilePx)
 }

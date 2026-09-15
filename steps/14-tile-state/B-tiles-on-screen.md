@@ -91,7 +91,8 @@ edit this file, don't leave it lying.
 
 ### 2. The readout — `dev/debug/overlay.ts`
 
-Still a pure draw. Add:
+Still a pure draw — which is why the effects readout costs it a parameter: `drawDebugOverlay` gains a
+trailing `world: World | null` rather than `dev/debug/state.ts` caching a cell on `DebugState`. Add:
 
 - the armed brush next to the flag legend, so "why is nothing painting" is answerable by looking.
 - the hovered tile's effects on the existing hover label: kind, `remainingTicks` (`∞` for a negative
@@ -162,7 +163,7 @@ If you find yourself wanting a test for the brush, you are building a feature th
       readout.
 - [ ] The terrain bake still fires exactly once per map load with mold on the board (the
       `console.count` from step 3B), and the production bundle contains no `dev/debug` code.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

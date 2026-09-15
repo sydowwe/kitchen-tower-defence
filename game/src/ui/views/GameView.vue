@@ -361,7 +361,10 @@
 			// the world is built from a registered map id and the preview is assigned on after.
 			previewMap = takePreviewMap()
 
-			debug = createDebugController(canvasEl, currentMap)
+			// A getter, never the world: `restart()` replaces it wholesale, and a captured reference
+			// would paint step 14B's tile brush into the previous night. Same shape as the
+			// `() => world` handed to `createInteraction` below.
+			debug = createDebugController(canvasEl, currentMap, () => world)
 			drawOverlay = draw
 		}
 
@@ -413,7 +416,7 @@
 				activeRenderer.drawFrame(world, activeInteraction.overlay())
 				debug?.update()
 				if (import.meta.env.DEV && debug !== null && debug.state.enabled && drawOverlay !== null) {
-					drawOverlay(activeRenderer.ctx, currentMap(), debug.state, activeRenderer.tilePx)
+					drawOverlay(activeRenderer.ctx, currentMap(), debug.state, activeRenderer.tilePx, world)
 				}
 			},
 			publish() {
