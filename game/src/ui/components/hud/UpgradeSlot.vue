@@ -109,11 +109,21 @@
 	}
 
 	/* A tier already bought is a receipt, not an offer. It recedes and stops competing with the one
-	   the player can actually act on. */
+	   the player can actually act on -- by losing its border and its button, by going flat against
+	   the panel, and by dimming the only two bright things in it.
+
+	   **The recede is not `opacity`, and the ground is not `transparent`.** `--kd-panel` is 0.82 and
+	   the board is drawn behind it, so a slot with no ground of its own leaves the fridge's food
+	   sitting directly behind these words -- and an `opacity` here would do the same thing, because
+	   it fades the background along with the text it is meant to dim. */
 	.slot.owned {
 		border-color: transparent;
-		background: transparent;
-		opacity: 0.55;
+		background: var(--kd-panel);
+	}
+
+	.slot.owned .name,
+	.slot.owned .now {
+		color: var(--kd-text-dim);
 	}
 
 	.slot.locked {

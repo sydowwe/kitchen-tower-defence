@@ -95,8 +95,13 @@ export const TOWER_REARM_SWEEP = 'rgba(255, 196, 71, 0.95)'
  * that does not, and the one thing step 10C bought with that yellow was "this tower is not ready" --
  * a maxed tower wearing it would be reading as mid-rearm from across the room. This is the panel's
  * own `--kd-owned-dim` family, which is the colour the HUD already spends on "you own this".
+ *
+ * The wash is **0.28 and not the 0.1 it was authored at**. A tenth of an alpha over a pad that is
+ * already dark is invisible at the size a tile actually renders -- checked on screen rather than
+ * reasoned about: the ring was legible at a glance and the wash could not be found at all, so the
+ * first two tiers were telling the player nothing and something.
  */
-export const TOWER_TIER_GLOW = 'rgba(245, 198, 107, 0.1)'
+export const TOWER_TIER_GLOW = 'rgba(245, 198, 107, 0.28)'
 export const TOWER_TIER_RING = 'rgba(245, 198, 107, 0.55)'
 export const TOWER_TIER_BADGE = 'rgba(255, 214, 120, 0.95)'
 
