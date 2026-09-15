@@ -21,6 +21,14 @@ import type { DefId, DifficultyId, EntityId, FoodItem, MapDef, World } from '@/c
 /** The doc's 1.5/sec (analytic-docs/DECISIONS.md section 8), as the per-tick rate the world holds. */
 const NOISE_DECAY_PER_TICK = 1.5 / 60
 
+/**
+ * Ticks per second, for the one conversion this file does: an installation authors its decay bonus
+ * per second (analytic-docs/CONTENT.md section 8 says "+0.5/sec") and `core/` holds ticks. It
+ * happens **here and nowhere else** -- a system dividing by 60 is a system that will one day divide
+ * twice (step 13A, decision 15).
+ */
+const TICKS_PER_SECOND = 60
+
 /** `18 + floor(nightIndex / 3)` items, scaled by difficulty (analytic-docs/CONTENT.md section 7). */
 const BASE_FOOD_ITEMS = 18
 const NIGHTS_PER_EXTRA_ITEM = 3
@@ -30,6 +38,17 @@ export interface CreateWorldOptions {
 	mapId: DefId
 	nightId: DefId
 	difficulty: DifficultyId
+	/**
+	 * What the player's owned noise installations are worth, already **resolved into a pair of
+	 * numbers** rather than passed as a list of ids -- `resolveNoiseModifiers` in
+	 * `core/content/installations.ts` is what turns one into the other.
+	 *
+	 * Folded onto the difficulty tier once, at construction, and never read again: the world carries
+	 * the numbers it was built with, so a replay of tonight is not at the mercy of a balance patch
+	 * that re-prices White-noise Machine next month. Exactly what `resolveDifficulty` does, for
+	 * exactly the same reason.
+	 */
+	noise?: { capDelta?: number; decayPerSecondDelta?: number }
 }
 
 /**
@@ -77,7 +96,7 @@ function stockFridge(rng: Rng, nightIndex: number, foodItemsMult: number, firstI
 	return items
 }
 
-export function createWorld({ seed, mapId, nightId, difficulty }: CreateWorldOptions): World {
+export function createWorld({ seed, mapId, nightId, difficulty, noise }: CreateWorldOptions): World {
 	const map = getMapDef(mapId)
 	const night = getNightDef(nightId)
 	const tier = resolveDifficulty(difficulty)
@@ -117,8 +136,18 @@ export function createWorld({ seed, mapId, nightId, difficulty }: CreateWorldOpt
 		nextEntityId: 1 + food.length,
 
 		crumbs: tier.startingCrumbs,
+		// 0, and deliberately **not** `startingCrumbs`: what the night hands you is capital, and a
+		// wake on tick 1 must not take it.
+		unbankedCrumbs: 0,
 		groceryMoney: 0,
-		noise: { level: 0, cap: tier.noiseCap, decayPerTick: NOISE_DECAY_PER_TICK, hasFilled: false },
+		noise: {
+			level: 0,
+			// Both deltas are additive on top of the tier, which is what makes owning two cap
+			// installations worth their sum rather than the larger of them.
+			cap: tier.noiseCap + (noise?.capDelta ?? 0),
+			decayPerTick: NOISE_DECAY_PER_TICK + (noise?.decayPerSecondDelta ?? 0) / TICKS_PER_SECOND,
+			wakeCount: 0,
+		},
 
 		map: cloneMapDef(map),
 		night: {

@@ -16,6 +16,16 @@
 import { speedMultiplier } from '@/core/content/statuses.ts'
 import type { World } from '@/core/types.ts'
 
+/**
+ * How fast a fled enemy runs for the door, as a multiple of its own `speed`. Set by
+ * `core/systems/noise.ts`'s wake; read only here.
+ *
+ * **`speedMultiplier` is deliberately not applied to it** (step 13A, decision 12): a frozen or
+ * rooted enemy that can never leave is a board that never empties and a night that never ends. Flee
+ * speed is exactly `speed * 2`, whatever is stuck to it.
+ */
+export const FLEE_SPEED_MULT = 2
+
 export function movementSystem(world: World): void {
 	// Terminal phases run nothing, or the night keeps simulating behind the summary screen.
 	if (world.night.phase === 'won' || world.night.phase === 'lost') {
@@ -23,6 +33,13 @@ export function movementSystem(world: World): void {
 	}
 
 	for (const enemy of world.enemies) {
+		// A fled enemy walks back the way it came -- see `FLEE_SPEED_MULT`. No clamp: `samplePath`
+		// already clamps a negative distance for the renderer, and `resolveSystem` removes it at 0.
+		if (enemy.flags.fleeing) {
+			enemy.distance -= enemy.speed * FLEE_SPEED_MULT
+			continue
+		}
+
 		enemy.distance += enemy.speed * speedMultiplier(enemy)
 	}
 }

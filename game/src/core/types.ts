@@ -451,12 +451,18 @@ export interface NightState {
  * teaches itself before anything dangerous is unlocked.
  */
 export interface NoiseState {
+	/** Clamped to `[0, cap]` by `noiseSystem`, which zeroes it on the tick it reaches the top. */
 	level: number
 	cap: number
 	/** 1.5/sec by default, stored per tick. Never per second -- see the header of this file. */
 	decayPerTick: number
-	/** Whether the meter has filled at any point tonight. The no-wake bonus reads this. */
-	hasFilled: boolean
+	/**
+	 * How many times a human has walked in tonight. The no-wake bonus is `wakeCount === 0`.
+	 *
+	 * A count and not a boolean: the two are one truth, and this is the one the night-end card can
+	 * say a sentence with (step 13A, decision 2).
+	 */
+	wakeCount: number
 }
 
 /**
@@ -513,7 +519,21 @@ export type GameEvent =
 	| { kind: 'crumbCollected'; crumbId: EntityId; value: number; byTowerId: EntityId | null }
 	| { kind: 'waveStarted'; waveIndex: number }
 	| { kind: 'waveCleared'; waveIndex: number }
-	| { kind: 'noiseFilled' }
+	/**
+	 * The meter filled and a human turned the light on (analytic-docs/DECISIONS.md section 8).
+	 *
+	 * **The totals are on the event because the card cannot reconstruct them.** By the time anyone
+	 * reads this the crumbs are already off the board and the towers are already out of
+	 * `world.towers` -- the same reason `towerDestroyed` carries its own `defId` and `tile`.
+	 */
+	| {
+			kind: 'humanWoke'
+			/** Unbanked income taken out of the wallet. */
+			crumbsForfeited: number
+			/** Value of the uncollected piles swept off the board. Never credited anywhere. */
+			crumbsOnBoardForfeited: number
+			towersDestroyed: DefId[]
+	  }
 	| { kind: 'nightEnded'; won: boolean }
 
 // --- world ------------------------------------------------------------------------------------
@@ -560,6 +580,19 @@ export interface World {
 
 	/** The in-night wallet. `crumbPiles` are the things on the board; this is what they pay into. */
 	crumbs: number
+	/**
+	 * The slice of `crumbs` that is *income* rather than capital, and so is what a wake forfeits.
+	 *
+	 * Collection, tower payouts and the early-call bonus add to it; the starting crumbs and a sell
+	 * refund do not -- a refund is returned capital, and forfeiting it would make selling before a
+	 * wake a trap the player cannot see (step 13A, decision 6).
+	 *
+	 * **Spending draws it down first**, so converting income into towers is how you protect it, which
+	 * is the decision the mechanic exists for. Every write goes through `earnCrumbs` / `spendCrumbs`
+	 * in `core/systems/economy.ts`; top level beside `crumbs` and not in `NightState` because it is a
+	 * slice of the wallet rather than a per-night ledger like `crumbsDropped`.
+	 */
+	unbankedCrumbs: number
 	/** The metagame currency. Earned at night end from performance, never converted from crumbs. */
 	groceryMoney: number
 	noise: NoiseState

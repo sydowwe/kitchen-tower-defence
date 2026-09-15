@@ -18,6 +18,7 @@
 import { isCollect } from '@/core/content/behaviours.ts'
 import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { nearestPath } from '@/core/path.ts'
+import { earnCrumbs } from '@/core/systems/economy.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import type { Crumb, EntityId, Vec2, World } from '@/core/types.ts'
@@ -162,9 +163,35 @@ export function collectCrumb(world: World, crumb: Crumb, byTowerId: EntityId | n
 		return
 	}
 
-	world.crumbs += crumb.value
+	// Unbanked: collection is income, and income is what a wake takes.
+	earnCrumbs(world, crumb.value)
 	world.night.crumbsCollected += crumb.value
 	world.events.push({ kind: 'crumbCollected', crumbId: crumb.id, value: crumb.value, byTowerId })
+}
+
+/**
+ * The third door, and the only one that takes every pile at once: a human turned the light on and
+ * what was on the floor is gone (analytic-docs/DECISIONS.md section 8). Returns the value swept up,
+ * which is what `humanWoke` carries -- by the time anyone reads the event there is nothing left to
+ * add up.
+ *
+ * **Nothing is credited and `night.crumbsCollected` is not touched**, for rot's reason exactly: a
+ * forfeited crumb was dropped and not collected, which is what keeps
+ * analytic-docs/CONTENT.md section 8's cleanliness ratio meaning something.
+ *
+ * It lives in this file rather than in `noise.ts` so the array and `world.index.crumbPiles` are
+ * emptied together, by the one reindex every other door goes through.
+ */
+export function forfeitCrumbPiles(world: World): number {
+	let forfeited = 0
+	for (const crumb of world.crumbPiles) {
+		forfeited += crumb.value
+	}
+
+	world.crumbPiles = []
+	reindexCrumbs(world)
+
+	return forfeited
 }
 
 /**

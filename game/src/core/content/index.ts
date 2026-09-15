@@ -13,6 +13,7 @@
 
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { FOODS } from '@/core/content/food.ts'
+import { INSTALLATIONS } from '@/core/content/installations.ts'
 import { MAPS } from '@/core/content/maps/index.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContentInDev } from '@/core/content/schema.ts'
@@ -25,6 +26,7 @@ export * from '@/core/content/behaviours.ts'
 export * from '@/core/content/difficulty.ts'
 export * from '@/core/content/enemies.ts'
 export * from '@/core/content/food.ts'
+export * from '@/core/content/installations.ts'
 export * from '@/core/content/matrix.ts'
 export * from '@/core/content/nights.ts'
 export * from '@/core/content/statuses.ts'
@@ -42,15 +44,23 @@ export type {
 } from '@/core/content/schema.ts'
 
 /**
- * `statuses` and `installations` are absent on purpose. The status *defs* are runtime tables keyed
- * by `StatusKind` in `core/content/statuses.ts`, not an authored collection; installations are
- * step 20's. Both slots of `RawContent` are optional and stay empty until there is something in the
- * schema's shape to check.
+ * `statuses` is absent on purpose: the status *defs* are runtime tables keyed by `StatusKind` in
+ * `core/content/statuses.ts`, not an authored collection, and its slot on `RawContent` stays empty
+ * until there is something in the schema's shape to check.
+ *
+ * `installations` joined the list in step 13A, with the three noise ones
+ * (analytic-docs/CONTENT.md section 8). The other eleven are step 20's.
  *
  * `maps` is absent for a different reason: `core/content/maps/index.ts` validates its own sources,
  * because that check has to run before `loadMap` derives a `MapDef` from them.
  */
-validateContentInDev({ towers: TOWERS, enemies: ENEMIES, food: FOODS, nights: NIGHTS })
+validateContentInDev({
+	towers: TOWERS,
+	enemies: ENEMIES,
+	food: FOODS,
+	nights: NIGHTS,
+	installations: INSTALLATIONS,
+})
 
 function lookup<T extends { id: DefId }>(kind: string, entries: readonly T[], id: DefId): T {
 	const found = entries.find(entry => entry.id === id)

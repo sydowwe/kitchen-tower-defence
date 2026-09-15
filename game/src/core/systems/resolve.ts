@@ -74,6 +74,15 @@ export function resolveSystem(world: World): void {
 	for (const enemy of world.enemies) {
 		const path = world.map.paths.find(candidate => candidate.id === enemy.pathId)
 
+		// **Before the death branch.** A fled enemy left on 1 HP by a shot that was already in the air
+		// has to leave rather than die at the skirting board -- dying there would pay a crumb onto a
+		// board whose crumbs were just forfeited and count a kill for something that got away.
+		//
+		// No event, no `enemiesKilled`, no `dropCrumb`: it is gone, and nothing happened.
+		if (enemy.flags.fleeing && enemy.distance <= 0) {
+			continue
+		}
+
 		// **Before** the leak check. An enemy killed on the tick it reaches the fridge emits
 		// `enemyKilled` and takes no food -- otherwise a tower that kills an Ant standing on the
 		// fridge still costs you a slice of pizza.

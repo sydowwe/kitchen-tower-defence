@@ -57,7 +57,7 @@ Most of the wiring exists. These are the files you edit rather than create.
 | `core/systems/combat.ts:159` | pushes `{ kind: 'towerFired', towerId, defId, noise: def.noise }` on every shot, with a comment saying step 13 reads it |
 | `core/systems/placement.ts:210, 222` | `damageTower(world, tower, amount)` (flat, clamped at 0, no event) and `destroyTower(world, towerId)` (penalty → event → removal). Both comments name step 13 as a caller |
 | `core/systems/spawn.ts:208` | `spawnDestroyPenalty(world, crumbs)` — buys extra enemies **from the running wave's own composition** and appends cursors to `night.wave.spawns`. Returns early on `wave === null` |
-| `core/systems/economy.ts:31`, `crumbs.ts:165`, `commands.ts:60` | the three places `world.crumbs +=` happens: tower payout, `collectCrumb`, the early-call bonus |
+| `core/systems/economy.ts:31`, `crumbs.ts:165`, `commands.ts:62`, `placement.ts:256` | the four places `world.crumbs +=` happens: tower payout, `collectCrumb`, the early-call bonus, `sellTower`'s refund |
 | `core/systems/placement.ts:146` | `world.crumbs -= def.cost` — the only spend |
 | `core/systems/movement.ts:26` | `enemy.distance += enemy.speed * speedMultiplier(enemy)` — the whole system |
 | `core/systems/barricades.ts:144` | the per-enemy loop; `nearestAhead` only ever looks **ahead**, and recomputes `previous = distance - speed * mult`, which assumes the enemy moved forward |
@@ -82,10 +82,12 @@ Most of the wiring exists. These are the files you edit rather than create.
 - `tests/types.spec.ts` — `Serialisable<World>`. Fails `type-check` the moment a `Map`, a `Set` or a
   function-typed field lands on the world.
 
-**Step 12 lands between this file being written and this session running.** Two lines below depend on
-what it did: if it introduced an accessor for a tower's *effective* def, `combatSystem`'s `def.noise`
-becomes that accessor's noise, and `projectedNoisePerSecond` below takes the effective def too. If it
-did not put `noise` in `statDeltas`, both stay as they are. Check before you change either.
+**Step 12 landed, and here is what it decided.** It shipped `effectiveDef(defId, tier)` /
+`effectiveDefOf(tower)` in `core/content/index.ts`, `combatSystem:193` already pushes
+`effectiveDefOf(tower).noise`, and `noise` *is* reachable as a delta: `DeltaTarget`'s `'def'` names
+exactly `maxHp` and `noise` (`core/content/upgrades.ts:44`). So **nothing in `combat.ts` changes**,
+and `projectedNoisePerSecond(def)` takes a `TowerDef` the caller has already folded -- the shop
+passes the base def, the inspector passes the effective one.
 
 ## Decisions already made
 
@@ -224,6 +226,9 @@ Export two pure helpers 13B needs, so no component re-derives them:
    meaning something.
 3. **`crumbs -= min(unbankedCrumbs, crumbs)`, then `unbankedCrumbs = 0`.** The `min` is the belt to
    decision 7's brace: the wallet must never go negative even if a spend path was missed.
+   *(Built as a third helper, `forfeitUnbankedCrumbs(world): number`, in `core/systems/economy.ts`
+   rather than inline here. Written in `noise.ts` it is a `world.crumbs -=` outside `economy.ts`,
+   which this step's own Acceptance list forbids — and it is decision 8's reason a second time.)*
 4. **Close the wave.** Set `remaining = 0` on every cursor of `night.wave.spawns` and leave
    `night.wave` in place. The fled wave is now spawned out, so `waveSystem` moves the night into
    `'countdown'` with the authored gap on its own next tick, `emitClearedWaves` clears it, and
@@ -331,14 +336,14 @@ New `tests/noise.spec.ts`. The fixture's night is terminal, so move it to `'wave
 
 ## Acceptance
 
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
-- [ ] `core/` still imports nothing but itself and zod; no `Date.now`, no `Math.random`, no
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `core/` still imports nothing but itself and zod; no `Date.now`, no `Math.random`, no
       millisecond anywhere in this part.
-- [ ] Grepping for `world.crumbs +=` and `world.crumbs -=` finds hits only inside
+- [x] Grepping for `world.crumbs +=` and `world.crumbs -=` finds hits only inside
       `core/systems/economy.ts`.
-- [ ] `SYSTEM_ORDER` is unchanged — the noise slot was already in the right place and this part does
+- [x] `SYSTEM_ORDER` is unchanged — the noise slot was already in the right place and this part does
       not move it.
-- [ ] No number in `core/content/towers.ts`, `core/content/nights.ts` or `NOISE_DECAY_PER_TICK`
+- [x] No number in `core/content/towers.ts`, `core/content/nights.ts` or `NOISE_DECAY_PER_TICK`
       changed. If one looks wrong, write it down for step 22 rather than moving it.
 
 ## Hands to 13B
@@ -356,6 +361,9 @@ core/systems/noise.ts    noiseSystem(world: World): void
                          projectedNoisePerSecond(def: TowerDef): number   // 0 for a silent tower
 core/systems/economy.ts  earnCrumbs(world: World, amount: number, banked?: boolean): void
                          spendCrumbs(world: World, amount: number): void
+                         forfeitUnbankedCrumbs(world: World): number   // returns what it took
+core/systems/crumbs.ts   forfeitCrumbPiles(world: World): number       // returns the value swept
+core/systems/movement.ts FLEE_SPEED_MULT = 2
 core/systems/placement.ts destroyTower(world, towerId, options?: { payPenalty?: boolean }): boolean
 core/world.ts            CreateWorldOptions { …, noise?: { capDelta?: number
                                                            decayPerSecondDelta?: number } }

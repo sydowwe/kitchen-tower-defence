@@ -36,6 +36,11 @@ describe('createWorld', () => {
 		// `toEqual` above would happily accept as equal to the array it came from.
 		expect(Array.isArray(roundTrip(world).map.flags)).toBe(true)
 		expect(roundTrip(world).map.flags).toEqual(world.map.flags)
+		// The two step 13A added. `toEqual` above covers them already; they are named because a field
+		// that is 0 on a fresh world survives a round-trip whether or not it is *there*, so this is
+		// what catches one that stopped being written at construction.
+		expect(roundTrip(world).unbankedCrumbs).toBe(0)
+		expect(roundTrip(world).noise.wakeCount).toBe(0)
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {

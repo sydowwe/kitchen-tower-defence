@@ -87,13 +87,11 @@ export interface TowerStatsView {
 	 */
 	applies: { kind: StatusKind; perSecond: number | null }[]
 	/**
-	 * Null unless this tower can actually be destroyed -- in v1, unless it is a barricade.
-	 *
-	 * Every tower has a `maxHp`, and a HP row on the seven nothing in the game can damage is a row
-	 * that means nothing. Step 13's noise penalty is what turns it on for the rest (step 10C,
-	 * decision 9).
+	 * Every tower has one, and since step 13A every tower can lose it: a wake takes 20% of `maxHp`
+	 * off everything standing. The row was a barricade's alone while nothing else in the game could
+	 * be damaged (step 10C, decision 9).
 	 */
-	hitPoints: number | null
+	hitPoints: number
 	/** Magazine size, for a tower with a charge behaviour. Null for the rest. */
 	charges: number | null
 	/**
@@ -224,6 +222,11 @@ export interface HudSnapshot {
 	wave: { index: number; count: number }
 	phase: NightPhase
 	crumbs: number
+	/**
+	 * The slice of `crumbs` a wake would take. Published beside the wallet rather than derived from
+	 * it, because nothing in `ui/` can see the split otherwise (step 13A, decision 5).
+	 */
+	unbankedCrumbs: number
 	groceryMoney: number
 	/**
 	 * Piles **and** value, because neither substitutes for the other: forty specks and one fat pile
@@ -231,7 +234,8 @@ export interface HudSnapshot {
 	 */
 	crumbsOnBoard: { piles: number; value: number; rotting: number }
 	food: { remaining: number; total: number; lostNameKeys: string[]; lastLostNameKey: string | null }
-	noise: { level: number; cap: number }
+	/** `wakeCount` is what 13B's night-end card counts and what the no-wake bonus reads at 0. */
+	noise: { level: number; cap: number; wakeCount: number }
 	countdownTicks: number
 	earlyCallBonus: number
 	speed: Speed
@@ -283,7 +287,7 @@ function statsFor(def: TowerDef): TowerStatsView {
 		collectRadiusTiles: null,
 		coneHalfAngleDeg: null,
 		applies: [],
-		hitPoints: null,
+		hitPoints: def.maxHp,
 		charges: null,
 		rearmSeconds: null,
 		blocksPath: false,
@@ -328,10 +332,7 @@ function statsFor(def: TowerDef): TowerStatsView {
 		}
 
 		if (behaviour.kind === 'barricade') {
-			// The only place `maxHp` reaches a card. See the field's note: it is on every def and it
-			// means something on exactly this one.
 			stats.blocksPath = true
-			stats.hitPoints = def.maxHp
 			continue
 		}
 
@@ -582,10 +583,11 @@ export function buildHudSnapshot(
 		wave: { index: night.waveIndex, count: night.waveCount },
 		phase: night.phase,
 		crumbs: world.crumbs,
+		unbankedCrumbs: world.unbankedCrumbs,
 		groceryMoney: world.groceryMoney,
 		crumbsOnBoard: crumbsOnBoard(world),
 		food: foodView(world),
-		noise: { level: world.noise.level, cap: world.noise.cap },
+		noise: { level: world.noise.level, cap: world.noise.cap, wakeCount: world.noise.wakeCount },
 		countdownTicks: night.countdownTicks,
 		earlyCallBonus: earlyCallBonus(world),
 		speed: view.speed,

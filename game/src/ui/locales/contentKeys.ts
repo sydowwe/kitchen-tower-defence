@@ -11,6 +11,7 @@
 
 import type { ENEMIES } from '@/core/content/enemies.ts'
 import type { FOODS } from '@/core/content/food.ts'
+import type { INSTALLATIONS } from '@/core/content/installations.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
 import type { PlacementRejection } from '@/core/systems/placement.ts'
 
@@ -44,6 +45,16 @@ export type EnemyMessages = Record<(typeof ENEMIES)[number]['id'], Entry>
  * Reusing `Entry` here would mean inventing twelve lines of flavour text no screen shows.
  */
 export type FoodMessages = Record<(typeof FOODS)[number]['id'], { name: string }>
+
+/**
+ * `Entry`, because an installation is bought off a card that has to say what it does -- "+25 to the
+ * noise cap" is the whole reason to spend 100 Grocery Money on a door.
+ *
+ * `INSTALLATIONS` is three of analytic-docs/CONTENT.md section 8's fourteen today, so this type
+ * grows by itself as step 20 authors the rest: each one lands as a build error here rather than as
+ * `installation.buyABroom.name` on a panel.
+ */
+export type InstallationMessages = Record<(typeof INSTALLATIONS)[number]['id'], Entry>
 
 /**
  * The same trick over a vocabulary rather than a collection: `PlacementRejection` is eight string

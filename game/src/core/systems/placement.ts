@@ -15,6 +15,7 @@
 import { isCharge, isIncome } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
 import { flagsAt, canPlace, TileFlags } from '@/core/map.ts'
+import { earnCrumbs, spendCrumbs } from '@/core/systems/economy.ts'
 import { spawnDestroyPenalty } from '@/core/systems/spawn.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { EntityId, Tower, TowerState, Vec2, World } from '@/core/types.ts'
@@ -144,7 +145,7 @@ export function placeTower(world: World, def: TowerDef, tile: Vec2): Tower | nul
 		targetEnemyId: null,
 	}
 
-	world.crumbs -= def.cost
+	spendCrumbs(world, def.cost)
 	world.index.towers[tower.id] = world.towers.length
 	world.towers.push(tower)
 	world.events.push({ kind: 'towerPlaced', towerId: tower.id, defId: def.id, tile: { x: tile.x, y: tile.y } })
@@ -217,10 +218,16 @@ export function damageTower(_world: World, tower: Tower, amount: number): void {
  * removal. False for an id that is not there -- the `sellTower` precedent, because two things
  * killing the same tower on one tick is normal and not a crash.
  *
- * A second removal path is how a Cookie Jar killed by noise ends up paying nothing, so 10B's chew
- * and step 13's noise both come through here.
+ * A second removal path is how a Cookie Jar chewed down by an ant ends up paying nothing, so 10B's
+ * chew and step 13's wake both come through here -- the wake to get the event and the removal, not
+ * the penalty.
+ *
+ * **`payPenalty: false` is what a wake passes**, and it is the one caller that does. The penalty
+ * buys enemies from the running wave's composition and appends live spawn cursors -- on the tick
+ * every enemy on the board just fled. The symptom of leaving it on is a board that empties and then
+ * refills from a wave the player was told was over (step 13A, decision 10).
  */
-export function destroyTower(world: World, towerId: EntityId): boolean {
+export function destroyTower(world: World, towerId: EntityId, options: { payPenalty?: boolean } = {}): boolean {
 	const tower = towerById(world, towerId)
 	if (tower === null) {
 		return false
@@ -232,8 +239,9 @@ export function destroyTower(world: World, towerId: EntityId): boolean {
 
 	// The penalty is a field on `income`, not a branch on this tower's id: the Cookie Jar owes 200
 	// and every other tower owes the default 0.
-	const owed = def.behaviours.find(isIncome)?.enemyCrumbsOnDestroy ?? 0
-	spawnDestroyPenalty(world, owed)
+	if (options.payPenalty ?? true) {
+		spawnDestroyPenalty(world, def.behaviours.find(isIncome)?.enemyCrumbsOnDestroy ?? 0)
+	}
 
 	world.events.push({ kind: 'towerDestroyed', towerId, defId: def.id, tile })
 	return removeTower(world, towerId)
@@ -253,7 +261,9 @@ export function sellTower(world: World, towerId: EntityId): boolean {
 	// Priced before the removal, because `refundFor` reads the tower.
 	const refund = refundFor(world, tower)
 	removeTower(world, towerId)
-	world.crumbs += refund
+	// **Banked.** A refund is returned capital rather than income, and one a wake could eat would make
+	// selling before a wake a trap the player cannot see (step 13A, decision 6).
+	earnCrumbs(world, refund, true)
 	world.events.push({ kind: 'towerSold', towerId, refund })
 
 	return true

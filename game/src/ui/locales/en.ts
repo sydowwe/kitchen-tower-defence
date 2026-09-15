@@ -7,7 +7,13 @@
  * and retrofitting forty towers and thirty enemies later is the expensive version of this decision.
  */
 
-import type { EnemyMessages, FoodMessages, RejectionMessages, TowerMessages } from '@/ui/locales/contentKeys.ts'
+import type {
+	EnemyMessages,
+	FoodMessages,
+	InstallationMessages,
+	RejectionMessages,
+	TowerMessages,
+} from '@/ui/locales/contentKeys.ts'
 
 export const en = {
 	general: {
@@ -372,6 +378,23 @@ export const en = {
 		chicken: { name: 'Chicken' },
 		butter: { name: 'Butter' },
 	} satisfies FoodMessages,
+	// The three noise installations (analytic-docs/CONTENT.md section 8). The description says what
+	// the purchase *does* in the kitchen and the number is left to the panel, which reads it off the
+	// def -- a sentence carrying "+25" is a second copy of a number step 22 is going to move.
+	installation: {
+		oilTheHinges: {
+			name: 'Oil the Hinges',
+			description: 'The cupboard doors stop announcing themselves. Everything settles down faster.',
+		},
+		closeTheKitchenDoor: {
+			name: 'Close the Kitchen Door',
+			description: 'Between the kitchen and the hallway, one closed door. It buys you a lot more racket.',
+		},
+		whiteNoiseMachine: {
+			name: 'White-noise Machine',
+			description: 'A steady hush in the bedroom down the hall. Nothing short of a dropped pan gets through it.',
+		},
+	} satisfies InstallationMessages,
 	// The night-end summary. `foodLost` is the line analytic-docs/DECISIONS.md section 6 calls the
 	// emotional payload -- the specificity is the whole joke, so it lists items by name and never
 	// collapses them into a count. The UI joins them with `listSeparator` and `general.and` for the

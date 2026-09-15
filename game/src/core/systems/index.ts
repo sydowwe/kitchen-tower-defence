@@ -7,8 +7,8 @@ export { AURA_INTERVAL_TICKS, auraSystem } from '@/core/systems/aura.ts'
 export { barricadeAhead, barricadeHolding, barricadesSystem, isBarricade } from '@/core/systems/barricades.ts'
 export { combatSystem } from '@/core/systems/combat.ts'
 export { commandsSystem } from '@/core/systems/commands.ts'
-export { crumbsSystem } from '@/core/systems/crumbs.ts'
-export { economySystem } from '@/core/systems/economy.ts'
+export { crumbsSystem, forfeitCrumbPiles } from '@/core/systems/crumbs.ts'
+export { earnCrumbs, economySystem, forfeitUnbankedCrumbs, spendCrumbs } from '@/core/systems/economy.ts'
 export { eventsSystem } from '@/core/systems/events.ts'
 export {
 	LIGHT_ATTRACTION_TILES,
@@ -17,8 +17,8 @@ export {
 	lightSources,
 	lightSystem,
 } from '@/core/systems/light.ts'
-export { movementSystem } from '@/core/systems/movement.ts'
-export { noiseSystem } from '@/core/systems/noise.ts'
+export { FLEE_SPEED_MULT, movementSystem } from '@/core/systems/movement.ts'
+export { noiseFraction, noiseSystem, projectedNoisePerSecond } from '@/core/systems/noise.ts'
 export { projectilesSystem } from '@/core/systems/projectiles.ts'
 export { resolveSystem } from '@/core/systems/resolve.ts'
 export { spawnSystem, startWave } from '@/core/systems/spawn.ts'

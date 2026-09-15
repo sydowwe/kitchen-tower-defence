@@ -3,6 +3,7 @@ import { effectiveDefOf, getNightDef, getTowerDef } from '@/core/content/index.t
 import { MAX_TIER, upgradeCost } from '@/core/content/upgrades.ts'
 import { chargeStateOf } from '@/core/systems/charges.ts'
 import { collectCrumb, crumbById } from '@/core/systems/crumbs.ts'
+import { earnCrumbs, spendCrumbs } from '@/core/systems/economy.ts'
 import { placeTower, sellTower, towerById } from '@/core/systems/placement.ts'
 import { startWave } from '@/core/systems/spawn.ts'
 import type { Command } from '@/core/commands.ts'
@@ -59,7 +60,8 @@ function callWaveEarly(world: World): void {
 	}
 
 	const skipped = night.countdownTicks
-	world.crumbs += earlyCallBonus(world)
+	// Unbanked: a tempo reward is income, and income is what a wake takes.
+	earnCrumbs(world, earlyCallBonus(world))
 	night.ticksSkippedTotal += skipped
 	night.countdownTicks = 0
 
@@ -169,7 +171,9 @@ function upgradeTower(world: World, towerId: EntityId): void {
 		return
 	}
 
-	world.crumbs -= cost
+	// Through `spendCrumbs` like every other purchase: a wake after upgrading must not forfeit money
+	// that is already standing on the board as a tier.
+	spendCrumbs(world, cost)
 	tower.tier++
 	// The sell refund reads `totalInvested` and never the def, which is what makes an upgraded tower
 	// refund what went into it.

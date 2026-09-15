@@ -32,8 +32,9 @@ export function createTestWorld(): World {
 		nextEntityId: 2,
 
 		crumbs: 200,
+		unbankedCrumbs: 0,
 		groceryMoney: 0,
-		noise: { level: 0, cap: 100, decayPerTick: 1.5 / 60, hasFilled: false },
+		noise: { level: 0, cap: 100, decayPerTick: 1.5 / 60, wakeCount: 0 },
 
 		map: {
 			id: 'test',

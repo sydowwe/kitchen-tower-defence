@@ -181,8 +181,9 @@ describe('the inspector', () => {
 		expect(stats?.charges).toBe(1)
 		expect(stats?.rearmSeconds).toBe(6.6)
 		expect(stats?.damage).toBe(60)
-		// A trap is not a wall: nothing in v1 can damage it, so it carries no HP row.
-		expect(stats?.hitPoints).toBeNull()
+		// Since step 13A a wake damages every tower, so the HP row is on all of them -- but a trap is
+		// still not a wall, and nothing walks into it.
+		expect(stats?.hitPoints).toBe(getTowerDef('mousetrap').maxHp)
 		expect(stats?.blocksPath).toBe(false)
 	})
 

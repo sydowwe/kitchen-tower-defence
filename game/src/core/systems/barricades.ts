@@ -150,6 +150,14 @@ export function barricadesSystem(world: World): void {
 	}
 
 	for (const enemy of world.enemies) {
+		// A fled enemy is walking backwards, and every line below assumes forwards: `nearestAhead`
+		// only ever looks ahead, and `previous` adds this tick's forward step back on. The visible
+		// symptom of not skipping it is a retreating ant snapping forward onto a box it already passed
+		// and taking a bite out of it.
+		if (enemy.flags.fleeing) {
+			continue
+		}
+
 		const position = nearestAhead(positions, enemy)
 		if (position === null) {
 			continue
