@@ -20,7 +20,7 @@
  */
 
 import { clearEffect, writeEffect } from '@/core/tiles.ts'
-import { isOnBoard, toGridPoint, toTile } from '@/render/index.ts'
+import { isOnBoard, LOGICAL_WIDTH, toGridPoint, toTile } from '@/render/index.ts'
 import { isTypingTarget } from '@/ui/keyboard.ts'
 import { totalLength } from '@/core/path.ts'
 import type { MapDef, TileEffectKind, Vec2, World } from '@/core/types.ts'
@@ -66,6 +66,17 @@ export interface DebugState {
 	hoverTile: Vec2 | null
 	/** The kind a held brush key paints, or null with nothing armed. See `BRUSH_KEYS`. */
 	brush: TileEffectKind | null
+	/**
+	 * CSS pixels per logical pixel: what the board is being scaled by right now.
+	 *
+	 * `dev/debug/overlay.ts` needs it to place the legend clear of the HUD's DOM panels, which are
+	 * laid out in CSS pixels while the canvas draws in logical ones. It is **kept here, off a
+	 * `ResizeObserver`, rather than measured in the draw**: `getBoundingClientRect()` forces a
+	 * synchronous layout, and the draw is the 60Hz path that ARCHITECTURE.md section 6 budgets. A
+	 * resize is the only thing that can change this number, so it is read when one happens and not
+	 * sixty times a second.
+	 */
+	boardScale: number
 }
 
 export interface DebugController {
@@ -98,7 +109,17 @@ export function createDebugController(
 		activePathIndex: 0,
 		hoverTile: null,
 		brush: null,
+		boardScale: 1,
 	}
+
+	/** Fires once on observe, so the initial scale needs no separate read. */
+	const resizeObserver = new ResizeObserver(entries => {
+		const width = entries[0]?.contentRect.width ?? 0
+		if (width > 0) {
+			state.boardScale = width / LOGICAL_WIDTH
+		}
+	})
+	resizeObserver.observe(canvas)
 
 	const held = new Set<string>()
 	/**
@@ -262,6 +283,7 @@ export function createDebugController(
 	}
 
 	function destroy(): void {
+		resizeObserver.disconnect()
 		window.removeEventListener('keydown', onKeyDown)
 		window.removeEventListener('keyup', onKeyUp)
 		canvas.removeEventListener('pointermove', onPointerMove)

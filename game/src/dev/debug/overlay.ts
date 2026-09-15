@@ -13,7 +13,6 @@ import { tileStateAt } from '@/core/tiles.ts'
 import { BRUSH_KEYS } from '@/dev/debug/state.ts'
 import type { DebugState } from '@/dev/debug/state.ts'
 import { EMOJI_FONT } from '@/render/glyphCache.ts'
-import { LOGICAL_WIDTH } from '@/render/index.ts'
 import type { MapDef, Path, Vec2, World } from '@/core/types.ts'
 
 const FLAG_TINTS: ReadonlyArray<{ flag: number; label: string; color: string }> = [
@@ -55,12 +54,12 @@ const HUD_PANEL_BOTTOM_PX = 143
 const HUD_PANEL_RIGHT_PX = 221
 
 /**
- * One layout read per drawn frame, and only while the overlay is on. `render/tileCoords.ts` already
- * calls this on every `pointermove`, so the cost is a known quantity for a `dev/` tool.
+ * **No layout read here.** `state.boardScale` is kept current by a `ResizeObserver` in
+ * `dev/debug/state.ts`; measuring the canvas from the draw would force a synchronous layout on the
+ * 60Hz path for a number that only a resize can change.
  */
-function legendOrigin(ctx: CanvasRenderingContext2D): Vec2 {
-	const rect = ctx.canvas.getBoundingClientRect()
-	const scale = rect.width === 0 ? 1 : rect.width / LOGICAL_WIDTH
+function legendOrigin(state: DebugState): Vec2 {
+	const scale = state.boardScale > 0 ? state.boardScale : 1
 	return { x: HUD_PANEL_RIGHT_PX / scale, y: HUD_PANEL_BOTTOM_PX / scale }
 }
 
@@ -270,7 +269,7 @@ export function drawDebugOverlay(
 		drawMarker(ctx, activePath, state.markerDistance, tilePx)
 	}
 
-	const origin = legendOrigin(ctx)
+	const origin = legendOrigin(state)
 	drawLegend(ctx, origin)
 	drawBrush(ctx, state, origin)
 	drawPathLengths(ctx, map, state.activePathIndex, origin)
