@@ -99,10 +99,24 @@
 </script>
 
 <style scoped>
-	/* The HUD layer is `pointer-events: none`, so anything with a control in it has to opt back in. */
+	/*
+		Left edge, below the debug overlay.
+
+		**Not the bottom-left corner**, which is where it started: that is the counter's drain, where
+		every enemy walks on, and it is the first place you look when a wake sends them all back down the
+		track -- so the one panel built for watching a wake was sitting on the best seat in the house.
+		This strip is clear of every leg of the track.
+
+		`top` clears `DebugOverlay.vue`, which owns the corner above and appears on the same `` ` `` that
+		the rest of the debug tooling does. It bottoms out near 8.5rem, and the extra rem here is slack
+		for the hint line wrapping on a narrow board -- the two are the only things on this edge, so
+		paying a rem to keep them from ever meeting is cheaper than either one moving again.
+
+		The HUD layer is `pointer-events: none`, so anything with a control in it has to opt back in.
+	*/
 	.np {
 		position: absolute;
-		bottom: 0.75rem;
+		top: 10.5rem;
 		left: 0.75rem;
 		width: 11rem;
 		padding: 0.5rem 0.65rem;
