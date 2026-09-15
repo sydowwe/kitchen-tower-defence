@@ -18,7 +18,7 @@ import { chargeAllowsFiring, chargeBehaviourOf, spendCharge } from '@/core/syste
 import { circle, cone } from '@/core/systems/hitbox.ts'
 import { spawnProjectile } from '@/core/systems/projectiles.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
-import { isTargetable } from '@/core/systems/targeting.ts'
+import { isTargetable, pickTargets } from '@/core/systems/targeting.ts'
 import type { ConeAttackBehaviour, StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/types.ts'
 
@@ -92,10 +92,37 @@ export function dealSplashDamage(
 }
 
 /**
+ * The applications this shot actually lands, once the periodic ones have been filtered against the
+ * tower's shot count. `everyNthHit: null` is every hit, which is all of them but the Ice Cube Tray's
+ * tier-3 freeze.
+ *
+ * **It returns the behaviour's own array untouched unless something is periodic.** A filtered array
+ * is a new array, and `Projectile.applies` holds the behaviour's by reference on purpose -- so a
+ * fresh one per shot is both safe and an allocation on the path
+ * analytic-docs/ARCHITECTURE.md section 6 budgets against. Every shot in the game but one takes the
+ * early return.
+ */
+export function applicationsForShot(
+	applies: readonly StatusApplication[],
+	shotsFired: number,
+): readonly StatusApplication[] {
+	if (!applies.some(application => application.everyNthHit !== null)) {
+		return applies
+	}
+	return applies.filter(application => application.everyNthHit === null || shotsFired % application.everyNthHit === 0)
+}
+
+/**
  * The wedge, aimed at the target the ordinary targeting modes chose and then landing on everything
  * inside it. One target choice, many hits -- that is what makes a cone the crowd answer.
  */
-function fireCone(world: World, tower: Tower, behaviour: ConeAttackBehaviour, target: Enemy): void {
+function fireCone(
+	world: World,
+	tower: Tower,
+	behaviour: ConeAttackBehaviour,
+	target: Enemy,
+	applies: readonly StatusApplication[],
+): void {
 	// An enemy whose path the map has lost has no position to aim at. Every caller in core/ skips
 	// such an enemy rather than throwing, or a half-edited map out of step 4's editor takes the whole
 	// tick down.
@@ -111,7 +138,7 @@ function fireCone(world: World, tower: Tower, behaviour: ConeAttackBehaviour, ta
 
 	for (const enemy of caught) {
 		dealDamage(world, enemy, behaviour.damage, behaviour.damageType, tower.id)
-		applyStatuses(enemy, behaviour.applies, tower.id, behaviour.damageType)
+		applyStatuses(enemy, applies, tower.id, behaviour.damageType)
 	}
 }
 
@@ -151,6 +178,13 @@ export function combatSystem(world: World): void {
 		// Assigned, never `+=`. A tower that sat with nothing in range must not bank shots and then
 		// empty the bank when one walks in.
 		tower.cooldownTicks = firing.cooldownTicks
+
+		// **Incremented before the applications are filtered**, and here rather than on one of the
+		// three paths below so a cone counts too. Incrementing after would give the first shot a count
+		// of 0, and `0 % 4 === 0` lands the "every fourth hit" freeze on the very first one.
+		tower.shotsFired++
+		const applies = applicationsForShot(firing.applies, tower.shotsFired)
+
 		const charges = chargeBehaviourOf(def)
 		if (charges !== null) {
 			spendCharge(tower, charges)
@@ -160,9 +194,14 @@ export function combatSystem(world: World): void {
 
 		if (isConeAttack(firing)) {
 			// A cone lands the tick it fires -- there is no `projectileSpeed` on the descriptor.
-			fireCone(world, tower, firing, target)
+			fireCone(world, tower, firing, target, applies)
 		} else if (firing.projectileSpeed > 0) {
-			spawnProjectile(world, tower, firing, target)
+			// One shot per target, in the tower's own mode order. With fewer enemies in range than
+			// `projectilesPerShot` the last one repeats, so the upgrade never fires *less* than it did.
+			const spread = pickTargets(world, tower, firing, firing.projectilesPerShot)
+			for (let shot = 0; shot < firing.projectilesPerShot; shot++) {
+				spawnProjectile(world, tower, firing, spread[Math.min(shot, spread.length - 1)] ?? target, applies)
+			}
 		} else if (firing.splashRadiusTiles > 0) {
 			// Instant AoE is `attack` with a radius, resolved through the same `circle` a projectile's
 			// arrival uses. There is deliberately no `aoeAttack` kind.
@@ -176,7 +215,7 @@ export function combatSystem(world: World): void {
 					firing.damageType,
 					firing.targets,
 					tower.id,
-					firing.applies,
+					applies,
 				)
 			}
 		} else {
@@ -184,7 +223,7 @@ export function combatSystem(world: World): void {
 			// tick, with no `Projectile` entity at all". Both paths stay real; later towers want
 			// this one.
 			dealDamage(world, target, firing.damage, firing.damageType, tower.id)
-			applyStatuses(target, firing.applies, tower.id, firing.damageType)
+			applyStatuses(target, applies, tower.id, firing.damageType)
 		}
 	}
 }

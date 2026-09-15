@@ -137,6 +137,7 @@ export function placeTower(world: World, def: TowerDef, tile: Vec2): Tower | nul
 		// Fires on the tick it lands. A tower that waits a full second before its first shot reads
 		// as broken at the moment the player is watching it hardest.
 		cooldownTicks: 0,
+		shotsFired: 0,
 		state: initialState(def),
 		// The sell refund reads this field and never the def, because step 12's upgrades add to it.
 		totalInvested: def.cost,

@@ -218,7 +218,7 @@ export const en = {
 			description: 'Kitchen cleaner, one pull at a time. Whatever the mist settles on keeps going over.',
 			tier1: { name: 'Neat, Not Diluted' },
 			tier2: { name: 'The Strong Stuff' },
-			tier3: { name: 'Soaked Through', description: 'It goes on thick enough to keep working.' },
+			tier3: { name: 'Soaked Through', description: 'Two coats a pull, so it gets to full strength in three.' },
 		},
 		// Revised in step 10C against the card: the old line spent itself on "resetting takes a while",
 		// which the `Resets in 6.6s` row now says exactly. What it says instead is the part no row

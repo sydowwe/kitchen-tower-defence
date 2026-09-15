@@ -60,6 +60,15 @@ edit this file, don't leave it lying.
    second application cannot see what the first did. If 12B finds a tier that genuinely needs one,
    it adds it then and writes the reason back here.
 
+   > *12B.* It found two — the Ice Cube Tray and the Spray Bottle — and the answer was **not**
+   > `replaceBehaviours`. Both change a field *inside an entry of a behaviour's `applies` array*
+   > (`everyNthHit` on a freeze, `stacks` on a poison), which a `StatDelta` cannot name because its
+   > `fields` is a `Record<string, number>` against the behaviour object. Replacing the whole
+   > behaviour would have been exactly the failure this decision describes: the Ice Cube Tray's T1
+   > and T2 fold `cooldownTicks`, and a fresh `attack` at T3 discards both. So a tier gained a sixth
+   > field, **`replaceApplies`** — one array swapped, every folded number on the behaviour left
+   > where it was. `replaceBehaviours` still does not exist and this decision still holds.
+
 3. **Deltas name real behaviour fields, never a second stat vocabulary.** The plan sketched
    `statDeltas: { rate: ×1.4 }`; there is no `rate` field anywhere, so something would have to
    translate it into `cooldownTicks ÷ 1.4` and that translation is where the rounding bug lives.

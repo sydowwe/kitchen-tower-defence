@@ -9,8 +9,10 @@
  * `TOWERS` being `undefined` at module load from a stack trace that names neither file.
  *
  * **A tier is a delta, never a replacement.** There is no `replaceBehaviours`: every tier in the
- * roster is either a field delta or an added behaviour, and a replace is how a fold stops being a
- * fold -- the second application cannot see what the first did.
+ * roster is either a field delta, an added behaviour or a rewritten `applies` list, and a whole
+ * behaviour replaced is how a fold stops being a fold -- the second application cannot see what the
+ * first did. `replaceApplies` is the narrow exception and stays narrow for exactly that reason: it
+ * swaps one array and leaves every folded number on the behaviour where it was.
  *
  * **Deltas name real behaviour fields, never a second stat vocabulary.** There is no `rate` field
  * anywhere, so a `statDeltas: { rate: 1.4 }` would need something to translate it into
@@ -18,7 +20,8 @@
  * authored as `multiply: { cooldownTicks: 1 / 1.4 }` against a named behaviour `kind`.
  */
 
-import type { Behaviour, BehaviourKind } from '@/core/content/behaviours.ts'
+import { toApplications } from '@/core/content/behaviours.ts'
+import type { Behaviour, BehaviourKind, StatusApplication, StatusApplicationParam } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 
 /**
@@ -50,7 +53,32 @@ export interface StatDelta {
 }
 
 /**
- * One tier. Five fields and nothing else -- no `cost` (it is derived from the base cost by
+ * The `applies` list of every behaviour of one kind, rewritten wholesale.
+ *
+ * **Why this and not a `StatDelta`.** A delta writes numbers onto a behaviour object; what the Ice
+ * Cube Tray's tier 3 and the Spray Bottle's tier 3 change is a field *inside an entry of an array*
+ * -- `everyNthHit` on a freeze, `stacks` on a poison -- which a `Record<string, number>` cannot
+ * name. The two other routes were worse: `addBehaviours` would append a second `attack` that
+ * `behaviours.find(isFiring)` never reaches, and a whole-behaviour replace would discard the
+ * `cooldownTicks` that tiers 1 and 2 folded onto the one it replaced.
+ *
+ * **Wholesale and not a merge**, because the *order* of the list is load-bearing: the Ice Cube Tray
+ * puts its freeze before its slow so `STATUS_DEFS.slow.suppressedBy` turns the slow away by itself,
+ * and an append could only ever add to the end.
+ */
+export interface ApplicationDelta {
+	kind: DeltaTarget
+	applications: StatusApplication[]
+}
+
+/** What a tier *authors*, through the same normaliser every behaviour factory uses. */
+export interface ApplicationDeltaParam {
+	kind: DeltaTarget
+	applications: readonly StatusApplicationParam[]
+}
+
+/**
+ * One tier. Six fields and nothing else -- no `cost` (it is derived from the base cost by
  * `upgradeCost`), no `glyph` (the tier treatment is a badge drawn over the one glyph, because
  * `preloadTowerGlyphs` rasterises `TOWERS.map(def => def.glyph)` at exactly one size).
  *
@@ -60,6 +88,7 @@ export interface StatDelta {
 export interface TowerUpgrade {
 	multiply: StatDelta[]
 	add: StatDelta[]
+	replaceApplies: ApplicationDelta[]
 	addBehaviours: Behaviour[]
 	nameKey: string
 	descriptionKey: string | null
@@ -68,6 +97,7 @@ export interface TowerUpgrade {
 export interface TierParams {
 	multiply?: readonly StatDelta[]
 	add?: readonly StatDelta[]
+	replaceApplies?: readonly ApplicationDeltaParam[]
 	addBehaviours?: readonly Behaviour[]
 	nameKey: string
 	descriptionKey?: string | null
@@ -82,6 +112,10 @@ export function tier(params: TierParams): TowerUpgrade {
 	return {
 		multiply: [...(params.multiply ?? [])],
 		add: [...(params.add ?? [])],
+		replaceApplies: (params.replaceApplies ?? []).map(delta => ({
+			kind: delta.kind,
+			applications: toApplications(delta.applications),
+		})),
 		addBehaviours: [...(params.addBehaviours ?? [])],
 		nameKey: params.nameKey,
 		descriptionKey: params.descriptionKey ?? null,
@@ -154,10 +188,36 @@ function applyDelta(def: TowerDef, delta: StatDelta, combine: (current: number, 
 /**
  * Shallow on purpose. `applies` is documented on `Projectile` as immutable content held **by
  * reference** off the behaviour and never written through, so sharing the array is what keeps that
- * true; a tier that needs to change one adds a whole behaviour instead.
+ * true; a tier that needs a different one gets a **new** array from `applyApplicationDelta` below
+ * rather than writing into the shared one.
  */
 function cloneBehaviour(behaviour: Behaviour): Behaviour {
 	return { ...behaviour }
+}
+
+/** The subset of a behaviour a `replaceApplies` may point at: the four that carry statuses. */
+type Applier = { applies: StatusApplication[] }
+
+function hasApplies(target: Writable): target is Writable & Applier {
+	return Array.isArray(target.applies)
+}
+
+/**
+ * Swaps the whole `applies` array for a new one. A **new array**, never a write into the existing
+ * one: the old array is the base def's and every projectile in flight is holding it by reference.
+ */
+function applyApplicationDelta(def: TowerDef, delta: ApplicationDelta): void {
+	const targets = deltaTargets(def, delta.kind)
+	if (targets.length === 0) {
+		throw new Error(`tower '${def.id}': an upgrade names '${delta.kind}', which this tower has no behaviour of`)
+	}
+
+	for (const target of targets) {
+		if (!hasApplies(target)) {
+			throw new Error(`tower '${def.id}': an upgrade replaces the applies of '${delta.kind}', which has none`)
+		}
+		target.applies = delta.applications.map(application => ({ ...application }))
+	}
 }
 
 function applyTier(def: TowerDef, upgrade: TowerUpgrade): TowerDef {
@@ -172,6 +232,13 @@ function applyTier(def: TowerDef, upgrade: TowerUpgrade): TowerDef {
 	}
 	for (const delta of upgrade.add) {
 		applyDelta(next, delta, (current, value) => current + value)
+	}
+
+	// After both, and before the behaviours this tier adds: a `replaceApplies` is authored against
+	// the tower as it stood, and letting it reach a behaviour the same tier appended would make the
+	// authored list depend on which of the two lines came first in the entry.
+	for (const delta of upgrade.replaceApplies) {
+		applyApplicationDelta(next, delta)
 	}
 
 	// Appended after the deltas ran, so a tier's deltas describe the tower as it stood rather than

@@ -1,6 +1,7 @@
 import type { Command, CommandQueue } from '@/core/commands.ts'
 import type { World } from '@/core/types.ts'
 import {
+	auraSystem,
 	barricadesSystem,
 	combatSystem,
 	commandsSystem,
@@ -34,6 +35,7 @@ export type SystemName =
 	| 'light'
 	| 'targeting'
 	| 'combat'
+	| 'aura'
 	| 'projectiles'
 	| 'tiles'
 	| 'crumbs'
@@ -65,6 +67,9 @@ const SYSTEMS: readonly System[] = [
 	{ name: 'light', run: lightSystem },
 	{ name: 'targeting', run: targetingSystem },
 	{ name: 'combat', run: combatSystem },
+	// The towers that do not fire, right after the ones that do. Not a branch inside `combat`: that
+	// loop skips every tower with no firing behaviour, which is every aura tower.
+	{ name: 'aura', run: auraSystem },
 	{ name: 'projectiles', run: projectilesSystem },
 	{ name: 'tiles', run: tilesSystem },
 	{ name: 'crumbs', run: crumbsSystem },
@@ -81,7 +86,7 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
  * One fixed step of the simulation.
  *
  * Order: commands -> spawn -> wave -> status -> movement -> barricades -> light -> targeting ->
- * combat -> projectiles ->
+ * combat -> aura -> projectiles ->
  * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
  *
  * The queue is drained here, once, before anything else runs -- so player input lands at a tick

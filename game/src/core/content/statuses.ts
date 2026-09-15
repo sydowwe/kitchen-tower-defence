@@ -186,27 +186,42 @@ export interface StatusHolder {
 }
 
 /**
- * One application of `kind`, at its default strength and duration unless told otherwise.
- *
- * The three optional parameters are positional and defaulted rather than an options object, so
- * `createStatus('rooted', 7)` keeps meaning what it did. `magnitude` falls back to the def's, which
- * is what gets the override to `speedMultiplier`, `damageTakenMultiplier` and `armorStripStrength`
- * for free -- all three read the live field and none of them knows an override exists.
+ * What one application may say about itself beyond its kind. Every field falls back to the def, and
+ * the three that are not the source are exactly `StatusApplication`'s overrides.
  */
-export function createStatus(
-	kind: StatusKind,
-	sourceId: EntityId | null = null,
-	damageType: DamageType | null = null,
-	magnitude: number | null = null,
-): ActiveStatus {
+export interface StatusOverrides {
+	sourceId?: EntityId | null
+	damageType?: DamageType | null
+	/** Per tick. */
+	magnitude?: number | null
+	/** Ticks, never milliseconds. */
+	durationTicks?: number | null
+	/** How many stacks this one application puts on, against the def's cap. */
+	stacks?: number | null
+}
+
+/**
+ * One application of `kind`, at its default strength, duration and stack count unless told
+ * otherwise.
+ *
+ * **An options object and no longer three positionals.** Step 12B's tier 3s made it five, and
+ * `createStatus('freeze', 7, 'cold', null, 90)` is a line nobody can read -- two nulls holding the
+ * place of the fields it does *not* override. Each override falls back to the def, which is what
+ * gets them to `speedMultiplier`, `damageTakenMultiplier` and `armorStripStrength` for free: all
+ * three read the live field and none of them knows an override exists.
+ *
+ * `sourceId` stays inside the object rather than beside `kind`, so there is one shape to read and
+ * `createStatus('rooted', { sourceId: 7 })` says which 7 it is.
+ */
+export function createStatus(kind: StatusKind, overrides: StatusOverrides = {}): ActiveStatus {
 	const def = STATUS_DEFS[kind]
 	return {
 		kind: def.kind,
-		remainingTicks: def.durationTicks,
-		stacks: 1,
-		magnitude: magnitude ?? def.magnitude,
-		sourceId,
-		damageType,
+		remainingTicks: overrides.durationTicks ?? def.durationTicks,
+		stacks: overrides.stacks ?? 1,
+		magnitude: overrides.magnitude ?? def.magnitude,
+		sourceId: overrides.sourceId ?? null,
+		damageType: overrides.damageType ?? null,
 	}
 }
 
@@ -223,7 +238,16 @@ export function applyStatuses(
 	damageType: DamageType | null,
 ): void {
 	for (const application of applications) {
-		applyStatus(target, createStatus(application.kind, sourceId, damageType, application.magnitude))
+		applyStatus(
+			target,
+			createStatus(application.kind, {
+				sourceId,
+				damageType,
+				magnitude: application.magnitude,
+				durationTicks: application.durationTicks,
+				stacks: application.stacks,
+			}),
+		)
 	}
 }
 

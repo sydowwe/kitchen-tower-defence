@@ -80,6 +80,7 @@ function addBox(world: World, tile: Vec2 = { x: BOX_DISTANCE, y: 0 }): Tower {
 		targetingMode: cardboardBox.defaultTargetingMode,
 		targetEnemyId: null,
 		cooldownTicks: 0,
+		shotsFired: 0,
 		state: null,
 		totalInvested: cardboardBox.cost,
 	}

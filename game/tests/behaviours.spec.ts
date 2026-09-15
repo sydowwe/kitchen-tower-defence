@@ -132,6 +132,7 @@ describe('behaviour descriptors', () => {
 			'damageType',
 			'kind',
 			'projectileSpeed',
+			'projectilesPerShot',
 			'rangeTiles',
 			'splashRadiusTiles',
 			'targets',

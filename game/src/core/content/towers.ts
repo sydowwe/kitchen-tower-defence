@@ -10,7 +10,7 @@
  * so the doc's number stays legible next to it.
  */
 
-import { attack, barricade, charge, collect, coneAttack, income, reveal } from '@/core/content/behaviours.ts'
+import { attack, aura, barricade, charge, collect, coneAttack, income, reveal } from '@/core/content/behaviours.ts'
 import { tier } from '@/core/content/upgrades.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 import type { DeltaTarget, TierParams, TowerUpgrade } from '@/core/content/upgrades.ts'
@@ -32,9 +32,12 @@ const COLLECT_TRAVEL_TICKS = 90
 // tower can be missing from with nothing to catch it.
 //
 // **Structurally correct, not balanced.** Step 12A had no inspector to read a before -> after diff
-// in and no night to feel these in; 12C re-tunes them with both. The six tier-3s that are empty are
-// 12B's -- they need a field or a system that does not exist yet, and a tier that does nothing for
-// one session is visible where a missing one is a crash.
+// in and no night to feel these in; 12C re-tunes them with both.
+//
+// Every tier below is a delta against a field of the behaviour vocabulary. **No system file branches
+// on a tower id or a tier number**, which is the acceptance criterion the whole of step 12 exists to
+// prove: a second tower gaining any of these six tier-3 effects is an entry in this file and no code
+// at all.
 
 /**
  * Roughly +40% to the tower's defining stat, per tier (analytic-docs/CONTENT.md section 1). One
@@ -47,6 +50,20 @@ const HALVED = 0.5
 
 /** Salt Shaker T3, analytic-docs/CONTENT.md section 1: "gains splash (0.8 tile radius)". */
 const SALT_SHAKER_SPLASH_TILES = 0.8
+
+/**
+ * The tier-3 rates of analytic-docs/CONTENT.md section 1, per **tick**, through the same divisor
+ * every rate in this file uses. A bare 8 or 6 is sixty times the intended number and the schema
+ * bounds on `reflectDamagePerTick` and `damagePerTick` are what reject one.
+ */
+const CARDBOARD_BOX_REFLECT_PER_TICK = 8 / TICKS_PER_SECOND
+const NIGHTLIGHT_AURA_PER_TICK = 6 / TICKS_PER_SECOND
+
+/**
+ * What the Nightlight reveals within, and -- once its tier 3 lands -- what it burns within. One
+ * constant because they are one number: the tower damages exactly what it attracts.
+ */
+const NIGHTLIGHT_RADIUS_TILES = 4
 
 /** One tier, minus the keys `upgradesFor` derives. */
 type TierBody = Omit<TierParams, 'nameKey' | 'descriptionKey'>
@@ -80,9 +97,6 @@ function bump(kind: DeltaTarget, field: string): TierBody {
 function quicken(kind: DeltaTarget): TierBody {
 	return { multiply: [{ kind, fields: { cooldownTicks: 1 / TIER_STAT_MULT } }] }
 }
-
-/** A tier 12B authors. It exists so the roster has three of them, and it does nothing until then. */
-const PENDING: TierBody = {}
 
 /**
  * A def whose id is known statically, so `nameKey` and `descriptionKey` are *derived* from it
@@ -272,9 +286,25 @@ export const iceCubeTray: TowerDefOf<'iceCubeTray'> = {
 	/**
 	 * The rate and not the damage. This tower's output is the slow, and its 2 damage is explicitly
 	 * not meant to matter (see above); the magnitude of `slow` is on the status def, which a tier
-	 * cannot reach, so how *often* it lands is the defining stat. T3 is 12B's.
+	 * cannot reach, so how *often* it lands is the defining stat.
+	 *
+	 * T3 is analytic-docs/CONTENT.md section 1's "slow becomes a 1.5s freeze on every 4th hit", and
+	 * **the freeze being first in the list is load-bearing and free**: `STATUS_DEFS.slow.suppressedBy`
+	 * is already `['freeze']`, so on the fourth hit the freeze lands and `applyStatus` turns the slow
+	 * away by itself. "A freeze *instead of* a slow", with no branch anywhere. Reversed, the slow
+	 * would land and the freeze overwrite it -- the same damage and a different story in the code.
+	 *
+	 * The 90 is the doc's 1.5 seconds and not the status def's 4: a 4-second freeze landing every
+	 * fourth shot of a tower that fires every 39 ticks is a permanent freeze.
 	 */
-	upgrades: upgradesFor('iceCubeTray', quicken('attack'), quicken('attack'), PENDING),
+	upgrades: upgradesFor('iceCubeTray', quicken('attack'), quicken('attack'), {
+		replaceApplies: [
+			{
+				kind: 'attack',
+				applications: [{ kind: 'freeze', everyNthHit: 4, durationTicks: 90 }, 'slow'],
+			},
+		],
+	}),
 }
 
 /**
@@ -313,13 +343,17 @@ export const stickyTape: TowerDefOf<'stickyTape'> = {
 	],
 	/**
 	 * Strips of tape, so the tiers `add` one rather than multiplying: 3 x 1.4 is 4.2 strips, and
-	 * `TowerState.charges` is a counter `core/systems/charges.ts` spends down by one. T3 is 12B's.
+	 * `TowerState.charges` is a counter `core/systems/charges.ts` spends down by one.
+	 *
+	 * T3 is analytic-docs/CONTENT.md section 1's "roots 3 enemies simultaneously": `maxOutstanding`
+	 * 1 -> 3, which is the same roll of tape laid across three of them at once instead of one at a
+	 * time. It is not more charges -- the tiers above already bought those.
 	 */
 	upgrades: upgradesFor(
 		'stickyTape',
 		{ add: [{ kind: 'charge', fields: { charges: 1 } }] },
 		{ add: [{ kind: 'charge', fields: { charges: 1 } }] },
-		PENDING,
+		{ add: [{ kind: 'charge', fields: { maxOutstanding: 2 } }] },
 	),
 }
 
@@ -359,8 +393,23 @@ export const sprayBottle: TowerDefOf<'sprayBottle'> = {
 			applies: [{ kind: 'poison', magnitude: 2 / TICKS_PER_SECOND }],
 		}),
 	],
-	/** Against the `coneAttack`, because that is the behaviour this tower's damage is on. T3 is 12B's. */
-	upgrades: upgradesFor('sprayBottle', bump('coneAttack', 'damage'), bump('coneAttack', 'damage'), PENDING),
+	/**
+	 * Against the `coneAttack`, because that is the behaviour this tower's damage is on.
+	 *
+	 * T3 is analytic-docs/CONTENT.md section 1's "the DoT goes on twice as fast", and it is **two
+	 * stacks a hit and not a halved cooldown**: poison's cap is 5, so the tower reaches it in three
+	 * sprays instead of five, which is the sentence the doc is describing. The magnitude is restated
+	 * rather than inherited because `replaceApplies` rewrites the whole list -- see
+	 * `ApplicationDelta` in `core/content/upgrades.ts` for why it cannot merge.
+	 */
+	upgrades: upgradesFor('sprayBottle', bump('coneAttack', 'damage'), bump('coneAttack', 'damage'), {
+		replaceApplies: [
+			{
+				kind: 'coneAttack',
+				applications: [{ kind: 'poison', magnitude: 2 / TICKS_PER_SECOND, stacks: 2 }],
+			},
+		],
+	}),
 }
 
 /**
@@ -425,8 +474,7 @@ export const mousetrap: TowerDefOf<'mousetrap'> = {
  * other tower rather than a second number on the behaviour.
  *
  * `defaultTargetingMode` is required by the schema and inert for a tower with no targeting behaviour;
- * `CLOSEST` is what the other behaviourless towers carry. The T3 "enemies chewing it take 8/s reflect
- * damage" is 12B's: it needs the chew system to read something this def cannot yet carry.
+ * `CLOSEST` is what the other behaviourless towers carry.
  */
 export const cardboardBox: TowerDefOf<'cardboardBox'> = {
 	id: 'cardboardBox',
@@ -444,8 +492,14 @@ export const cardboardBox: TowerDefOf<'cardboardBox'> = {
 	 * `maxHp` is the whole tower, and it is on the def rather than on a behaviour -- which is why a
 	 * delta may name `'def'` at all. Keep that to the two fields that are genuinely def-level,
 	 * `maxHp` and `noise`; anything else a tier wants belongs on a behaviour, where a system reads it.
+	 *
+	 * T3 is analytic-docs/CONTENT.md section 1's "enemies chewing it take 8/s reflect damage", which
+	 * is the one field the `barricade` descriptor grew. It resolves through the tag matrix like every
+	 * other damage source, so an `armored` Roach gets a good deal less of it back than an Ant does.
 	 */
-	upgrades: upgradesFor('cardboardBox', bump('def', 'maxHp'), bump('def', 'maxHp'), PENDING),
+	upgrades: upgradesFor('cardboardBox', bump('def', 'maxHp'), bump('def', 'maxHp'), {
+		add: [{ kind: 'barricade', fields: { reflectDamagePerTick: CARDBOARD_BOX_REFLECT_PER_TICK } }],
+	}),
 }
 
 /**
@@ -490,7 +544,15 @@ export const toaster: TowerDefOf<'toaster'> = {
 			projectileSpeed: 0.12,
 		}),
 	],
-	upgrades: upgradesFor('toaster', bump('attack', 'damage'), bump('attack', 'damage'), PENDING),
+	/**
+	 * T3 is analytic-docs/CONTENT.md section 1's "fires two projectiles", and **two projectiles means
+	 * two targets** -- see `projectilesPerShot` on `AttackBehaviour`. 35 damage is 42 against `air`
+	 * and the Fly has 14 HP, so a second grain at the same fly is a 350-crumb upgrade the player
+	 * cannot tell is working.
+	 */
+	upgrades: upgradesFor('toaster', bump('attack', 'damage'), bump('attack', 'damage'), {
+		add: [{ kind: 'attack', fields: { projectilesPerShot: 1 } }],
+	}),
 }
 
 /**
@@ -509,8 +571,7 @@ export const toaster: TowerDefOf<'toaster'> = {
  *
  * `defaultTargetingMode` is required by the schema and inert for a behaviourless tower; `CLOSEST` is
  * what the Cardboard Box and the two economy towers carry. `maxHp: 100` is every non-wall tower's
- * precedent. Section 1's "T3 upgrade adds damage (6/s)" is 12B's -- it is an `aura` this def gains,
- * and `core/systems/aura.ts` is that session's.
+ * precedent.
  */
 export const nightlight: TowerDefOf<'nightlight'> = {
 	id: 'nightlight',
@@ -523,9 +584,29 @@ export const nightlight: TowerDefOf<'nightlight'> = {
 	placement: 'off_path',
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
-	behaviours: [reveal({ radiusTiles: 4, attractsLightDrawn: true })],
-	/** What it reveals within is the whole tower, so that is what the tiers bump. T3 is 12B's. */
-	upgrades: upgradesFor('nightlight', bump('reveal', 'radiusTiles'), bump('reveal', 'radiusTiles'), PENDING),
+	behaviours: [reveal({ radiusTiles: NIGHTLIGHT_RADIUS_TILES, attractsLightDrawn: true })],
+	/**
+	 * What it reveals within is the whole tower, so that is what the tiers bump.
+	 *
+	 * T3 is analytic-docs/CONTENT.md section 1's "damages what it attracts (6/s)", as an `aura` this
+	 * def gains. Two numbers on it are deliberate:
+	 *
+	 * - **the radius is the lamp's own** `NIGHTLIGHT_RADIUS_TILES`, not a third number. It damages
+	 *   exactly what it reveals, so the two are the same constant. (Tiers 1 and 2 pull the *reveal*
+	 *   ahead of it; the aura arrives at the base radius, which is the conservative end of it.)
+	 * - **`fire` and not `physical`.** The matrix gives fire x1.2 against `air` and physical x0.5,
+	 *   and a lamp whose whole job is moths should not carry the worst damage type against them.
+	 */
+	upgrades: upgradesFor('nightlight', bump('reveal', 'radiusTiles'), bump('reveal', 'radiusTiles'), {
+		addBehaviours: [
+			aura({
+				radiusTiles: NIGHTLIGHT_RADIUS_TILES,
+				damagePerTick: NIGHTLIGHT_AURA_PER_TICK,
+				damageType: 'fire',
+				targets: 'both',
+			}),
+		],
+	}),
 }
 
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */

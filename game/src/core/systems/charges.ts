@@ -18,7 +18,7 @@ import { endsWithItsSource } from '@/core/content/statuses.ts'
 import { removeTower } from '@/core/systems/placement.ts'
 import type { ChargeBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { EntityId, Tower, TowerState, World } from '@/core/types.ts'
+import type { Enemy, EntityId, Tower, TowerState, World } from '@/core/types.ts'
 
 /** The one member of `TowerState` today, named so the narrowing below has something to return. */
 type ChargeState = Extract<TowerState, { kind: 'charge' }>
@@ -35,16 +35,36 @@ export function chargeStateOf(tower: Tower): ChargeState | null {
 }
 
 /**
- * Whether any enemy still carries a status this tower applied that ends when its source is spent.
+ * How many enemies still carry a status this tower applied that ends when its source is spent. One
+ * per enemy, because a status of one kind exists at most once on one enemy -- so this is the number
+ * of roots the tape is currently holding.
  *
- * It is a scan of `world.enemies` rather than an id remembered on the tower, and that is the point:
+ * It is a scan of `world.enemies` rather than a list remembered on the tower, and that is the point:
  * it covers **both** ways a root ends. A version hooked onto `enemyKilled` misses the enemy that
  * reached the fridge and leaked, and the symptom is a tape that holds a charge forever.
  */
-export function hasOutstandingSourceStatus(world: World, towerId: EntityId): boolean {
-	return world.enemies.some(enemy =>
-		enemy.statuses.some(status => status.sourceId === towerId && endsWithItsSource(status)),
-	)
+export function countOutstandingSourceStatuses(world: World, towerId: EntityId): number {
+	let count = 0
+	for (const enemy of world.enemies) {
+		if (holdsSourceStatusFrom(enemy, towerId)) {
+			count++
+		}
+	}
+	return count
+}
+
+/**
+ * Whether this one enemy is already held by this tower -- carrying a status it applied that ends
+ * when the tower is spent.
+ *
+ * **`targeting.ts` excludes these, and that is what makes "roots 3 enemies" mean three.** A tape at
+ * `maxOutstanding: 3` may fire while one root is out, and `CLOSEST` would hand it the same enemy
+ * again; `rooted` merges under the `refresh` rule, so the count would never leave 1 and the tower
+ * would spend its whole magazine re-sticking one ant. At `maxOutstanding: 1` the firing gate hid
+ * this, which is why it only shows up now.
+ */
+export function holdsSourceStatusFrom(enemy: Enemy, towerId: EntityId): boolean {
+	return enemy.statuses.some(status => status.sourceId === towerId && endsWithItsSource(status))
 }
 
 /**
@@ -54,13 +74,22 @@ export function hasOutstandingSourceStatus(world: World, towerId: EntityId): boo
  * Both have to ask the same question: a tower the targeting system serves and the combat system does
  * not is a tower that aims and never shoots. A rearming Mousetrap is the one-charge case of this and
  * ends its tick with `targetEnemyId` null.
+ *
+ * **`maxOutstanding` and not `> 0`.** A Sticky Tape holds one root at a time and its tier 3 holds
+ * three; the tower stops firing once it is holding that many, whatever it still has in the magazine.
  */
 export function chargeAllowsFiring(world: World, tower: Tower): boolean {
 	const state = chargeStateOf(tower)
 	if (state === null) {
 		return true
 	}
-	return state.charges > 0 && !hasOutstandingSourceStatus(world, tower.id)
+	if (state.charges <= 0) {
+		return false
+	}
+
+	const behaviour = chargeBehaviourOf(effectiveDefOf(tower))
+	const maxOutstanding = behaviour?.maxOutstanding ?? 1
+	return countOutstandingSourceStatuses(world, tower.id) < maxOutstanding
 }
 
 /**
@@ -159,7 +188,9 @@ export function retireSpentTowers(world: World): void {
 		if (state === null || state.charges > 0 || state.rearmTicksRemaining > 0) {
 			continue
 		}
-		if (hasOutstandingSourceStatus(world, tower.id)) {
+		// Still `> 0` and not against `maxOutstanding`: a tape with three roots out and nothing left in
+		// the magazine must not leave the board until the **last** one ends.
+		if (countOutstandingSourceStatuses(world, tower.id) > 0) {
 			continue
 		}
 

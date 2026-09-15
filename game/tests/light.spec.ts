@@ -106,6 +106,7 @@ function addLamp(world: World, tile: Vec2, def: TowerDef = nightlight): Tower {
 		targetingMode: def.defaultTargetingMode,
 		targetEnemyId: null,
 		cooldownTicks: 0,
+		shotsFired: 0,
 		state: null,
 		totalInvested: def.cost,
 	}

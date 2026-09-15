@@ -252,6 +252,16 @@ export interface Tower {
 	targetEnemyId: EntityId | null
 	/** Ticks until this tower may fire again. */
 	cooldownTicks: number
+	/**
+	 * How many times this tower has fired, ever. Counted in `core/systems/combat.ts` beside the
+	 * cooldown, so a cone counts too, and read only by the `everyNthHit` filter on a status
+	 * application -- the Ice Cube Tray's tier 3 freezes on every fourth hit.
+	 *
+	 * **An integer on `Tower` and not a second `TowerState` member.** `TowerState` is a union and a
+	 * tower has one of them, so a shot count there would be mutually exclusive with the magazine it
+	 * has to coexist with: the Mousetrap needs both.
+	 */
+	shotsFired: number
 	state: TowerState | null
 	/** Base plus every upgrade paid for. The sell refund is a percentage of this. */
 	totalInvested: number

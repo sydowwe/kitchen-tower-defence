@@ -76,6 +76,7 @@ function putTower(world: World, defId: DefId, tile: Vec2): EntityId {
 		targetingMode: def.defaultTargetingMode,
 		targetEnemyId: null,
 		cooldownTicks: 0,
+		shotsFired: 0,
 		state: null,
 		totalInvested: def.cost,
 	}

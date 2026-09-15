@@ -16,7 +16,7 @@ import type { TargetClass } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
 import { remainingToFridge } from '@/core/path.ts'
 import { bindRng } from '@/core/rng.ts'
-import { chargeAllowsFiring } from '@/core/systems/charges.ts'
+import { chargeAllowsFiring, holdsSourceStatusFrom } from '@/core/systems/charges.ts'
 import { enemyPosition, queryEnemiesInRange } from '@/core/systems/spatial.ts'
 import type { Enemy, Tower, World } from '@/core/types.ts'
 
@@ -108,14 +108,8 @@ export interface Reach {
 	targets: TargetClass
 }
 
-export function pickTarget(world: World, tower: Tower, reach: Reach): Enemy | null {
-	const candidates = queryEnemiesInRange(world, tower.tile, reach.rangeTiles, enemy =>
-		isTargetable(enemy, reach.targets),
-	)
-	if (candidates.length === 0) {
-		return null
-	}
-
+/** The mode applied to a list that has already been filtered by range and targetability. */
+function bestOf(world: World, tower: Tower, candidates: readonly Enemy[]): Enemy | null {
 	switch (tower.targetingMode) {
 		case 'FIRST':
 			return bestBy(candidates, enemy => remaining(world, enemy), 'lowest')
@@ -133,6 +127,56 @@ export function pickTarget(world: World, tower: Tower, reach: Reach): Enemy | nu
 		case 'RANDOM':
 			return bindRng(world.rng).pick(candidates)
 	}
+}
+
+/**
+ * Up to `count` **distinct** enemies in range, best first under the tower's own mode. Fewer than
+ * `count` when fewer are in range, and empty when none are.
+ *
+ * **Take the best, exclude it, take the next** -- and never a `sort`. `bestOf` keeps the first
+ * entry on a tie, so the winner is decided by `world.enemies` order; a comparison sort is not stable
+ * enough to promise a replay reproduces *which* two enemies a Toaster shot, and the symptom of that
+ * is a divergence ten minutes in.
+ *
+ * `count === 1` is the whole game except the Toaster's tier 3, and it deliberately does not copy the
+ * candidate list: this runs once per tower per tick, on the path
+ * analytic-docs/ARCHITECTURE.md section 6 budgets against.
+ */
+export function pickTargets(world: World, tower: Tower, reach: Reach, count: number): Enemy[] {
+	// An enemy this tower is already holding is not a target: see `holdsSourceStatusFrom`. It reads
+	// false for every tower that applies nothing `untilSourceSpent`, which is all of them but the
+	// Sticky Tape, so this is a `some` over an empty array on the ordinary path.
+	const candidates = queryEnemiesInRange(
+		world,
+		tower.tile,
+		reach.rangeTiles,
+		enemy => isTargetable(enemy, reach.targets) && !holdsSourceStatusFrom(enemy, tower.id),
+	)
+	if (count <= 0 || candidates.length === 0) {
+		return []
+	}
+	if (count === 1) {
+		const best = bestOf(world, tower, candidates)
+		return best === null ? [] : [best]
+	}
+
+	const pool = [...candidates]
+	const picked: Enemy[] = []
+	while (picked.length < count && pool.length > 0) {
+		const best = bestOf(world, tower, pool)
+		if (best === null) {
+			break
+		}
+		picked.push(best)
+		pool.splice(pool.indexOf(best), 1)
+	}
+
+	return picked
+}
+
+/** One ranking and not two: the single-target case is the first entry of the list above. */
+export function pickTarget(world: World, tower: Tower, reach: Reach): Enemy | null {
+	return pickTargets(world, tower, reach, 1)[0] ?? null
 }
 
 export function targetingSystem(world: World): void {

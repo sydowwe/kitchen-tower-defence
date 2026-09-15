@@ -9,9 +9,10 @@
  * guarantee. `tests/behaviours.spec.ts` fails `type-check` the moment a function-typed field
  * appears on one.
  *
- * `attack` (step 6) and `coneAttack` (step 9B) have systems reading them. The rest are descriptors
- * without an interpreter: the type exists, is a member of the union, and is schema-validated, so
- * content can be authored against it before the step that owns the mechanic arrives.
+ * `attack` (step 6), `coneAttack` (step 9B) and `aura` (step 12B) have systems reading them. The
+ * rest are descriptors without an interpreter: the type exists, is a member of the union, and is
+ * schema-validated, so content can be authored against it before the step that owns the mechanic
+ * arrives.
  *
  * Durations are tick counts. Ranges and radii are tiles. Speeds are tiles per tick.
  */
@@ -27,29 +28,55 @@ export type TargetClass = 'ground' | 'air' | 'both'
 // --- status application ---------------------------------------------------------------------------
 
 /**
- * One status a behaviour lands on what it hits. `magnitude: null` means "whatever `STATUS_DEFS`
- * says"; a number overrides it **per tick**, for this behaviour only.
+ * One status a behaviour lands on what it hits. **Every field but `kind` is an override of the
+ * `STATUS_DEFS` entry, and `null` means "whatever that def says".**
  *
- * Only the magnitude is overridable. analytic-docs/CONTENT.md section 1 authors a DoT rate per
- * tower -- the Spray Bottle's 2/s against section 4's status-wide 4/s -- so that number has two
- * sources and needs the per-application copy. Duration and the stack cap have one source each and
- * stay on the def.
+ * The magnitude was the first of these, because analytic-docs/CONTENT.md section 1 authors a DoT
+ * rate per tower -- the Spray Bottle's 2/s against section 4's status-wide 4/s -- so that number has
+ * two sources and needs the per-application copy. Step 12B's tier 3s gave the other three the same
+ * problem:
+ *
+ * - `durationTicks` -- the Ice Cube Tray authors a 1.5-second freeze against a status def that says
+ *   4 seconds, and a 4-second freeze on every fourth hit of a tower that fires every 39 ticks is a
+ *   permanent freeze. So the number matters, and it has two sources too.
+ * - `stacks` -- how many go on per application. The Spray Bottle's tier 3 is "twice as fast" as two
+ *   stacks a hit rather than a halved cooldown, so it reaches poison's cap of 5 in three sprays.
+ * - `everyNthHit` -- land this one on every Nth shot of the behaviour only. Counted by
+ *   `Tower.shotsFired` and filtered in `core/systems/combat.ts`, which is the only reader.
  */
-export type StatusApplication = { kind: StatusKind; magnitude: number | null }
+export type StatusApplication = {
+	kind: StatusKind
+	/** Per tick, for this behaviour only. */
+	magnitude: number | null
+	/** How long one application runs. Never milliseconds. */
+	durationTicks: number | null
+	/** How many stacks one application puts on, against the def's stack cap. */
+	stacks: number | null
+	/** Land it only when `Tower.shotsFired % n === 0`. Null lands it on every hit, which is most. */
+	everyNthHit: number | null
+}
 
-/** What a def *authors*. A bare kind is the common case and normalises to `magnitude: null`. */
-export type StatusApplicationParam = StatusKind | { kind: StatusKind; magnitude?: number }
+/** What a def *authors*. A bare kind is the common case and normalises to every override null. */
+export type StatusApplicationParam =
+	StatusKind | { kind: StatusKind; magnitude?: number; durationTicks?: number; stacks?: number; everyNthHit?: number }
 
 /**
- * The one normaliser, shared by all four factories that carry `applies`. Four copies of it would be
- * four places for `?? null` to become `?? 0`, and a magnitude of 0 is a status that applies and
- * then does nothing.
+ * The one normaliser, shared by all four factories that carry `applies` and by the `replaceApplies`
+ * delta in `core/content/upgrades.ts`. Five copies of it would be five places for `?? null` to
+ * become `?? 0`, and a magnitude of 0 -- or a `stacks` of 0 -- is a status that applies and then
+ * does nothing.
  */
-function toApplications(params: readonly StatusApplicationParam[] | undefined): StatusApplication[] {
+export function toApplications(params: readonly StatusApplicationParam[] | undefined): StatusApplication[] {
 	return (params ?? []).map(entry =>
 		typeof entry === 'string'
-			? { kind: entry, magnitude: null }
-			: { kind: entry.kind, magnitude: entry.magnitude ?? null },
+			? { kind: entry, magnitude: null, durationTicks: null, stacks: null, everyNthHit: null }
+			: {
+					kind: entry.kind,
+					magnitude: entry.magnitude ?? null,
+					durationTicks: entry.durationTicks ?? null,
+					stacks: entry.stacks ?? null,
+					everyNthHit: entry.everyNthHit ?? null,
+				},
 	)
 }
 
@@ -68,6 +95,19 @@ export interface AttackBehaviour {
 	projectileSpeed: number
 	/** 0 for a single-target hit. Salt Shaker's T3 upgrade is what first makes this non-zero. */
 	splashRadiusTiles: number
+	/**
+	 * Shots spawned per firing, at **distinct** targets in the tower's own targeting-mode order --
+	 * `pickTargets` in `core/systems/targeting.ts`. 1 for everything but the Toaster's tier 3.
+	 *
+	 * Two projectiles means two targets and not two shots at one: the Toaster one-shots every flyer
+	 * in v1, so a second grain at the same Fly is a 350-crumb upgrade the player cannot tell is
+	 * working. With fewer than `projectilesPerShot` enemies in range the last target repeats, so the
+	 * upgrade never fires *less*.
+	 *
+	 * Only the projectile path reads it: an instant hit and a cone both land the tick they fire, and
+	 * "two of them at once" is the same number twice.
+	 */
+	projectilesPerShot: number
 	/** Statuses landed on what this hits. Empty for a tower that only deals damage. */
 	applies: StatusApplication[]
 }
@@ -80,6 +120,7 @@ export interface AttackParams {
 	targets: TargetClass
 	projectileSpeed?: number
 	splashRadiusTiles?: number
+	projectilesPerShot?: number
 	applies?: readonly StatusApplicationParam[]
 }
 
@@ -97,6 +138,7 @@ export function attack(params: AttackParams): AttackBehaviour {
 		targets: params.targets,
 		projectileSpeed: params.projectileSpeed ?? 0,
 		splashRadiusTiles: params.splashRadiusTiles ?? 0,
+		projectilesPerShot: params.projectilesPerShot ?? 1,
 		applies: toApplications(params.applies),
 	}
 }
@@ -149,7 +191,11 @@ export function coneAttack(params: ConeAttackParams): ConeAttackBehaviour {
 // Each names the step that will read it. Adding the system is that step's work; adding the shape
 // is this one's, so a tower def written in step 2D never has to be revisited to gain a field.
 
-/** Candle. Continuous damage to everything in radius, no shots and no targeting. Step 17. */
+/**
+ * Continuous damage to everything in radius, no shots and no targeting. `core/systems/aura.ts`
+ * interprets it, step 12B -- the Nightlight's tier 3 is the first one -- and step 17's Candle is a
+ * config object on top of it.
+ */
 export interface AuraBehaviour {
 	kind: 'aura'
 	radiusTiles: number
@@ -247,11 +293,21 @@ export interface ChargeBehaviour {
 	charges: number
 	/** 0 for a tower that never rearms -- Fly Paper self-removes when spent. */
 	rearmTicks: number
+	/**
+	 * How many of this tower's `untilSourceSpent` statuses may be running at once. 1 is the Sticky
+	 * Tape holding one enemy at a time; its tier 3 is 3, which is the same roll of tape laid across
+	 * three of them.
+	 *
+	 * It gates *firing*, not retirement: a tape with three roots out and no charges left stays on the
+	 * board until the last one ends (`core/systems/charges.ts`).
+	 */
+	maxOutstanding: number
 }
 
 export interface ChargeParams {
 	charges: number
 	rearmTicks: number
+	maxOutstanding?: number
 }
 
 export function charge(params: ChargeParams): ChargeBehaviour {
@@ -259,22 +315,44 @@ export function charge(params: ChargeParams): ChargeBehaviour {
 		kind: 'charge',
 		charges: params.charges,
 		rearmTicks: params.rearmTicks,
+		maxOutstanding: params.maxOutstanding ?? 1,
 	}
 }
 
 /**
  * Cardboard Box. Enemies stop at it and attack it instead of walking past.
  *
- * It has no fields: how much it can absorb is `TowerDef.maxHp`, like every other tower, and where
- * it stands is `TowerDef.placement: 'path_only'`. A second HP number here would be the one that
- * drifts. Step 10.
+ * How much it can absorb is still `TowerDef.maxHp`, like every other tower, and where it stands is
+ * still `TowerDef.placement: 'path_only'` -- a second HP number here would be the one that drifts.
+ * The two fields it does carry are what a chewing enemy gets back, which is a property of the wall
+ * and of nothing else. Step 10, and the reflect is step 12B.
  */
 export interface BarricadeBehaviour {
 	kind: 'barricade'
+	/**
+	 * Damage dealt back to whatever is chewing, per tick. **Per tick**: the Cardboard Box's tier 3 is
+	 * 8/sec in analytic-docs/CONTENT.md section 1, which is 0.133 here -- the same units as
+	 * `EnemyDef.meleeDamagePerTick` it is paid against, and bounded the same way so a bare `8` is
+	 * rejected at boot rather than by the balance sheet.
+	 *
+	 * 0 for a wall that only absorbs, which is every barricade before that tier.
+	 */
+	reflectDamagePerTick: number
+	/** What the reflect resolves as through the tag matrix. Inert while the rate above is 0. */
+	reflectDamageType: DamageType
 }
 
-export function barricade(): BarricadeBehaviour {
-	return { kind: 'barricade' }
+export interface BarricadeParams {
+	reflectDamagePerTick?: number
+	reflectDamageType?: DamageType
+}
+
+export function barricade(params: BarricadeParams = {}): BarricadeBehaviour {
+	return {
+		kind: 'barricade',
+		reflectDamagePerTick: params.reflectDamagePerTick ?? 0,
+		reflectDamageType: params.reflectDamageType ?? 'physical',
+	}
 }
 
 /** Honey Pot. Pulls ground enemies off their pace and holds them in a kill zone. Step 17. */
@@ -504,6 +582,20 @@ export function isIncome(behaviour: Behaviour): behaviour is IncomeBehaviour {
 /** And for charges: `placeTower` seeds `Tower.state` from one, and the rearm reads the same. */
 export function isCharge(behaviour: Behaviour): behaviour is ChargeBehaviour {
 	return behaviour.kind === 'charge'
+}
+
+/** And for auras: `core/systems/aura.ts` is the one reader today, and step 17 adds three more. */
+export function isAura(behaviour: Behaviour): behaviour is AuraBehaviour {
+	return behaviour.kind === 'aura'
+}
+
+/**
+ * And for walls. Named for the descriptor rather than for the question, because
+ * `core/systems/barricades.ts` already exports an `isBarricade(def)` that answers "is this def a
+ * wall" -- this is the one that hands back the reflect fields.
+ */
+export function isBarricadeBehaviour(behaviour: Behaviour): behaviour is BarricadeBehaviour {
+	return behaviour.kind === 'barricade'
 }
 
 /**

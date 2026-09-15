@@ -13,7 +13,7 @@
  * leaves the loop through exactly one of `survivors.push` or `release`.
  */
 
-import type { AttackBehaviour } from '@/core/content/behaviours.ts'
+import type { AttackBehaviour, StatusApplication } from '@/core/content/behaviours.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
 import { dealDamage, dealSplashDamage } from '@/core/systems/combat.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
@@ -64,8 +64,18 @@ function reindexProjectiles(world: World): void {
  *
  * `targets` is carried too, because the splash needs the filter and a projectile outlives the tower
  * that fired it -- without it a ground-only splash would quietly hit flyers.
+ *
+ * `applies` is passed in rather than read off `attack`, because which of the behaviour's
+ * applications land is a property of *this shot*: `applicationsForShot` in `core/systems/combat.ts`
+ * has already dropped the periodic ones this shot is not the Nth of.
  */
-export function spawnProjectile(world: World, tower: Tower, attack: AttackBehaviour, target: Enemy): void {
+export function spawnProjectile(
+	world: World,
+	tower: Tower,
+	attack: AttackBehaviour,
+	target: Enemy,
+	applies: readonly StatusApplication[],
+): void {
 	const at = enemyPosition(world, target) ?? { x: tower.tile.x, y: tower.tile.y }
 
 	const projectile = acquire()
@@ -81,10 +91,11 @@ export function spawnProjectile(world: World, tower: Tower, attack: AttackBehavi
 	projectile.damageType = attack.damageType
 	projectile.splashRadiusTiles = attack.splashRadiusTiles
 	projectile.targets = attack.targets
-	// The behaviour's own array, by reference and never copied: a descriptor is immutable content
-	// that outlives every world, and copying an array of objects per shot allocates on the one path
-	// analytic-docs/ARCHITECTURE.md section 6 budgets. Nothing may write through it.
-	projectile.applies = attack.applies
+	// The behaviour's own array, by reference and never copied -- `applicationsForShot` hands the
+	// same one straight back unless this behaviour has a periodic application. A descriptor is
+	// immutable content that outlives every world, and copying an array of objects per shot allocates
+	// on the one path analytic-docs/ARCHITECTURE.md section 6 budgets. Nothing may write through it.
+	projectile.applies = applies
 	// No content sets pierce: it is step 12's upgrade field, and `AttackBehaviour` deliberately
 	// does not carry it.
 	projectile.pierce = 1

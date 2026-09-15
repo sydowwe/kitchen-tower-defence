@@ -84,6 +84,7 @@ function addTower(world: World, def: TowerDef, tile: Vec2): Tower {
 		targetingMode: def.defaultTargetingMode,
 		targetEnemyId: null,
 		cooldownTicks: 0,
+		shotsFired: 0,
 		state: null,
 		totalInvested: def.cost,
 	}

@@ -79,6 +79,7 @@ function addTower(world: World, def: TowerDef, tile: Vec2): Tower {
 		targetingMode: def.defaultTargetingMode,
 		targetEnemyId: null,
 		cooldownTicks: 0,
+		shotsFired: 0,
 		state: charges === undefined ? null : { kind: 'charge', charges: charges.charges, rearmTicksRemaining: 0 },
 		totalInvested: def.cost,
 	}
@@ -203,7 +204,10 @@ describe('an attack that applies a status', () => {
 		const object = testSlowerObject.behaviours.find(behaviour => behaviour.kind === 'attack')
 
 		expect(bare?.applies).toEqual(object?.applies)
-		expect(object?.applies).toEqual([{ kind: 'slow', magnitude: null }])
+		// Every override null: the bare kind and the object form both defer the whole lot to the def.
+		expect(object?.applies).toEqual([
+			{ kind: 'slow', magnitude: null, durationTicks: null, stacks: null, everyNthHit: null },
+		])
 
 		const world = makeWorld()
 		const enemy = addEnemy(world, { distance: 10 })

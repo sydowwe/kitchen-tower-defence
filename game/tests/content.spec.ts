@@ -189,7 +189,8 @@ describe('the Mousetrap', () => {
 	it('spends one charge per snap and takes the doc s 6.6 seconds to reset, on one number', () => {
 		const behaviour = mousetrap.behaviours.find(entry => entry.kind === 'charge')
 
-		expect(behaviour).toEqual({ kind: 'charge', charges: 1, rearmTicks: 396 })
+		// One outstanding: the trap holds nothing, and the tier that raises it is the Sticky Tape's.
+		expect(behaviour).toEqual({ kind: 'charge', charges: 1, rearmTicks: 396, maxOutstanding: 1 })
 		// The doc's 0.15/sec and its 6.6s rearm are the same interval written twice, so the cooldown
 		// and the rearm are one number. `perSecond(0.15)` would be 400, and the four-tick difference
 		// would make the rearm dead machinery.
@@ -211,8 +212,12 @@ describe('the Cardboard Box', () => {
 		expect(cardboardBox.noise).toBe(0)
 	})
 
-	it('is a wall and nothing else: one behaviour, and it carries no numbers', () => {
-		expect(cardboardBox.behaviours).toEqual([{ kind: 'barricade' }])
+	it('is a wall and nothing else: one behaviour, and it reflects nothing until its tier 3', () => {
+		// How much it absorbs is `maxHp` and where it stands is `placement`; the only numbers on the
+		// descriptor itself are what a chewing enemy gets back, and at tier 0 that is nothing.
+		expect(cardboardBox.behaviours).toEqual([
+			{ kind: 'barricade', reflectDamagePerTick: 0, reflectDamageType: 'physical' },
+		])
 	})
 })
 
@@ -272,15 +277,21 @@ describe('the two status towers', () => {
 		expect(tape.projectileSpeed).toBe(0)
 	})
 
-	it('carry the doc s status and defer its magnitude to the status table', () => {
-		expect(attackOf(iceCubeTray.behaviours).applies).toEqual([{ kind: 'slow', magnitude: null }])
-		expect(attackOf(stickyTape.behaviours).applies).toEqual([{ kind: 'rooted', magnitude: null }])
+	it('carry the doc s status and defer every one of its numbers to the status table', () => {
+		// All four overrides null: the bare form takes the def's magnitude, duration and stack count,
+		// and lands on every hit. The Ice Cube Tray's tier 3 is what first fills two of them in.
+		const deferred = { magnitude: null, durationTicks: null, stacks: null, everyNthHit: null }
+
+		expect(attackOf(iceCubeTray.behaviours).applies).toEqual([{ kind: 'slow', ...deferred }])
+		expect(attackOf(stickyTape.behaviours).applies).toEqual([{ kind: 'rooted', ...deferred }])
 	})
 
-	it('gives the tape the doc s three charges and no rearm', () => {
+	it('gives the tape the doc s three charges, no rearm, and one root at a time', () => {
 		const behaviour = stickyTape.behaviours.find(entry => entry.kind === 'charge')
 
-		expect(behaviour).toEqual({ kind: 'charge', charges: 3, rearmTicks: 0 })
+		// "Applies `Rooted` to one enemy at a time" is `maxOutstanding: 1` and not the charge count --
+		// the tape has three strips and holds one of them stuck at once. Its tier 3 is what raises it.
+		expect(behaviour).toEqual({ kind: 'charge', charges: 3, rearmTicks: 0, maxOutstanding: 1 })
 	})
 
 	it('makes cold a control type rather than a damage one, through the matrix', () => {

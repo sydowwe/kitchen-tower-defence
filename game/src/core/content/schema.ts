@@ -65,6 +65,19 @@ const MAX_STATUS_TICKS = 600
 const MAX_TILE_EFFECT_TICKS = 3600
 const MAX_WAVE_DELAY_TICKS = 7200
 
+/**
+ * The ceiling on the two small counts a status application carries, `stacks` and `everyNthHit`.
+ * Poison's cap is the largest in analytic-docs/CONTENT.md section 4 at 5, so 20 is far above
+ * anything authorable and still low enough that a pasted duration fails here.
+ */
+const MAX_APPLICATION_COUNT = 20
+
+/**
+ * The ceiling on `projectilesPerShot`. The Toaster's tier 3 is 2; a tower firing nine shots a
+ * trigger-pull would be a different mechanic and should have to raise this on purpose.
+ */
+const MAX_PROJECTILES_PER_SHOT = 8
+
 /** The board is 24 x 14 tiles (analytic-docs/CONTENT.md section 1), so nothing reaches further. */
 const MAX_TILES = 24
 
@@ -219,12 +232,22 @@ export function contentSchemas() {
 	/**
 	 * What a behaviour lands on what it hits. `null` is "whatever the status def says".
 	 *
-	 * **The `[0, 1]` bound is the whole value of validating this field.** An override is a *per-tick*
+	 * **The `[0, 1]` bound on the magnitude is the whole value of validating this field.** An override is a *per-tick*
 	 * magnitude: a speed fraction is never above 1, and 1 damage per tick is 60/sec. So the bound is
 	 * what rejects analytic-docs/CONTENT.md's per-second number pasted straight in -- the same job
 	 * `MAX_COOLDOWN_TICKS` does for a millisecond value.
 	 */
-	const statusApplications = z.array(z.object({ kind: statusKind, magnitude: z.number().min(0).max(1).nullable() }))
+	const statusApplications = z.array(
+		z.object({
+			kind: statusKind,
+			magnitude: z.number().min(0).max(1).nullable(),
+			/** Bounded like every other duration: `MAX_STATUS_TICKS` is what rejects milliseconds. */
+			durationTicks: tickCount(MAX_STATUS_TICKS).nullable(),
+			/** Small counts, both: a three-digit one is a typo rather than a tier. */
+			stacks: z.number().int().min(1).max(MAX_APPLICATION_COUNT).nullable(),
+			everyNthHit: z.number().int().min(1).max(MAX_APPLICATION_COUNT).nullable(),
+		}),
+	)
 
 	const behaviour = z.discriminatedUnion('kind', [
 		z.object({
@@ -236,6 +259,7 @@ export function contentSchemas() {
 			targets: targetClass,
 			projectileSpeed: z.number().min(0).max(MAX_TILES),
 			splashRadiusTiles: tiles(),
+			projectilesPerShot: z.number().int().min(1).max(MAX_PROJECTILES_PER_SHOT),
 			applies: statusApplications,
 		}),
 		z.object({
@@ -272,8 +296,19 @@ export function contentSchemas() {
 			kind: z.literal('charge'),
 			charges: z.number().int().min(1).max(99),
 			rearmTicks: tickCount(MAX_REARM_TICKS),
+			/** How many `untilSourceSpent` statuses this tower may hold at once. */
+			maxOutstanding: z.number().int().min(1).max(99),
 		}),
-		z.object({ kind: z.literal('barricade') }),
+		z.object({
+			kind: z.literal('barricade'),
+			/**
+			 * Per **tick**, and bounded exactly like the `meleeDamagePerTick` it is paid against: the
+			 * Cardboard Box's tier-3 8/sec is 0.133 here, so the bound is what rejects a bare `8`
+			 * pasted in from analytic-docs/CONTENT.md section 1.
+			 */
+			reflectDamagePerTick: z.number().min(0).max(0.5),
+			reflectDamageType: damageType,
+		}),
 		z.object({
 			kind: z.literal('bait'),
 			radiusTiles: tiles(),
@@ -322,6 +357,14 @@ export function contentSchemas() {
 	const upgrade = z.object({
 		multiply: z.array(statDelta),
 		add: z.array(statDelta),
+		replaceApplies: z.array(
+			/**
+			 * The one delta that is not a number: a behaviour kind's whole `applies` list, rewritten.
+			 * The Ice Cube Tray's tier 3 changes `everyNthHit` *inside* an entry of that array, which
+			 * a `statDelta` cannot name -- see `ApplicationDelta` in core/content/upgrades.ts.
+			 */
+			z.object({ kind: z.enum(DELTA_TARGETS), applications: statusApplications }),
+		),
 		addBehaviours: z.array(behaviour),
 		nameKey: i18nKey(),
 		/** Null for tiers 1 and 2: the before -> after diff is the description. */

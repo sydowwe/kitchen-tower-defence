@@ -140,7 +140,12 @@ describe('towerDefSchema', () => {
 		// `MAX_COOLDOWN_TICKS` catches a millisecond duration.
 		const broken = {
 			...validTower(),
-			behaviours: [{ ...validTower().behaviours[0], applies: [{ kind: 'poison', magnitude: 2 }] }],
+			behaviours: [
+				{
+					...validTower().behaviours[0],
+					applies: [{ kind: 'poison', magnitude: 2, durationTicks: null, stacks: null, everyNthHit: null }],
+				},
+			],
 		}
 
 		const [problem] = problemsFrom(() => validateContent({ towers: [broken] }))
@@ -149,15 +154,15 @@ describe('towerDefSchema', () => {
 		expect(problem).toContain('behaviours.0.applies.0.magnitude')
 	})
 
-	it('accepts an override inside the bound, and a null that defers to the status def', () => {
+	it('accepts every override inside its bound, and a null that defers to the status def', () => {
 		const def = {
 			...validTower(),
 			behaviours: [
 				{
 					...validTower().behaviours[0],
 					applies: [
-						{ kind: 'poison', magnitude: 2 / 60 },
-						{ kind: 'slow', magnitude: null },
+						{ kind: 'poison', magnitude: 2 / 60, durationTicks: null, stacks: 2, everyNthHit: null },
+						{ kind: 'slow', magnitude: null, durationTicks: 90, stacks: null, everyNthHit: 4 },
 					],
 				},
 			],

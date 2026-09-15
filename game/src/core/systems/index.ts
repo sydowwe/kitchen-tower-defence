@@ -3,6 +3,7 @@
  * `core/sim.ts`, which is the only file allowed to know it.
  */
 
+export { AURA_INTERVAL_TICKS, auraSystem } from '@/core/systems/aura.ts'
 export { barricadeAhead, barricadeHolding, barricadesSystem, isBarricade } from '@/core/systems/barricades.ts'
 export { combatSystem } from '@/core/systems/combat.ts'
 export { commandsSystem } from '@/core/systems/commands.ts'

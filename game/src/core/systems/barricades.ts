@@ -17,11 +17,14 @@
  * it stands, and a rooted or slowed one still chews at its full rate.
  */
 
+import { isBarricadeBehaviour } from '@/core/content/behaviours.ts'
 import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { speedMultiplier } from '@/core/content/statuses.ts'
 import { nearestOnPath } from '@/core/path.ts'
+import { applyDamage } from '@/core/systems/combat.ts'
 import { damageTower, destroyTower, towerById } from '@/core/systems/placement.ts'
 import { isFlyer } from '@/core/systems/targeting.ts'
+import type { BarricadeBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { Enemy, EntityId, Tower, World } from '@/core/types.ts'
 
@@ -42,9 +45,14 @@ interface BarricadePosition {
 	distance: number
 }
 
+/** The wall descriptor off a def, or null. Null for every tower that is not a Cardboard Box. */
+function barricadeBehaviourOf(def: TowerDef): BarricadeBehaviour | null {
+	return def.behaviours.find(isBarricadeBehaviour) ?? null
+}
+
 /** Whether this def is a wall. A def-level question, unlike `isCharge`, because both readers have one. */
 export function isBarricade(def: TowerDef): boolean {
-	return def.behaviours.some(behaviour => behaviour.kind === 'barricade')
+	return barricadeBehaviourOf(def) !== null
 }
 
 /**
@@ -173,6 +181,18 @@ export function barricadesSystem(world: World): void {
 		}
 
 		damageTower(world, tower, getEnemyDef(enemy.defId).meleeDamagePerTick)
+
+		// The Cardboard Box's tier 3, and the enemy doing the chewing is already in hand.
+		//
+		// **`applyDamage` and not `dealDamage`**, for the reason burn takes the same half: 8/sec is
+		// 0.133 a tick, and `dealDamage` publishes an `enemyDamaged` that `render/layers/effects.ts`
+		// turns into a floating number -- sixty `0`s a second per chewing enemy, which blows that
+		// layer's 32-number cap and takes the real hit numbers down with it.
+		const reflect = barricadeBehaviourOf(effectiveDefOf(tower))
+		if (reflect !== null && reflect.reflectDamagePerTick > 0) {
+			applyDamage(world, enemy, reflect.reflectDamagePerTick, reflect.reflectDamageType)
+		}
+
 		if (tower.hp <= 0) {
 			destroyTower(world, tower.id)
 		}

@@ -93,7 +93,7 @@ describe('tickStatuses', () => {
 
 	it('never expires a root, which lasts until its source is spent', () => {
 		const enemy = holder()
-		applyStatus(enemy, createStatus('rooted', 7))
+		applyStatus(enemy, createStatus('rooted', { sourceId: 7 }))
 
 		advance(enemy, 600)
 

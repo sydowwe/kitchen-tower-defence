@@ -11,7 +11,7 @@ Towers that don't fire: persistent radius effects, damaging tiles, and a tower w
 
 ## Build
 
-1. **`aura` behaviour.** A persistent radius that applies damage-per-second and/or a status to everything inside, with no targeting and no projectile. Ticks every N ticks (not every tick — 6 is plenty and it's a meaningful saving with several auras up), and routes damage through `resolveDamage` like everything else.
+1. **`aura` behaviour — the interpreter already exists**, from step 12B. `core/systems/aura.ts` is a slot in `SYSTEM_ORDER` immediately after `combat`; it pulses every `AURA_INTERVAL_TICKS` (6, on the world clock) and deals `damagePerTick * AURA_INTERVAL_TICKS` through `resolveDamage`, plus whatever the descriptor's `applies` carries. The Nightlight's tier 3 is the one aura in the game today and `tests/upgrades.spec.ts` covers the rate and the matrix. So this item is just the Candle below — nothing in this step needs a line in that file.
 
 2. **Candle** (130, 4/s fire aura, radius 2, both targets, noise 0). Also a **light source** — reuse step 11's light registry, so a Candle pulls moths into a burning radius. That interaction is the tower's best moment; make sure the numbers reward discovering it. T3: burn stacks to 3.
 
@@ -35,8 +35,8 @@ Towers that don't fire: persistent radius effects, damaging tiles, and a tower w
 
 ## Tests
 
-- An aura ticking every 6 ticks deals exactly its per-second rate over 60 ticks.
-- Aura damage routes through the matrix — a Candle against a `fungal` enemy deals 1.5×.
+- ~~An aura ticking every 6 ticks deals exactly its per-second rate over 60 ticks.~~ *(step 12B, `tests/upgrades.spec.ts`)*
+- ~~Aura damage routes through the matrix.~~ *(step 12B, the Nightlight's fire against `air`)*
 - The Burner's `heat` state persists while the tower lives and clears within one tick of it being sold.
 - Fly Paper consumes exactly one charge per rooted flyer and self-removes at zero.
 - A baited enemy's `distance` is frozen for exactly the bait duration, then resumes from that same distance with no jump.

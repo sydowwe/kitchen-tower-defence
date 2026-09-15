@@ -35,10 +35,17 @@ to get as close to as they can.
 | `core/sim.ts:56` | `SYSTEMS`, and `tests/sim.spec.ts` asserts `SYSTEM_ORDER` against a literal list |
 | `render/layers/effects.ts` | the floating damage numbers, with a documented **32-number cap** keyed by rounded amount |
 
-**Seven spec files hand-build a `Tower` literal** — `barricades`, `charges`, `combat`, `crumbs`,
-`hitbox`, `light`, `status`. Decision 5 adds a field to `Tower`, so all seven fail `type-check` until
-they get a line each. `tests/behaviours.spec.ts:128` asserts `Object.keys(attack(...))` is exactly
-nine names and will need the tenth.
+**Eight spec files hand-build a `Tower` literal** — `barricades`, `charges`, `combat`, `crumbs`,
+`hitbox`, `light`, `status`, and `upgrades`, which 12A added. Decision 5 adds a field to `Tower`, so
+all eight fail `type-check` until they get a line each. `tests/behaviours.spec.ts:128` asserts
+`Object.keys(attack(...))` is exactly nine names and will need the tenth.
+
+> *12B, corrected against the repo.* The original line said seven and did not name `upgrades`.
+
+Four more assertions break on descriptors that grow a field, none of them listed above:
+`content.spec.ts` pins the Mousetrap's and the tape's `charge` and the box's `barricade` with
+`toEqual`, and both `content.spec.ts` and `status.spec.ts` pin a normalised `applies` entry as
+`{ kind, magnitude }`. Each is one line.
 
 `steps/17-auras-and-zones.md` item 1 is "**`aura` behaviour**" — the interpreter. Decision 6 builds
 it here. **Correct that step file in this commit**: item 1 becomes "the interpreter exists from step
@@ -102,6 +109,10 @@ edit this file, don't leave it lying.
 | `StatusApplication` | `everyNthHit: number \| null` | null | Ice Cube Tray T3 |
 | `StatusApplication` | `durationTicks: number \| null` | null | the same |
 | `StatusApplication` | `stacks: number \| null` | null | Spray Bottle T3 |
+| `TowerUpgrade` | `replaceApplies: ApplicationDelta[]` | `[]` | Ice Cube Tray T3, Spray Bottle T3 |
+
+> *12B.* The last row is a seventh field the step did not plan for, and it is what makes the three
+> `StatusApplication` fields reachable from a tier at all — see the Ice Cube Tray below.
 
 Each gets its schema entry in `contentSchemas()` with a bound tight enough to reject the
 per-*second* number pasted in from the doc — that is the whole job of every bound in that file.
@@ -115,10 +126,13 @@ says why, and a `stacks` of 0 is a status that applies and does nothing.
 ### 2. The interpreters
 
 - **`combat.ts`** — `tower.shotsFired++` beside the cooldown assignment at line 153, so it counts
-  cone shots too. **Increment before the applies are computed**: incrementing after makes the first
-  freeze land on shot 3 and the second on shot 7, which passes a casual look and fails the test
-  below. Then filter `firing.applies` by `everyNthHit` (`null`, or `shotsFired % n === 0`) on all
-  three fire paths, and loop `spawnProjectile` `projectilesPerShot` times over `pickTargets`.
+  cone shots too. **Increment before the applies are computed**: incrementing after leaves the first
+  shot at a count of 0, `0 % 4 === 0`, and the freeze lands on shots 1 and 5 rather than 4 and 8.
+  Then filter `firing.applies` by `everyNthHit` (`null`, or `shotsFired % n === 0`) on all three fire
+  paths, and loop `spawnProjectile` `projectilesPerShot` times over `pickTargets`.
+
+  > *12B, corrected.* The original said "the first freeze land on shot 3 and the second on shot 7",
+  > which is not what incrementing after does. The instruction it justifies is right.
 
   Gotcha: `projectile.applies` is assigned **by reference** off the behaviour (`projectiles.ts:87`,
   "nothing may write through it"). A filtered array is a new array and safe, but allocate it only
@@ -129,6 +143,15 @@ says why, and a `stacks` of 0 is a status that applies and does nothing.
   `chargeAllowsFiring` compares it against `maxOutstanding`. `retireSpentTowers` keeps asking `> 0`:
   a tape with three roots out and no charges left must not leave the board until the last one ends.
 
+  > *12B, an item this step did not have.* `maxOutstanding: 3` alone does **not** root three enemies.
+  > The tape may now fire while one root is out, `CLOSEST` hands it the same enemy again, and
+  > `rooted` merges under the `refresh` rule — so the count never leaves 1 and the tower burns its
+  > whole magazine re-sticking one ant. The fix is a rule about the vocabulary and not about the
+  > tape: `holdsSourceStatusFrom(enemy, towerId)` beside the count above, and `pickTargets` excludes
+  > an enemy this tower is already holding. It reads false for every tower that applies nothing
+  > `untilSourceSpent`, which is all of them but this one. `maxOutstanding: 1` is what hid it until
+  > now.
+
 - **`barricades.ts`** — after `damageTower`, if `reflectDamagePerTick > 0`, `applyDamage` onto the
   chewing enemy through the matrix (decision 3). It is the enemy in hand in that loop, so this is
   four lines and no second query.
@@ -137,6 +160,11 @@ says why, and a `stacks` of 0 is a status that applies and does nothing.
   positionals already and the file says they are positional on purpose; a fourth and fifth is
   getting long, so converting the tail to an options object is a fair call if you make it in one
   move and update both call sites.
+
+  > *12B.* Taken. `createStatus(kind, { sourceId, damageType, magnitude, durationTicks, stacks })`,
+  > because the positional form would have been `createStatus('freeze', 7, 'cold', null, 90)` — two
+  > nulls holding the place of the fields it does not override. Two call sites: `applyStatuses`, and
+  > one line in `tests/statuses.spec.ts`.
 
 - **`targeting.ts`** — `pickTargets(world, tower, reach, count)` per decisions 2 and 7. Keep
   `pickTarget` as `pickTargets(...)[0] ?? null` so there is one ranking, not two.
@@ -155,11 +183,22 @@ says why, and a `stacks` of 0 is a status that applies and does nothing.
 Author them in `core/content/towers.ts` through 12A's `tier()`, and write the English into
 `en.ts` — placeholder-quality, because **12C rewrites all forty strings against the inspector**.
 
+> *12B.* `en.ts` already carries a tier-3 name and description for all ten towers: 12A had to write
+> them or `contentKeys.ts` would have failed `type-check`, and all six below already described the
+> right mechanic. Only the Spray Bottle's needed touching, because "it goes on thick enough to keep
+> working" does not say *two coats a pull*. Still 12C's to rewrite.
+
 - **Nightlight T3** — `addBehaviours: [aura({ radiusTiles: 4, damagePerTick: 6 / 60, damageType:
   'fire', targets: 'both' })]`. `fire` rather than `physical`: the matrix gives fire ×1.2 against
   `air` and physical ×0.5, and a lamp whose job is moths should not be the worst damage type against
   them. Radius 4 matches its own `reveal` — it damages what it attracts, so the two numbers are the
   same number and a comment should say so.
+
+  > *12B.* One shared `NIGHTLIGHT_RADIUS_TILES` rather than two 4s with a comment between them.
+  > Worth knowing: T1 and T2 `multiply` the **reveal** radius by 1.4 each, so from tier 3 the lamp
+  > reveals within 7.84 and burns within 4. The aura arriving at the base radius is the conservative
+  > end of that and 12C is where it gets judged; making the aura track the folded reveal would need
+  > a tier to read a number the same tier is folding, which the fold deliberately cannot do.
 - **Sticky Tape T3** — `add: { maxOutstanding: 2 }` on `charge` (1 → 3). It already has 3 charges, so
   tier 3 is the tower holding all three roots at once instead of one at a time.
 - **Cardboard Box T3** — `add: { reflectDamagePerTick: 8 / 60 }` on `barricade`.
@@ -173,20 +212,43 @@ Author them in `core/content/towers.ts` through 12A's `tier()`, and write the En
   This one needs `replaceBehaviours`, or it needs the whole `applies` array authored as an `add` of
   a second entry. 12A's decision 2 ruled a replace out; take the second route if it works, and if it
   does not, add `replaceBehaviours` here and **write the reason back into 12A's decision 2**.
+
+  > *12B, corrected.* **Neither route works**, and the answer is a third. An `add` cannot author an
+  > `applies` entry at all: `StatDelta.fields` is a `Record<string, number>` written onto the
+  > behaviour object, and `everyNthHit` lives inside an element of an array hanging off it. And
+  > `addBehaviours` would append a second `attack` that `behaviours.find(isFiring)` never reaches.
+  > `replaceBehaviours` would work and costs too much — T1 and T2 fold `cooldownTicks` onto this
+  > tower's `attack`, and replacing it discards both. So `TowerUpgrade` gained **`replaceApplies`**:
+  > one behaviour kind's `applies` array swapped for a new one, every folded number on the behaviour
+  > untouched, and the authored order preserved so freeze-before-slow stays expressible. The reason
+  > is written back into 12A's decision 2, which still stands as written.
 - **Toaster T3** — `add: { projectilesPerShot: 1 }` on `attack`.
-- **Spray Bottle T3** — `add: { stacks: 1 }` on the poison application (1 → 2 per hit). "Twice as
-  fast" is two stacks a hit rather than a halved cooldown: the poison cap is 5 and the tower reaches
-  it in three sprays instead of five, which is what the doc's sentence is describing.
+- **Spray Bottle T3** — two poison stacks a hit rather than one. "Twice as fast" is that and not a
+  halved cooldown: the poison cap is 5 and the tower reaches it in three sprays instead of five,
+  which is what the doc's sentence is describing.
+
+  > *12B, corrected.* Authored as `replaceApplies`, not `add: { stacks: 1 }`, for the reason the Ice
+  > Cube Tray gives above — `stacks` is on the application, not on the `coneAttack`, so no
+  > `StatDelta` can reach it. The magnitude is restated in the replacement (`2 / 60`) because the
+  > swap is wholesale.
 
 ## Tests
 
 - An aura ticking every 6 ticks deals exactly its per-second rate over 60 ticks. This is the
   assertion that catches the 6× nerf above.
 - Aura damage routes through the matrix — the Nightlight's fire against an `air` enemy is ×1.2.
-- Ice Cube Tray T3 freezes on exactly the 4th hit and then the 8th, and the enemy carries **no
-  `slow`** on those two hits — that is the suppression rule doing the work, asserted rather than
-  assumed.
-- The freeze it lands runs 90 ticks, not the status def's 240.
+- Ice Cube Tray T3 freezes on exactly the 4th hit and then the 8th, and the freeze it lands runs
+  90 ticks, not the status def's 240.
+- On the hit the freeze lands, **no `slow` lands with it** — the suppression rule doing the work,
+  asserted rather than assumed.
+
+  > *12B, corrected.* The original made these one assertion and wanted the enemy to carry no `slow`
+  > *at all* on the 4th and 8th hits. It does carry one: `suppressedBy` turns away a **new**
+  > application, and `statuses.ts` says in as many words that a slow already running keeps ticking
+  > down. Hit 3's slow lasts 120 ticks and hit 4 arrives 39 later, so it is still there. The claim
+  > that is both true and the one worth making is about the application, so it is asserted directly
+  > — `applyStatuses(clean, applicationsForShot(applies, 4))` leaves `['freeze']` and nothing else,
+  > against `['slow']` on shot 3 — and the ordering of the authored list is asserted beside it.
 - Spray Bottle T3 puts 2 poison stacks on per hit and still caps at 5.
 - A tier-3 Sticky Tape roots three enemies at once, stays on the board while any of them is rooted,
   and leaves on the tick the last one ends.
@@ -200,11 +262,12 @@ Author them in `core/content/towers.ts` through 12A's `tier()`, and write the En
 
 ## Acceptance
 
-- [ ] No system file contains a branch on a tower id or a tier number. Every edit above reads a
-      field of the vocabulary.
-- [ ] Every tower in `TOWERS` has three real tiers; none is the empty placeholder 12A left.
-- [ ] `steps/17-auras-and-zones.md` item 1 says the interpreter already exists.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] No system file contains a branch on a tower id or a tier number. Every edit above reads a
+      field of the vocabulary. *(`PENDING` is gone from `towers.ts`, and the only comparison against
+      a tier number anywhere is still 12A's `tower.tier >= MAX_TIER` in `commands.ts`.)*
+- [x] Every tower in `TOWERS` has three real tiers; none is the empty placeholder 12A left.
+- [x] `steps/17-auras-and-zones.md` item 1 says the interpreter already exists.
+- [x] `npm run test` (391), `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 12C
 

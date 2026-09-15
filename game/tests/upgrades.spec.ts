@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { attack } from '@/core/content/behaviours.ts'
 import { effectiveDef, effectiveDefOf, getTowerDef } from '@/core/content/index.ts'
 import { validateContent } from '@/core/content/schema.ts'
+import { applyStatuses } from '@/core/content/statuses.ts'
+import { applicationsForShot } from '@/core/systems/combat.ts'
+import { chargeStateOf } from '@/core/systems/charges.ts'
 import { cardboardBox, saltShaker, TOWERS } from '@/core/content/towers.ts'
 import { foldUpgrades, MAX_TIER, tier, upgradeCost } from '@/core/content/upgrades.ts'
 import { createCommandQueue } from '@/core/commands.ts'
@@ -10,9 +13,10 @@ import { commandsSystem, upgradeCostFor } from '@/core/systems/commands.ts'
 import { damageTower, placeTower, refundFor, sellTower } from '@/core/systems/placement.ts'
 import { TileFlags } from '@/core/map.ts'
 import type { AttackBehaviour, ChargeBehaviour } from '@/core/content/behaviours.ts'
+import type { StatusHolder } from '@/core/content/statuses.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 import type { TowerUpgrade } from '@/core/content/upgrades.ts'
-import type { Enemy, EnemyTag, GameEvent, Tower, Vec2, World } from '@/core/types.ts'
+import type { Enemy, EnemyTag, EntityId, GameEvent, Tower, Vec2, World } from '@/core/types.ts'
 import { createTestWorld } from './fixtures/world.ts'
 
 /**
@@ -54,8 +58,11 @@ const PLAIN: EnemyTag[] = ['ground', 'bug']
 /**
  * An enemy standing still at an exact point, on a one-tile lane of its own. The fixture's lane is a
  * single row, and the splash assertion needs two enemies half a tile apart.
+ *
+ * `tags` is overridable because two of the tier-3 assertions below are about the matrix: fire is
+ * x1.2 against `air` and physical is x0.4 against `armored`, and `PLAIN` has no row at all.
  */
-function addEnemyAt(world: World, at: Vec2): Enemy {
+function addEnemyAt(world: World, at: Vec2, tags: EnemyTag[] = PLAIN): Enemy {
 	const pathId = `lane${world.nextEntityId}`
 	world.map.paths.push({
 		id: pathId,
@@ -75,7 +82,34 @@ function addEnemyAt(world: World, at: Vec2): Enemy {
 		hp: 10_000,
 		maxHp: 10_000,
 		statuses: [],
-		tags: [...PLAIN],
+		tags: [...tags],
+		speed: 0,
+		spawnedInWaveIndex: 0,
+		stolenItems: [],
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+	}
+
+	world.index.enemies[enemy.id] = world.enemies.length
+	world.enemies.push(enemy)
+	return enemy
+}
+
+/**
+ * An enemy standing still on the fixture's own lane `a`, where a tile's arc distance is its `x`.
+ * The reflect assertion needs an enemy that is *chewing*, which means being on the same lane as the
+ * box and inside `HOLD_GAP_TILES` of it -- a lane of its own would never meet one.
+ */
+function addLaneEnemy(world: World, distance: number, tags: EnemyTag[] = PLAIN): Enemy {
+	const enemy: Enemy = {
+		id: world.nextEntityId++,
+		defId: 'ant',
+		pathId: PATH_ID,
+		distance,
+		lateralOffsetTiles: 0,
+		hp: 10_000,
+		maxHp: 10_000,
+		statuses: [],
+		tags: [...tags],
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		stolenItems: [],
@@ -106,6 +140,7 @@ function addTower(world: World, defId: string, tile: Vec2, towerTier = 0): Tower
 		targetingMode: def.defaultTargetingMode,
 		targetEnemyId: null,
 		cooldownTicks: 0,
+		shotsFired: 0,
 		state: charge === undefined ? null : { kind: 'charge', charges: charge.charges, rearmTicksRemaining: 0 },
 		totalInvested: def.cost,
 	}
@@ -505,6 +540,187 @@ describe('the tier-3s that are pure deltas', () => {
 		expect(effectiveDef('cookieJar', MAX_TIER).behaviours).toContainEqual(
 			expect.objectContaining({ kind: 'income', enemyCrumbsOnDestroy: 0 }),
 		)
+	})
+})
+
+describe('the six tier-3s that needed a field', () => {
+	it('burns a Nightlight s aura for exactly its per-second rate over a second', () => {
+		const world = fightingWorld()
+		const enemy = addEnemyAt(world, { x: 0, y: 0 })
+		addTower(world, 'nightlight', { x: 0, y: 1 }, MAX_TIER)
+
+		run(world, 60)
+
+		// 6/sec, pulsed 10 times a second at 6 ticks' worth each. Dealing the per-*tick* number once
+		// every sixth tick instead would be 1 damage here -- a silent 6x nerf nothing else reports.
+		expect(10_000 - enemy.hp).toBeCloseTo(6, 6)
+	})
+
+	it('routes that aura through the tag matrix', () => {
+		const world = fightingWorld()
+		const moth = addEnemyAt(world, { x: 0, y: 0 }, ['air', 'bug'])
+		addTower(world, 'nightlight', { x: 0, y: 1 }, MAX_TIER)
+
+		run(world, 60)
+
+		// `fire` and not `physical`, which is x0.5 against `air` where fire is x1.2: 6 x 1.2 = 7.2.
+		// A lamp whose whole job is moths should not carry the worst damage type against them.
+		expect(10_000 - moth.hp).toBeCloseTo(7.2, 6)
+	})
+
+	it('lands the Ice Cube Tray s freeze on the 4th hit and the 8th, for the authored 90 ticks', () => {
+		const world = fightingWorld()
+		const enemy = addEnemyAt(world, { x: 0, y: 0 })
+		addTower(world, 'iceCubeTray', { x: 0, y: 1 }, MAX_TIER)
+
+		const queue = createCommandQueue()
+		const frozenOnHit: number[] = []
+		const freezeTicksOnLanding: number[] = []
+		let hits = 0
+		let wasFrozen = false
+
+		for (let index = 0; index < 300; index++) {
+			tick(world, queue)
+			hits += world.events.filter(event => event.kind === 'enemyDamaged' && event.enemyId === enemy.id).length
+
+			const freeze = enemy.statuses.find(status => status.kind === 'freeze')
+			if (freeze !== undefined && !wasFrozen) {
+				frozenOnHit.push(hits)
+				freezeTicksOnLanding.push(freeze.remainingTicks)
+			}
+			wasFrozen = freeze !== undefined
+		}
+
+		// Not the 1st and the 5th, which is what incrementing `shotsFired` *after* the filter gives.
+		expect(frozenOnHit).toEqual([4, 8])
+		// The doc's 1.5 seconds, not `STATUS_DEFS.freeze.durationTicks` -- 4 seconds on every fourth
+		// shot of a tower firing every 39 ticks is a permanent freeze.
+		expect(freezeTicksOnLanding).toEqual([90, 90])
+	})
+
+	it('turns the slow away on the hit the freeze lands, with no branch anywhere', () => {
+		const applies = attackOf(effectiveDef('iceCubeTray', MAX_TIER)).applies
+
+		// Freeze **first** is the whole mechanism: `STATUS_DEFS.slow.suppressedBy` is `['freeze']`, so
+		// `applyStatus` refuses the slow by itself. Reversed, the slow lands and the freeze overwrites
+		// it -- same damage, different story in the code.
+		expect(applies.map(application => application.kind)).toEqual(['freeze', 'slow'])
+
+		const onTheFourth: StatusHolder = { statuses: [] }
+		applyStatuses(onTheFourth, applicationsForShot(applies, 4), 1, 'cold')
+		expect(onTheFourth.statuses.map(status => status.kind)).toEqual(['freeze'])
+
+		const onTheThird: StatusHolder = { statuses: [] }
+		applyStatuses(onTheThird, applicationsForShot(applies, 3), 1, 'cold')
+		expect(onTheThird.statuses.map(status => status.kind)).toEqual(['slow'])
+	})
+
+	it('puts two poison stacks on per Spray Bottle hit, and still caps at five', () => {
+		const world = fightingWorld()
+		const enemy = addEnemyAt(world, { x: 0, y: 0 })
+		addTower(world, 'sprayBottle', { x: 0, y: 1 }, MAX_TIER)
+
+		function poisonStacks(): number {
+			return enemy.statuses.find(status => status.kind === 'poison')?.stacks ?? 0
+		}
+
+		// A cone lands the tick it fires, and 1.2/sec is 50 ticks between shots.
+		run(world, 1)
+		expect(poisonStacks()).toBe(2)
+		run(world, 50)
+		expect(poisonStacks()).toBe(4)
+		// Poison's cap is 5, so two a hit reaches it on the third spray rather than the fifth -- which
+		// is what "the DoT goes on twice as fast" means without touching the cooldown.
+		run(world, 50)
+		expect(poisonStacks()).toBe(5)
+	})
+
+	it('roots three enemies with one Sticky Tape, and leaves on the tick the last one ends', () => {
+		const world = fightingWorld()
+		const enemies = [0, 0.5, 1, 1.5].map(x => addEnemyAt(world, { x, y: 0 }))
+		const tape = addTower(world, 'stickyTape', { x: 0, y: 1 }, MAX_TIER)
+
+		function rooted(): Enemy[] {
+			return enemies.filter(enemy => enemy.statuses.some(status => status.kind === 'rooted'))
+		}
+
+		// 0.5/sec is 120 ticks a strip, so three are laid by tick 240 and the fourth never is: the
+		// tape is holding `maxOutstanding` of them and stops firing with two charges still in hand.
+		run(world, 400)
+		expect(rooted()).toHaveLength(3)
+		expect(chargeStateOf(tape)?.charges).toBe(2)
+		expect(world.towers).toContain(tape)
+
+		// Spent, with all three still stuck. `retireSpentTowers` asks `> 0` and not `maxOutstanding`
+		// for exactly this: the tape may not leave the board while it is still holding anything.
+		const state = chargeStateOf(tape)
+		expect(state).not.toBeNull()
+		if (state === null) {
+			return
+		}
+		state.charges = 0
+
+		run(world, 1)
+		expect(world.towers).toContain(tape)
+
+		for (const enemy of rooted().slice(0, 2)) {
+			enemy.statuses.length = 0
+		}
+		run(world, 1)
+		expect(world.towers).toContain(tape)
+
+		rooted()[0]?.statuses.splice(0)
+		run(world, 1)
+		expect(world.towers).not.toContain(tape)
+	})
+
+	it('reflects 8 a second off a tier-3 Cardboard Box, through the matrix and with no damage number', () => {
+		function chewFor(seconds: number, tags?: EnemyTag[]): { lost: number; numbers: number } {
+			const world = fightingWorld()
+			// Inside `HOLD_GAP_TILES` of the box on tile 10, so it is chewing from the first tick.
+			const enemy = addLaneEnemy(world, 9.9, tags)
+			addTower(world, 'cardboardBox', { x: 10, y: 0 }, MAX_TIER)
+
+			const numbers = run(world, 60 * seconds).filter(
+				entry => entry.event.kind === 'enemyDamaged' && entry.event.enemyId === enemy.id,
+			).length
+
+			return { lost: 10_000 - enemy.hp, numbers }
+		}
+
+		const plain = chewFor(1)
+		expect(plain.lost).toBeCloseTo(8, 3)
+		// **No `enemyDamaged`.** 0.133 a tick rounds to a floating `0`, and sixty a second per chewing
+		// enemy would blow `render/layers/effects.ts`'s 32-number cap and take the real hits with it.
+		expect(plain.numbers).toBe(0)
+
+		// x0.4 for physical against `armored`: the reflect is damage like any other and the matrix is
+		// what makes a Roach a worse thing to leave chewing than an Ant.
+		expect(chewFor(1, ['ground', 'armored']).lost).toBeCloseTo(3.2, 3)
+	})
+
+	it('fires a tier-3 Toaster at two flyers, and twice at one when that is all there is', () => {
+		function shotsAt(count: number): (EntityId | null)[] {
+			const world = fightingWorld()
+			for (let index = 0; index < count; index++) {
+				addEnemyAt(world, { x: index, y: 0 }, ['air', 'bug'])
+			}
+			addTower(world, 'toaster', { x: 0, y: 1 }, MAX_TIER)
+
+			run(world, 1)
+			return world.projectiles.map(projectile => projectile.targetEnemyId)
+		}
+
+		// Two projectiles means two *targets*: 35 fire is 42 against `air` and a Fly has 14 HP, so a
+		// second grain at the same one is an upgrade the player cannot tell is working.
+		const two = shotsAt(2)
+		expect(two).toHaveLength(2)
+		expect(new Set(two).size).toBe(2)
+
+		// And with one in range the last target repeats, so the upgrade never fires *less*.
+		const one = shotsAt(1)
+		expect(one).toHaveLength(2)
+		expect(new Set(one).size).toBe(1)
 	})
 })
 
