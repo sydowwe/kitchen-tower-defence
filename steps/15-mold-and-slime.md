@@ -1,52 +1,93 @@
 # Step 15 — Mold and slime — enemies that rewrite the board
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is three sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index — it exists to say what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/CONTENT.md` §2–3 (note the `fungal` and `slime` matrix rows), step 14's tile API.
 **Prereq:** step 14.
 
 ## Goal
 
-The first two enemies that don't play by the "walk to the fridge" rule. Mold doesn't walk at all; the Slug makes everything behind it faster. Both are pure consumers of step 14's tile system — if either needs new grid code, step 14 was under-built.
+The first two enemies that don't play by the "walk to the fridge" rule, and the two towers that
+answer them. Mold doesn't walk at all and wins by eating your build space; the Slug is harmless and
+paves a 1.6× road for the wave behind it. Both are pure consumers of step 14's tile system — if
+either needs new grid code, step 14 was under-built and that is where the fix goes.
 
-## Build
+## Parts
 
-1. **Mold** (night 11, 40 HP, `ground, spreads, fungal`).
-   - Spawns on a track tile and **never moves**. It cannot reach the fridge and cannot steal.
-   - Every `spreadIntervalTicks` (base 6s, ×1.5 on the "damp night" modifier, ×0.6 with the Pantry Shelf Liner installation), it writes `mold` to one random adjacent tile that doesn't have it, preferring track tiles.
-   - Each molded tile is **permanent for the night** and blocks tower placement. Mold wins by eating your board space.
-   - Killing the mold entity stops the spread but does **not** clean existing tiles — only Vinegar does, and only Bleach (post-v1) removes it permanently.
-   - Check the matrix: `fungal` takes **0.2× physical** and **2.5× chemical**. A player who has only built salt shakers should find mold almost immovable, and that lesson should arrive the same night Vinegar unlocks.
+Each part names its own `Read first:` sections, so a session only loads the docs it needs.
 
-2. **Vinegar Spray** (145, 4 impact + 4/s poison, 1.0/sec, range 3, chemical, both). Additionally **cleans one `mold` tile per shot** within range, prioritising the tile nearest the fridge. Make the cleaning visible — a tile going from fuzzy green back to clean counter is the tower's whole appeal.
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](15-mold-and-slime/A-the-two-enemies.md) | The two enemies, and what they write on the board | `EnemyDef.tileWriter`, `core/systems/spread.ts`, the Mold and Slug defs, `WaveEntry.startDistanceTiles`, the `molded` placement rejection |
+| [B](15-mold-and-slime/B-the-two-answers.md) | The two towers that scrub it off | the `cleanse` behaviour, `core/systems/cleanse.ts`, Vinegar Spray and Baking Soda with their tiers, the card rows |
+| [C](15-mold-and-slime/C-on-screen-and-the-nights.md) | Mold and slime on screen, and nights 11, 12, 15 | the mold and slime treatments in `render/layers/tileEffects.ts`, the two glyphs, `core/content/nights.ts` |
 
-3. **Slug** (night 15, 45 HP, speed 0.4, `ground, slime, soft`).
-   - Writes `slime` to every tile it crosses, intensity 1.0, expiring after 8s.
-   - Slimed tiles multiply enemy speed by **1.6×**. The Slug is slow and tanky and its purpose is to be a road for the wave behind it — the danger is never the slug.
-   - `soft` takes 2.0× chemical and 0.5× cold — freezing a slug is a mistake, and it should be a *legible* mistake.
+Strictly in order. B's end-to-end assertions need A's enemies to shoot at and A's tiles to scrub;
+C can't judge a spread interval or a trail fade until both exist.
 
-4. **Baking Soda** (80, 6 damage, 0.6/sec, range 2, chemical, ground, AoE). Additionally **clears `slime`** from every tile in its radius on each shot. Cheap, unglamorous, and the correct answer to night 15.
+**A and B both carry tests, and C carries none.** A asserts everything about writing a tile —
+the spread, its determinism, the trail, the expiry, the placement refusal. B asserts everything about
+taking one off again, plus the damage-matrix pair: `fungal` at 0.2× physical and 2.5× chemical is one
+assertion about a *product*, and it needs a real chemical tower to be end-to-end at all, so both
+halves stay in the session where both towers exist. C has no `Tests` section beyond the word
+**None**, by `../analytic-docs/ARCHITECTURE.md` §7 — say it out loud there so it doesn't invent
+coverage to look thorough.
 
-5. **Wave authoring**: nights 11–12 and 15. Night 11 should present mold in a spot where ignoring it visibly costs build space by the end of the night. Night 15's "after a dinner party" modifier (double crumbs, double spawns) plus slug trails should be the most chaotic night in v1.
+**Two numbers are authored blind in A and re-tuned in C**, the way 6B's `projectileSpeed` and 7A's
+`travelTicks` were: the mold's 6-second spread interval and the slug's 8-second slime. Neither can be
+judged before there is a board to watch them on. Both part files say so, so C isn't reluctant to
+overwrite them and A doesn't polish them blind.
 
-6. **Rendering.** Mold spread must be legible turn by turn — stage the visual across 3 steps so the player can see it advancing and choose whether to care. Slime trails need a wet gloss and a clear expiry fade, so "the trail is gone now" is visible information.
+## The seam that can't be split
 
-## Tests
+**Step 14's tile API.** All three parts read it and none of them may change it: A writes `mold` and
+`slime` cells, B clears them, C draws them. Putting the enemy's writes and the tower's clears in
+different sessions from the API they share is already the risk this split takes; putting a second
+grid anywhere is what would make it fatal. If a part finds the API can't express what it needs —
+"write `mold` to one neighbour of a cell that already has it", "clear every `slime` cell in a
+radius" — the fix goes into step 14's files and is recorded as step 14 having been under-built.
+That is exactly what step 14's own third acceptance criterion is for.
 
-- Mold spreads to exactly one adjacent tile per interval and never to an already-molded tile.
-- Mold spread is deterministic under a fixed seed.
-- Killing a mold entity stops spread; existing molded tiles persist.
-- A molded tile rejects tower placement; a tower already there survives.
-- Physical damage against mold is 0.2×; chemical is 2.5× — assert through the full projectile path.
-- An enemy on a slimed tile moves at exactly 1.6× base speed; the tile expires at exactly 8s and speed returns to base.
-- Baking Soda clears every slimed tile in radius in one shot; Vinegar cleans exactly one mold tile per shot.
+## What step 14 owes this step, and what to do if it doesn't
 
-## Acceptance
+Step 14 had not been built when this split was written, so the tile-API lines in the three parts are
+written against **step 14's step file**, not against code anyone has read. Each part opens by
+checking the four things it actually depends on:
+
+1. the shape of a cell's state and the read/write calls (`getTile` / `setState` / `clearState` /
+   `hasState` / `forEachTileWithState` / `neighbours`);
+2. `worldToTile`, and where it lives;
+3. whether `movementSystem` already reads `slime` and multiplies speed (step 14, build item 4);
+4. whether `tilesSystem` advances a **staged** effect, and in which field (step 14, build item 3) —
+   C's "mold advancing in three visible steps" is drawn from it.
+
+Where the real names differ, use the real ones and correct the part file in the same commit. Where
+the capability is genuinely missing, add it to step 14's file rather than working around it here.
+
+Two committed contradictions this step resolves, both settled in **A**:
+
+- `core/map.ts:26` and `core/world.ts:58` say mold sets a bit in `MapDef.flags`. It does not:
+  `TileEffectKind` in `core/types.ts` has carried `'mold'` since step 2A and
+  `../analytic-docs/DECISIONS.md` §11 says anything touching a tile writes tile state. Those two
+  comments are wrong and A corrects them.
+- `render/renderer.ts:168` says `// tile effects: step 15`. The layer is step 14's; only the mold and
+  slime *treatments* are this step's.
+
+## Step acceptance
 
 - [ ] Ignoring mold on night 11 costs you a visible chunk of the board by the final wave.
 - [ ] A slug leading a roach wave is dramatically more dangerous than the same roaches alone.
-- [ ] Neither enemy required a change to `core/systems/tiles.ts`.
+- [ ] Neither enemy nor either tower required a change to `core/systems/tiles.ts`.
+- [ ] Adding both towers required no change to any file in `core/systems/` except the one new
+      interpreter — if a system file grew a branch on a tower id, the composition is wrong
+      (`../CLAUDE.md`, *Content is data, not classes*).
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
-Add Bleach (Act III) or any other tile-writing tower. Two enemies, two answers.
+Add Bleach, the Gas Stove Burner, or any other tile-writing tower — the Burner is step 17's and
+Bleach is Act III's. Two enemies, two answers. Do not build the night-modifier system: "damp night"
+and "after a dinner party" are named in `../analytic-docs/CONTENT.md` §6 and owned by **step 21**,
+which authors `core/content/modifiers.ts`; this step authors the numbers those modifiers will later
+patch and nothing else. Do not implement the Pantry Shelf Liner installation — installation effects
+are step 20's.
