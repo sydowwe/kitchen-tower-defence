@@ -13,7 +13,8 @@ import { tileStateAt } from '@/core/tiles.ts'
 import { BRUSH_KEYS } from '@/dev/debug/state.ts'
 import type { DebugState } from '@/dev/debug/state.ts'
 import { EMOJI_FONT } from '@/render/glyphCache.ts'
-import type { MapDef, Path, World } from '@/core/types.ts'
+import { LOGICAL_WIDTH } from '@/render/index.ts'
+import type { MapDef, Path, Vec2, World } from '@/core/types.ts'
 
 const FLAG_TINTS: ReadonlyArray<{ flag: number; label: string; color: string }> = [
 	{ flag: TileFlags.BUILDABLE, label: 'buildable', color: 'rgba(100, 200, 255, 0.22)' },
@@ -30,6 +31,38 @@ const TEXT_BACKDROP = 'rgba(10, 12, 20, 0.75)'
 
 const WAYPOINT_RADIUS_PX = 3
 const MARKER_GLYPH = '➤'
+
+/**
+ * Where the legend block starts, clear of the dev HUD's two DOM panels.
+ *
+ * Both are `position: absolute` against the board's top-left corner and both are close to opaque, so
+ * anything drawn under them is not readable -- which the flag legend has been since step 8C put
+ * `ui/components/DebugOverlay.vue` in that corner, and which 14B's brush line would otherwise have
+ * joined. A readout that says why nothing is painting has to be legible to be worth drawing.
+ *
+ * The two are cleared in different directions because they are shaped differently.
+ * `DebugOverlay.vue` is wide and short -- ~734px across, bottom edge at ~135 -- so the block goes
+ * *under* it. `dev/noise/NoisePanel.vue` is narrow and long -- `left: 0.75rem` and `width: 11rem`,
+ * so a right edge near 209, but a `<details open>` running hundreds of pixels down -- so the block
+ * goes *beside* it. Down past both would put the legend halfway across the board.
+ *
+ * **Converted through the board's scale, never used raw.** The panels are laid out in CSS pixels and
+ * this canvas is drawn in logical ones: the same 123px-tall panel covers twice as many logical rows
+ * at a 1152-wide window as it does at a 1920-wide one, so a fixed logical offset is only ever
+ * correct at one window size.
+ */
+const HUD_PANEL_BOTTOM_PX = 143
+const HUD_PANEL_RIGHT_PX = 221
+
+/**
+ * One layout read per drawn frame, and only while the overlay is on. `render/tileCoords.ts` already
+ * calls this on every `pointermove`, so the cost is a known quantity for a `dev/` tool.
+ */
+function legendOrigin(ctx: CanvasRenderingContext2D): Vec2 {
+	const rect = ctx.canvas.getBoundingClientRect()
+	const scale = rect.width === 0 ? 1 : rect.width / LOGICAL_WIDTH
+	return { x: HUD_PANEL_RIGHT_PX / scale, y: HUD_PANEL_BOTTOM_PX / scale }
+}
 
 function tileCenter(tile: { x: number; y: number }, tilePx: number): { x: number; y: number } {
 	return { x: (tile.x + 0.5) * tilePx, y: (tile.y + 0.5) * tilePx }
@@ -60,9 +93,9 @@ function drawFlagTints(ctx: CanvasRenderingContext2D, map: MapDef, tilePx: numbe
 	}
 }
 
-function drawLegend(ctx: CanvasRenderingContext2D): void {
-	const x = 10
-	let y = 10
+function drawLegend(ctx: CanvasRenderingContext2D, origin: Vec2): void {
+	const x = origin.x
+	let y = origin.y
 	for (const tint of FLAG_TINTS) {
 		ctx.fillStyle = tint.color
 		ctx.fillRect(x, y, 12, 12)
@@ -83,9 +116,10 @@ function drawLegend(ctx: CanvasRenderingContext2D): void {
  * `state.ts`: the brush only writes while its key is *held*, so an armed-but-idle brush and a
  * disarmed one look identical on the board.
  */
-function drawBrush(ctx: CanvasRenderingContext2D, state: DebugState): void {
+function drawBrush(ctx: CanvasRenderingContext2D, state: DebugState, origin: Vec2): void {
 	const keys = BRUSH_KEYS.map(binding => `${binding.key}:${binding.kind}`).join(' ')
-	drawLabel(ctx, `brush ${state.brush ?? 'none'}  (hold ${keys}, Backspace clears)`, 10, 10 + FLAG_TINTS.length * 16)
+	const text = `brush ${state.brush ?? 'none'}  (hold ${keys}, Backspace clears)`
+	drawLabel(ctx, text, origin.x, origin.y + FLAG_TINTS.length * 16)
 }
 
 /** A tick count the way 14A stores it: negative is permanent, and the readout says so. */
@@ -148,9 +182,12 @@ function drawArrowhead(ctx: CanvasRenderingContext2D, x: number, y: number, angl
 	ctx.restore()
 }
 
-function drawPathLengths(ctx: CanvasRenderingContext2D, map: MapDef, activeIndex: number): void {
-	let y = 10
-	const x = 120
+/** Beside the flag swatches, which are ~110 logical pixels wide at the label font. */
+const PATH_LENGTH_COLUMN_PX = 110
+
+function drawPathLengths(ctx: CanvasRenderingContext2D, map: MapDef, activeIndex: number, origin: Vec2): void {
+	let y = origin.y
+	const x = origin.x + PATH_LENGTH_COLUMN_PX
 	map.paths.forEach((path, index) => {
 		const label = `${path.id}: ${totalLength(path).toFixed(1)}t${index === activeIndex ? ' (active)' : ''}`
 		drawLabel(ctx, label, x, y)
@@ -233,8 +270,9 @@ export function drawDebugOverlay(
 		drawMarker(ctx, activePath, state.markerDistance, tilePx)
 	}
 
-	drawLegend(ctx)
-	drawBrush(ctx, state)
-	drawPathLengths(ctx, map, state.activePathIndex)
+	const origin = legendOrigin(ctx)
+	drawLegend(ctx, origin)
+	drawBrush(ctx, state, origin)
+	drawPathLengths(ctx, map, state.activePathIndex, origin)
 	drawHover(ctx, map, world, state, tilePx)
 }
