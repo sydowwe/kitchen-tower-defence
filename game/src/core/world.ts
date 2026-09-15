@@ -55,9 +55,12 @@ export interface CreateWorldOptions {
  * A deep copy of the authored map.
  *
  * The world gets its own, because night modifiers write to it: "moving day" consumes 30% of the
- * build tiles (analytic-docs/CONTENT.md section 6) and mold permanently corrupts them (step 15).
- * Sharing the def would let one night's damage leak into the next one -- and into the balance
- * harness, which builds thousands of worlds in a single process.
+ * build tiles (analytic-docs/CONTENT.md section 6). Sharing the def would let one night's damage
+ * leak into the next one -- and into the balance harness, which builds thousands of worlds in a
+ * single process.
+ *
+ * **Mold is not one of those writers.** It writes `world.tiles`, not these flags -- see the note on
+ * `TileFlags` in core/map.ts.
  */
 function cloneMapDef(map: MapDef): MapDef {
 	return {

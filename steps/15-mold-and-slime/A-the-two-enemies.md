@@ -49,10 +49,10 @@ step 14's files, and say so in this session's closing notes — do not grow a se
 | `core/systems/spawn.ts:128` | `spawnEnemyAt(world, def, pathId, distance, waveIndex)` — the one `Enemy` constructor. `spawnEnemy` calls it with `distance: 0` |
 | `core/systems/spawn.ts:44` | `cursorsFor(world, entry, count)` — round-robins an entry with no `pathId` over every lane, throws for a lane the map lacks |
 | `core/systems/movement.ts:43` | `enemy.distance += enemy.speed * speedMultiplier(enemy)`. No tile read today unless step 14 added one |
-| `core/systems/placement.ts:27` | `PlacementRejection` — eight literals, and `canPlaceTower` reads `world.map` (its own clone) rather than `getMapDef`, with a comment naming this step |
+| `core/systems/placement.ts:27` | `PlacementRejection` — **nine** literals since step 14A, including `'fouled'`, and `canPlaceTower` already refuses a cell whose tile state blocks placement. It reads `world.map` (its own clone) rather than `getMapDef` |
 | `core/systems/resolve.ts:124` | the night is won on `lastWaveIsOut && world.enemies.length === 0`, and a wave clears on `world.enemies.some(e => e.spawnedInWaveIndex === index)` in `wave.ts:65` |
 | `core/sim.ts:28` | `SystemName` and `SYSTEMS`; `tiles` is 12th, after `projectiles` and before `crumbs`. `tests/sim.spec.ts` asserts the order against a literal list |
-| `core/map.ts:26`, `core/world.ts:58` | **wrong comments** saying mold sets a `TileFlags` bit / corrupts `MapDef.flags`. Decision 1 below; fix both |
+| `core/map.ts:26`, `core/world.ts:58` | ~~wrong comments saying mold sets a `TileFlags` bit~~ — **both corrected in step 14A**. They now point at `world.tiles` and `blocksPlacement`. Decision 1 below still holds; there is nothing left to fix |
 | `render/renderer.ts:168` | `// tile effects: step 15` — the layer is step 14's. Correct the attribution while you are in the file; draw nothing |
 
 **The specs that will break.** Decision 4 adds a field to `Enemy`, and **eleven spec files hand-build
@@ -111,9 +111,14 @@ edit this file, don't leave it lying.
    `distance: 0`, which is the baseboard crack, which is the far end of the board from anything worth
    taxing — and every mold of a wave lands on the same tile. Optional and defaulted, so no existing
    night changes and no existing spec moves.
-10. **`PlacementRejection` gains `'molded'`**, a ninth literal. Not folded into `notBuildable`: the
-    player has to be able to tell "you can't build there" from "you let that happen", and
-    `ui/locales/contentKeys.ts:68` makes the English entry a build error rather than an oversight.
+10. ~~**`PlacementRejection` gains `'molded'`**, a ninth literal.~~ **Already shipped, and named
+    `fouled`.** Step 14A added the ninth literal, the `blocksPlacement` check in `canPlaceTower` and
+    the English under `hud.reject`. It is `fouled` rather than `molded` because the rest of that
+    vocabulary is generic and a reason named after one content entry has to be renamed when the second
+    one arrives (step 14A, build item 5). The reasoning below still holds — it is not folded into
+    `notBuildable`, because the player has to be able to tell "you can't build there" from "you let
+    that happen". Nothing to do here but read the reason as `'fouled'` wherever this file says
+    `'molded'`.
 11. **Two new `SYSTEM_ORDER` slots, both added here: `spread` and `cleanse`**, in that order,
     immediately before `tiles`. Everything that writes or erases a cell runs before the system that
     ages them, which reads in one direction. **`core/systems/cleanse.ts` ships as a stub this
@@ -226,20 +231,22 @@ that line while you write this one.
 Two things it must not do: apply to a flyer (step 14's one check, in one place), and apply to an
 enemy whose own `tileWriter.effect` is `slime` (decision 8).
 
-### 6. `canPlaceTower` refuses a molded tile — `core/systems/placement.ts`
+### 6. ~~`canPlaceTower` refuses a molded tile~~ — **done in step 14A, nothing to build**
 
-One check after `canPlace` and before `towerAt`, returning `rejected('molded')`, plus the ninth
-`PlacementRejection` literal and its English in `ui/locales/en.ts` under `hud.reject`. It applies to
-`path_only` too — a molded track tile takes no Cardboard Box either.
+The check after `canPlace` and before `towerAt` is already there, as
+`if (blocksPlacement(world, tile)) return rejected('fouled')`, with the ninth `PlacementRejection`
+literal and its English under `hud.reject`. It is driven by `TileEffectDef.blocksPlacement` rather
+than by mold, which is what makes this item a config entry — mold's def already says `true`. It
+applies to `path_only` too, because the check is before the placement branch: a molded track tile
+takes no Cardboard Box either.
 
-Say the player's problem, not the validator's, the way every string beside it does: the existing
-`blocked` is *"There is something on the counter there."* Mold's is the sentence that tells them it
-is their own fault.
+What remains for this session is only to **confirm it**: `tests/tiles.spec.ts` asserts `fouled` and
+the stranded tower already, so a duplicate spec here is coverage of the same branch twice.
 
-Gotcha: a tower **already standing** on a tile that becomes molded survives — there is no code to
-write, because nothing re-validates placement, and there is a test below to pin it. The consequence
-the player meets is selling that tower and then being unable to rebuild on the same tile, which is
-the board-space tax working.
+Gotcha, still worth knowing: a tower **already standing** on a tile that becomes molded survives —
+there is no code to write, because nothing re-validates placement. The consequence the player meets
+is selling that tower and then being unable to rebuild on the same tile, which is the board-space tax
+working.
 
 ### 7. Two new slots, and three wrong comments
 
@@ -262,7 +269,7 @@ index's note. A step file that lies is worse than one that is out of date, and s
   command log — the assertion that catches decision 6's "re-roll until valid".
 - Removing the mold entity stops the spread; the cells it already wrote are still there 600 ticks
   later.
-- `canPlaceTower` on a molded tile is `{ ok: false, reason: 'molded' }` for both `off_path` and
+- `canPlaceTower` on a molded tile is `{ ok: false, reason: 'fouled' }` for both `off_path` and
   `path_only`; a tower placed before the tile was molded is still in `world.towers` afterwards.
 - A Slug writes `slime` to each tile it crosses; a tile it crosses twice has one effect with a
   refreshed expiry, not two.
@@ -300,7 +307,7 @@ core/map.ts              worldToTile(at: Vec2): Vec2   // Math.round, tile centr
                                                        // no such export
 core/systems/cleanse.ts  cleanseSystem(world: World): void   // a stub; 15B fills it in
 core/sim.ts              SystemName gains 'spread' and 'cleanse', both before 'tiles'
-core/systems/placement.ts  PlacementRejection gains 'molded'
+core/systems/placement.ts  PlacementRejection gained 'fouled' in step 14A — nothing to add
 ```
 
 A mold cell carries its **stage in `TileEffect.magnitude`**, written at 1 and advanced by step 14's

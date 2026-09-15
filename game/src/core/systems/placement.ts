@@ -15,6 +15,7 @@
 import { isCharge, isIncome } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
 import { flagsAt, canPlace, TileFlags } from '@/core/map.ts'
+import { blocksPlacement } from '@/core/tiles.ts'
 import { earnCrumbs, spendCrumbs } from '@/core/systems/economy.ts'
 import { spawnDestroyPenalty } from '@/core/systems/spawn.ts'
 import type { TowerDef } from '@/core/content/index.ts'
@@ -23,9 +24,22 @@ import type { EntityId, Tower, TowerState, Vec2, World } from '@/core/types.ts'
 /**
  * Why a placement was refused. A plain vocabulary like `TargetingMode`, **not** an i18n key: `ui/`
  * resolves vocabularies and `core/` carries content keys (CLAUDE.md, "Strings").
+ *
+ * `fouled` is a tile effect refusing the cell -- mold today, and whatever else sets
+ * `TileEffectDef.blocksPlacement` later. Deliberately not named after mold: the rest of this
+ * vocabulary is generic, and a reason named after one content entry has to be renamed the moment a
+ * second one arrives.
  */
 export type PlacementRejection =
-	'offBoard' | 'blocked' | 'notBuildable' | 'onTrack' | 'offTrack' | 'occupied' | 'tooExpensive' | 'nightOver'
+	| 'offBoard'
+	| 'blocked'
+	| 'notBuildable'
+	| 'onTrack'
+	| 'offTrack'
+	| 'fouled'
+	| 'occupied'
+	| 'tooExpensive'
+	| 'nightOver'
 
 export type PlacementResult = { ok: true } | { ok: false; reason: PlacementRejection }
 
@@ -104,6 +118,15 @@ export function canPlaceTower(world: World, def: TowerDef, tile: Vec2): Placemen
 
 	if (!canPlace(map, tile, def.placement)) {
 		return rejected(tileRejection(flagsAt(map, tile), def.placement))
+	}
+
+	// After the tile's own flags and before occupancy: what the board has grown over a legal tile.
+	// **An existing tower on a tile that then becomes fouled is untouched** -- no destruction, no
+	// penalty, no event. It is stranded, and it stays stranded: destroying it would make mold far too
+	// punishing for something the player cannot move out of the way of. That is a decision, not an
+	// omission, which is why it is written down rather than merely absent.
+	if (blocksPlacement(world, tile)) {
+		return rejected('fouled')
 	}
 
 	if (towerAt(world, tile) !== null) {

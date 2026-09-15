@@ -14,6 +14,7 @@
  */
 
 import { speedMultiplier } from '@/core/content/statuses.ts'
+import { tileSpeedMultiplier } from '@/core/systems/tiles.ts'
 import type { World } from '@/core/types.ts'
 
 /**
@@ -35,11 +36,18 @@ export function movementSystem(world: World): void {
 	for (const enemy of world.enemies) {
 		// A fled enemy walks back the way it came -- see `FLEE_SPEED_MULT`. No clamp: `samplePath`
 		// already clamps a negative distance for the renderer, and `resolveSystem` removes it at 0.
+		//
+		// **No `tileSpeedMultiplier` here either**, for the same reason the status one is absent: the
+		// rate at which the board empties is not negotiable, and a slug's road is not allowed to
+		// change it. Heat and residue still apply to a fleeing enemy -- `tilesSystem` does not ask --
+		// because those are not speed.
 		if (enemy.flags.fleeing) {
 			enemy.distance -= enemy.speed * FLEE_SPEED_MULT
 			continue
 		}
 
-		enemy.distance += enemy.speed * speedMultiplier(enemy)
+		// The tile factor is exactly 1 for an enemy on a bare floor, for a flyer, and for an empty
+		// board, so this line is unchanged in value for every enemy in the game but a slimed one.
+		enemy.distance += enemy.speed * speedMultiplier(enemy) * tileSpeedMultiplier(world, enemy)
 	}
 }

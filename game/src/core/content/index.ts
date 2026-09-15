@@ -30,6 +30,7 @@ export * from '@/core/content/installations.ts'
 export * from '@/core/content/matrix.ts'
 export * from '@/core/content/nights.ts'
 export * from '@/core/content/statuses.ts'
+export * from '@/core/content/tileEffects.ts'
 export * from '@/core/content/towers.ts'
 export * from '@/core/content/upgrades.ts'
 export { MAP_SOURCES, MAPS } from '@/core/content/maps/index.ts'
@@ -46,7 +47,8 @@ export type {
 /**
  * `statuses` is absent on purpose: the status *defs* are runtime tables keyed by `StatusKind` in
  * `core/content/statuses.ts`, not an authored collection, and its slot on `RawContent` stays empty
- * until there is something in the schema's shape to check.
+ * until there is something in the schema's shape to check. `tileEffects` is absent for exactly that
+ * reason -- `Record<TileEffectKind, TileEffectDef>` is already exhaustive at the type level.
  *
  * `installations` joined the list in step 13A, with the three noise ones
  * (analytic-docs/CONTENT.md section 8). The other eleven are step 20's.

@@ -230,11 +230,15 @@ export function createStatus(kind: StatusKind, overrides: StatusOverrides = {}):
  * 9B's cone all call this. It needs no world, so it lives with the vocabulary rather than in a
  * system -- and two call sites each assembling their own `createStatus` is exactly how the damage
  * type ends up set on one path and null on the other.
+ *
+ * **`sourceId` is nullable because a tile has none.** A chemical residue applies poison and there is
+ * nothing to attribute it to; `ActiveStatus.sourceId` has always allowed null, and a null one simply
+ * never matches the charge bookkeeping's `status.sourceId === towerId`.
  */
 export function applyStatuses(
 	target: StatusHolder,
 	applications: readonly StatusApplication[],
-	sourceId: EntityId,
+	sourceId: EntityId | null,
 	damageType: DamageType | null,
 ): void {
 	for (const application of applications) {

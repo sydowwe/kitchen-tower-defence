@@ -133,9 +133,10 @@ export function noiseSystem(world: World): void {
 	// **Accumulate, then decay, then test the cap, in that order.** Decaying first would shave a
 	// tower's own shot by the same tick's decay -- a silent 2.5% discount on every loud tower.
 	//
-	// There is no per-second emitter here. The only one in v1 is the Gas Stove Burner's `tileEffect`
-	// (analytic-docs/CONTENT.md section 1) and its interpreter is step 14's, so a branch for it would
-	// be a branch nothing reaches -- and wrong by the time something does.
+	// There is no per-second emitter here. The only one in v1 is the Gas Stove Burner's `tileEffect`,
+	// and step 14 built the tile *system* without interpreting that behaviour: what writes a cell from
+	// a tower's descriptor is step 17's, with the Burner it exists for. A branch for it now would be a
+	// branch nothing reaches -- and wrong by the time something does.
 	for (const event of world.events) {
 		if (event.kind === 'towerFired') {
 			noise.level += event.noise

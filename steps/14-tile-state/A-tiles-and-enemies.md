@@ -34,7 +34,7 @@ them.
 | `tests/world.spec.ts:54` | asserts `world.tiles` is `[]` on a fresh world. Keep it passing |
 | `tests/fixtures/world.ts` | `createTestWorld()`: a 40 × 1 board, tile 0 buildable-only, tiles 1–39 `BUILDABLE \| TRACK`, `night.phase: 'won'` |
 
-**Two committed comments are wrong about this step and must be fixed in the same commit:**
+**Three committed comments are wrong about this step and must be fixed in the same commit:**
 
 - `core/systems/noise.ts:137` says the `tileEffect` interpreter "is step 14's". It is **step 17's**,
   with the Burner — see `steps/17-auras-and-zones.md` item 3. Change the comment; leave the code.
@@ -42,6 +42,9 @@ them.
   `DECISIONS.md` §11 says anything that touches a tile writes tile state, and mold is a
   `TileEffectKind`. Point the comment at `blocksPlacement` instead. (The rest of that sentence —
   "moving day" clearing `BUILDABLE` — is still true and stays.)
+- `core/world.ts:58` says the world clones the map because "mold permanently corrupts" the build
+  tiles. Same error, same fix — found while building, and named in step 15A's own table of wrong
+  comments. "Moving day" is still a real reason for the clone and stays.
 
 The test fixture's board is **one row tall**, so `neighbours` on it has at most two members. Any
 spec about adjacency or radius needs its own map, not this fixture.
@@ -85,7 +88,10 @@ edit this file, don't leave it lying.
    already checks exhaustively.
 7. **No `sourceId` on a cell.** Its only consumer would be kill attribution, which does not exist —
    and `applyDamage`, the funnel a continuous source already uses (`auraSystem` does exactly this),
-   takes no source.
+   takes no source. *Built:* this costs one signature change — `applyStatuses`' `sourceId` parameter
+   widens from `EntityId` to `EntityId | null`, which `ActiveStatus.sourceId` has always allowed. A
+   null never matches `charges.ts`'s `status.sourceId === towerId`, which is the correct answer for a
+   status nothing on the board is holding.
 8. **Ageing is `tickStatuses`' rule, to the letter**: read first, decrement last, drop at `<= 0`,
    skip anything negative. Two ageing rules in one codebase is how a burn and a heated tile end up
    one tick out of step with nothing failing. Read `core/content/statuses.ts:302` and do that.
@@ -182,7 +188,9 @@ guarantee `flagsAt` gives by answering 0.
 `writeEffect` returns null off the board. On a cell that already carries the kind, it follows
 `TILE_EFFECT_DEFS[kind].onRewrite`: `'ignore'` returns the existing effect untouched, `'refresh'`
 takes `Math.max` of the remaining ticks and the last write's `magnitude` — `STACK_RULES.refresh`'s
-rule, and for the same reason.
+rule, and for the same reason. *Built:* the max is `longerOf`, not a bare `Math.max`, because a
+negative remaining is permanent and `Math.max(-1, 120)` would quietly put a clock on a permanent
+effect. Permanent wins; everything else is the max.
 
 Gotcha: `TileEffectBehaviour.durationTicks` is validated `min(-1)`, so **0 is a legal authored
 value** and a write of 0 would be dropped by the very next ageing pass — an effect that exists for
@@ -224,6 +232,11 @@ tilesSystem(world): void
 
   Gotcha on step 3: you are splicing out of two arrays while iterating them. Walk both backwards, the
   way `tickStatuses` does.
+
+  Gotcha on step 1, found while building: `applyDamage` writes scorch onto the tile under whatever it
+  damages, which for a heated cell is **the array the enemy pass is walking**. A `for...of` walks
+  straight into the mark it just appended. Index against a length read once before the loop — it
+  costs no allocation and leaves the new mark to the next tick.
 
   `damageType` for the DoT is the def's, and it goes through `applyDamage` → `resolveDamage`, so a
   `fungal` enemy standing in fire takes the matrix multiplier. That is the point of routing it here
@@ -313,14 +326,14 @@ imports `applyDamage` from this file and the cycle is why decision 10 splits the
 
 ## Acceptance
 
-- [ ] `core/` still imports nothing but itself and zod; `core/tiles.ts` knows nothing about pixels,
+- [x] `core/` still imports nothing but itself and zod; `core/tiles.ts` knows nothing about pixels,
       and nothing in `core/` imports `render/tileCoords.ts`.
-- [ ] `World` gained no field. Everything this step stores goes in the `tiles` array step 2 put there.
-- [ ] `tilesSystem` contains no branch on a `TileEffectKind` — every difference between the five kinds
+- [x] `World` gained no field. Everything this step stores goes in the `tiles` array step 2 put there.
+- [x] `tilesSystem` contains no branch on a `TileEffectKind` — every difference between the five kinds
       is a field on `TILE_EFFECT_DEFS`. If there is a `case 'mold':` anywhere, the table is missing a
       field; add the field.
-- [ ] A world ticked 600 times with no tile state is deeply equal to one that skipped the system.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] A world ticked 600 times with no tile state is deeply equal to one that skipped the system.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 14B
 

@@ -14,6 +14,9 @@ import { isConeAttack, isFiring } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
+// **`@/core/tiles.ts`, never `@/core/systems/tiles.ts`.** That one imports `applyDamage` from this
+// file, and the cycle is why the model and the tick are two files at all.
+import { tileAt, writeEffect } from '@/core/tiles.ts'
 import { chargeAllowsFiring, chargeBehaviourOf, spendCharge } from '@/core/systems/charges.ts'
 import { circle, cone } from '@/core/systems/hitbox.ts'
 import { spawnProjectile } from '@/core/systems/projectiles.ts'
@@ -31,12 +34,28 @@ import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/typ
  * print a stack of `0`s sixty times a second and blow that layer's 32-number cap, taking the real
  * hit numbers with it. The feedback for DoT is 9C's flicker instead.
  *
- * The world is unused today and taken anyway, so both halves of the split read the same at every
- * call site and 9B's splash has it when it needs a position.
+ * The world is what the scorch mark below is written into -- the parameter step 9 took unused and
+ * held open for exactly this.
  */
-export function applyDamage(_world: World, enemy: Enemy, base: number, damageType: DamageType): number {
+export function applyDamage(world: World, enemy: Enemy, base: number, damageType: DamageType): number {
 	const amount = resolveDamage(base, damageType, enemy)
 	enemy.hp -= amount
+
+	// **The type test comes first, before anything is computed.** This function runs for every DoT
+	// tick of every enemy, and `enemyPosition` is the hottest function in `core/` -- calling it
+	// unconditionally would put a `samplePath` into every poison tick in the game.
+	//
+	// Every burn tick since step 9 and every Toaster shot since step 11 leaves a permanent mark on
+	// the floor from the night this ships. `scorch` is `onRewrite: 'ignore'` and permanent, so a
+	// burning enemy standing still costs one scan and no allocation -- and it has to *stay* that way:
+	// giving scorch a duration would turn a burning ant into a per-tick allocator.
+	if (damageType === 'fire') {
+		const at = enemyPosition(world, enemy)
+		if (at !== null) {
+			writeEffect(world, tileAt(at), 'scorch')
+		}
+	}
+
 	return amount
 }
 

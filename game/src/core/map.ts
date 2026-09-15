@@ -23,7 +23,11 @@ import type { MapDef, Placement, Vec2 } from '@/core/types.ts'
  * barricade but not a salt shaker.
  *
  * Night modifiers flip these on the world's own copy -- "moving day" clears `BUILDABLE` from 30% of
- * the tiles, step 15's mold sets its own bit here.
+ * the tiles.
+ *
+ * **Mold does not have a bit here and never will.** Anything that touches a tile writes tile state
+ * (analytic-docs/DECISIONS.md section 11) and mold is a `TileEffectKind`; what refuses a molded tile
+ * is `blocksPlacement` in `core/tiles.ts`, off the def table.
  */
 export const TileFlags = {
 	/** The `.` character: a tower may stand here. */

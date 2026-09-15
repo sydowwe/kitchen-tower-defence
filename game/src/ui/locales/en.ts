@@ -180,6 +180,9 @@ export const en = {
 			notBuildable: 'Nothing will stand on that.',
 			onTrack: 'Not on the track — they walk through there.',
 			offTrack: 'This one goes on the track itself.',
+			// The player's words, not the validator's: `fouled` is the vocabulary, mould is what they
+			// are looking at.
+			fouled: 'There is mould growing there.',
 			occupied: 'You have already put something there.',
 			tooExpensive: 'Not enough crumbs yet.',
 			nightOver: 'The night is over.',
