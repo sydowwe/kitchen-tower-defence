@@ -212,15 +212,24 @@ tick a box.
 - [ ] Enemies face the direction they are running.
 - [ ] The card names what it cost, by name, in one sentence, and is gone before you have finished
       reacting to it.
-- [ ] Standing in the shop, you can tell the Toaster is the loud one without doing arithmetic.
+- [x] Standing in the shop, you can tell the Toaster is the loud one without doing arithmetic.
+      *(Confirmed on screen: the Toaster's card reads `Noise 0.9/sec` against the Mousetrap's
+      `0.3/sec`. The placement ghost carries the same number under the tile.)*
 - [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
-Everything still unticked above needs a human in front of a running night. The build session got the
-dev panel on screen and confirmed the cap and decay readout, then lost the browser before it could
-watch a wake — so **the wash's peak alpha and duration are authored but unwatched**, which is exactly
-the pair this file says can only be got right by looking at one. `WAKE_WASH_PEAK`, `WAKE_LIFE_FRAMES`
-and `WAKE_DESATURATE_PEAK` in `render/layers/effects.ts` are the three numbers to re-tune, and the
-"Wake now" button is how to see them.
+Everything still unticked above needs a human in front of a running night.
+
+What the build session did get on screen: the dev panel, the cap and decay readout, both shop cards
+and the placement ghost. What it could not: **anything that needs the simulation to actually run.**
+The board is a 60Hz `requestAnimationFrame` app, and a Chrome tab that is not the foreground window
+never fires one — the loop does not tick, `publish()` never runs, the HUD never mounts, and the canvas
+sits showing its last painted frame, which looks exactly like a working board. So the wake, the
+ripple and the meter above 70% went unwatched.
+
+That leaves **the wash's peak alpha and duration authored but unwatched**, which is exactly the pair
+this file says can only be got right by looking at one. `WAKE_WASH_PEAK` (0.3), `WAKE_DESATURATE_PEAK`
+(0.8) and `WAKE_LIFE_FRAMES` (96) in `render/layers/effects.ts` are the three numbers to re-tune, and
+the dev panel's "Wake now" button is how to see them.
 
 ## Do not
 
