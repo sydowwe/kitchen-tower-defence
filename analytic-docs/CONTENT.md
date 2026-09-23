@@ -36,12 +36,12 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 | Fly Paper | 🎗️ | CONTROL | 35 | 0 | — | 2 | — | **air only** | 0 | off_path |
 | Bay Leaf | 🌿 | SUPPRESSION | 160 | 0 | — | 3 | — | ground | 0 | off_path |
 | Gas Stove Burner | ♨️ | TILE_EFFECT | 200 | 14/s | — | 1 tile | fire | ground | 2 | **path_only** |
-| Baking Soda | 🧂 | AOE | 80 | 6 | 0.6 | 2 | chemical | ground | 0 | off_path |
+| Baking Soda | 🥣 | AOE | 80 | 6 | 0.6 | 2 | chemical | ground | 0 | off_path |
 | Honey Pot | 🍯 | ECONOMY | 175 | 0 | — | 3 bait | — | ground | 0 | off_path |
 | Lemon | 🍋 | DOT | 155 | 8 | 0.9 | 3 | chemical | both | 0 | off_path |
 | Fan | 🌀 | CONTROL | 170 | 1 | 1.5 | 4 cone | — | **air only** | 1 | off_path |
 
-> Baking Soda and Salt Shaker share 🧂 — pick a distinct glyph for one during step 23's art pass (Baking Soda → 🥣 or a tinted variant).
+> Baking Soda was 🧂 here, the Salt Shaker's glyph. Step 15B gave it 🥣 when it was built: two towers with one emoji are indistinguishable in the shop and on the board.
 
 ### Behaviour notes that aren't in the table
 
@@ -75,6 +75,8 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 - Toaster T3 — fires two projectiles
 - Toaster Crumb Tray T3 — collected piles arrive instantly (no travel time)
 - Cookie Jar T3 — the jar owes the enemy side nothing when it is destroyed
+- Vinegar Spray T3 — scrubs mold twice as far as it shoots (cleanse radius 3 → 6; attack range stays 3)
+- Baking Soda T3 — splash and slime-scrub radius both 1.2 → 2.0, the whole range-2 circle at once
 - Candle T3 — burn applied by the aura stacks to 3 *(arrives with the Candle, step 17)*
 - Fan T3 — pushback also applies `Marked` *(arrives with the Fan, step 18)*
 

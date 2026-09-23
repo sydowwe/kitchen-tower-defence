@@ -13,7 +13,7 @@
  */
 
 import { effectiveDefOf, TOWERS } from '@/core/content/index.ts'
-import { isAttack, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
+import { isAttack, isCleanse, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { nearestPath, samplePath } from '@/core/path.ts'
 import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
@@ -149,11 +149,16 @@ function facingFor(world: World, tile: Vec2, tower: Tower | null): number {
  * 100-crumb tower whose only stat is a radius, aimed with no radius drawn, is the placement decision
  * made blind. It comes last because a tower that both fires and lights -- step 17's Candle, once it
  * has an aura -- should show what it covers, and the light pool on the board says where it reaches.
+ *
+ * A scrubber shows **the larger of its range and its cleanse radius**, as one circle (step 15B). A
+ * tier-3 Vinegar Spray cleans twice as far as it shoots, and a ghost drawing only the smaller circle
+ * lies about the headline feature; two circles would need a second overlay shape for one tower.
  */
 function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): OverlayReach | null {
 	const shot = def.behaviours.find(isAttack)
 	if (shot !== undefined) {
-		return { kind: 'circle', radiusTiles: shot.rangeTiles }
+		const scrub = def.behaviours.find(isCleanse)
+		return { kind: 'circle', radiusTiles: Math.max(shot.rangeTiles, scrub?.radiusTiles ?? 0) }
 	}
 
 	const spray = def.behaviours.find(isConeAttack)

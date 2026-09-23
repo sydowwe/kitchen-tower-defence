@@ -10,7 +10,17 @@
  * so the doc's number stays legible next to it.
  */
 
-import { attack, aura, barricade, charge, collect, coneAttack, income, reveal } from '@/core/content/behaviours.ts'
+import {
+	attack,
+	aura,
+	barricade,
+	charge,
+	cleanse,
+	collect,
+	coneAttack,
+	income,
+	reveal,
+} from '@/core/content/behaviours.ts'
 import { tier } from '@/core/content/upgrades.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
 import type { DeltaTarget, TierParams, TowerUpgrade } from '@/core/content/upgrades.ts'
@@ -65,6 +75,16 @@ const NIGHTLIGHT_AURA_PER_TICK = 6 / TICKS_PER_SECOND
  * constant because they are one number: the tower damages exactly what it attracts.
  */
 const NIGHTLIGHT_RADIUS_TILES = 4
+
+/**
+ * What the Baking Soda splashes within **and** what it scrubs slime within. One constant for the
+ * same reason `NIGHTLIGHT_RADIUS_TILES` is one: it clears exactly the circle it damages in. 1.2 makes
+ * it the AOE its role says without covering its whole range-2 circle before tier 3.
+ */
+const BAKING_SODA_RADIUS_TILES = 1.2
+
+/** Its tier 3 raises both halves of that radius together, to 2.0 -- the whole circle at once. */
+const BAKING_SODA_T3_RADIUS_TILES = 0.8
 
 /** One tier, minus the keys `upgradesFor` derives. */
 type TierBody = Omit<TierParams, 'nameKey' | 'descriptionKey'>
@@ -629,6 +649,106 @@ export const nightlight: TowerDefOf<'nightlight'> = {
 	}),
 }
 
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 145 crumbs, 4 damage + 4/s, 1.0/sec, range 3,
+ * chemical, both, no noise, off the path. The board's answer to mold: it scrubs one molded cell a
+ * second, nearest the fridge first, whether or not it has anything to shoot.
+ *
+ * **`applies: ['poison']` is bare, and that is not an oversight.** The Spray Bottle above overrides
+ * the magnitude because its row gives a 2/s the status table disagrees with. This row's 4/s *is* the
+ * table's number, so authoring `4 / TICKS_PER_SECOND` here would be a second copy of it that only
+ * drifts.
+ *
+ * The cleanse radius is its own range and its interval its own rate, so the card can honestly say
+ * "one patch a second". `projectileSpeed: 0.1` and `maxHp: 100` are every projectile tower's
+ * precedent; section 5 gives `FIRST` to a DPS tower.
+ */
+export const vinegarSpray: TowerDefOf<'vinegarSpray'> = {
+	id: 'vinegarSpray',
+	nameKey: 'tower.vinegarSpray.name',
+	descriptionKey: 'tower.vinegarSpray.description',
+	glyph: '🧪',
+	role: 'DOT',
+	cost: 145,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'FIRST',
+	behaviours: [
+		attack({
+			damage: 4,
+			damageType: 'chemical',
+			cooldownTicks: perSecond(1.0),
+			rangeTiles: 3,
+			targets: 'both',
+			projectileSpeed: 0.1,
+			applies: ['poison'],
+		}),
+		cleanse({ radiusTiles: 3, clears: ['mold'], maxTilesPerPulse: 1, intervalTicks: perSecond(1.0) }),
+	],
+	/**
+	 * 4 -> 6 -> 8 on the hit.
+	 *
+	 * T3 doubles the **scrubbing** radius and leaves the attack range at 3, which is the point: a base
+	 * Vinegar Spray defends its own corner, and a tier-3 one reaches mold where its shots do not.
+	 */
+	upgrades: upgradesFor('vinegarSpray', raise('attack', 'damage', 2), raise('attack', 'damage', 2), {
+		add: [{ kind: 'cleanse', fields: { radiusTiles: 3 } }],
+	}),
+}
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 80 crumbs, 6 damage, 0.6/sec, range 2, chemical,
+ * ground, no noise, off the path. 🥣 and not the doc's original 🧂 -- that is the Salt Shaker's.
+ *
+ * **`projectileSpeed: 0` with a splash radius**, so it takes `combatSystem`'s instant-AoE branch --
+ * a shaker of powder does not fly. It is the first tower in the game that does.
+ *
+ * Every pulse scrubs slime off every cell in `BAKING_SODA_RADIUS_TILES` of the tower, on the tower's
+ * own 100-tick rate; section 5 gives `CLOSEST` to an area tower.
+ */
+export const bakingSoda: TowerDefOf<'bakingSoda'> = {
+	id: 'bakingSoda',
+	nameKey: 'tower.bakingSoda.name',
+	descriptionKey: 'tower.bakingSoda.description',
+	glyph: '🥣',
+	role: 'AOE',
+	cost: 80,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		attack({
+			damage: 6,
+			damageType: 'chemical',
+			cooldownTicks: perSecond(0.6),
+			rangeTiles: 2,
+			targets: 'ground',
+			projectileSpeed: 0,
+			splashRadiusTiles: BAKING_SODA_RADIUS_TILES,
+		}),
+		cleanse({
+			radiusTiles: BAKING_SODA_RADIUS_TILES,
+			clears: ['slime'],
+			maxTilesPerPulse: 0,
+			intervalTicks: perSecond(0.6),
+		}),
+	],
+	/**
+	 * 6 -> 8 -> 10 on the hit.
+	 *
+	 * T3 raises the splash **and** the scrub radius together, the way the Mousetrap's halves two fields
+	 * to mean one thing: a tower that scrubs further than it hits is a bug wearing a tier's clothes.
+	 */
+	upgrades: upgradesFor('bakingSoda', raise('attack', 'damage', 2), raise('attack', 'damage', 2), {
+		add: [
+			{ kind: 'attack', fields: { splashRadiusTiles: BAKING_SODA_T3_RADIUS_TILES } },
+			{ kind: 'cleanse', fields: { radiusTiles: BAKING_SODA_T3_RADIUS_TILES } },
+		],
+	}),
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
 export const TOWERS = [
 	saltShaker,
@@ -641,6 +761,8 @@ export const TOWERS = [
 	cardboardBox,
 	toaster,
 	nightlight,
+	vinegarSpray,
+	bakingSoda,
 ]
 
 export type TowerId = (typeof TOWERS)[number]['id']

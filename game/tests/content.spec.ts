@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isReveal } from '@/core/content/behaviours.ts'
+import { isCleanse, isReveal } from '@/core/content/behaviours.ts'
 import { ant, beetle, ENEMIES, fly, fruitFly, moth, roach } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
@@ -7,6 +7,7 @@ import { NIGHTS } from '@/core/content/nights.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { validateContent } from '@/core/content/schema.ts'
 import {
+	bakingSoda,
 	cardboardBox,
 	cookieJar,
 	iceCubeTray,
@@ -18,6 +19,7 @@ import {
 	toaster,
 	toasterCrumbTray,
 	TOWERS,
+	vinegarSpray,
 } from '@/core/content/towers.ts'
 import { en } from '@/ui/locales/en.ts'
 import type {
@@ -554,7 +556,92 @@ describe('the Nightlight', () => {
 	})
 
 	it('is the tenth tower in the shop, appended and not inserted', () => {
-		expect(TOWERS[TOWERS.length - 1]?.id).toBe('nightlight')
+		expect(TOWERS[9]?.id).toBe('nightlight')
+	})
+})
+
+describe('the Vinegar Spray', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(vinegarSpray.cost).toBe(145)
+		expect(vinegarSpray.role).toBe('DOT')
+		expect(vinegarSpray.glyph).toBe('🧪')
+		expect(vinegarSpray.maxHp).toBe(100)
+		expect(vinegarSpray.placement).toBe('off_path')
+		expect(vinegarSpray.noise).toBe(0)
+		expect(vinegarSpray.defaultTargetingMode).toBe('FIRST')
+
+		const shot = attackOf(vinegarSpray.behaviours)
+		expect(shot.damage).toBe(4)
+		expect(shot.damageType).toBe('chemical')
+		expect(shot.cooldownTicks).toBe(60)
+		expect(shot.rangeTiles).toBe(3)
+		expect(shot.targets).toBe('both')
+		expect(shot.projectileSpeed).toBeCloseTo(0.1, 10)
+		expect(shot.splashRadiusTiles).toBe(0)
+	})
+
+	it('poisons at the status table s own 4/sec, with no override of its own', () => {
+		const shot = attackOf(vinegarSpray.behaviours)
+
+		expect(shot.applies).toEqual([
+			{ kind: 'poison', magnitude: null, durationTicks: null, stacks: null, everyNthHit: null },
+		])
+		expect(STATUS_DEFS.poison.magnitude * 60).toBeCloseTo(4, 10)
+	})
+
+	it('scrubs one molded cell a pulse, within its own range, at its own rate', () => {
+		expect(vinegarSpray.behaviours.find(isCleanse)).toEqual({
+			kind: 'cleanse',
+			radiusTiles: 3,
+			clears: ['mold'],
+			maxTilesPerPulse: 1,
+			intervalTicks: 60,
+		})
+	})
+
+	it('is the eleventh tower in the shop, appended and not inserted', () => {
+		expect(TOWERS[10]?.id).toBe('vinegarSpray')
+	})
+})
+
+describe('the Baking Soda', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(bakingSoda.cost).toBe(80)
+		expect(bakingSoda.role).toBe('AOE')
+		/** Not the doc's original 🧂, which is the Salt Shaker's. */
+		expect(bakingSoda.glyph).toBe('🥣')
+		expect(bakingSoda.glyph).not.toBe(saltShaker.glyph)
+		expect(bakingSoda.maxHp).toBe(100)
+		expect(bakingSoda.placement).toBe('off_path')
+		expect(bakingSoda.noise).toBe(0)
+		expect(bakingSoda.defaultTargetingMode).toBe('CLOSEST')
+
+		const shot = attackOf(bakingSoda.behaviours)
+		expect(shot.damage).toBe(6)
+		expect(shot.damageType).toBe('chemical')
+		/** 0.6/sec is 100 ticks. */
+		expect(shot.cooldownTicks).toBe(100)
+		expect(shot.rangeTiles).toBe(2)
+		expect(shot.targets).toBe('ground')
+		/** The instant-AoE branch: no projectile, and a splash. */
+		expect(shot.projectileSpeed).toBe(0)
+		expect(shot.splashRadiusTiles).toBe(1.2)
+		expect(shot.applies).toEqual([])
+	})
+
+	it('scrubs every slimed cell in the circle it splashes, at its own rate', () => {
+		expect(bakingSoda.behaviours.find(isCleanse)).toEqual({
+			kind: 'cleanse',
+			radiusTiles: 1.2,
+			clears: ['slime'],
+			maxTilesPerPulse: 0,
+			intervalTicks: 100,
+		})
+	})
+
+	it('is the twelfth tower in the shop, appended and not inserted', () => {
+		expect(TOWERS[11]?.id).toBe('bakingSoda')
+		expect(TOWERS).toHaveLength(12)
 	})
 })
 

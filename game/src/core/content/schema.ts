@@ -209,6 +209,7 @@ const DELTA_TARGETS = [
 	'pushback',
 	'tileEffect',
 	'reveal',
+	'cleanse',
 	'def',
 ] as const satisfies readonly DeltaTarget[]
 
@@ -350,6 +351,19 @@ export function contentSchemas() {
 			kind: z.literal('reveal'),
 			radiusTiles: tiles(),
 			attractsLightDrawn: z.boolean(),
+		}),
+		z.object({
+			kind: z.literal('cleanse'),
+			radiusTiles: tiles(),
+			clears: z.array(tileEffectKind).min(1),
+			/** 0 is every cell in radius. No board holds more cells than this, so a count past it is a typo. */
+			maxTilesPerPulse: z
+				.number()
+				.int()
+				.min(0)
+				.max(MAX_TILES * MAX_TILES),
+			/** A firing rate wearing a different name, bounded the same way so a millisecond value fails. */
+			intervalTicks: tickCount(MAX_COOLDOWN_TICKS).min(1),
 		}),
 	]) satisfies z.ZodType<Behaviour>
 

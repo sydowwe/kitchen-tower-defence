@@ -78,6 +78,14 @@
 				<dt>{{ t('hud.stat.lights') }}</dt>
 				<dd>{{ t('hud.stat.tiles', { n: stats.revealRadiusTiles }) }}</dd>
 			</template>
+			<template v-if="stats.cleanseRadiusTiles !== null">
+				<dt>{{ t('hud.stat.cleans') }}</dt>
+				<dd>{{ t('hud.stat.tiles', { n: stats.cleanseRadiusTiles }) }}</dd>
+			</template>
+			<template v-if="stats.cleansePerSecond !== null">
+				<dt>{{ t('hud.stat.cleanRate') }}</dt>
+				<dd>{{ t('hud.stat.perSecond', { n: stats.cleansePerSecond }) }}</dd>
+			</template>
 			<!-- Per second, so it can be held against the 1.5/sec the meter decays at. The raw per-shot
 				 number makes a Mousetrap and a Toaster read as the same tower (step 13B, decision 6). -->
 			<dt>{{ t('hud.stat.noise') }}</dt>

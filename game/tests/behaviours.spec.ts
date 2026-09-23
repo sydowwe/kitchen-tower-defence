@@ -6,6 +6,7 @@ import {
 	bait,
 	barricade,
 	charge,
+	cleanse,
 	collect,
 	coneAttack,
 	income,
@@ -56,6 +57,7 @@ function kindOf(behaviour: Behaviour): BehaviourKind {
 		case 'pushback':
 		case 'tileEffect':
 		case 'reveal':
+		case 'cleanse':
 			return behaviour.kind
 		default: {
 			const unreachable: never = behaviour
@@ -85,6 +87,7 @@ const everyBehaviour: Behaviour[] = [
 	pushback({ rangeTiles: 4, coneHalfAngleDeg: 35, pushTilesPerTick: 0.02, targets: 'air' }),
 	tileEffect({ effect: 'heat', radiusTiles: 0, magnitude: 14 / 60, durationTicks: 120, refreshIntervalTicks: 30 }),
 	reveal({ radiusTiles: 4, attractsLightDrawn: true }),
+	cleanse({ radiusTiles: 3, clears: ['mold'], maxTilesPerPulse: 1, intervalTicks: 60 }),
 ]
 
 describe('behaviour descriptors', () => {

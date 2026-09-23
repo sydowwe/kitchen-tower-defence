@@ -237,6 +237,26 @@ describe('the inspector', () => {
 
 		expect(stats?.applies).toEqual([{ kind: 'slow', perSecond: null }])
 	})
+
+	it('gives a scrubber its cleaning radius, and a patch rate only where a pulse has a limit', () => {
+		const world = buildableWorld()
+		const shop = buildHudSnapshot(world, VIEW).shop
+		const vinegar = shop.find(entry => entry.id === 'vinegarSpray')?.stats
+		const soda = shop.find(entry => entry.id === 'bakingSoda')?.stats
+		const salt = shop.find(entry => entry.id === 'saltShaker')?.stats
+
+		// One patch a pulse, one pulse a second: "one patch a second", and the table's 4/s poison.
+		expect(vinegar?.cleanseRadiusTiles).toBe(3)
+		expect(vinegar?.cleansePerSecond).toBe(1)
+		expect(vinegar?.applies).toEqual([{ kind: 'poison', perSecond: 4 }])
+		// The whole circle each pulse has no count to print.
+		expect(soda?.cleanseRadiusTiles).toBe(1.2)
+		expect(soda?.cleansePerSecond).toBeNull()
+		expect(soda?.ratePerSecond).toBe(0.6)
+		// Null, never 0, for a tower with no `cleanse`.
+		expect(salt?.cleanseRadiusTiles).toBeNull()
+		expect(salt?.cleansePerSecond).toBeNull()
+	})
 })
 
 describe('the upgrade slots', () => {
@@ -318,6 +338,26 @@ describe('the upgrade slots', () => {
 		expect(slots.map(slot => slot.affordable)).toEqual([true, true, false])
 		// Tier 3 is the only one with a sentence: the other two have their diff.
 		expect(slots.map(slot => slot.descriptionKey)).toEqual([null, null, 'tower.saltShaker.tier3.description'])
+	})
+
+	it('draws both scrubbers tier 3 as a cleaning-radius row rather than a blank slot', () => {
+		const vinegar = slotsFor(buildableWorld(), 'vinegarSpray')[2]
+		const soda = slotsFor(buildableWorld(), 'bakingSoda')[2]
+
+		expect(vinegar?.diff).toEqual([
+			{
+				labelKey: 'hud.stat.cleans',
+				from: { textKey: 'hud.stat.tiles', params: { n: 3 } },
+				to: { textKey: 'hud.stat.tiles', params: { n: 6 } },
+			},
+		])
+		expect(soda?.diff).toEqual([
+			{
+				labelKey: 'hud.stat.cleans',
+				from: { textKey: 'hud.stat.tiles', params: { n: 1.2 } },
+				to: { textKey: 'hud.stat.tiles', params: { n: 2 } },
+			},
+		])
 	})
 
 	it('reports the dps of a tier-3 tower off the folded def and not the base one', () => {

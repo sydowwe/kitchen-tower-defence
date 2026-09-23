@@ -138,6 +138,11 @@ export const en = {
 			// A lamp's one row, and it says what the tower *does* rather than what the behaviour is
 			// called: "Reveal radius" is the vocabulary word, and nobody is buying a radius.
 			lights: 'Lights up',
+			// A scrubber's two rows, worded the same way: what it does to the board, not "cleanse radius".
+			// `cleanRate` is absent for a tower that clears its whole circle each go -- see
+			// `TowerStatsView.cleansePerSecond`.
+			cleans: 'Cleans within',
+			cleanRate: 'Patches cleaned',
 			cone: 'Cone',
 			applies: 'Applies',
 			// A wall's rows. `blocks` is a label and `blocksGround` its answer: the card is a two-column
@@ -335,6 +340,30 @@ export const en = {
 			tier3: {
 				name: 'Bare Filament',
 				description: 'Running hot. Whatever it has pulled in close now burns for as long as it stays there.',
+			},
+		},
+		// Drafted blind in 15B; 15C has the board to judge them against. Both sentences are spent on
+		// the board rather than the bugs, because that is the half of each tower no other one does.
+		vinegarSpray: {
+			name: 'Vinegar Spray',
+			description:
+				'White vinegar in a plant mister. It stings whatever it hits, and it wipes the mould off the counter one patch at a time.',
+			tier1: { name: 'Double Strength' },
+			tier2: { name: 'Pickling Grade' },
+			tier3: {
+				name: 'Long Reach',
+				description: 'The mist carries. It scrubs mould twice as far away as it can aim.',
+			},
+		},
+		bakingSoda: {
+			name: 'Baking Soda',
+			description:
+				'A tub of it, shaken out in clouds. It burns anything soft underneath and soaks up the slime they leave.',
+			tier1: { name: 'Fresh Tub' },
+			tier2: { name: 'Heaped Spoon' },
+			tier3: {
+				name: 'Whole Box',
+				description: 'Every shake covers the whole circle, and every trail of slime inside it with it.',
 			},
 		},
 	} satisfies TowerMessages,

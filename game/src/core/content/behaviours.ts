@@ -499,6 +499,45 @@ export function reveal(params: RevealParams): RevealBehaviour {
 	}
 }
 
+/**
+ * Vinegar Spray, Baking Soda: takes tile effects *off* the board. `core/systems/cleanse.ts`
+ * interprets it, step 15B.
+ *
+ * **Its own behaviour on its own clock, not a rider on a shot.** A tower fires only when something
+ * is in range, and a Vinegar Spray beside a molded board whose mold is already dead is exactly the
+ * moment it was bought for. `intervalTicks` authored equal to the tower's own firing rate gives the
+ * same pace with none of that dependency.
+ *
+ * `clears` is an array a tier cannot rewrite -- a `StatDelta` writes numbers -- so no tier can
+ * change *what* a tower scrubs, only how far and how much.
+ */
+export interface CleanseBehaviour {
+	kind: 'cleanse'
+	radiusTiles: number
+	clears: TileEffectKind[]
+	/** Cells one pulse removes it from, nearest the fridge first. 0 is every cell in radius. */
+	maxTilesPerPulse: number
+	/** Ticks between pulses. Authored to match the tower's own firing rate. */
+	intervalTicks: number
+}
+
+export interface CleanseParams {
+	radiusTiles: number
+	clears: readonly TileEffectKind[]
+	maxTilesPerPulse: number
+	intervalTicks: number
+}
+
+export function cleanse(params: CleanseParams): CleanseBehaviour {
+	return {
+		kind: 'cleanse',
+		radiusTiles: params.radiusTiles,
+		clears: [...params.clears],
+		maxTilesPerPulse: params.maxTilesPerPulse,
+		intervalTicks: params.intervalTicks,
+	}
+}
+
 // --- the union -----------------------------------------------------------------------------------
 
 /**
@@ -521,6 +560,7 @@ export type Behaviour =
 	| PushbackBehaviour
 	| TileEffectBehaviour
 	| RevealBehaviour
+	| CleanseBehaviour
 
 export type BehaviourKind = Behaviour['kind']
 
@@ -542,6 +582,7 @@ export const BEHAVIOUR_KINDS = [
 	'pushback',
 	'tileEffect',
 	'reveal',
+	'cleanse',
 ] as const satisfies readonly BehaviourKind[]
 
 /** Narrowing helper for the systems, so `combat.ts` never hand-writes `b.kind === 'attack'`. */
@@ -604,4 +645,9 @@ export function isBarricadeBehaviour(behaviour: Behaviour): behaviour is Barrica
  */
 export function isReveal(behaviour: Behaviour): behaviour is RevealBehaviour {
 	return behaviour.kind === 'reveal'
+}
+
+/** And for scrubbing: `core/systems/cleanse.ts`, the card in `ui/viewModel.ts`, and `reachOf`. */
+export function isCleanse(behaviour: Behaviour): behaviour is CleanseBehaviour {
+	return behaviour.kind === 'cleanse'
 }

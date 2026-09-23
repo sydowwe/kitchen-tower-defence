@@ -8,7 +8,7 @@
 					{
 						"type": "command",
 						"shell": "powershell",
-						"command": "& '.claude/hooks/lint-edited-file.ps1'",
+						"command": "& \"$env:CLAUDE_PROJECT_DIR/.claude/hooks/lint-edited-file.ps1\"",
 						"timeout": 30,
 						"statusMessage": "Linting the edited file"
 					}

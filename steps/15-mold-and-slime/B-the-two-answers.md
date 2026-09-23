@@ -134,9 +134,10 @@ Gotchas:
   this is plain `Math.hypot` and not `core/systems/hitbox.ts`'s `circle`, which queries *enemies*.
   Do not reach for it; it takes `world` and filters entity arrays.
 - **Clearing the last effect on a cell has to release the cell**, not leave a `TileState` with an
-  empty `effects` array behind. Step 14's `clearState` is supposed to do this — its own fifth test
-  says so. Verify it, because `world.tiles` is iterated by the renderer every frame and a night's
-  worth of empty shells is a per-frame cost nobody would think to look for.
+  empty `effects` array behind. Step 14's `clearEffect` in `core/tiles.ts` does this (15B's
+  pre-flight: this line originally called it `clearState`, which does not exist). Verified by
+  `tests/cleanse.spec.ts`, because `world.tiles` is iterated by the renderer every frame and a
+  night's worth of empty shells is a per-frame cost nobody would think to look for.
 - **This runs before `tiles`**, so a cell cleared this tick is gone before it is aged. That is
   deliberate and it means a cleanse and an expiry can never both fire on the same cell.
 
@@ -190,6 +191,11 @@ Tiers:
 
 - `TowerStatsView` in `ui/viewModel.ts` gains `cleanseRadiusTiles: number | null` and the per-second
   count, built the way every other row is: null for a tower that has no `cleanse`, never 0.
+  *Built as `cleansePerSecond`, and it is **also null for `maxTilesPerPulse: 0`**: the Baking Soda
+  clears however many cells are slimed, so a per-second count would invent a limit it does not
+  have. Its firing-rate row already says how often. Labels `hud.stat.cleans` ("Cleans within") and
+  `hud.stat.cleanRate` ("Patches cleaned"), both in `DIFF_ROWS`, so both tier 3s diff as a
+  cleaning-radius row. No splash row was added — the Salt Shaker's tier 3 has shipped without one.*
 - `ui/locales/en.ts` gains the `hud.stat` label, both towers' names and descriptions, and their six
   tier names plus two tier-3 descriptions. The label says what the tower *does*, the way `lights`
   does for the lamp and not the way the vocabulary word would.
@@ -198,6 +204,8 @@ Tiers:
   A tier-3 Vinegar Spray cleans twice as far as it shoots, and a ghost showing only the smaller
   circle is a ghost that lies about the tower's headline feature. Draw the larger of the two, or two
   circles — but decide it here rather than leaving 15C to notice.
+  *Decided: the larger of the two, as one circle. Two circles would need a second `OverlayReach`
+  shape for one tower; 15C may revisit it with the board in front of it.*
 
 ## Tests
 
@@ -213,7 +221,8 @@ Tiers:
 - It still cleans with **no enemy anywhere on the board** — decision 1's whole point, and the test
   that fails if cleaning is ever re-attached to a shot.
 - A Baking Soda clears every slimed cell inside its radius in one pulse and none outside it; a cell
-  at exactly `radiusTiles` is in.
+  at exactly `radiusTiles` is in. *No integer cell sits exactly 1.2 away, so the boundary case runs
+  on the tier-3 tower's 2.0.*
 - Clearing the last effect on a cell removes it from `world.tiles` rather than leaving an empty
   `TileState`.
 - A Baking Soda takes the **instant-AoE** branch: one shot damages every ground enemy in
@@ -225,13 +234,13 @@ Tiers:
 
 ## Acceptance
 
-- [ ] Adding both towers required **no change to any file in `core/systems/` except the new
+- [x] Adding both towers required **no change to any file in `core/systems/` except the new
       `cleanse.ts`**. If it needed one, the composition is wrong — fix the vocabulary, not the entry
       (`../../CLAUDE.md`, *Content is data, not classes*; `ARCHITECTURE.md` §4).
-- [ ] `core/systems/tiles.ts` is unchanged by this session.
-- [ ] A hypothetical third tower that cleared `residue` in a radius would be a config object here and
+- [x] `core/systems/tiles.ts` is unchanged by this session.
+- [x] A hypothetical third tower that cleared `residue` in a radius would be a config object here and
       nothing else — check it by writing one in a scratch spec, then delete it.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 15C
 

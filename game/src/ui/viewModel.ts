@@ -16,7 +16,7 @@
  * cannot translate, `ui/` resolves, and a snapshot is exactly where that gets broken first.
  */
 
-import { isAttack, isCharge, isCollect, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
+import { isAttack, isCharge, isCleanse, isCollect, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { TOWERS, effectiveDef, effectiveDefOf, getTowerDef } from '@/core/content/index.ts'
 import { upgradeCost } from '@/core/content/upgrades.ts'
@@ -132,6 +132,15 @@ export interface TowerStatsView {
 	 * never varies, and what it *means* is a sentence rather than a value (step 11C, decision 8).
 	 */
 	revealRadiusTiles: number | null
+	/** How far a scrubber cleans the board, in tiles. Null for everything that has no `cleanse`. */
+	cleanseRadiusTiles: number | null
+	/**
+	 * Patches cleaned per second, for a scrubber that takes a fixed number a pulse -- the Vinegar
+	 * Spray's "one a second". **Null too for one that clears its whole circle each pulse**: the Baking
+	 * Soda's count is however many cells happen to be slimed, and a rate row reading "0.6/sec" would be
+	 * the card inventing a limit the tower does not have. Its firing rate row already says how often.
+	 */
+	cleansePerSecond: number | null
 }
 
 /**
@@ -375,6 +384,8 @@ function statsFor(def: TowerDef): TowerStatsView {
 		rearmSeconds: null,
 		blocksPath: false,
 		revealRadiusTiles: null,
+		cleanseRadiusTiles: null,
+		cleansePerSecond: null,
 	}
 
 	for (const behaviour of def.behaviours) {
@@ -403,6 +414,15 @@ function statsFor(def: TowerDef): TowerStatsView {
 			// and the Nightlight has none, so a "Targets: ground and air" row would be the card claiming
 			// it shoots (step 11C, decision 9).
 			stats.revealRadiusTiles = behaviour.radiusTiles
+			continue
+		}
+
+		if (isCleanse(behaviour)) {
+			stats.cleanseRadiusTiles = behaviour.radiusTiles
+			stats.cleansePerSecond =
+				behaviour.maxTilesPerPulse === 0
+					? null
+					: round2((behaviour.maxTilesPerPulse * TICKS_PER_SECOND) / behaviour.intervalTicks)
 			continue
 		}
 
@@ -523,6 +543,8 @@ const DIFF_ROWS: readonly { labelKey: string; read: (stats: TowerStatsView) => S
 	{ labelKey: 'hud.stat.income', read: s => measured('hud.stat.perSecond', s.crumbsPerSecond) },
 	{ labelKey: 'hud.stat.collect', read: s => measured('hud.stat.tiles', s.collectRadiusTiles) },
 	{ labelKey: 'hud.stat.lights', read: s => measured('hud.stat.tiles', s.revealRadiusTiles) },
+	{ labelKey: 'hud.stat.cleans', read: s => measured('hud.stat.tiles', s.cleanseRadiusTiles) },
+	{ labelKey: 'hud.stat.cleanRate', read: s => measured('hud.stat.perSecond', s.cleansePerSecond) },
 	// The one row the card always draws, and the one that reads as a word at zero. Per second since
 	// 13B, so a tier that halves a cooldown shows up here as the tower getting louder -- which is
 	// exactly what the Mousetrap's third tier does, and what no other row on the card would say.
