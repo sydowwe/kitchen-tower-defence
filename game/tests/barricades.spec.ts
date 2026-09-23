@@ -59,6 +59,7 @@ function addEnemy(world: World, def: EnemyDef, distance: number, pathId = PATH_I
 		tags: [...def.tags],
 		speed: def.speedTilesPerTick,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}

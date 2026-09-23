@@ -3,6 +3,7 @@ import type { World } from '@/core/types.ts'
 import {
 	auraSystem,
 	barricadesSystem,
+	cleanseSystem,
 	combatSystem,
 	commandsSystem,
 	crumbsSystem,
@@ -14,6 +15,7 @@ import {
 	projectilesSystem,
 	resolveSystem,
 	spawnSystem,
+	spreadSystem,
 	statusSystem,
 	targetingSystem,
 	tilesSystem,
@@ -37,6 +39,8 @@ export type SystemName =
 	| 'combat'
 	| 'aura'
 	| 'projectiles'
+	| 'spread'
+	| 'cleanse'
 	| 'tiles'
 	| 'crumbs'
 	| 'noise'
@@ -71,6 +75,10 @@ const SYSTEMS: readonly System[] = [
 	// loop skips every tower with no firing behaviour, which is every aura tower.
 	{ name: 'aura', run: auraSystem },
 	{ name: 'projectiles', run: projectilesSystem },
+	// Everything that writes or erases a cell, then the system that ages them, so the board is only ever
+	// read in one direction within a tick.
+	{ name: 'spread', run: spreadSystem },
+	{ name: 'cleanse', run: cleanseSystem },
 	{ name: 'tiles', run: tilesSystem },
 	{ name: 'crumbs', run: crumbsSystem },
 	{ name: 'noise', run: noiseSystem },
@@ -86,7 +94,7 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
  * One fixed step of the simulation.
  *
  * Order: commands -> spawn -> wave -> status -> movement -> barricades -> light -> targeting ->
- * combat -> aura -> projectiles ->
+ * combat -> aura -> projectiles -> spread -> cleanse ->
  * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
  *
  * The queue is drained here, once, before anything else runs -- so player input lands at a tick

@@ -56,6 +56,7 @@ function killAt(world: World, distance: number): void {
 		tags: ['ground' as const],
 		speed: 0,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}

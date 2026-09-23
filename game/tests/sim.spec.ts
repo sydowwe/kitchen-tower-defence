@@ -75,6 +75,8 @@ describe('system order', () => {
 			'combat',
 			'aura',
 			'projectiles',
+			'spread',
+			'cleanse',
 			'tiles',
 			'crumbs',
 			'noise',

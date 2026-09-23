@@ -85,6 +85,7 @@ function addEnemyAt(world: World, at: Vec2, tags: EnemyTag[] = PLAIN): Enemy {
 		tags: [...tags],
 		speed: 0,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
@@ -112,6 +113,7 @@ function addLaneEnemy(world: World, distance: number, tags: EnemyTag[] = PLAIN):
 		tags: [...tags],
 		speed: 0,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}

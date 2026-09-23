@@ -14,13 +14,14 @@
  * `tileUnder` helper below, which is therefore the only place the flyer check is written.
  */
 
+import { getEnemyDef } from '@/core/content/index.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
 import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
 import { tileAt, tileStateAt } from '@/core/tiles.ts'
 import { applyDamage } from '@/core/systems/combat.ts'
 import { enemyPosition } from '@/core/systems/spatial.ts'
 import { isFlyer } from '@/core/systems/targeting.ts'
-import type { Enemy, TileState, World } from '@/core/types.ts'
+import type { Enemy, TileEffectKind, TileState, World } from '@/core/types.ts'
 
 /**
  * The cell this enemy is standing on, or null -- for an empty board, for a flyer, for an enemy whose
@@ -44,8 +45,18 @@ export function tileUnder(world: World, enemy: Enemy): TileState | null {
 }
 
 /**
+ * The one kind the floor does nothing to this enemy with: whatever its own `tileWriter` writes. The
+ * rule is steps/15-mold-and-slime/A-the-two-enemies.md, decision 8 -- without it a Slug speeds itself
+ * up on its own trail and walks at 0.64 rather than the authored 0.4.
+ */
+function ownKind(enemy: Enemy): TileEffectKind | null {
+	return getEnemyDef(enemy.defId).tileWriter?.effect ?? null
+}
+
+/**
  * What to multiply this enemy's speed by for the floor it is on. Exactly `1` with nothing under it,
- * for a flyer, and for a cell carrying no `speedMultiplier` effect -- so `movementSystem`'s common
+ * for a flyer, for a cell carrying no `speedMultiplier` effect, and for a Slug on its own slime (see
+ * `ownKind`) -- so `movementSystem`'s common
  * line is unchanged in value and `tileUnder`'s early-out is what keeps it cheap.
  *
  * Several speed effects on one cell **multiply**, matching the tag matrix's rule. There is only ever
@@ -57,9 +68,10 @@ export function tileSpeedMultiplier(world: World, enemy: Enemy): number {
 		return 1
 	}
 
+	const own = ownKind(enemy)
 	let multiplier = 1
 	for (const effect of state.effects) {
-		if (TILE_EFFECT_DEFS[effect.kind].effect !== 'speedMultiplier') {
+		if (TILE_EFFECT_DEFS[effect.kind].effect !== 'speedMultiplier' || effect.kind === own) {
 			continue
 		}
 		// The magnitude *is* the multiplier for a tile -- 1.6 is 1.6x. See the header of
@@ -90,10 +102,11 @@ export function tilesSystem(world: World): void {
 		// onto the tile under whatever it damages -- which, for a heated cell, is this very array. A
 		// `for...of` would walk into the effect it just appended; capturing the count leaves the new
 		// mark to the next tick, and costs no allocation to do it.
+		const own = ownKind(enemy)
 		const effects = state.effects
 		for (let index = 0, count = effects.length; index < count; index++) {
 			const effect = effects[index]
-			if (effect === undefined) {
+			if (effect === undefined || effect.kind === own) {
 				continue
 			}
 			const def = TILE_EFFECT_DEFS[effect.kind]

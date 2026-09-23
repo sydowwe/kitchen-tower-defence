@@ -368,6 +368,16 @@ export const en = {
 			description:
 				'The only thing out here with no plan. It wanders off toward any light and then remembers the fridge.',
 		},
+		mold: {
+			name: 'Mold',
+			description:
+				'It never comes for the fridge. It stays where it landed and takes the counter, one tile at a time.',
+		},
+		slug: {
+			name: 'Slug',
+			description:
+				'Slow, soft, and not alone for long: whatever follows it runs faster along the trail it leaves.',
+		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.
 	food: {

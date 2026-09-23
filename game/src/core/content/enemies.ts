@@ -1,5 +1,5 @@
 /**
- * The enemy roster (analytic-docs/CONTENT.md section 2). Four enemies waves can schedule, and the
+ * The enemy roster (analytic-docs/CONTENT.md section 2). The enemies waves can schedule, and the
  * Fruit Fly, which no night schedules at all.
  *
  * An enemy is stats plus tags. The tags are the only thing that decides how it takes damage: they
@@ -181,6 +181,69 @@ export const moth: EnemyDefOf<'moth'> = {
 	tags: ['air', 'light-drawn'],
 }
 
-export const ENEMIES = [ant, roach, beetle, fruitFly, fly, moth]
+/**
+ * analytic-docs/CONTENT.md section 2, night 11: 40 HP, 12 crumbs, steals nothing,
+ * `ground spreads fungal`.
+ *
+ * **Speed 0, not the table's 0.15.** The paragraph under that table says mold does not walk, and the
+ * paragraph wins: `movementSystem` adds `0 * multiplier`, the leak check never fires, and a wake's
+ * flee at `speed * 2` is 0 too. It wins by eating the map instead -- its writer molds the tile it
+ * landed on, then one orthogonal neighbour every 6 seconds, permanently, and a molded tile refuses a
+ * tower. The interval is a draft that step 15C re-tunes against a night.
+ *
+ * `fungal` is **x0.2 physical and x2.5 chemical**: a board of Salt Shakers finds it close to
+ * immovable. `ground` and `spreads` are descriptive.
+ *
+ * `meleeDamagePerTick` is the file's `hp / 10` and is only ever read if a Cardboard Box is placed
+ * inside the hold gap in front of a mold that cannot walk to it.
+ */
+export const mold: EnemyDefOf<'mold'> = {
+	id: 'mold',
+	nameKey: 'enemy.mold.name',
+	descriptionKey: 'enemy.mold.description',
+	glyph: '🟢',
+	hp: 40,
+	speedTilesPerTick: 0,
+	meleeDamagePerTick: damagePerSecond(4),
+	reward: 12,
+	steals: 0,
+	tags: ['ground', 'spreads', 'fungal'],
+	/** `magnitude` is mold's growth stage, and 1 is where every patch starts. */
+	tileWriter: { effect: 'mold', mode: 'spread', magnitude: 1, durationTicks: -1, intervalTicks: 360 },
+}
+
+/**
+ * analytic-docs/CONTENT.md section 2, night 15: 45 HP, 0.4 tiles/sec, 11 crumbs, steals 2,
+ * `ground slime soft`.
+ *
+ * Slow on its own, and it paves a road: every tile it crosses carries slime for 8 seconds, and
+ * anything walking on slime moves at 1.6x. **Not the Slug itself** -- a tile never applies to the
+ * enemy whose def writes that kind, so the authored 0.4 is the speed it actually walks, and two Slugs
+ * do not speed each other up. The trail is a gift to whatever is behind it.
+ *
+ * `slime` and `soft` both have matrix rows and **multiply**: chemical is 1.5 x 2.0 = 3.0, fire
+ * 1.3 x 1.5 = 1.95, electric 1.8. Cold is 1.0 x 0.5 = 0.5 -- **freezing a slug is a mistake**: a
+ * cold tower spent on one does half damage to the enemy that most deserves chemical.
+ */
+export const slug: EnemyDefOf<'slug'> = {
+	id: 'slug',
+	nameKey: 'enemy.slug.name',
+	descriptionKey: 'enemy.slug.description',
+	glyph: '🐌',
+	hp: 45,
+	speedTilesPerTick: tilesPerSecond(0.4),
+	meleeDamagePerTick: damagePerSecond(4.5),
+	reward: 11,
+	steals: 2,
+	tags: ['ground', 'slime', 'soft'],
+	/**
+	 * `magnitude` is the speed multiplier itself for slime (see core/content/tileEffects.ts), so it
+	 * is 1.6 here and not the 1 a stage would be. Written every tick: a repeat write refreshes the
+	 * cell's 8 seconds rather than stacking, which is what makes the trail decay from the back.
+	 */
+	tileWriter: { effect: 'slime', mode: 'trail', magnitude: 1.6, durationTicks: 480, intervalTicks: 1 },
+}
+
+export const ENEMIES = [ant, roach, beetle, fruitFly, fly, moth, mold, slug]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']

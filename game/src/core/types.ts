@@ -211,6 +211,16 @@ export interface Enemy {
 	 * until it leaks, sometimes the wave is already past the high-water mark and it does nothing.
 	 */
 	spawnedInWaveIndex: number
+	/**
+	 * The tick `spreadSystem` next writes this enemy's `EnemyDef.tileWriter` on. The spawn tick, so the
+	 * first write lands the tick it appears; unread for an enemy whose def has no writer.
+	 *
+	 * Advanced by `+= intervalTicks`, never reset to `world.tick + intervalTicks` -- the rule and the
+	 * reason are `WaveSpawn.nextSpawnTick`'s. A per-enemy clock rather than `world.tick % interval`, so
+	 * a mold spawned at tick 350 does not pulse ten ticks later, and every mold on the board does not
+	 * pulse on the same frame.
+	 */
+	nextTileWriteTick: number
 	/** Food ids a thief is carrying. Returned to the fridge if it dies before it leaves the map. */
 	stolenItems: EntityId[]
 	flags: Record<EnemyFlag, boolean>
@@ -381,6 +391,12 @@ export interface WaveSpawn {
 	 */
 	spacingTicks: number
 	pathId: string
+	/**
+	 * Where along `pathId` this entry's enemies appear, copied off `WaveEntry.startDistanceTiles`.
+	 * Absent means 0, the start of the lane -- optional here as on the entry, so a cursor for an entry
+	 * that authors none is the same object it always was.
+	 */
+	startDistanceTiles?: number
 }
 
 /** The runtime half of a wave. The composition it was built from lives in `core/content/nights.ts`. */

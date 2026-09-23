@@ -445,6 +445,7 @@ describe('detachment from the world', () => {
 			tags: ['ground'],
 			speed: 0,
 			spawnedInWaveIndex: 0,
+			nextTileWriteTick: 0,
 			stolenItems: [],
 			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 		})

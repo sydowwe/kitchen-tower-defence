@@ -64,6 +64,7 @@ function addEnemyAt(world: World, at: Vec2, overrides: EnemyOverrides = {}): Ene
 		tags: overrides.tags ?? [...PLAIN],
 		speed: 0,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}

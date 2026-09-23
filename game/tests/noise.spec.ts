@@ -56,6 +56,7 @@ function putEnemy(world: World, distance: number, speed = 0.05): Enemy {
 		tags: ['ground'],
 		speed,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}

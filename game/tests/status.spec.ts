@@ -57,6 +57,7 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 		tags: overrides.tags ?? [...ant.tags],
 		speed: overrides.speed ?? 0,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}

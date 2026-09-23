@@ -437,6 +437,27 @@ export function contentSchemas() {
 		/** Food items taken at the fridge. */
 		steals: z.number().int().min(0).max(20),
 		tags: z.array(enemyTag).min(1),
+		/**
+		 * What this enemy writes onto the board, read by `core/systems/spread.ts`. **A field and not a
+		 * tag**: a tag could not carry the interval, the strength or the duration.
+		 *
+		 * - `trail` writes the tile under the enemy -- the Slug.
+		 * - `spread` grows the region of `effect` by one orthogonal neighbour -- the Mold.
+		 *
+		 * `magnitude` is written as-is, so it means what `TILE_EFFECT_DEFS[effect]` says it means: the
+		 * multiplier itself for slime, the growth stage for mold.
+		 */
+		tileWriter: z
+			.object({
+				effect: tileEffectKind,
+				mode: z.enum(['trail', 'spread']),
+				magnitude: z.number(),
+				// -1 is permanent, matching `TileEffect.remainingTicks` -- and the same bound the
+				// `tileEffect` behaviour uses, so a millisecond value fails in both places.
+				durationTicks: z.number().int().min(-1).max(MAX_TILE_EFFECT_TICKS),
+				intervalTicks: z.number().int().min(1).max(MAX_TILE_EFFECT_TICKS),
+			})
+			.optional(),
 	})
 
 	// --- food ---------------------------------------------------------------------------------
@@ -571,6 +592,13 @@ export function contentSchemas() {
 		 * pressure across the lanes of a multi-spawn map without changing per-lane spacing.
 		 */
 		pathId: defId().optional(),
+		/**
+		 * How far along the lane, in tiles, this entry's enemies appear. **Optional**, and absent is 0
+		 * -- the baseboard crack. What a Mold needs: without it, every mold spawns at the far end of the
+		 * board, all of a wave's on one tile. No upper bound here: the lane's length is the map's, so
+		 * past its end is a throw in `cursorsFor` rather than a number this schema could know.
+		 */
+		startDistanceTiles: z.number().min(0).optional(),
 	})
 
 	const wave = z.object({

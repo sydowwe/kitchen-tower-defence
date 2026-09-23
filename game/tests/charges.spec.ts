@@ -84,6 +84,7 @@ function addEnemy(world: World, distance: number): Enemy {
 		tags: [...ant.tags],
 		speed: 0,
 		spawnedInWaveIndex: 0,
+		nextTileWriteTick: 0,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}

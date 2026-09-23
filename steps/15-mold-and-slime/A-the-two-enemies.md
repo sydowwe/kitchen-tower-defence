@@ -38,6 +38,15 @@ If any of those four is missing rather than renamed, that is step 14 under-built
 step 14's files, and say so in this session's closing notes — do not grow a second grid in
 `core/systems/spread.ts`.
 
+**What the check found when 15A ran.** All four exist, renamed. The pure reads and writes live in
+`core/tiles.ts`, not `core/map.ts`: `tileAt(position)` (the `Math.round` conversion — there is no
+`worldToTile`), `tileStateAt`, `effectAt`, `hasEffect`, `writeEffect(world, tile, kind, overrides)`,
+`clearEffect`, `forEachTileWithEffect` and `neighbours(map, tile, includeDiagonals)`. The payload is
+`TileEffect { kind, remainingTicks, magnitude }`. `movementSystem` already multiplies by
+`tileSpeedMultiplier` (`core/systems/tiles.ts`), whose 1.6 is `TILE_EFFECT_DEFS.slime.magnitude`.
+`tilesSystem` already advances mold's stage every `stageTicks` on the world clock. Every "worldToTile"
+below means `tileAt`.
+
 ## Already in the repo
 
 | File | What's there now |
@@ -53,7 +62,8 @@ step 14's files, and say so in this session's closing notes — do not grow a se
 | `core/systems/resolve.ts:124` | the night is won on `lastWaveIsOut && world.enemies.length === 0`, and a wave clears on `world.enemies.some(e => e.spawnedInWaveIndex === index)` in `wave.ts:65` |
 | `core/sim.ts:28` | `SystemName` and `SYSTEMS`; `tiles` is 12th, after `projectiles` and before `crumbs`. `tests/sim.spec.ts` asserts the order against a literal list |
 | `core/map.ts:26`, `core/world.ts:58` | ~~wrong comments saying mold sets a `TileFlags` bit~~ — **both corrected in step 14A**. They now point at `world.tiles` and `blocksPlacement`. Decision 1 below still holds; there is nothing left to fix |
-| `render/renderer.ts:168` | `// tile effects: step 15` — the layer is step 14's. Correct the attribution while you are in the file; draw nothing |
+| `render/renderer.ts:168` | ~~`// tile effects: step 15`~~ — already reads as step 14B's layer. Nothing to change |
+| `core/systems/barricades.ts:174` | recomputed the step with `speedMultiplier` only — **no tile factor**. Build item 5 adds it |
 
 **The specs that will break.** Decision 4 adds a field to `Enemy`, and **eleven spec files hand-build
 one**: `barricades:50`, `charges:75`, `combat:61`, `crumbs:~46`, `hitbox:55`, `light:76`, `night:37`,
@@ -69,9 +79,8 @@ edit this file, don't leave it lying.
 1. **Mold and slime live in `world.tiles`, never in `MapDef.flags`.** `../../analytic-docs/DECISIONS.md`
    §11 is explicit, `TileEffectKind` has carried `'mold'` since step 2A, and the whole point of step
    14 is that there is one place. A flag bit would be a second truth that `canPlaceTower` and the
-   renderer could disagree about, and it could not carry the 8-second expiry slime needs. The two
-   comments in `core/map.ts` and `core/world.ts` that say otherwise predate step 14 and are wrong;
-   correct them both, naming tile state.
+   renderer could disagree about, and it could not carry the 8-second expiry slime needs. (The two
+   comments in `core/map.ts` and `core/world.ts` that once said otherwise were corrected in 14A.)
 2. **A tile writer is a field on the def, not a branch on a tag.** `core/systems/light.ts` reads
    `light-drawn` by name and `core/content/enemies.ts:160` calls that out as *the* exception; a
    second one starts a pattern. And a tag could not carry the interval, the magnitude or the
@@ -201,7 +210,15 @@ intervalTicks: 360 }`. The `magnitude: 1` is the **stage** 15C draws — see the
 
 **Slug** — 🐌, 45 HP, `tilesPerSecond(0.4)`, reward 11, steals 2,
 `['ground', 'slime', 'soft']`, `meleeDamagePerTick: damagePerSecond(4.5)`. Writer:
-`{ effect: 'slime', mode: 'trail', magnitude: 1, durationTicks: 480, intervalTicks: 1 }`.
+`{ effect: 'slime', mode: 'trail', magnitude: 1.6, durationTicks: 480, intervalTicks: 1 }`.
+
+**`magnitude: 1.6`, not the `1` this line first said.** The writer's magnitude is written onto the cell
+as-is, and for slime `TileEffect.magnitude` *is* the speed multiplier (`core/content/tileEffects.ts`
+header). A `1` would have paved a 1.0× road, and every spec that wrote slime through `writeEffect`'s
+default would still have passed.
+
+Both entries also need `enemy.mold` / `enemy.slug` name and description strings in
+`src/ui/locales/en.ts`. `EnemyMessages` is keyed off the roster, so without them the build fails.
 
 Write the comment that says what the tags cost, the way every def in this file does. Mold is
 `fungal`: **0.2× physical and 2.5× chemical**, and a player who has only built Salt Shakers should
@@ -211,8 +228,13 @@ comment should say so; 15B and 16 are where that becomes assertable end to end.
 
 ### 4. `WaveEntry.startDistanceTiles` — `core/content/schema.ts`, `core/systems/spawn.ts`
 
-Optional, `min(0)`, defaulted to 0 in `cursorsFor`, carried onto `WaveSpawn` and passed through to
-`spawnEnemyAt`'s existing `distance` argument. Four lines. No night authors one yet — 15C does.
+Optional, `min(0)`, carried onto `WaveSpawn` and passed through to `spawnEnemyAt`'s existing
+`distance` argument. No night authors one yet — 15C does.
+
+**Built as optional on `WaveSpawn` too, defaulted at `spawnEnemy` (`?? 0`) rather than in
+`cursorsFor`.** A required field means editing fourteen hand-built `WaveSpawn` literals across eleven
+specs, and `charges.spec`'s `toEqual` over the penalty cursors. That contradicts "no existing spec
+moves" in decision 9. `cursorsFor` copies the field only when the entry authors it.
 
 Gotcha: it has to be clamped to the lane's `totalLength`, or a typo puts an enemy past the fridge and
 `resolveSystem` eats it on the tick it spawns. Throw with the night id rather than clamping silently,
@@ -230,6 +252,18 @@ that line while you write this one.
 
 Two things it must not do: apply to a flyer (step 14's one check, in one place), and apply to an
 enemy whose own `tileWriter.effect` is `slime` (decision 8).
+
+**As built:** step 14 had already done the multiplier, so this session changed three things:
+
+- **The exemption** went into `core/systems/tiles.ts` (`ownKind`), in both `tileSpeedMultiplier` and
+  `tilesSystem`'s per-effect loop. It could not live in `movement.ts`, because barricades reads the
+  same factor, and decision 8 covers every effect, not only speed. That breaks the "`tiles.ts`
+  unchanged" acceptance line, on purpose.
+- **`barricades.ts:174`** now multiplies by `tileSpeedMultiplier` too. It reads the floor where the
+  enemy is now rather than where it stood, so it differs from movement by a fraction of one step,
+  and only on the tick the enemy crosses a slimed cell's edge.
+- **`nextTileWriteTick`** starts at the spawn tick, so a writer's first mark lands on the tick it
+  appears.
 
 ### 6. ~~`canPlaceTower` refuses a molded tile~~ — **done in step 14A, nothing to build**
 
@@ -254,8 +288,8 @@ working.
 order comment above `tick()`; `tests/sim.spec.ts`'s literal list gains both. `core/systems/index.ts`
 exports both. `core/systems/cleanse.ts` is a stub with an empty body and a comment saying 15B owns it.
 
-Then fix `core/map.ts:26`, `core/world.ts:58` and `render/renderer.ts:168` per decision 1 and the
-index's note. A step file that lies is worse than one that is out of date, and so is a comment.
+~~Then fix `core/map.ts:26`, `core/world.ts:58` and `render/renderer.ts:168`.~~ All three were
+already correct when 15A ran; nothing changed.
 
 ## Tests
 
@@ -285,11 +319,12 @@ widening the shared fixture, which eleven other suites are calibrated against.
 
 ## Acceptance
 
-- [ ] `core/systems/tiles.ts` is unchanged by this session. If it isn't, say in the commit message
-      what was missing from it and why the fix belonged there.
-- [ ] Adding either enemy required no branch on an enemy id anywhere in `core/systems/`.
-- [ ] `core/` still imports nothing but itself and zod.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `core/systems/tiles.ts` is unchanged by this session. If it isn't, say in the commit message
+      what was missing from it and why the fix belonged there. *(Changed: decision 8's exemption —
+      see build item 5 and the commit message.)*
+- [x] Adding either enemy required no branch on an enemy id anywhere in `core/systems/`.
+- [x] `core/` still imports nothing but itself and zod.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 15B and 15C
 
@@ -303,15 +338,17 @@ core/content/schema.ts   EnemyDef.tileWriter?: { effect, mode: 'trail' | 'spread
 core/content/enemies.ts  mold: EnemyDefOf<'mold'>
                          slug: EnemyDefOf<'slug'>
 core/types.ts            Enemy.nextTileWriteTick: number
-core/map.ts              worldToTile(at: Vec2): Vec2   // Math.round, tile centres — if step 14 has
-                                                       // no such export
+                         WaveSpawn.startDistanceTiles?: number
+core/tiles.ts            tileAt(at: Vec2): Vec2   // step 14's; Math.round, tile centres
+core/systems/spread.ts   spreadSystem(world: World): void
 core/systems/cleanse.ts  cleanseSystem(world: World): void   // a stub; 15B fills it in
 core/sim.ts              SystemName gains 'spread' and 'cleanse', both before 'tiles'
 core/systems/placement.ts  PlacementRejection gained 'fouled' in step 14A — nothing to add
 ```
 
 A mold cell carries its **stage in `TileEffect.magnitude`**, written at 1 and advanced by step 14's
-`tilesSystem`. 15C draws three visible steps off it. A slime cell carries `magnitude: 1` and a
+`tilesSystem`. 15C draws three visible steps off it. A slime cell carries `magnitude: 1.6` (the
+multiplier, not a stage) and a
 counting-down `remainingTicks`; there is nowhere that records what it counted down *from*, which is
 15C's problem and is why that part fades over a fixed number of final ticks rather than a fraction.
 

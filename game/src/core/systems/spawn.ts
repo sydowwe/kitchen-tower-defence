@@ -12,7 +12,7 @@
 
 import { getEnemyDef, getNightDef } from '@/core/content/index.ts'
 import type { EnemyDef, NightDef, WaveEntry } from '@/core/content/schema.ts'
-import type { Enemy, WaveSpawn, World } from '@/core/types.ts'
+import type { Enemy, Path, WaveSpawn, World } from '@/core/types.ts'
 
 /**
  * How many of `count` each lane gets, dealt round-robin: 5 over 2 paths is 3 and 2.
@@ -52,32 +52,48 @@ export function cursorsFor(world: World, entry: WaveEntry, count: number): WaveS
 		dealRoundRobin(count, paths.length).forEach((share, index) => {
 			const path = paths[index]
 			if (path !== undefined) {
-				spawns.push({
-					enemyDefId: entry.enemyDefId,
-					remaining: share,
-					nextSpawnTick,
-					spacingTicks: entry.spacingTicks,
-					pathId: path.id,
-				})
+				spawns.push(cursor(entry, share, nextSpawnTick, path))
 			}
 		})
 		return spawns
 	}
 
 	// The silent version of this spawns nothing, and the symptom is a night that never ends.
-	if (!world.map.paths.some(path => path.id === entry.pathId)) {
+	const path = world.map.paths.find(candidate => candidate.id === entry.pathId)
+	if (path === undefined) {
 		throw new Error(`wave entry names path '${entry.pathId}', which map '${world.map.id}' does not have`)
 	}
 
-	spawns.push({
-		enemyDefId: entry.enemyDefId,
-		remaining: count,
-		nextSpawnTick,
-		spacingTicks: entry.spacingTicks,
-		pathId: entry.pathId,
-	})
+	spawns.push(cursor(entry, count, nextSpawnTick, path))
 
 	return spawns
+}
+
+/**
+ * One cursor for one lane. `startDistanceTiles` is carried only when the entry authors it, so every
+ * cursor for an entry that does not is the object it was before the field existed.
+ */
+function cursor(entry: WaveEntry, remaining: number, nextSpawnTick: number, path: Path): WaveSpawn {
+	const spawn: WaveSpawn = {
+		enemyDefId: entry.enemyDefId,
+		remaining,
+		nextSpawnTick,
+		spacingTicks: entry.spacingTicks,
+		pathId: path.id,
+	}
+
+	if (entry.startDistanceTiles !== undefined) {
+		// A throw and not a clamp: an enemy placed past the fridge is eaten by `resolveSystem` on the
+		// tick it spawns, and the night that authored the typo is what `startWave` adds to the message.
+		if (entry.startDistanceTiles > path.lengthTiles) {
+			throw new Error(
+				`wave entry starts '${entry.enemyDefId}' ${entry.startDistanceTiles} tiles along path '${path.id}', which is ${path.lengthTiles} long`,
+			)
+		}
+		spawn.startDistanceTiles = entry.startDistanceTiles
+	}
+
+	return spawn
 }
 
 /**
@@ -150,6 +166,8 @@ export function spawnEnemyAt(
 		tags: [...def.tags],
 		speed: def.speedTilesPerTick,
 		spawnedInWaveIndex,
+		// Due now: `spreadSystem` runs after this one, so a writer's first mark lands the tick it spawns.
+		nextTileWriteTick: world.tick,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
 	}
@@ -160,9 +178,9 @@ export function spawnEnemyAt(
 	return enemy
 }
 
-/** One enemy of a wave cursor, at the start of its lane. */
+/** One enemy of a wave cursor, at the start of its lane unless the entry authored somewhere else. */
 function spawnEnemy(world: World, spawn: WaveSpawn, waveIndex: number): void {
-	spawnEnemyAt(world, getEnemyDef(spawn.enemyDefId), spawn.pathId, 0, waveIndex)
+	spawnEnemyAt(world, getEnemyDef(spawn.enemyDefId), spawn.pathId, spawn.startDistanceTiles ?? 0, waveIndex)
 }
 
 /**

@@ -24,6 +24,7 @@ import { nearestOnPath } from '@/core/path.ts'
 import { applyDamage } from '@/core/systems/combat.ts'
 import { damageTower, destroyTower, towerById } from '@/core/systems/placement.ts'
 import { isFlyer } from '@/core/systems/targeting.ts'
+import { tileSpeedMultiplier } from '@/core/systems/tiles.ts'
 import type { BarricadeBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { Enemy, EntityId, Tower, World } from '@/core/types.ts'
@@ -169,9 +170,13 @@ export function barricadesSystem(world: World): void {
 		}
 
 		// `movementSystem` has already run, so this tick's step has to be recomputed to know where the
-		// enemy stood before it. Nothing between the two systems touches a status, so it is the same
-		// number movement used.
-		const previous = enemy.distance - enemy.speed * speedMultiplier(enemy)
+		// enemy stood before it -- **with the same two factors movement used**. Nothing between the two
+		// systems touches a status or a tile. Leave the tile factor out and `previous` lands 0.6 of a
+		// step too far forward, so an enemy held on slime creeps through the gap into the box.
+		//
+		// The floor is read where the enemy is *now*, not where it stood. The two differ only on the one
+		// tick it crosses a slimed cell's edge, and then by a fraction of a single step.
+		const previous = enemy.distance - enemy.speed * speedMultiplier(enemy) * tileSpeedMultiplier(world, enemy)
 
 		// **Never backwards.** An enemy standing at `boxDistance - 0.1` when the box goes down is
 		// already inside the gap, and a plain `min(next, holdAt)` would shove it 0.4 tiles back up the
