@@ -90,11 +90,11 @@ Eight reference documents plus 23 step files. Each step file in `../steps` is a 
 9. [Status effects](../steps/00-done/09-status-effects.md)
 10. [Charge state, tower HP, barricades](../steps/00-done/10-charges-and-barricades.md)
 11. [Flyers and light attraction](../steps/00-done/11-flyers.md)
-12. [Upgrades and targeting modes](../steps/12-upgrades.md)
-13. [Noise meter](../steps/13-noise.md) — **MILESTONE: Act I**
+12. [Upgrades and targeting modes](../steps/00-done/12-upgrades.md)
+13. [Noise meter](../steps/00-done/13-noise.md) — **MILESTONE: Act I**
 
 **Phase 3 — Act II content**
-14. [Tile state system](../steps/14-tile-state.md)
+14. [Tile state system](../steps/00-done/14-tile-state.md)
 15. [Mold and slime](../steps/15-mold-and-slime.md)
 16. [Burrowing and armor](../steps/16-burrow-and-armor.md)
 17. [Auras and zone towers](../steps/17-auras-and-zones.md)

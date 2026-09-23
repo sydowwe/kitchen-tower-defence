@@ -26,7 +26,7 @@ Strictly in order. B authors content against A's fold; C shows what A and B prod
 **A and B carry the tests.** A asserts the fold, the immutability of the base def, the money, and
 the four pure-delta tiers; B asserts the six behaviour tiers. C adds two view-model assertions (the
 stat diff and the DPS number) and nothing over `render/` —
-`../analytic-docs/ARCHITECTURE.md` §7.
+`../../analytic-docs/ARCHITECTURE.md` §7.
 
 The tier-1 and tier-2 stat bumps are **authored twice on purpose**: A writes them from arithmetic
 with no inspector to read them against, and C re-tunes them with the before → after diff on screen.

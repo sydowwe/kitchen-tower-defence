@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §8,
-`../../analytic-docs/ARCHITECTURE.md` §3, `../../analytic-docs/CONTENT.md` §8 (the Installations
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §8,
+`../../../analytic-docs/ARCHITECTURE.md` §3, `../../../analytic-docs/CONTENT.md` §8 (the Installations
 table — the three noise rows only).
 **Prereq:** step 12.
 

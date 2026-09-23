@@ -37,7 +37,7 @@ them.
 **Three committed comments are wrong about this step and must be fixed in the same commit:**
 
 - `core/systems/noise.ts:137` says the `tileEffect` interpreter "is step 14's". It is **step 17's**,
-  with the Burner — see `steps/17-auras-and-zones.md` item 3. Change the comment; leave the code.
+  with the Burner — see `../../17-auras-and-zones.md` item 3. Change the comment; leave the code.
 - `core/map.ts:26` says "step 15's mold sets its own bit here", i.e. in `MapDef.flags`. It does not:
   `DECISIONS.md` §11 says anything that touches a tile writes tile state, and mold is a
   `TileEffectKind`. Point the comment at `blocksPlacement` instead. (The rest of that sentence —

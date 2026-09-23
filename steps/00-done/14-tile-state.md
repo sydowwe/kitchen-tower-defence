@@ -30,7 +30,7 @@ Strictly in order. B draws what A stores, and B's brush is the only thing in the
 **A carries every test this step has.** The model, the ageing and the per-enemy reads share one
 suite because they share one assertion — that an effect written for N ticks is felt on exactly those
 N ticks and on no others — and splitting them costs the test that catches it. B adds none, by
-`../analytic-docs/ARCHITECTURE.md` §7, and says so in its own `Tests` section so it doesn't invent
+`../../analytic-docs/ARCHITECTURE.md` §7, and says so in its own `Tests` section so it doesn't invent
 coverage to look thorough.
 
 B opens by building its own instrument, the way 13B did: the brush first, then the visuals, because
@@ -62,7 +62,7 @@ build the API to be checked.
 - [ ] With no tile states active, the tile system costs effectively nothing per tick — measure it.
 - [ ] The API is general enough that step 15's mold and step 17's burner are pure consumers, adding
       no new grid code. Neither is built here, so this one is a design review, not a test: read
-      `steps/15-mold-and-slime.md` §1–4 and `steps/17-auras-and-zones.md` §3–4 against the exports
+      `../15-mold-and-slime.md` §1–4 and `../17-auras-and-zones.md` §3–4 against the exports
       in A's `Hands to 14B` block and name anything either step would have to add.
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 

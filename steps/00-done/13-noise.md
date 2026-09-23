@@ -27,7 +27,7 @@ Strictly in order. B draws what A publishes.
 **A carries every test this step has.** The meter, the flee, the forfeits and the tower damage sweep
 share one suite because they share one assertion — that the cap fills exactly once and everything
 below it is consequence — and splitting them costs the test that catches a double wake. B adds none,
-by `../analytic-docs/ARCHITECTURE.md` §7, and says so in its own `Tests` section so it doesn't invent
+by `../../analytic-docs/ARCHITECTURE.md` §7, and says so in its own `Tests` section so it doesn't invent
 coverage to look thorough.
 
 B opens by building its own instrument: a dev panel with a "wake now" button and the three

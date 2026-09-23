@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (*Upgrades* and *Selling*
-only), `../../analytic-docs/ARCHITECTURE.md` §4.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (*Upgrades* and *Selling*
+only), `../../../analytic-docs/ARCHITECTURE.md` §4.
 **Prereq:** step 11, all three parts.
 
 ## Goal
@@ -76,7 +76,7 @@ edit this file, don't leave it lying.
    `kind`.
 
 4. **Costs are derived from the base cost, not authored per tier.**
-   `../../analytic-docs/CONTENT.md` §1 gives 60% / 120% / 250% as a *formula*; thirty transcribed
+   `../../../analytic-docs/CONTENT.md` §1 gives 60% / 120% / 250% as a *formula*; thirty transcribed
    numbers are thirty chances to drift from it, and step 22 re-pricing the curve would then touch
    thirty lines instead of three. `upgradeCost(def, tier)` is the one reader, `Math.round`ed.
 
@@ -169,7 +169,7 @@ Gotcha: `structuredClone` is the obvious way to get "a new def with new behaviou
 here — `Projectile.applies` in `projectiles.ts:87` is assigned **by reference** off the behaviour
 and documented as never written through, which is only safe while a behaviour object is stable for
 the life of the session. The memo gives you that; a fresh clone per call does not, and the symptom
-is an allocation on the 60Hz path that `../../analytic-docs/ARCHITECTURE.md` §6 budgets against.
+is an allocation on the 60Hz path that `../../../analytic-docs/ARCHITECTURE.md` §6 budgets against.
 
 ### 2. `core/content/schema.ts` and `core/types.ts`
 
@@ -264,7 +264,7 @@ exists to prove:
   number doing both jobs; halving only the rearm leaves the 396-tick cooldown gating every shot, the
   tower fires at exactly the rate it did before, and every test still passes.
 - **Toaster Crumb Tray T3** and **Cookie Jar T3** — not in
-  `../../analytic-docs/CONTENT.md` §1, because that list was written for the towers with
+  `../../../analytic-docs/CONTENT.md` §1, because that list was written for the towers with
   interesting tiers. Every tower needs three, so author them: the tray's collected piles arrive
   instantly (`multiply: { travelTicks: 0 }`), and the jar stops owing the enemy side when it dies
   (`multiply: { enemyCrumbsOnDestroy: 0 }`). Both remove the tower's one drawback, which is a real

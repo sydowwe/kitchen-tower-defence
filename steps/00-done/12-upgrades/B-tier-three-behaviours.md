@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (*Upgrades*, and the
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (*Upgrades*, and the
 *Behaviour notes that aren't in the table*), §4 (the status table),
-`../../analytic-docs/ARCHITECTURE.md` §4.
+`../../../analytic-docs/ARCHITECTURE.md` §4.
 **Prereq:** step 12A.
 
 ## Goal
@@ -47,7 +47,7 @@ Four more assertions break on descriptors that grow a field, none of them listed
 `toEqual`, and both `content.spec.ts` and `status.spec.ts` pin a normalised `applies` entry as
 `{ kind, magnitude }`. Each is one line.
 
-`steps/17-auras-and-zones.md` item 1 is "**`aura` behaviour**" — the interpreter. Decision 6 builds
+`../../17-auras-and-zones.md` item 1 is "**`aura` behaviour**" — the interpreter. Decision 6 builds
 it here. **Correct that step file in this commit**: item 1 becomes "the interpreter exists from step
 12B; add the Candle and pair it with step 11's light registry".
 
@@ -137,7 +137,7 @@ says why, and a `stacks` of 0 is a status that applies and does nothing.
   Gotcha: `projectile.applies` is assigned **by reference** off the behaviour (`projectiles.ts:87`,
   "nothing may write through it"). A filtered array is a new array and safe, but allocate it only
   when some application actually has an `everyNthHit` — otherwise every shot in the game allocates
-  on the path `../../analytic-docs/ARCHITECTURE.md` §6 budgets against.
+  on the path `../../../analytic-docs/ARCHITECTURE.md` §6 budgets against.
 
 - **`charges.ts`** — `hasOutstandingSourceStatus` becomes `countOutstandingSourceStatuses`, and
   `chargeAllowsFiring` compares it against `maxOutstanding`. `retireSpentTowers` keeps asking `> 0`:
@@ -266,7 +266,7 @@ Author them in `core/content/towers.ts` through 12A's `tier()`, and write the En
       field of the vocabulary. *(`PENDING` is gone from `towers.ts`, and the only comparison against
       a tier number anywhere is still 12A's `tower.tier >= MAX_TIER` in `commands.ts`.)*
 - [x] Every tower in `TOWERS` has three real tiers; none is the empty placeholder 12A left.
-- [x] `steps/17-auras-and-zones.md` item 1 says the interpreter already exists.
+- [x] `../../17-auras-and-zones.md` item 1 says the interpreter already exists.
 - [x] `npm run test` (391), `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 12C

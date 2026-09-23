@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §1 (tone) and §8,
-`../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §1 (tone) and §8,
+`../../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot).
 **Prereq:** step 13A.
 
 ## Goal
@@ -187,7 +187,7 @@ A second wake in one night replaces the first card rather than stacking one unde
 
 ## Tests
 
-**None.** `../../analytic-docs/ARCHITECTURE.md` §7 — no tests over `render/`, and bugs here are
+**None.** `../../../analytic-docs/ARCHITECTURE.md` §7 — no tests over `render/`, and bugs here are
 visible. 13A's suite is the regression net for everything underneath, and the dev panel is a dev
 tool: a spec over it would assert that a button you are looking at exists.
 

@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (*Upgrades*, *Selling*) and
-§5 (targeting modes), `../../analytic-docs/ARCHITECTURE.md` §5,
-`../../analytic-docs/DECISIONS.md` §1 (tone).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (*Upgrades*, *Selling*) and
+§5 (targeting modes), `../../../analytic-docs/ARCHITECTURE.md` §5,
+`../../../analytic-docs/DECISIONS.md` §1 (tone).
 **Prereq:** steps 12A and 12B.
 
 ## Goal
@@ -61,7 +61,7 @@ edit this file, don't leave it lying.
    advancing on click and reversing on shift-click, with the full list in its `title`.
 
 4. **The mode icons are FontAwesome, per-icon, in `ui/icons.ts`.** They are HUD chrome, and
-   `../../analytic-docs/DECISIONS.md` §2 reserves emoji for entities. Six more imports, never
+   `../../../analytic-docs/DECISIONS.md` §2 reserves emoji for entities. Six more imports, never
    `library.add(fas)`.
 
 5. **DPS on the card is single-target and says so.** A tier-3 Salt Shaker's splash and a tier-3
@@ -181,7 +181,7 @@ Range circles updating on upgrade needs nothing here — `ui/interaction.ts:464`
 
 Three assertions in `tests/viewModel.spec.ts` (the draft said two and listed three), and nothing over
 `render/` —
-`../../analytic-docs/ARCHITECTURE.md` §7, the bugs there are visible.
+`../../../analytic-docs/ARCHITECTURE.md` §7, the bugs there are visible.
 
 - The slot for a tier that raises damage from 5 to 7 carries a diff row for damage reading 5 → 7,
   and **no row** for range, rate or noise. A diff that emits every field is the failure mode worth
