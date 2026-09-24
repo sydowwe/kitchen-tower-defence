@@ -11,6 +11,7 @@
  */
 
 import { getEnemyDef, getNightDef } from '@/core/content/index.ts'
+import { bindRng } from '@/core/rng.ts'
 import type { EnemyDef, NightDef, WaveEntry } from '@/core/content/schema.ts'
 import type { Enemy, Path, WaveSpawn, World } from '@/core/types.ts'
 
@@ -132,6 +133,31 @@ export function startWave(world: World, night: NightDef, waveIndex: number): voi
 }
 
 /**
+ * The stretch of `pathId` a burrowing enemy spends under the floor, or null for a def without
+ * `burrow`.
+ *
+ * **The rng is drawn only for a def that burrows**, twice. An Ant spawning must leave `world.rng`
+ * untouched, or every seeded replay and `RANDOM`-targeting spec on nights 1-12 shifts with no Weevil
+ * anywhere in sight.
+ */
+function burrowWindowFor(world: World, def: EnemyDef, pathId: string): Enemy['burrowWindow'] {
+	if (def.burrow === undefined) {
+		return null
+	}
+	const lane = world.map.paths.find(path => path.id === pathId)
+	if (lane === undefined) {
+		return null
+	}
+
+	const rng = bindRng(world.rng)
+	const length = lane.lengthTiles
+	const { startMaxFraction, lengthMinFraction, lengthMaxFraction } = def.burrow
+	const fromTiles = rng.next() * startMaxFraction * length
+	const span = (lengthMinFraction + rng.next() * (lengthMaxFraction - lengthMinFraction)) * length
+	return { fromTiles, toTiles: Math.min(length, fromTiles + span) }
+}
+
+/**
  * The one constructor for an `Enemy`, anywhere it comes from: a wave puts one at `distance: 0`, and
  * step 7B's crumb rot hatches a Fruit Fly mid-board at the arc distance `nearestPath` projected. A
  * second constructor is how a hatched enemy ends up aliasing `def.tags` or missing its index entry.
@@ -168,8 +194,9 @@ export function spawnEnemyAt(
 		spawnedInWaveIndex,
 		// Due now: `spreadSystem` runs after this one, so a writer's first mark lands the tick it spawns.
 		nextTileWriteTick: world.tick,
+		burrowWindow: burrowWindowFor(world, def, pathId),
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 
 	world.enemies.push(enemy)

@@ -3,6 +3,7 @@ import type { World } from '@/core/types.ts'
 import {
 	auraSystem,
 	barricadesSystem,
+	burrowSystem,
 	cleanseSystem,
 	combatSystem,
 	commandsSystem,
@@ -33,6 +34,7 @@ export type SystemName =
 	| 'wave'
 	| 'status'
 	| 'movement'
+	| 'burrow'
 	| 'barricades'
 	| 'light'
 	| 'targeting'
@@ -65,6 +67,9 @@ const SYSTEMS: readonly System[] = [
 	{ name: 'wave', run: waveSystem },
 	{ name: 'status', run: statusSystem },
 	{ name: 'movement', run: movementSystem },
+	// After the move so a Weevil stepping into a Bay Leaf radius is targetable this tick, before the
+	// clamp so a burrowed one is never held by a box.
+	{ name: 'burrow', run: burrowSystem },
 	{ name: 'barricades', run: barricadesSystem },
 	// After the clamp so it reads this tick's `distance`, before targeting so a Nightlight placed this
 	// tick reveals in the same tick it was placed.
@@ -93,7 +98,7 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
 /**
  * One fixed step of the simulation.
  *
- * Order: commands -> spawn -> wave -> status -> movement -> barricades -> light -> targeting ->
+ * Order: commands -> spawn -> wave -> status -> movement -> burrow -> barricades -> light -> targeting ->
  * combat -> aura -> projectiles -> spread -> cleanse ->
  * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
  *

@@ -62,8 +62,12 @@ export type EnemyTag =
  * enemy *is*, and `revealed` is what a light is doing to it **right now**. `core/systems/light.ts`
  * rewrites `revealed` from scratch every tick, so selling the lamp re-hides whatever it was lighting
  * on the same tick with no field to clear anywhere.
+ *
+ * `burrowed` is `core/systems/burrow.ts`'s, rewritten every tick the same way. It is **not**
+ * `untargetable`, which belongs to the wake in `core/systems/noise.ts`: a system recomputing that
+ * flag every tick would clear the wake's `true` on the next one.
  */
-export type EnemyFlag = 'hidden' | 'untargetable' | 'fleeing' | 'revealed'
+export type EnemyFlag = 'hidden' | 'untargetable' | 'fleeing' | 'revealed' | 'burrowed'
 
 /** analytic-docs/CONTENT.md section 4. */
 export type StatusKind = 'slow' | 'freeze' | 'burn' | 'poison' | 'armorStrip' | 'marked' | 'rooted'
@@ -221,6 +225,14 @@ export interface Enemy {
 	 * pulse on the same frame.
 	 */
 	nextTileWriteTick: number
+	/**
+	 * The stretch of its own lane this enemy is under the floor for, in arc tiles. Rolled once in
+	 * `spawnEnemyAt` for a def with `burrow` and stored, because it is random per enemy. Null for
+	 * everything that does not burrow.
+	 *
+	 * Only `core/systems/burrow.ts` reads it. Everything downstream reads `flags.burrowed`.
+	 */
+	burrowWindow: { fromTiles: number; toTiles: number } | null
 	/** Food ids a thief is carrying. Returned to the fridge if it dies before it leaves the map. */
 	stolenItems: EntityId[]
 	flags: Record<EnemyFlag, boolean>
@@ -551,6 +563,12 @@ export type GameEvent =
 			towersDestroyed: DefId[]
 	  }
 	| { kind: 'nightEnded'; won: boolean }
+	/**
+	 * `flags.burrowed` changed. Emitted by `core/systems/burrow.ts` on the change and never on a tick
+	 * without one, so a surface-and-re-dive inside one 3x frame still reaches the renderer as two puffs.
+	 */
+	| { kind: 'enemyBurrowed'; enemyId: EntityId; at: Vec2 }
+	| { kind: 'enemySurfaced'; enemyId: EntityId; at: Vec2 }
 
 // --- world ------------------------------------------------------------------------------------
 

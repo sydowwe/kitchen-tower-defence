@@ -486,8 +486,9 @@ describe('detachment from the world', () => {
 			speed: 0,
 			spawnedInWaveIndex: 0,
 			nextTileWriteTick: 0,
+			burrowWindow: null,
 			stolenItems: [],
-			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 		})
 		dropCrumb(world, { x: 12, y: 0 }, 5)
 

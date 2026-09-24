@@ -642,7 +642,14 @@ describe('the Baking Soda', () => {
 
 	it('is the twelfth tower in the shop, appended and not inserted', () => {
 		expect(TOWERS[11]?.id).toBe('bakingSoda')
-		expect(TOWERS).toHaveLength(12)
+	})
+})
+
+describe('the Bay Leaf and the Lemon', () => {
+	it('are the thirteenth and fourteenth towers in the shop, appended and not inserted', () => {
+		expect(TOWERS[12]?.id).toBe('bayLeaf')
+		expect(TOWERS[13]?.id).toBe('lemon')
+		expect(TOWERS).toHaveLength(14)
 	})
 })
 

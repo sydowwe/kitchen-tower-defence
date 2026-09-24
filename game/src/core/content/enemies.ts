@@ -250,6 +250,51 @@ export const slug: EnemyDefOf<'slug'> = {
 	tileWriter: { effect: 'slime', mode: 'trail', magnitude: 1.6, durationTicks: 480, intervalTicks: 1 },
 }
 
-export const ENEMIES = [ant, roach, beetle, fruitFly, fly, moth, mold, slug]
+/**
+ * analytic-docs/CONTENT.md section 2, night 13: 30 HP, 1.0 tiles/sec, 9 crumbs, steals 1,
+ * `ground burrows bug`.
+ *
+ * It goes under the floor for a stretch of its lane rolled at spawn, and while under it cannot be
+ * shot, is not stopped by a box and takes nothing from the floor. A Bay Leaf's radius brings it up.
+ * **`burrow` does that, not the `burrows` tag**, which is descriptive and multiplies by 1.0.
+ *
+ * The window starts in the first third of the lane and lasts 25-40% of it -- a blind draft that
+ * step 16C re-tunes on the board.
+ */
+export const weevil: EnemyDefOf<'weevil'> = {
+	id: 'weevil',
+	nameKey: 'enemy.weevil.name',
+	descriptionKey: 'enemy.weevil.description',
+	glyph: '🐛',
+	hp: 30,
+	speedTilesPerTick: tilesPerSecond(1.0),
+	meleeDamagePerTick: damagePerSecond(3),
+	reward: 9,
+	steals: 1,
+	tags: ['ground', 'burrows', 'bug'],
+	burrow: { startMaxFraction: 1 / 3, lengthMinFraction: 0.25, lengthMaxFraction: 0.4 },
+}
+
+/**
+ * analytic-docs/CONTENT.md section 2, night 17: 110 HP, 0.6 tiles/sec, 18 crumbs, steals 2,
+ * `ground armored bug`.
+ *
+ * **No field and no system line.** `armored` is x0.4 physical, x1.2 cold, and the Lemon's Armor Strip
+ * moves it halfway to 1.0 inside the matrix product -- all of which the tag already does.
+ */
+export const silverfish: EnemyDefOf<'silverfish'> = {
+	id: 'silverfish',
+	nameKey: 'enemy.silverfish.name',
+	descriptionKey: 'enemy.silverfish.description',
+	glyph: '🐟',
+	hp: 110,
+	speedTilesPerTick: tilesPerSecond(0.6),
+	meleeDamagePerTick: damagePerSecond(11),
+	reward: 18,
+	steals: 2,
+	tags: ['ground', 'armored', 'bug'],
+}
+
+export const ENEMIES = [ant, roach, beetle, fruitFly, fly, moth, mold, slug, weevil, silverfish]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']

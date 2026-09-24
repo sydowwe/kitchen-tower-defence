@@ -17,6 +17,7 @@ import type { AttackBehaviour, StatusApplication } from '@/core/content/behaviou
 import { applyStatuses } from '@/core/content/statuses.ts'
 import { dealDamage, dealSplashDamage } from '@/core/systems/combat.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
+import { isTargetable } from '@/core/systems/targeting.ts'
 import type { Enemy, Projectile, Tower, World } from '@/core/types.ts'
 
 const POOL: Projectile[] = []
@@ -116,11 +117,15 @@ export function projectilesSystem(world: World): void {
 	const survivors: Projectile[] = []
 
 	for (const projectile of world.projectiles) {
-		const target = projectile.targetEnemyId === null ? null : enemyById(world, projectile.targetEnemyId)
+		const found = projectile.targetEnemyId === null ? null : enemyById(world, projectile.targetEnemyId)
+		// A target that can no longer be hit -- a Weevil that dived, an enemy fleeing a wake -- is
+		// treated exactly like a dead one. Without this a grain fired the tick before a dive lands on the
+		// mound. A splash shell whose target dives therefore despawns unexploded, as it does on a death.
+		const target = found !== null && isTargetable(found, projectile.targets) ? found : null
 
 		if (target === null) {
-			// The target died. The projectile flies on to where it was aimed and despawns there --
-			// without this the array only ever grows.
+			// The target died or went out of reach. The projectile flies on to where it was aimed and
+			// despawns there -- without this the array only ever grows.
 			projectile.targetEnemyId = null
 		} else {
 			const at = enemyPosition(world, target)

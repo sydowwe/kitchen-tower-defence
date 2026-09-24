@@ -86,8 +86,9 @@ function addEnemyAt(world: World, at: Vec2, tags: EnemyTag[] = PLAIN): Enemy {
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
+		burrowWindow: null,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length
@@ -114,8 +115,9 @@ function addLaneEnemy(world: World, distance: number, tags: EnemyTag[] = PLAIN):
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
+		burrowWindow: null,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length

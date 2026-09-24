@@ -376,12 +376,16 @@ export function bait(params: BaitParams): BaitBehaviour {
 }
 
 /**
- * Bay Leaf: forces burrowed Weevils to surface inside its radius. One member today, and a union
- * rather than a boolean so step 16 can add what else gets suppressed without a schema change.
+ * Bay Leaf: forces burrowed Weevils to surface inside its radius. A union rather than a boolean so a
+ * later ability can be suppressed without a schema change -- but **one member until that ability
+ * exists**: a member with no reader is a Bay Leaf variant that silently does nothing.
  */
 export type SuppressKind = 'burrow'
 
-/** Step 16. */
+/**
+ * Interpreted as a query, not a system: `suppressionZones` in `core/systems/suppress.ts` answers
+ * "what suppresses this ability", and `core/systems/burrow.ts` is its only caller.
+ */
 export interface SuppressBehaviour {
 	kind: 'suppress'
 	radiusTiles: number
@@ -645,6 +649,11 @@ export function isBarricadeBehaviour(behaviour: Behaviour): behaviour is Barrica
  */
 export function isReveal(behaviour: Behaviour): behaviour is RevealBehaviour {
 	return behaviour.kind === 'reveal'
+}
+
+/** And for suppression: `core/systems/suppress.ts`, and step 16B's card and `reachOf`. */
+export function isSuppress(behaviour: Behaviour): behaviour is SuppressBehaviour {
+	return behaviour.kind === 'suppress'
 }
 
 /** And for scrubbing: `core/systems/cleanse.ts`, the card in `ui/viewModel.ts`, and `reachOf`. */

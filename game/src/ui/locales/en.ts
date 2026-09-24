@@ -366,6 +366,26 @@ export const en = {
 				description: 'Every shake covers the whole circle, and every trail of slime inside it with it.',
 			},
 		},
+		bayLeaf: {
+			name: 'Bay Leaf',
+			description: 'Bugs hate the smell. Nothing stays underground near it, and what comes up can be hit.',
+			tier1: { name: 'Dried Sprig' },
+			tier2: { name: 'Crushed Leaves' },
+			tier3: {
+				name: 'Whole Bunch',
+				description: 'Everything on the floor near it is Marked, and takes more damage from every tower.',
+			},
+		},
+		lemon: {
+			name: 'Lemon',
+			description: 'A squeeze of juice that eats through shells. Armored bugs hit by it lose half their armor.',
+			tier1: { name: 'Ripe Lemon' },
+			tier2: { name: 'Sharp Zest' },
+			tier3: {
+				name: 'Full Squeeze',
+				description: 'Every squirt splashes, stripping the armor off everything around the hit.',
+			},
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {
@@ -406,6 +426,14 @@ export const en = {
 			name: 'Slug',
 			description:
 				'Slow, soft, and not alone for long: whatever follows it runs faster along the trail it leaves.',
+		},
+		weevil: {
+			name: 'Weevil',
+			description: 'It tunnels under the counter for part of the way, where nothing can hit it or stop it.',
+		},
+		silverfish: {
+			name: 'Silverfish',
+			description: 'Slow and scaled. Salt barely scratches it; acid and cold get through.',
 		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.

@@ -58,8 +58,9 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 		speed: overrides.speed ?? 0,
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
+		burrowWindow: null,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length

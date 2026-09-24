@@ -65,8 +65,9 @@ function addEnemyAt(world: World, at: Vec2, overrides: EnemyOverrides = {}): Ene
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
+		burrowWindow: null,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length

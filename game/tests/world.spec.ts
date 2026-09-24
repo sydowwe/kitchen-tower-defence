@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
+import { weevil } from '@/core/content/enemies.ts'
 import { tick } from '@/core/sim.ts'
+import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
 import type { World } from '@/core/types.ts'
@@ -41,6 +43,13 @@ describe('createWorld', () => {
 		// what catches one that stopped being written at construction.
 		expect(roundTrip(world).unbankedCrumbs).toBe(0)
 		expect(roundTrip(world).noise.wakeCount).toBe(0)
+
+		// Step 16A's `burrowWindow` is the first nested object on an enemy; a Weevil carries a live one.
+		const lane = world.map.paths[0]
+		expect(lane).toBeDefined()
+		const burrower = spawnEnemyAt(world, weevil, lane?.id ?? '', 0, 0)
+		expect(burrower.burrowWindow).not.toBeNull()
+		expect(roundTrip(world)).toEqual(world)
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {

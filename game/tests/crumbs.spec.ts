@@ -57,8 +57,9 @@ function killAt(world: World, distance: number): void {
 		speed: 0,
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
+		burrowWindow: null,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 	world.enemies.push(enemy)
 	world.index.enemies[enemy.id] = world.enemies.length - 1

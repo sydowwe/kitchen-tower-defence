@@ -86,8 +86,9 @@ function addEnemy(world: World, def: EnemyDef, distance = 0, speed = def.speedTi
 		speed,
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
+		burrowWindow: null,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 
 	world.index.enemies[enemy.id] = world.enemies.length
@@ -306,10 +307,11 @@ describe('the reveal half', () => {
 		expect(isTargetable(enemy, 'both')).toBe(false)
 	})
 
-	it('leaves `untargetable` alone: a lamp does not surface a burrowed enemy', () => {
+	it('leaves `burrowed` alone: a lamp does not surface a burrowed enemy', () => {
 		const world = makeWorld()
 		const enemy = addEnemy(world, moth, 2, 0)
-		enemy.flags.untargetable = true
+		// No `burrowWindow`, so `burrowSystem` skips it and the hand-set flag holds.
+		enemy.flags.burrowed = true
 		addLamp(world, { x: 0, y: 0 })
 
 		run(world, 1)

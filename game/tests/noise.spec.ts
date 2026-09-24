@@ -57,8 +57,9 @@ function putEnemy(world: World, distance: number, speed = 0.05): Enemy {
 		speed,
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
+		burrowWindow: null,
 		stolenItems: [],
-		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false },
+		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
 	world.enemies.push(enemy)
 	world.index.enemies[enemy.id] = world.enemies.length - 1

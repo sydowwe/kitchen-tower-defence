@@ -26,9 +26,10 @@ import type { Enemy, Tower, World } from '@/core/types.ts'
  */
 export function isTargetable(enemy: Enemy, targets: TargetClass): boolean {
 	// `hidden` is what the enemy is; `revealed` is what a lamp is doing to it this tick
-	// (`core/systems/light.ts`). `untargetable` keeps its own unconditional no: that is step 16's
-	// burrow flag, and a lamp does not surface a Weevil -- the Bay Leaf's `suppress` does.
-	if ((enemy.flags.hidden && !enemy.flags.revealed) || enemy.flags.untargetable) {
+	// (`core/systems/light.ts`). `untargetable` is the wake's unconditional no (`core/systems/noise.ts`).
+	// `burrowed` is `core/systems/burrow.ts`'s, and a lamp does not undo it -- the Bay Leaf's
+	// `suppress` does, by clearing the flag itself.
+	if ((enemy.flags.hidden && !enemy.flags.revealed) || enemy.flags.untargetable || enemy.flags.burrowed) {
 		return false
 	}
 	if (targets === 'both') {
@@ -41,15 +42,24 @@ export function isTargetable(enemy: Enemy, targets: TargetClass): boolean {
 }
 
 /**
- * Whether this enemy is off the floor. `tags.includes('air')` and **not** `isTargetable`: that
- * predicate answers what a tower may shoot at, and reusing it for the floor question would walk a
- * `hidden` Weevil straight through a Cardboard Box in step 16.
- *
- * The one answer for every reader that asks about the floor rather than about a target:
- * `core/systems/barricades.ts` today, step 14's tile effects, step 17's auras, step 18's pushback.
+ * Whether this enemy is off the floor, by its tags. The renderer's `flying` reads this, because a
+ * Weevil's mound is not a flyer. Systems asking what the floor does to an enemy ask `isOnFloor`.
  */
 export function isFlyer(enemy: Enemy): boolean {
 	return enemy.tags.includes('air')
+}
+
+/**
+ * Whether the floor touches this enemy: not a flyer, and not burrowed under it. **Not**
+ * `isTargetable`, which answers what a tower may shoot at -- a `hidden` enemy is still standing on
+ * the floor, and a box still stops it.
+ *
+ * The one floor predicate: `nearestAhead` in `core/systems/barricades.ts` and `tileUnder` in
+ * `core/systems/tiles.ts` both ask it, so a burrowed Weevil walks under a Cardboard Box and takes
+ * nothing from slime or heat without either file knowing about burrowing.
+ */
+export function isOnFloor(enemy: Enemy): boolean {
+	return !isFlyer(enemy) && !enemy.flags.burrowed
 }
 
 /**

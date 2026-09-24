@@ -11,7 +11,7 @@
  *
  * Speed is deliberately *not* read here. `movement` runs 5th and this runs 12th, so a slime has to
  * be read before the enemy moves while damage has to land where it ended up -- both through the one
- * `tileUnder` helper below, which is therefore the only place the flyer check is written.
+ * `tileUnder` helper below, which is therefore the only place the floor check is written.
  */
 
 import { getEnemyDef } from '@/core/content/index.ts'
@@ -20,19 +20,19 @@ import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
 import { tileAt, tileStateAt } from '@/core/tiles.ts'
 import { applyDamage } from '@/core/systems/combat.ts'
 import { enemyPosition } from '@/core/systems/spatial.ts'
-import { isFlyer } from '@/core/systems/targeting.ts'
+import { isOnFloor } from '@/core/systems/targeting.ts'
 import type { Enemy, TileEffectKind, TileState, World } from '@/core/types.ts'
 
 /**
- * The cell this enemy is standing on, or null -- for an empty board, for a flyer, for an enemy whose
- * path the map has lost, and for a cell with nothing on it.
+ * The cell this enemy is standing on, or null -- for an empty board, for a flyer or a burrowed
+ * enemy, for an enemy whose path the map has lost, and for a cell with nothing on it.
  *
- * **The one flyer check for tile effects in the codebase**, which is what `isFlyer`'s docstring in
- * `core/systems/targeting.ts` already predicts. A Moth is off the floor, so the floor does nothing to
- * it: no heat, no slime, no residue.
+ * **The one floor check for tile effects in the codebase**, through `isOnFloor` in
+ * `core/systems/targeting.ts`. A Moth is above the floor and a burrowed Weevil below it, so the floor
+ * does nothing to either: no heat, no slime, no residue.
  */
 export function tileUnder(world: World, enemy: Enemy): TileState | null {
-	if (world.tiles.length === 0 || isFlyer(enemy)) {
+	if (world.tiles.length === 0 || !isOnFloor(enemy)) {
 		return null
 	}
 
@@ -55,7 +55,7 @@ function ownKind(enemy: Enemy): TileEffectKind | null {
 
 /**
  * What to multiply this enemy's speed by for the floor it is on. Exactly `1` with nothing under it,
- * for a flyer, for a cell carrying no `speedMultiplier` effect, and for a Slug on its own slime (see
+ * for a flyer or a burrowed enemy, for a cell carrying no `speedMultiplier` effect, and for a Slug on its own slime (see
  * `ownKind`) -- so `movementSystem`'s common
  * line is unchanged in value and `tileUnder`'s early-out is what keeps it cheap.
  *

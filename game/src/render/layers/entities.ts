@@ -161,8 +161,8 @@ interface EnemyFrame {
 	 */
 	chewing: boolean
 	/**
-	 * Off the floor: `isFlyer` from `core/systems/targeting.ts`, which is the one predicate every
-	 * reader that asks about the floor already shares. Written for every entry every frame like the
+	 * In the air: `isFlyer` from `core/systems/targeting.ts`, and deliberately not `isOnFloor` -- a
+	 * burrowed Weevil is off the floor too, and a mound is not a flyer. Written for every entry every frame like the
 	 * rest of this pool -- an unwritten field on a reused entry is a stale one, and a stale `flying`
 	 * is an ant with a shadow.
 	 */

@@ -23,7 +23,7 @@ import { speedMultiplier } from '@/core/content/statuses.ts'
 import { nearestOnPath } from '@/core/path.ts'
 import { applyDamage } from '@/core/systems/combat.ts'
 import { damageTower, destroyTower, towerById } from '@/core/systems/placement.ts'
-import { isFlyer } from '@/core/systems/targeting.ts'
+import { isOnFloor } from '@/core/systems/targeting.ts'
 import { tileSpeedMultiplier } from '@/core/systems/tiles.ts'
 import type { BarricadeBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
@@ -85,9 +85,12 @@ function barricadePositions(world: World): BarricadePosition[] {
 	return positions
 }
 
-/** The nearest position strictly ahead of the enemy on its own lane. Flyers are never blocked. */
+/**
+ * The nearest position strictly ahead of the enemy on its own lane. Nothing off the floor is ever
+ * blocked: a flyer goes over the box and a burrowed Weevil under it.
+ */
 function nearestAhead(positions: readonly BarricadePosition[], enemy: Enemy): BarricadePosition | null {
-	if (isFlyer(enemy)) {
+	if (!isOnFloor(enemy)) {
 		return null
 	}
 

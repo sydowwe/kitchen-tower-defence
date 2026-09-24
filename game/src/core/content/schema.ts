@@ -472,6 +472,24 @@ export function contentSchemas() {
 				intervalTicks: z.number().int().min(1).max(MAX_TILE_EFFECT_TICKS),
 			})
 			.optional(),
+		/**
+		 * Who burrows, and for how long, read by `spawnEnemyAt` to roll `Enemy.burrowWindow`. **A field
+		 * and not the `burrows` tag**, for `tileWriter`'s reason: a tag cannot carry the numbers.
+		 *
+		 * Fractions of the lane's `lengthTiles`: the window starts somewhere in `[0, startMaxFraction]`
+		 * and lasts between the two length fractions.
+		 */
+		burrow: z
+			.object({
+				startMaxFraction: z.number().min(0).max(1),
+				lengthMinFraction: z.number().min(0).max(1),
+				lengthMaxFraction: z.number().min(0).max(1),
+			})
+			// `validateCollection` prefixes the enemy id and `burrow:`, so the message names the def.
+			.refine(value => value.lengthMinFraction <= value.lengthMaxFraction, {
+				message: 'lengthMinFraction must not exceed lengthMaxFraction',
+			})
+			.optional(),
 	})
 
 	// --- food ---------------------------------------------------------------------------------

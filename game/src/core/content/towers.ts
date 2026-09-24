@@ -20,6 +20,7 @@ import {
 	coneAttack,
 	income,
 	reveal,
+	suppress,
 } from '@/core/content/behaviours.ts'
 import { tier } from '@/core/content/upgrades.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
@@ -749,6 +750,90 @@ export const bakingSoda: TowerDefOf<'bakingSoda'> = {
 	}),
 }
 
+/** What the Bay Leaf suppresses burrowing within, and what its tier-3 aura marks within. */
+const BAY_LEAF_RADIUS_TILES = 3
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 160 crumbs, SUPPRESSION, no damage, no rate, range 3,
+ * ground, no noise, off the path -- and the behaviour note, "suppresses burrowing inside its radius:
+ * Weevils surface and become targetable".
+ *
+ * **One `suppress` descriptor and nothing else**, the Nightlight's shape: no attack, so targeting and
+ * combat skip it. `CLOSEST` and `maxHp: 100` are that def's precedent too.
+ */
+export const bayLeaf: TowerDefOf<'bayLeaf'> = {
+	id: 'bayLeaf',
+	nameKey: 'tower.bayLeaf.name',
+	descriptionKey: 'tower.bayLeaf.description',
+	glyph: '🌿',
+	role: 'SUPPRESSION',
+	cost: 160,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [suppress({ radiusTiles: BAY_LEAF_RADIUS_TILES, suppresses: 'burrow' })],
+	/**
+	 * 3 -> 3.5 -> 4 tiles. Half a tile a tier and not a whole one: at 5 it would suppress half the
+	 * Counter's lane and delete the mechanic.
+	 *
+	 * T3 marks what it holds up: an `aura` with no damage that applies `Marked`, at the **base** radius
+	 * the way the Nightlight's aura sits at its own.
+	 */
+	upgrades: upgradesFor('bayLeaf', raise('suppress', 'radiusTiles', 0.5), raise('suppress', 'radiusTiles', 0.5), {
+		addBehaviours: [
+			aura({
+				radiusTiles: BAY_LEAF_RADIUS_TILES,
+				damagePerTick: 0,
+				damageType: 'physical',
+				targets: 'ground',
+				applies: ['marked'],
+			}),
+		],
+	}),
+}
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 155 crumbs, 8 damage, 0.9/sec, range 3, chemical, both,
+ * no noise, off the path. The answer to the Silverfish: every hit lands Armor Strip.
+ *
+ * **`applies: ['armorStrip']` is bare**, the Vinegar Spray's reason: the status table's 4s and
+ * halfway-to-1.0 *are* the numbers, and authoring them here would be a second copy that drifts.
+ * `projectileSpeed: 0.1` is every projectile tower's precedent; section 5 gives `FIRST` to a DPS tower.
+ */
+export const lemon: TowerDefOf<'lemon'> = {
+	id: 'lemon',
+	nameKey: 'tower.lemon.name',
+	descriptionKey: 'tower.lemon.description',
+	glyph: '🍋',
+	role: 'DOT',
+	cost: 155,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'FIRST',
+	behaviours: [
+		attack({
+			damage: 8,
+			damageType: 'chemical',
+			cooldownTicks: perSecond(0.9),
+			rangeTiles: 3,
+			targets: 'both',
+			projectileSpeed: 0.1,
+			applies: ['armorStrip'],
+		}),
+	],
+	/**
+	 * 8 -> 11 -> 14 on the hit.
+	 *
+	 * T3 gives the shot a 1-tile splash, so the strip lands on everything around the hit:
+	 * `dealSplashDamage` applies the shot's statuses to each enemy it catches.
+	 */
+	upgrades: upgradesFor('lemon', raise('attack', 'damage', 3), raise('attack', 'damage', 3), {
+		add: [{ kind: 'attack', fields: { splashRadiusTiles: 1.0 } }],
+	}),
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
 export const TOWERS = [
 	saltShaker,
@@ -763,6 +848,8 @@ export const TOWERS = [
 	nightlight,
 	vinegarSpray,
 	bakingSoda,
+	bayLeaf,
+	lemon,
 ]
 
 export type TowerId = (typeof TOWERS)[number]['id']

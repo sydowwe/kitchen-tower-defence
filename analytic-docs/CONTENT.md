@@ -51,6 +51,7 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 - **Mousetrap** — charge state machine: `armed → fired → rearming (6.6s) → armed`. Fires at the STRONGEST target in range by default.
 - **Nightlight** — deals nothing. Reveals hidden enemies and pulls light-drawn ones (Moth) into its radius. T3 upgrade adds damage.
 - **Bay Leaf** — suppresses burrowing inside its radius: Weevils surface and become targetable.
+- **Lemon** — every hit applies Armor Strip (§4).
 - **Honey Pot** — 7 crumbs/sec income *and* an aggro radius that pulls nearby ground enemies toward it, holding them in a kill zone. Bait is the point; the income is the bribe for taking the risk.
 - **Fan** — pushback, air-only. Shares the pushback system with Mint Pot (post-v1, ground).
 - **Gas Stove Burner** — writes a persistent damaging tile onto the track. First real area denial.
@@ -77,6 +78,8 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 - Cookie Jar T3 — the jar owes the enemy side nothing when it is destroyed
 - Vinegar Spray T3 — scrubs mold twice as far as it shoots (cleanse radius 3 → 6; attack range stays 3)
 - Baking Soda T3 — splash and slime-scrub radius both 1.2 → 2.0, the whole range-2 circle at once
+- Bay Leaf T3 — marks what it holds up: an aura at the base radius 3 that applies `Marked` to ground enemies (tiers 1–2 take the suppression radius 3 → 3.5 → 4)
+- Lemon T3 — the shot splashes (1.0 tile radius), so Armor Strip lands on everything around the hit
 - Candle T3 — burn applied by the aura stacks to 3 *(arrives with the Candle, step 17)*
 - Fan T3 — pushback also applies `Marked` *(arrives with the Fan, step 18)*
 

@@ -104,7 +104,9 @@ then edit this file. Don't leave it lying.
 - `EnemyFlag` gains `'burrowed'`. `Enemy` gains `burrowWindow` (decision 4). `GameEvent` gains the
   two members from decision 9.
 - The enemy schema gains the optional `burrow` object. Bound all three fractions to `[0, 1]` and
-  refine `lengthMinFraction <= lengthMaxFraction`, with the enemy id in the message.
+  refine `lengthMinFraction <= lengthMaxFraction`, with the enemy id in the message. *(As built: the
+  refine sits on the `burrow` object itself, and `validateCollection` already prefixes every issue
+  with `enemy '<id>': burrow:`, so the id arrives without being written into the message.)*
 - `spawn.ts:172`'s literal gains `burrowed: false`. Then update the 13 fixture literals listed above.
 
 ### 2. The roll — `core/systems/spawn.ts`
@@ -210,11 +212,11 @@ listed here:
 
 ## Acceptance
 
-- [ ] The Silverfish and the Lemon required **no change to any file in `core/systems/`**.
-- [ ] The Bay Leaf required no change to `behaviours.ts`'s union or to the schema's `behaviour`
+- [x] The Silverfish and the Lemon required **no change to any file in `core/systems/`**.
+- [x] The Bay Leaf required no change to `behaviours.ts`'s union or to the schema's `behaviour`
       union. Only the `isSuppress` helper and the query in `suppress.ts` are new.
-- [ ] `grep -n "'burrow'" src/core/systems` finds exactly one call site.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `grep -n "'burrow'" src/core/systems` finds exactly one call site.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 16B and 16C
 
