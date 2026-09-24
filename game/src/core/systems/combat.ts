@@ -81,7 +81,9 @@ export function dealDamage(
 	// An enemy whose path is missing has no position to report. It is a half-edited map out of
 	// step 4's editor, and 6C draws nothing for a hit it cannot place.
 	const at = enemyPosition(world, enemy) ?? { x: 0, y: 0 }
-	world.events.push({ kind: 'enemyDamaged', enemyId: enemy.id, sourceTowerId, amount, at })
+	// `base` cannot be 0 here: a resolved 0 returned above, and every matrix entry that zeroes a hit
+	// zeroes the amount with it.
+	world.events.push({ kind: 'enemyDamaged', enemyId: enemy.id, sourceTowerId, amount, multiplier: amount / base, at })
 
 	return amount
 }

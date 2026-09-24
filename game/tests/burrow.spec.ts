@@ -166,6 +166,36 @@ function shoot(world: World, def: TowerDef, target: Enemy): number {
 	return before - target.hp
 }
 
+type EnemyDamaged = Extract<GameEvent, { kind: 'enemyDamaged' }>
+
+/**
+ * One shot from `def` at `target`, flown all the way, and the one `enemyDamaged` it published.
+ * Collected every tick: `tick()` clears `world.events` at the top, so reading them once at the end
+ * sees only the last tick's.
+ */
+function heardHit(world: World, def: TowerDef, target: Enemy): EnemyDamaged {
+	const attack = attackOf(def)
+	const queue = createCommandQueue()
+	const hits: EnemyDamaged[] = []
+
+	spawnProjectile(world, makeTower(world, def, { x: 0, y: 0 }), attack, target, attack.applies)
+	for (let guard = 0; guard < 600 && world.projectiles.length > 0; guard++) {
+		tick(world, queue)
+		for (const event of world.events) {
+			if (event.kind === 'enemyDamaged' && event.enemyId === target.id) {
+				hits.push(event)
+			}
+		}
+	}
+
+	expect(hits).toHaveLength(1)
+	const [hit] = hits
+	if (hit === undefined) {
+		throw new Error('the shot landed nothing')
+	}
+	return hit
+}
+
 describe('a burrowed Weevil', () => {
 	it('is not a Salt Shaker target while it is under', () => {
 		const world = makeWorld()
@@ -372,6 +402,24 @@ describe('the Silverfish and the Lemon', () => {
 		run(world, STATUS_DEFS.armorStrip.durationTicks)
 		expect(findStatus(fish, 'armorStrip')).toBeUndefined()
 		expect(shoot(world, saltShaker, fish)).toBeCloseTo(grain * 0.4, 10)
+	})
+
+	it('publishes the multiplier the hit actually got: 0.4, then 0.7 once a Lemon shot has landed', () => {
+		const world = makeWorld()
+		const fish = addEnemy(world, silverfish, { distance: 10 })
+
+		expect(heardHit(world, saltShaker, fish).multiplier).toBeCloseTo(0.4, 10)
+		heardHit(world, lemon, fish)
+		expect(heardHit(world, saltShaker, fish).multiplier).toBeCloseTo(0.7, 10)
+	})
+
+	it('publishes 1.5 for a chemical hit on an Ant, which is swarm', () => {
+		const world = makeWorld()
+		const target = addEnemy(world, ant, { distance: 10 })
+
+		const hit = heardHit(world, lemon, target)
+		expect(hit.multiplier).toBeCloseTo(1.5, 10)
+		expect(hit.amount).toBeCloseTo(attackOf(lemon).damage * 1.5, 10)
 	})
 
 	it('moves the armored factor inside the product, not after it', () => {

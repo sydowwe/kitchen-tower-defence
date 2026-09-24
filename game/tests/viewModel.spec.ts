@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
+import { ant, beetle, silverfish, weevil } from '@/core/content/enemies.ts'
 import { getTowerDef } from '@/core/content/index.ts'
+import { applyStatus, createStatus } from '@/core/content/statuses.ts'
 import { tick } from '@/core/sim.ts'
+import { burrowSystem } from '@/core/systems/burrow.ts'
 import { dropCrumb } from '@/core/systems/crumbs.ts'
 import { canPlaceTower, placeTower, refundFor } from '@/core/systems/placement.ts'
+import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
-import { buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
+import { buildEnemyTooltip, buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
 import { createTestWorld } from './fixtures/world.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
-import type { UpgradeSlotView } from '@/ui/viewModel.ts'
-import type { FoodItem, Tower, Vec2, World } from '@/core/types.ts'
+import type { EnemyDamageView, EnemyTooltipView, UpgradeSlotView } from '@/ui/viewModel.ts'
+import type { DamageType, FoodItem, Tower, Vec2, World } from '@/core/types.ts'
 
 /**
  * The half of step 8 that can be silently wrong: a bonus preview that disagrees with what the wallet
@@ -360,6 +364,18 @@ describe('the upgrade slots', () => {
 		])
 	})
 
+	it("diffs the Bay Leaf's first tier as exactly one row, the radius it brings them up within", () => {
+		const first = slotsFor(buildableWorld(), 'bayLeaf')[0]
+
+		expect(first?.diff).toEqual([
+			{
+				labelKey: 'hud.stat.bringsUp',
+				from: { textKey: 'hud.stat.tiles', params: { n: 3 } },
+				to: { textKey: 'hud.stat.tiles', params: { n: 3.5 } },
+			},
+		])
+	})
+
 	it('reports the dps of a tier-3 tower off the folded def and not the base one', () => {
 		const world = buildableWorld()
 		const tower = placeTower(world, getTowerDef('saltShaker'), LEGAL_TILE)
@@ -374,6 +390,83 @@ describe('the upgrade slots', () => {
 		tower.tier = 3
 		expect(buildTowerInspector(world, tower.id)?.stats.dps).toBe(9)
 		expect(buildTowerInspector(world, tower.id)?.stats.damage).toBe(9)
+	})
+})
+
+describe('the Bay Leaf card', () => {
+	it('has a suppress radius of 3, and every other tower has none', () => {
+		const shop = buildHudSnapshot(buildableWorld(), VIEW).shop
+
+		for (const entry of shop) {
+			expect(entry.stats.suppressRadiusTiles).toBe(entry.id === 'bayLeaf' ? 3 : null)
+		}
+		expect(shop.some(entry => entry.id === 'bayLeaf')).toBe(true)
+	})
+})
+
+describe('the enemy tooltip', () => {
+	function rowFor(tooltip: EnemyTooltipView | null, damageType: DamageType): EnemyDamageView | undefined {
+		return tooltip?.damage.find(row => row.damageType === damageType)
+	}
+
+	it('shows a stripped Silverfish at x0.7 physical and x1.1 cold, live, in hud.damage order', () => {
+		const world = createTestWorld()
+		const fish = spawnEnemyAt(world, silverfish, 'a', 10, 0)
+
+		const bare = buildEnemyTooltip(world, fish.id)
+		expect(bare?.damage.map(row => row.damageType)).toEqual(['physical', 'fire', 'cold', 'chemical', 'electric'])
+		expect(rowFor(bare, 'physical')).toEqual({ damageType: 'physical', multiplier: 0.4, band: 'weak' })
+		expect(rowFor(bare, 'cold')).toEqual({ damageType: 'cold', multiplier: 1.2, band: 'strong' })
+
+		applyStatus(fish, createStatus('armorStrip'))
+		const stripped = buildEnemyTooltip(world, fish.id)
+
+		expect(rowFor(stripped, 'physical')).toEqual({ damageType: 'physical', multiplier: 0.7, band: 'weak' })
+		expect(rowFor(stripped, 'cold')).toEqual({ damageType: 'cold', multiplier: 1.1, band: 'strong' })
+		expect(rowFor(stripped, 'fire')).toEqual({ damageType: 'fire', multiplier: 1, band: 'neutral' })
+		expect(stripped?.tagKeys).toEqual(['hud.tag.ground', 'hud.tag.armored', 'hud.tag.bug'])
+	})
+
+	it('ceils both HP numbers on a difficulty-scaled enemy with fractional HP', () => {
+		const world = createTestWorld()
+		world.difficulty.enemyHpMult = 1.35
+		// 55 x 1.35 = 74.25, and then chipped down to a sliver a floor would print as dead.
+		const enemy = spawnEnemyAt(world, beetle, 'a', 10, 0)
+		enemy.hp = 0.3
+
+		const tooltip = buildEnemyTooltip(world, enemy.id)
+		expect(enemy.maxHp).toBeCloseTo(74.25, 10)
+		expect(tooltip?.hp).toBe(1)
+		expect(tooltip?.maxHp).toBe(75)
+	})
+
+	it('still describes a burrowed Weevil, and says it is under', () => {
+		const world = createTestWorld()
+		// The fixture's night is over, and a terminal phase runs no burrowing.
+		world.night.phase = 'wave'
+		const enemy = spawnEnemyAt(world, weevil, 'a', 10, 0)
+		enemy.burrowWindow = { fromTiles: 5, toTiles: 25 }
+		burrowSystem(world)
+
+		expect(enemy.flags.burrowed).toBe(true)
+		expect(buildEnemyTooltip(world, enemy.id)?.burrowed).toBe(true)
+	})
+
+	it('is null for an id that is not on the board', () => {
+		const world = createTestWorld()
+		spawnEnemyAt(world, ant, 'a', 10, 0)
+
+		expect(buildEnemyTooltip(world, 12_345)).toBeNull()
+	})
+
+	it('places itself in the board space the enemy is drawn in', () => {
+		const world = createTestWorld()
+		const enemy = spawnEnemyAt(world, ant, 'a', 7.5, 0)
+
+		const tooltip = buildEnemyTooltip(world, enemy.id)
+		expect(tooltip?.at).toEqual({ x: 7.5, y: 0 })
+		expect(tooltip?.widthTiles).toBe(40)
+		expect(tooltip?.heightTiles).toBe(1)
 	})
 })
 
@@ -462,8 +555,16 @@ describe('detachment from the world', () => {
 		// With an inspector in it, so the `upgrades` array is covered by the assertion that already
 		// guards this rather than by a second one beside it.
 		const tower = placeTower(world, getTowerDef('saltShaker'), LEGAL_TILE)
+		// And a tooltip, so `tagKeys` and the damage rows are covered too.
+		const fish = spawnEnemyAt(world, silverfish, 'a', 10, 0)
 
-		const snapshot = buildHudSnapshot(world, VIEW, buildTowerInspector(world, tower?.id ?? -1))
+		const snapshot = buildHudSnapshot(
+			world,
+			VIEW,
+			buildTowerInspector(world, tower?.id ?? -1),
+			buildEnemyTooltip(world, fish.id),
+		)
+		expect(snapshot.enemyTooltip).not.toBeNull()
 		const before = structuredClone(snapshot)
 
 		// A tier folded after the snapshot was built. `effectiveDef` hands out a shared, memoised def,
@@ -491,6 +592,12 @@ describe('detachment from the world', () => {
 			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 		})
 		dropCrumb(world, { x: 12, y: 0 }, 5)
+		// A tooltip holding `enemy.tags` by reference would grow a tag here.
+		fish.tags.push('boss')
+		fish.hp -= 40
+		fish.distance = 20
+		fish.flags.burrowed = true
+		applyStatus(fish, createStatus('armorStrip'))
 
 		expect(snapshot).toEqual(before)
 	})

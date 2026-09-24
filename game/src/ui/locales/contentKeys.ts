@@ -14,6 +14,7 @@ import type { FOODS } from '@/core/content/food.ts'
 import type { INSTALLATIONS } from '@/core/content/installations.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
 import type { PlacementRejection } from '@/core/systems/placement.ts'
+import type { EnemyTag } from '@/core/types.ts'
 
 /** The two keys every def carries: `<kind>.<id>.name` and `<kind>.<id>.description`. */
 interface Entry {
@@ -69,3 +70,9 @@ export type InstallationMessages = Record<(typeof INSTALLATIONS)[number]['id'], 
  * step 8A.
  */
 export type RejectionMessages = Record<PlacementRejection, string>
+
+/**
+ * `hud.tag`, over `EnemyTag`, by the same trick. The enemy tooltip prints every tag an enemy carries,
+ * so a nineteenth tag fails the build here instead of rendering `hud.tag.newTag` over a bug.
+ */
+export type TagMessages = Record<EnemyTag, string>

@@ -23,6 +23,11 @@
 		@setTargetingMode="(towerId, mode) => emit('setTargetingMode', towerId, mode)"
 	/>
 
+	<EnemyTooltip
+		v-if="snapshot.enemyTooltip !== null"
+		:tooltip="snapshot.enemyTooltip"
+	/>
+
 	<WaveControl
 		:phase="snapshot.phase"
 		:countdownTicks="snapshot.countdownTicks"
@@ -52,6 +57,7 @@
 
 <script setup lang="ts">
 	import { computed } from 'vue'
+	import EnemyTooltip from '@/ui/components/hud/EnemyTooltip.vue'
 	import NightSummary from '@/ui/components/hud/NightSummary.vue'
 	import ToastStack from '@/ui/components/hud/ToastStack.vue'
 	import TopBar from '@/ui/components/hud/TopBar.vue'

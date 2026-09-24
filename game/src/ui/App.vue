@@ -30,6 +30,11 @@
 		--kd-threat: #7fa6d8;
 		/* Losing something. Warm, but nothing like the lamp. */
 		--kd-danger: #d97b62;
+		/* What the type matrix did to a hit: the enemy tooltip's copy of render/palette.ts's three
+		   DAMAGE_NUMBER colours. The tooltip is how the board's colours get learned, so the two must match. */
+		--kd-hit-weak: #9a978c;
+		--kd-hit-neutral: #ffe9a8;
+		--kd-hit-strong: #ff9d4f;
 		--kd-radius: 0.5rem;
 	}
 

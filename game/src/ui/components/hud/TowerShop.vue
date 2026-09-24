@@ -90,6 +90,11 @@
 		display: grid;
 		justify-items: center;
 		gap: 0.3rem;
+		/* `max-content` and not the shrink-to-fit default: from `left: 50%` that default is half the
+		   board, and the row would wrap at seven towers. The cap is what wraps it on a narrow window
+		   instead of running fourteen off both edges (step 16B). */
+		width: max-content;
+		max-width: calc(100% - 1.5rem);
 		transform: translateX(-50%);
 	}
 
@@ -103,7 +108,9 @@
 
 	.row {
 		display: flex;
-		gap: 0.5rem;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.4rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -121,7 +128,7 @@
 		display: grid;
 		justify-items: center;
 		gap: 0.1rem;
-		width: 4.25rem;
+		width: 3.9rem;
 		padding: 0.4rem 0.3rem 0.35rem;
 		border: 1px solid var(--kd-panel-edge);
 		border-radius: var(--kd-radius);

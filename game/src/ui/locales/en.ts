@@ -12,6 +12,7 @@ import type {
 	FoodMessages,
 	InstallationMessages,
 	RejectionMessages,
+	TagMessages,
 	TowerMessages,
 } from '@/ui/locales/contentKeys.ts'
 
@@ -143,6 +144,8 @@ export const en = {
 			// `TowerStatsView.cleansePerSecond`.
 			cleans: 'Cleans within',
 			cleanRate: 'Patches cleaned',
+			// The Bay Leaf's one row, in the same spirit: what happens to a Weevil inside it.
+			bringsUp: 'Brings them up within',
 			cone: 'Cone',
 			applies: 'Applies',
 			// A wall's rows. `blocks` is a label and `blocksGround` its answer: the card is a two-column
@@ -175,6 +178,40 @@ export const en = {
 			marked: 'Marked',
 			rooted: 'Rooted',
 		},
+
+		// --- step 16B, the enemy tooltip ---------------------------------------------------------
+		// The matrix one enemy at a time. `hud.stat.dpsNote` points here: the multipliers are live,
+		// so a Lemon's strip shows up as the physical number moving while you watch.
+		enemyTooltip: {
+			hp: '{hp} / {max}',
+			multiplier: '×{n}',
+			// The one line a burrowed enemy gets that a surfaced one does not. It explains the towers
+			// ignoring it, which is otherwise the most confusing thing on the board.
+			burrowed: 'Underground. Nothing can reach it down there.',
+		},
+		// Every `EnemyTag`, as the tooltip lists them. Words for the ones the multiplier row cannot
+		// explain -- `burrows`, `fast`, `spreads` -- matter most, because they are the only place those
+		// facts are written.
+		tag: {
+			ground: 'Ground',
+			air: 'Flying',
+			soft: 'Soft',
+			armored: 'Armoured',
+			swarm: 'Swarm',
+			fast: 'Fast',
+			bug: 'Bug',
+			fungal: 'Fungal',
+			mammal: 'Mammal',
+			slime: 'Slimy',
+			spreads: 'Spreads',
+			burrows: 'Burrows',
+			thief: 'Thief',
+			'light-drawn': 'Drawn to light',
+			'self-spawning': 'Breeds',
+			'physical-immune': 'Immune to physical',
+			'douses-fire': 'Puts out fire',
+			boss: 'Boss',
+		} satisfies TagMessages,
 		// One per PlacementRejection, as the player's problem rather than the validator's.
 		reject: {
 			offBoard: 'That is off the counter.',
@@ -366,9 +403,13 @@ export const en = {
 				description: 'Every shake covers the whole circle, and every trail of slime inside it with it.',
 			},
 		},
+		// Rewritten in 16B against the card and the tooltip. The Bay Leaf's sentence is about what it
+		// brings up, the Lemon's about what it does for every other tower's hits rather than its own --
+		// its own is 8 chemical, and the tooltip shows the physical row moving, not that.
 		bayLeaf: {
 			name: 'Bay Leaf',
-			description: 'Bugs hate the smell. Nothing stays underground near it, and what comes up can be hit.',
+			description:
+				'Bugs cannot stand the smell. Anything tunnelling near it comes back up, where everything else can reach it.',
 			tier1: { name: 'Dried Sprig' },
 			tier2: { name: 'Crushed Leaves' },
 			tier3: {
@@ -378,12 +419,13 @@ export const en = {
 		},
 		lemon: {
 			name: 'Lemon',
-			description: 'A squeeze of juice that eats through shells. Armored bugs hit by it lose half their armor.',
+			description:
+				'The squirt itself does very little. For a few seconds after, whatever it hit has a shell everything else gets through.',
 			tier1: { name: 'Ripe Lemon' },
 			tier2: { name: 'Sharp Zest' },
 			tier3: {
 				name: 'Full Squeeze',
-				description: 'Every squirt splashes, stripping the armor off everything around the hit.',
+				description: 'Every squirt splashes. Whatever is standing near the hit goes soft with it.',
 			},
 		},
 	} satisfies TowerMessages,
@@ -398,7 +440,8 @@ export const en = {
 		},
 		beetle: {
 			name: 'Beetle',
-			description: 'Armoured, unhurried, and in no doubt about where it is going. It takes two things.',
+			// Not "Armoured" since 16B: it has no `armored` tag, and the tooltip under this sentence says x1.0.
+			description: 'Heavy, unhurried, and in no doubt about where it is going. It takes two things.',
 		},
 		fruitFly: {
 			name: 'Fruit Fly',
@@ -427,13 +470,15 @@ export const en = {
 			description:
 				'Slow, soft, and not alone for long: whatever follows it runs faster along the trail it leaves.',
 		},
+		// Rewritten in 16B against the tooltip, which now carries the numbers: the Weevil's sentence is
+		// about going under, the Silverfish's about how little a hit does.
 		weevil: {
 			name: 'Weevil',
-			description: 'It tunnels under the counter for part of the way, where nothing can hit it or stop it.',
+			description: 'For part of the way it goes under, and nothing up here can touch it until it comes back up.',
 		},
 		silverfish: {
 			name: 'Silverfish',
-			description: 'Slow and scaled. Salt barely scratches it; acid and cold get through.',
+			description: 'Scaled like a fish. A handful of salt that would flatten an ant barely makes it flinch.',
 		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.

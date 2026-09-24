@@ -150,7 +150,7 @@ Then look at the shop. Fourteen towers is two more than 15B saw it hold.
 - [ ] Hovering a walking Ant holds the tooltip steady until the pointer moves. There's no flicker,
       and no tooltip is left behind after the Ant dies.
 - [ ] The Bay Leaf's ghost draws its circle, and its card says what it does.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 16C
 

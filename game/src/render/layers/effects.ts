@@ -14,7 +14,9 @@
  */
 
 import { getFoodDef } from '@/core/content/index.ts'
+import { effectivenessOf } from '@/core/content/matrix.ts'
 import { towerById } from '@/core/systems/placement.ts'
+import type { Effectiveness } from '@/core/content/matrix.ts'
 import type { EntityId, GameEvent, Vec2, World } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
 import { forgetCrumbPositions, lastCrumbPosition } from '@/render/layers/crumbs.ts'
@@ -23,6 +25,8 @@ import {
 	CRUMB_POP,
 	CRUMB_VALUE,
 	DAMAGE_NUMBER,
+	DAMAGE_NUMBER_STRONG,
+	DAMAGE_NUMBER_WEAK,
 	HIT_FLASH,
 	TOWER_DEBRIS,
 	WAKE_DESATURATE,
@@ -95,9 +99,20 @@ interface HitFlash {
 interface DamageNumber {
 	/** Already rounded, and rounded before it became a glyph key -- see `pushEvents`. */
 	text: string
+	/**
+	 * Banded at push time, off the event's multiplier. The colour is part of the glyph-cache key, so
+	 * three bands is three times the number keys and nothing more.
+	 */
+	band: Effectiveness
 	x: number
 	y: number
 	ageFrames: number
+}
+
+const NUMBER_COLOURS: Record<Effectiveness, string> = {
+	weak: DAMAGE_NUMBER_WEAK,
+	neutral: DAMAGE_NUMBER,
+	strong: DAMAGE_NUMBER_STRONG,
 }
 
 const flashes: HitFlash[] = []
@@ -255,6 +270,7 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 			// and the symptom is memory climbing all night with nothing else wrong (decision 8).
 			numbers.push({
 				text: String(Math.round(event.amount)),
+				band: effectivenessOf(event.multiplier),
 				x: event.at.x,
 				y: event.at.y,
 				ageFrames: 0,
@@ -371,7 +387,16 @@ function drawHits(ctx: CanvasRenderingContext2D, tilePx: number, dpr: number): v
 			number.ageFrames <= NUMBER_HOLD_FRAMES ? 1 : 1 - (number.ageFrames - NUMBER_HOLD_FRAMES) / fadeFrames
 		// Eased, so it leaves the hit quickly and then hangs where it can be read.
 		const y = number.y - NUMBER_OFFSET_TILES - NUMBER_RISE_TILES * (1 - (1 - t) * (1 - t))
-		blitGlyph(ctx, dpr, number.text, size, (number.x + 0.5) * tilePx, (y + 0.5) * tilePx, false, DAMAGE_NUMBER)
+		blitGlyph(
+			ctx,
+			dpr,
+			number.text,
+			size,
+			(number.x + 0.5) * tilePx,
+			(y + 0.5) * tilePx,
+			false,
+			NUMBER_COLOURS[number.band],
+		)
 
 		numbers[liveNumbers] = number
 		liveNumbers++

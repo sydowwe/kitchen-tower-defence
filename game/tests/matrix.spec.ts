@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DAMAGE_MATRIX, resolveDamage } from '@/core/content/matrix.ts'
+import { DAMAGE_MATRIX, effectivenessOf, resolveDamage } from '@/core/content/matrix.ts'
 import type { DamageTarget } from '@/core/content/matrix.ts'
 import type { DamageType, EnemyTag } from '@/core/types.ts'
 
@@ -92,5 +92,21 @@ describe('DAMAGE_MATRIX', () => {
 				expect(Number.isFinite(row[damageType])).toBe(true)
 			}
 		}
+	})
+})
+
+describe('effectivenessOf', () => {
+	it('bands the matrix entries the player meets first', () => {
+		expect(effectivenessOf(0.4)).toBe('weak')
+		expect(effectivenessOf(1.0)).toBe('neutral')
+		expect(effectivenessOf(1.5)).toBe('strong')
+	})
+
+	it('reads a hair either side of 1.0 as neutral, so float noise never colours a hit', () => {
+		expect(effectivenessOf(0.995)).toBe('neutral')
+		expect(effectivenessOf(1.005)).toBe('neutral')
+		// And the edge of the epsilon is the edge: 0.98 and 1.02 are a real cut and a real boost.
+		expect(effectivenessOf(0.98)).toBe('weak')
+		expect(effectivenessOf(1.02)).toBe('strong')
 	})
 })

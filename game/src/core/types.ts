@@ -531,8 +531,19 @@ export type GameEvent =
 	 * `amount` is the **resolved** damage -- already through the tag matrix and the status
 	 * multipliers -- because that is what 6C's damage numbers show and what a balance report adds
 	 * up. `at` is tile coordinates like everything else in `core/`.
+	 *
+	 * `multiplier` is `amount / base`, `Marked` included: what the matrix actually did to this hit.
+	 * Carried rather than recomputed because the event names no damage type and the enemy may be dead
+	 * by the time a reader gets to it. `effectivenessOf` is the one thing that turns it into a colour.
 	 */
-	| { kind: 'enemyDamaged'; enemyId: EntityId; sourceTowerId: EntityId; amount: number; at: Vec2 }
+	| {
+			kind: 'enemyDamaged'
+			enemyId: EntityId
+			sourceTowerId: EntityId
+			amount: number
+			multiplier: number
+			at: Vec2
+	  }
 	| { kind: 'towerPlaced'; towerId: EntityId; defId: DefId; tile: Vec2 }
 	| { kind: 'towerSold'; towerId: EntityId; refund: number }
 	/**

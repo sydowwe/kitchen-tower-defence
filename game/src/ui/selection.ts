@@ -32,7 +32,13 @@ export interface Selection {
 	tone: PlacementTone | null
 	/** Plain. What the toast says on a refused click. */
 	reason: PlacementRejection | null
-	/** Drops both selections. Escape and a night restart both call it. */
+	/**
+	 * Plain. The enemy the tooltip describes, **latched**: picked on pointermove only and held until
+	 * the pointer moves off it, leaves the canvas, or it is gone. Re-picking at publish rate against a
+	 * still cursor drops a walking Ant within a second, and the tooltip flickers.
+	 */
+	hoveredEnemyId: EntityId | null
+	/** Drops both selections and the hover. Escape and a night restart both call it. */
 	clear(): void
 }
 
@@ -47,6 +53,7 @@ export function createSelection(): Selection {
 		hoverPoint: null,
 		tone: null,
 		reason: null,
+		hoveredEnemyId: null,
 		clear() {
 			selectedDefId.value = null
 			selectedTowerId.value = null
@@ -54,6 +61,8 @@ export function createSelection(): Selection {
 			selection.hoverPoint = null
 			selection.tone = null
 			selection.reason = null
+			// Ids restart per world, so a stale one after a retry may name a live enemy in the new night.
+			selection.hoveredEnemyId = null
 		},
 	}
 

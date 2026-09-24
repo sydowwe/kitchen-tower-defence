@@ -100,3 +100,28 @@ export function resolveDamage(base: number, damageType: DamageType, target: Dama
 	}
 	return base * multiplier * damageTakenMultiplier(target)
 }
+
+/** How a multiplier reads to the player. The damage numbers and the enemy tooltip are both coloured by it. */
+export type Effectiveness = 'weak' | 'neutral' | 'strong'
+
+/**
+ * How far off 1.0 a multiplier has to be before it reads as anything but neutral.
+ *
+ * Wide enough that float noise out of a product of tags never colours a hit, narrow enough that the
+ * smallest real entry off 1.0 in the table still does.
+ */
+const NEUTRAL_EPSILON = 0.01
+
+/**
+ * The one copy of the thresholds. It lives here rather than in `render/` or `ui/` because both colour
+ * with it, and two copies would let a x0.99 read neutral on the board and weak in the tooltip.
+ */
+export function effectivenessOf(multiplier: number): Effectiveness {
+	if (multiplier < 1 - NEUTRAL_EPSILON) {
+		return 'weak'
+	}
+	if (multiplier > 1 + NEUTRAL_EPSILON) {
+		return 'strong'
+	}
+	return 'neutral'
+}

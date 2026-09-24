@@ -140,6 +140,20 @@ export const HIT_FLASH = 'rgba(255, 244, 214, 0.9)'
 export const DAMAGE_NUMBER = '#ffe9a8'
 
 /**
+ * A number the matrix cut down or pushed up, by `effectivenessOf` on the hit's multiplier. Only the
+ * number changes; the ring stays `HIT_FLASH`, or a crowd of weak hits is a grey smear that hides where
+ * they land.
+ *
+ * Weak looks **spent**, not red: dim and nearly grey. Red would read as damage done to the player.
+ * Strong is brighter and hotter than neutral, and orange rather than `CRUMB_VALUE`'s gold, so a big
+ * hit and a pile landing in the same frame still read as two different things.
+ *
+ * `--kd-hit-*` in `ui/App.vue` carries the same three for the enemy tooltip. Retune both together.
+ */
+export const DAMAGE_NUMBER_WEAK = '#9a978c'
+export const DAMAGE_NUMBER_STRONG = '#ff9d4f'
+
+/**
  * The mould under a pile that has started to go over.
  *
  * Two stops of the same green rather than a gradient: one soft cast is the whole rot tell, and a

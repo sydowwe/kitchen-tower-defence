@@ -16,17 +16,28 @@
  * cannot translate, `ui/` resolves, and a snapshot is exactly where that gets broken first.
  */
 
-import { isAttack, isCharge, isCleanse, isCollect, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
+import {
+	isAttack,
+	isCharge,
+	isCleanse,
+	isCollect,
+	isConeAttack,
+	isReveal,
+	isSuppress,
+} from '@/core/content/behaviours.ts'
+import { effectivenessOf, resolveDamage } from '@/core/content/matrix.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
-import { TOWERS, effectiveDef, effectiveDefOf, getTowerDef } from '@/core/content/index.ts'
+import { TOWERS, effectiveDef, effectiveDefOf, getEnemyDef, getTowerDef } from '@/core/content/index.ts'
 import { upgradeCost } from '@/core/content/upgrades.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
 import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { refundFor, towerById } from '@/core/systems/placement.ts'
+import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import { nightClock } from '@/core/systems/wave.ts'
 import type { StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
+import type { Effectiveness } from '@/core/content/matrix.ts'
 import type {
 	DamageType,
 	DefId,
@@ -49,6 +60,7 @@ import type { Speed } from '@/loop.ts'
  * it. This file already depends on `core/`; it is the seam. Type-only, and erased at build.
  */
 export type { TargetClass } from '@/core/content/behaviours.ts'
+export type { Effectiveness } from '@/core/content/matrix.ts'
 export type { DamageType, DefId, EntityId, NightPhase, StatusKind, TargetingMode } from '@/core/types.ts'
 export type { Speed } from '@/loop.ts'
 
@@ -141,6 +153,11 @@ export interface TowerStatsView {
 	 * the card inventing a limit the tower does not have. Its firing rate row already says how often.
 	 */
 	cleansePerSecond: number | null
+	/**
+	 * How far a suppressor holds burrowers on the surface, in tiles. Null for everything without a
+	 * `suppress`. The Bay Leaf's only row, the way `revealRadiusTiles` is the Nightlight's.
+	 */
+	suppressRadiusTiles: number | null
 }
 
 /**
@@ -231,6 +248,41 @@ export interface TowerInspectorView {
 	refund: number
 	/** `phase === 'wave'`, which is when the rate drops to 50%. */
 	refundIsPenalised: boolean
+}
+
+/** One damage type against the hovered enemy, as it stands this publish. */
+export interface EnemyDamageView {
+	damageType: DamageType
+	/** `resolveDamage(1, ...)`: every tag, armor strip and `Marked` included. Two decimals. */
+	multiplier: number
+	/** Off the unrounded multiplier, through the same `effectivenessOf` the damage numbers use. */
+	band: Effectiveness
+}
+
+/**
+ * The hovered enemy: what it is, how hurt it is, and what each damage type does to it right now.
+ *
+ * Positioned in **tiles**, with the board's size beside it, so the component places itself as a
+ * percentage of the HUD layer. That layer is the board's exact size, so percentages line up at any
+ * window size where pixels would be off by the CSS scale.
+ */
+export interface EnemyTooltipView {
+	enemyId: EntityId
+	glyph: string
+	nameKey: string
+	/** Both `Math.ceil`ed. `hp` is fractional by design, and a floor shows a living enemy at `0 / 41`. */
+	hp: number
+	maxHp: number
+	/** Every tag, `hud.tag.<tag>`, in the def's order. A new array, never `enemy.tags`. */
+	tagKeys: string[]
+	/** All five, in `hud.damage` order. */
+	damage: EnemyDamageView[]
+	/** Nothing can reach it while this is true. The tooltip says so rather than going away. */
+	burrowed: boolean
+	/** Waypoint space: integers on tile centres, the space `enemyPosition` returns. */
+	at: { x: number; y: number }
+	widthTiles: number
+	heightTiles: number
 }
 
 export interface NightSummaryView {
@@ -334,6 +386,8 @@ export interface HudSnapshot {
 	paused: boolean
 	shop: ShopEntry[]
 	inspector: TowerInspectorView | null
+	/** The enemy under the pointer. Passed in like `inspector`; see `buildEnemyTooltip`. */
+	enemyTooltip: EnemyTooltipView | null
 	/** Non-null only in `'won'` and `'lost'`. */
 	summary: NightSummaryView | null
 }
@@ -386,6 +440,7 @@ function statsFor(def: TowerDef): TowerStatsView {
 		revealRadiusTiles: null,
 		cleanseRadiusTiles: null,
 		cleansePerSecond: null,
+		suppressRadiusTiles: null,
 	}
 
 	for (const behaviour of def.behaviours) {
@@ -423,6 +478,11 @@ function statsFor(def: TowerDef): TowerStatsView {
 				behaviour.maxTilesPerPulse === 0
 					? null
 					: round2((behaviour.maxTilesPerPulse * TICKS_PER_SECOND) / behaviour.intervalTicks)
+			continue
+		}
+
+		if (isSuppress(behaviour)) {
+			stats.suppressRadiusTiles = behaviour.radiusTiles
 			continue
 		}
 
@@ -545,6 +605,7 @@ const DIFF_ROWS: readonly { labelKey: string; read: (stats: TowerStatsView) => S
 	{ labelKey: 'hud.stat.lights', read: s => measured('hud.stat.tiles', s.revealRadiusTiles) },
 	{ labelKey: 'hud.stat.cleans', read: s => measured('hud.stat.tiles', s.cleanseRadiusTiles) },
 	{ labelKey: 'hud.stat.cleanRate', read: s => measured('hud.stat.perSecond', s.cleansePerSecond) },
+	{ labelKey: 'hud.stat.bringsUp', read: s => measured('hud.stat.tiles', s.suppressRadiusTiles) },
 	// The one row the card always draws, and the one that reads as a word at zero. Per second since
 	// 13B, so a tier that halves a cooldown shows up here as the tower getting louder -- which is
 	// exactly what the Mousetrap's third tier does, and what no other row on the card would say.
@@ -653,6 +714,44 @@ export function buildTowerInspector(world: World, towerId: EntityId): TowerInspe
 	}
 }
 
+/** The order `hud.damage` lists them in, which is the order the tooltip's rows read. */
+const DAMAGE_TYPES: readonly DamageType[] = ['physical', 'fire', 'cold', 'chemical', 'electric']
+
+/**
+ * The hovered enemy, rebuilt on **every** publish because its HP and statuses move. Built by the
+ * caller and passed into `buildHudSnapshot`, the way the inspector is: the hovered id lives on
+ * `ui/selection.ts`, which this file does not import.
+ *
+ * Null for an id that is gone, like `towerById` -- and for one on a path the map does not have, which
+ * has no position to anchor to.
+ */
+export function buildEnemyTooltip(world: World, enemyId: EntityId): EnemyTooltipView | null {
+	const enemy = enemyById(world, enemyId)
+	const at = enemy === null ? null : enemyPosition(world, enemy)
+	if (enemy === null || at === null) {
+		return null
+	}
+
+	const def = getEnemyDef(enemy.defId)
+
+	return {
+		enemyId: enemy.id,
+		glyph: def.glyph,
+		nameKey: def.nameKey,
+		hp: Math.ceil(enemy.hp),
+		maxHp: Math.ceil(enemy.maxHp),
+		tagKeys: enemy.tags.map(tag => `hud.tag.${tag}`),
+		damage: DAMAGE_TYPES.map(damageType => {
+			const multiplier = resolveDamage(1, damageType, enemy)
+			return { damageType, multiplier: round2(multiplier), band: effectivenessOf(multiplier) }
+		}),
+		burrowed: enemy.flags.burrowed,
+		at: { x: at.x, y: at.y },
+		widthTiles: world.map.widthTiles,
+		heightTiles: world.map.heightTiles,
+	}
+}
+
 /** The night-end screen. Read whatever the phase, and shown only in `'won'` and `'lost'`. */
 export function buildNightSummary(world: World): NightSummaryView {
 	const night = world.night
@@ -678,12 +777,14 @@ export function buildNightSummary(world: World): NightSummaryView {
  *
  * `inspector` is passed **in** rather than derived: it is built on selection change (see
  * `buildTowerInspector`) and the caller holds the one it built, so republishing at 15Hz does not
- * silently downgrade the exception ARCHITECTURE.md section 5 grants it.
+ * silently downgrade the exception ARCHITECTURE.md section 5 grants it. `enemyTooltip` is passed in
+ * for a plainer reason: the hovered id is UI state this file cannot see.
  */
 export function buildHudSnapshot(
 	world: World,
 	view: { speed: Speed; paused: boolean; loudShots?: number },
 	inspector: TowerInspectorView | null = null,
+	enemyTooltip: EnemyTooltipView | null = null,
 ): HudSnapshot {
 	const night = world.night
 	const over = night.phase === 'won' || night.phase === 'lost'
@@ -711,6 +812,7 @@ export function buildHudSnapshot(
 		paused: view.paused,
 		shop: buildShop(world),
 		inspector,
+		enemyTooltip,
 		summary: over ? buildNightSummary(world) : null,
 	}
 }

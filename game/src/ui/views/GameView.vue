@@ -67,8 +67,8 @@
 	import HudLayer from '@/ui/components/hud/HudLayer.vue'
 	import { createInteraction, type Interaction, type Toast } from '@/ui/interaction.ts'
 	import { createSelection } from '@/ui/selection.ts'
-	import { buildHudSnapshot, buildTowerInspector, buildWakeView } from '@/ui/viewModel.ts'
-	import type { HudSnapshot, TowerInspectorView, WakeView } from '@/ui/viewModel.ts'
+	import { buildEnemyTooltip, buildHudSnapshot, buildTowerInspector, buildWakeView } from '@/ui/viewModel.ts'
+	import type { EnemyTooltipView, HudSnapshot, TowerInspectorView, WakeView } from '@/ui/viewModel.ts'
 	import type { DefId, EntityId, GameEvent, MapDef, TargetingMode, World } from '@/core/types.ts'
 	import type { DebugController } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
@@ -200,6 +200,19 @@
 	}
 
 	watch(selection.selectedTowerId, refreshInspector)
+
+	/**
+	 * Rebuilt on every publish, because the hovered enemy's HP moves. An enemy that is gone drops the
+	 * latch here: pointermove is the only other place it changes, and a still cursor never fires one.
+	 */
+	function buildTooltip(): EnemyTooltipView | null {
+		const enemyId = selection.hoveredEnemyId
+		const tooltip = enemyId === null || world === null ? null : buildEnemyTooltip(world, enemyId)
+		if (tooltip === null) {
+			selection.hoveredEnemyId = null
+		}
+		return tooltip
+	}
 
 	let renderer: Renderer | null = null
 	let loop: Loop | null = null
@@ -445,6 +458,7 @@
 						world,
 						{ speed: activeLoop.speed, paused: activeLoop.paused, loudShots },
 						inspector,
+						buildTooltip(),
 					)
 				}
 			},

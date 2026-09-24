@@ -13,11 +13,11 @@
  */
 
 import { effectiveDefOf, TOWERS } from '@/core/content/index.ts'
-import { isAttack, isCleanse, isConeAttack, isReveal } from '@/core/content/behaviours.ts'
+import { isAttack, isCleanse, isConeAttack, isReveal, isSuppress } from '@/core/content/behaviours.ts'
 import { nearestPath, samplePath } from '@/core/path.ts'
 import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
-import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
+import { enemyById, enemyPosition, queryEnemiesInRange } from '@/core/systems/spatial.ts'
 import {
 	gridToWaypoint,
 	isOnBoard,
@@ -31,7 +31,7 @@ import {
 import { isTypingTarget } from '@/ui/keyboard.ts'
 import type { CommandQueue } from '@/core/commands.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { Tower, Vec2, World } from '@/core/types.ts'
+import type { EntityId, Tower, Vec2, World } from '@/core/types.ts'
 import type { Speed } from '@/loop.ts'
 import type { Selection } from '@/ui/selection.ts'
 
@@ -153,18 +153,26 @@ function facingFor(world: World, tile: Vec2, tower: Tower | null): number {
  * A scrubber shows **the larger of its range and its cleanse radius**, as one circle (step 15B). A
  * tier-3 Vinegar Spray cleans twice as far as it shoots, and a ghost drawing only the smaller circle
  * lies about the headline feature; two circles would need a second overlay shape for one tower.
+ *
+ * A `suppress` radius is folded into both circles the same way (step 16B). The Bay Leaf has nothing
+ * else to show, and a tower that someday both shoots and suppresses should show the larger reach.
  */
 function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): OverlayReach | null {
+	const leaf = def.behaviours.find(isSuppress)
 	const shot = def.behaviours.find(isAttack)
 	if (shot !== undefined) {
 		const scrub = def.behaviours.find(isCleanse)
-		return { kind: 'circle', radiusTiles: Math.max(shot.rangeTiles, scrub?.radiusTiles ?? 0) }
+		return {
+			kind: 'circle',
+			radiusTiles: Math.max(shot.rangeTiles, scrub?.radiusTiles ?? 0, leaf?.radiusTiles ?? 0),
+		}
 	}
 
 	const spray = def.behaviours.find(isConeAttack)
 	if (spray === undefined) {
 		const lamp = def.behaviours.find(isReveal)
-		return lamp === undefined ? null : { kind: 'circle', radiusTiles: lamp.radiusTiles }
+		const radiusTiles = Math.max(lamp?.radiusTiles ?? 0, leaf?.radiusTiles ?? 0)
+		return radiusTiles === 0 ? null : { kind: 'circle', radiusTiles }
 	}
 
 	return {
@@ -173,6 +181,43 @@ function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): 
 		halfAngleDeg: spray.coneHalfAngleDeg,
 		facingRad: facingFor(world, tile, tower),
 	}
+}
+
+/** How close the pointer has to be to an enemy's centre to hover it. Half a tile: its own glyph. */
+const HOVER_PICK_RADIUS_TILES = 0.5
+
+/**
+ * The enemy under `point`, keeping `current` for as long as the pointer is still on it.
+ *
+ * Called on pointermove and nowhere else -- the latch in `Selection.hoveredEnemyId` depends on it.
+ * Burrowed enemies are picked like any other: hovering the mound is how the player learns why the
+ * towers ignore it.
+ */
+function pickHoveredEnemy(world: World, point: Vec2 | null, current: EntityId | null): EntityId | null {
+	if (point === null) {
+		return null
+	}
+
+	const held = current === null ? null : enemyById(world, current)
+	const heldAt = held === null ? null : enemyPosition(world, held)
+	if (heldAt !== null && Math.hypot(heldAt.x - point.x, heldAt.y - point.y) <= HOVER_PICK_RADIUS_TILES) {
+		return current
+	}
+
+	let nearest: EntityId | null = null
+	let nearestSquared = Infinity
+	for (const enemy of queryEnemiesInRange(world, point, HOVER_PICK_RADIUS_TILES)) {
+		const at = enemyPosition(world, enemy)
+		if (at === null) {
+			continue
+		}
+		const squared = (at.x - point.x) ** 2 + (at.y - point.y) ** 2
+		if (squared < nearestSquared) {
+			nearest = enemy.id
+			nearestSquared = squared
+		}
+	}
+	return nearest
 }
 
 /**
@@ -308,6 +353,7 @@ export function createInteraction(
 		if (world === null) {
 			selection.hoverTile = null
 			selection.hoverPoint = null
+			selection.hoveredEnemyId = null
 			refreshHover()
 			return
 		}
@@ -322,12 +368,14 @@ export function createInteraction(
 		// `Crumb.position` puts them on tile centres; the `- 0.5` is the whole of the difference, and
 		// skipping it makes every pile feel like it has to be clicked up and to the left.
 		selection.hoverPoint = tile === null ? null : gridToWaypoint(grid)
+		selection.hoveredEnemyId = pickHoveredEnemy(world, selection.hoverPoint, selection.hoveredEnemyId)
 		refreshHover()
 	}
 
 	function onPointerLeave(): void {
 		selection.hoverTile = null
 		selection.hoverPoint = null
+		selection.hoveredEnemyId = null
 		refreshHover()
 	}
 
