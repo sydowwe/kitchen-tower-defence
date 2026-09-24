@@ -188,8 +188,14 @@ export const moth: EnemyDefOf<'moth'> = {
  * **Speed 0, not the table's 0.15.** The paragraph under that table says mold does not walk, and the
  * paragraph wins: `movementSystem` adds `0 * multiplier`, the leak check never fires, and a wake's
  * flee at `speed * 2` is 0 too. It wins by eating the map instead -- its writer molds the tile it
- * landed on, then one orthogonal neighbour every 6 seconds, permanently, and a molded tile refuses a
- * tower. The interval is a draft that step 15C re-tunes against a night.
+ * landed on, then one orthogonal neighbour every 12 seconds, permanently, and a molded tile refuses a
+ * tower.
+ *
+ * **12 seconds, not 15A's blind 6.** Step 15C ran nights 11, 12 and 15 headless with every mold left
+ * alive: at 6 seconds nights 12 and 15 molded every one of the Counter's 223 open cells and night 11
+ * ~190 of them, which leaves nowhere to build the answer. At 12, a fully ignored night 11 ends at ~100
+ * -- the road and a strip either side of it gone, and the rest still there to fight back from. Night 11's "damp night" (step 21) is
+ * 50% faster than this, so this is the dry rate.
  *
  * `fungal` is **x0.2 physical and x2.5 chemical**: a board of Salt Shakers finds it close to
  * immovable. `ground` and `spreads` are descriptive.
@@ -209,7 +215,7 @@ export const mold: EnemyDefOf<'mold'> = {
 	steals: 0,
 	tags: ['ground', 'spreads', 'fungal'],
 	/** `magnitude` is mold's growth stage, and 1 is where every patch starts. */
-	tileWriter: { effect: 'mold', mode: 'spread', magnitude: 1, durationTicks: -1, intervalTicks: 360 },
+	tileWriter: { effect: 'mold', mode: 'spread', magnitude: 1, durationTicks: -1, intervalTicks: 720 },
 }
 
 /**

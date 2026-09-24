@@ -7,7 +7,8 @@
  * needs saying twice. Not `world.tick`: a speed multiplier runs more ticks per frame and never
  * scales `dt`, so a phase driven off the tick beats three times as fast at 3x as it does at 1x
  * (step 13B, decision 2). No reset export goes with it, unlike `resetEffects` -- a free-running
- * phase carries nothing from one night into the next.
+ * phase carries nothing from one night into the next. The other piece of state is `moldStages`, a
+ * scratch grid rebuilt from `world.tiles` every frame and carrying nothing between them.
  *
  * **Nothing here is baked.** Mold and scorch are permanent, which makes them look like terrain, but
  * both of them appear *during* a night and the bake is keyed by `(map, dpr)` and redraws the whole
@@ -24,15 +25,18 @@
  * standing on it.
  */
 
-import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
 import type { TileEffect, TileEffectKind, World } from '@/core/types.ts'
 import {
 	TILE_HEAT_CORE,
 	TILE_HEAT_PULSE,
+	TILE_MOLD_BLOTCH,
+	TILE_MOLD_MASS,
 	TILE_MOLD_PATCH,
+	TILE_MOLD_RIM,
 	TILE_MOLD_SPECK,
 	TILE_RESIDUE_MIST,
 	TILE_SCORCH_STAIN,
+	TILE_SLIME_GLINT,
 	TILE_SLIME_GLOSS,
 	TILE_SLIME_SHEEN,
 } from '@/render/palette.ts'
@@ -40,8 +44,12 @@ import {
 /**
  * Fixed, and not `state.effects` order: a stack has to read the same way every time. The marks in
  * the floor first, then the wet and the hot over them, then the mist on top.
+ *
+ * Mold is not in it. It is drawn as one board-wide pass between the scorch loop and this one,
+ * because a patch is a shape across cells rather than a treatment on each of them -- see
+ * `drawMoldPatches`.
  */
-const DRAW_ORDER: readonly TileEffectKind[] = ['scorch', 'mold', 'slime', 'heat', 'residue']
+const DRAW_ORDER: readonly TileEffectKind[] = ['slime', 'heat', 'residue']
 
 /** Overlapping blobs, so the stain has an edge the grid does not. */
 const SCORCH_BLOBS = 3
@@ -49,32 +57,54 @@ const SCORCH_MIN_RADIUS_TILES = 0.17
 const SCORCH_MAX_RADIUS_TILES = 0.33
 
 /**
- * Mold by stage, 1 to 3, indexed by `magnitude - 1`.
+ * Mold by stage, 1 to 3, where each stage is a pass the cell *joins* rather than a stronger alpha:
  *
- * The three have to be tellable apart from across the board, so all three of radius, opacity and
- * speckle count move together -- one of them alone is a difference you have to lean in for, and step
- * 15's entire lesson is "you could have dealt with this two stages ago".
+ * 1. specks and a faint rim -- the floor still shows between them.
+ * 2. a translucent patch, with blotches in it -- the floor is tinted and textured.
+ * 3. an opaque mass, darker blotches, and fuzz on the edge -- the floor is gone.
  *
- * Stage 3 is wider than half a tile on purpose: patches on neighbouring cells then overlap, and a
- * corner of the kitchen that has gone over reads as one mass rather than as a grid of discs.
+ * "A bit more alpha" is a difference you lean in for, and step 15's whole lesson is "you could have
+ * dealt with this two stages ago". The per-stage tables below are indexed by `stage - 1`.
  */
-const MOLD_RADIUS_TILES = [0.3, 0.42, 0.54] as const
-const MOLD_ALPHA = [0.55, 0.8, 1] as const
-const MOLD_SPECKS = [4, 8, 13] as const
-const MOLD_SPECK_RADIUS_TILES = 0.035
-/** Tiles the patch centre wanders, so a run of them is not a row of concentric circles. */
-const MOLD_JITTER_TILES = 0.07
+const MOLD_STAGES = 3
+const MOLD_SPECKS = [5, 7, 10] as const
+const MOLD_SPECK_RADIUS_TILES = 0.04
+
+/**
+ * Blotches: blobs up to nearly two tiles across, on roughly one cell in three, clipped to the cells
+ * that have reached the stage. At a scale the grid does not share, which is the lesson `TILE_MOTTLE`
+ * records -- anything that varies per *tile* draws the tile boundaries in, and a patch reads as a green
+ * spreadsheet.
+ */
+const MOLD_BLOTCH_CHANCE = 0.35
+const MOLD_BLOTCH_MIN_RADIUS_TILES = 0.45
+const MOLD_BLOTCH_MAX_RADIUS_TILES = 0.9
+
+/**
+ * The rim: only the edges whose neighbour has no mold, so a 4 x 4 patch has one outline and reads as
+ * one growth (step 3B's "rim the mass, not the cell"). Drawn at the strength of the cell that owns the
+ * edge, which puts the faint line exactly where the thin new cells are.
+ */
+const MOLD_RIM_ALPHA = [0.35, 0.7, 1] as const
+const MOLD_RIM_WIDTH_PX = 1.5
+/** Fuzz straddling each exposed edge. More of it on an older edge. */
+const MOLD_TUFTS = [1, 2, 3] as const
+const MOLD_TUFT_RADIUS_TILES = 0.075
 
 const SLIME_RADIUS_X_TILES = 0.46
 const SLIME_RADIUS_Y_TILES = 0.38
 const SLIME_GLOSS_RADIUS_X_TILES = 0.15
 const SLIME_GLOSS_RADIUS_Y_TILES = 0.075
 const SLIME_GLOSS_OFFSET_TILES = 0.13
+const SLIME_GLINT_RADIUS_TILES = 0.035
+const SLIME_GLINT_OFFSET_TILES = 0.19
 /**
- * The last third of the def's duration is the fade. A trail that simply blinks out reads as a bug;
- * one that thins for a second and a half says "this is about to stop helping you".
+ * A cell's last second, in ticks of its own `remainingTicks` (step 15C, decision 6). A fixed final
+ * stretch and not a fraction of the life: nothing records what a cell counted down from, and an
+ * eight-second dimming is one nobody parses -- a trail that visibly thins at its tail is "this is
+ * about to stop helping you". Per cell, so the tail fades first: the slug refreshed the front last.
  */
-const SLIME_FADE_FRACTION = 0.33
+const SLIME_FADE_TICKS = 60
 
 /** ~0.8s a ring takes to travel out. Frames, not ticks -- see the header. */
 const HEAT_PULSE_FRAMES = 48
@@ -92,6 +122,12 @@ const RESIDUE_MIN_ALPHA = 0.6
 let frameCounter = 0
 
 /**
+ * Mold's stage per cell, row-major, 0 for none. Rebuilt every frame and reallocated only when the
+ * board changes size, so the rim can ask about a neighbour without a lookup through `world.tiles`.
+ */
+let moldStages = new Uint8Array(0)
+
+/**
  * A stable number in `[0, 1)` for a cell and a purpose.
  *
  * Positional rather than sequential, so a cell's blotches stay where they are whatever else is on
@@ -104,7 +140,7 @@ function hash01(x: number, y: number, salt: number): number {
 	return ((h ^ (h >>> 16)) >>> 0) / 0x100000000
 }
 
-/** `Array.find` with no closure: this runs five times per cell per frame at the budgeted 300 cells. */
+/** `Array.find` with no closure: this runs several times per cell per frame at the budgeted 300 cells. */
 function effectOf(effects: readonly TileEffect[], kind: TileEffectKind): TileEffect | null {
 	for (let index = 0; index < effects.length; index++) {
 		const effect = effects[index]
@@ -139,66 +175,234 @@ function drawScorch(ctx: CanvasRenderingContext2D, tileX: number, tileY: number,
 }
 
 /**
- * A fuzzy patch that grows with the stage.
- *
- * The fuzz is speckles at a scale the tile grid does not share, which is the lesson `TILE_MOTTLE`
- * records: anything that varies per *tile* draws the tile boundaries in, and a board of outlined
- * squares is what you get.
+ * Fills `moldStages` from the board and says how many cells carry mold. `magnitude` is the stage
+ * (step 15C, decision 5): `tilesSystem` advances it, and nothing here derives one from time.
  */
-function drawMold(
-	ctx: CanvasRenderingContext2D,
-	tileX: number,
-	tileY: number,
-	tilePx: number,
-	magnitude: number,
-): void {
-	const stage = Math.min(Math.max(Math.round(magnitude), 1), MOLD_RADIUS_TILES.length)
-	const radius = (MOLD_RADIUS_TILES[stage - 1] ?? MOLD_RADIUS_TILES[0]) * tilePx
-	const specks = MOLD_SPECKS[stage - 1] ?? MOLD_SPECKS[0]
+function collectMold(world: World): number {
+	const size = world.map.widthTiles * world.map.heightTiles
+	if (moldStages.length !== size) {
+		moldStages = new Uint8Array(size)
+	} else {
+		moldStages.fill(0)
+	}
 
-	const jitterX = (hash01(tileX, tileY, 41) - 0.5) * 2 * MOLD_JITTER_TILES
-	const jitterY = (hash01(tileX, tileY, 42) - 0.5) * 2 * MOLD_JITTER_TILES
-	const centreX = (tileX + 0.5 + jitterX) * tilePx
-	const centreY = (tileY + 0.5 + jitterY) * tilePx
+	let count = 0
+	for (const state of world.tiles) {
+		const effect = effectOf(state.effects, 'mold')
+		if (effect === null) {
+			continue
+		}
+		const stage = Math.min(Math.max(Math.round(effect.magnitude), 1), MOLD_STAGES)
+		moldStages[state.tile.y * world.map.widthTiles + state.tile.x] = stage
+		count++
+	}
+	return count
+}
 
-	ctx.globalAlpha = MOLD_ALPHA[stage - 1] ?? MOLD_ALPHA[0]
+/** 0 off the board, so a patch against the edge is rimmed along it. */
+function moldStageAt(x: number, y: number, width: number, height: number): number {
+	if (x < 0 || y < 0 || x >= width || y >= height) {
+		return 0
+	}
+	return moldStages[y * width + x] ?? 0
+}
 
-	ctx.fillStyle = TILE_MOLD_PATCH
+/**
+ * The union of every cell at `minStage` or above, as one path of squares. Filled once, so abutting
+ * cells are one shape with no seam; clipped to, so a blotch never leaks onto floor that is not there
+ * yet.
+ */
+function moldCellsPath(ctx: CanvasRenderingContext2D, width: number, tilePx: number, minStage: number): void {
 	ctx.beginPath()
-	ctx.arc(centreX, centreY, radius, 0, Math.PI * 2)
+	for (let index = 0; index < moldStages.length; index++) {
+		if ((moldStages[index] ?? 0) >= minStage) {
+			ctx.rect((index % width) * tilePx, Math.floor(index / width) * tilePx, tilePx, tilePx)
+		}
+	}
+}
+
+/** One fill of blotches for the cells at `minStage` or above, into whatever clip is current. */
+function drawMoldBlotches(
+	ctx: CanvasRenderingContext2D,
+	width: number,
+	tilePx: number,
+	minStage: number,
+	salt: number,
+): void {
+	const spread = MOLD_BLOTCH_MAX_RADIUS_TILES - MOLD_BLOTCH_MIN_RADIUS_TILES
+
+	ctx.fillStyle = TILE_MOLD_BLOTCH
+	ctx.beginPath()
+	for (let index = 0; index < moldStages.length; index++) {
+		const tileX = index % width
+		const tileY = Math.floor(index / width)
+		if ((moldStages[index] ?? 0) < minStage || hash01(tileX, tileY, salt) >= MOLD_BLOTCH_CHANCE) {
+			continue
+		}
+		const centreX = (tileX + hash01(tileX, tileY, salt + 1)) * tilePx
+		const centreY = (tileY + hash01(tileX, tileY, salt + 2)) * tilePx
+		const radius = (MOLD_BLOTCH_MIN_RADIUS_TILES + hash01(tileX, tileY, salt + 3) * spread) * tilePx
+		ctx.moveTo(centreX + radius, centreY)
+		ctx.arc(centreX, centreY, radius, 0, Math.PI * 2)
+	}
 	ctx.fill()
+}
+
+/** Pale specks inside every molded cell, more of them the older it is. One fill for the board. */
+function drawMoldSpecks(ctx: CanvasRenderingContext2D, width: number, tilePx: number): void {
+	const radius = MOLD_SPECK_RADIUS_TILES * tilePx
 
 	ctx.fillStyle = TILE_MOLD_SPECK
 	ctx.beginPath()
-	for (let speck = 0; speck < specks; speck++) {
-		const angle = hash01(tileX, tileY, speck * 2 + 60) * Math.PI * 2
-		// Square-rooted, or every speck bunches into the middle of the patch.
-		const distance = Math.sqrt(hash01(tileX, tileY, speck * 2 + 61)) * radius * 0.92
-		const speckX = centreX + Math.cos(angle) * distance
-		const speckY = centreY + Math.sin(angle) * distance
-		const speckRadius = MOLD_SPECK_RADIUS_TILES * tilePx
-
-		ctx.moveTo(speckX + speckRadius, speckY)
-		ctx.arc(speckX, speckY, speckRadius, 0, Math.PI * 2)
+	for (let index = 0; index < moldStages.length; index++) {
+		const stage = moldStages[index] ?? 0
+		if (stage === 0) {
+			continue
+		}
+		const tileX = index % width
+		const tileY = Math.floor(index / width)
+		const specks = MOLD_SPECKS[stage - 1] ?? MOLD_SPECKS[0]
+		for (let speck = 0; speck < specks; speck++) {
+			const x = (tileX + 0.1 + hash01(tileX, tileY, speck * 2 + 60) * 0.8) * tilePx
+			const y = (tileY + 0.1 + hash01(tileX, tileY, speck * 2 + 61) * 0.8) * tilePx
+			ctx.moveTo(x + radius, y)
+			ctx.arc(x, y, radius, 0, Math.PI * 2)
+		}
 	}
 	ctx.fill()
+}
+
+/**
+ * The four sides of a cell: the neighbour across it, and the edge itself as two corners in tile units
+ * from the cell's top-left. A constant so the rim walk allocates nothing.
+ */
+const CELL_SIDES = [
+	{ dx: 0, dy: -1, x0: 0, y0: 0, x1: 1, y1: 0 },
+	{ dx: 1, dy: 0, x0: 1, y0: 0, x1: 1, y1: 1 },
+	{ dx: 0, dy: 1, x0: 0, y0: 1, x1: 1, y1: 1 },
+	{ dx: -1, dy: 0, x0: 0, y0: 0, x1: 0, y1: 1 },
+] as const
+
+const RIM_PASSES = ['stroke', 'fill'] as const
+
+/**
+ * The frontier of every patch, one stage at a time so each is a single stroke and a single fill: a
+ * line along every exposed edge, and tufts of fuzz straddling it, hashed on the cell and the side so
+ * they hold still.
+ *
+ * Two walks per stage rather than one, because a path is the context's and cannot hold a stroke and a
+ * fill at once.
+ */
+function drawMoldRim(ctx: CanvasRenderingContext2D, width: number, height: number, tilePx: number): void {
+	const radius = MOLD_TUFT_RADIUS_TILES * tilePx
+
+	ctx.strokeStyle = TILE_MOLD_RIM
+	ctx.fillStyle = TILE_MOLD_RIM
+	ctx.lineWidth = MOLD_RIM_WIDTH_PX
+
+	for (let stage = 1; stage <= MOLD_STAGES; stage++) {
+		ctx.globalAlpha = MOLD_RIM_ALPHA[stage - 1] ?? 1
+		const tufts = MOLD_TUFTS[stage - 1] ?? 1
+
+		for (const pass of RIM_PASSES) {
+			ctx.beginPath()
+			for (let index = 0; index < moldStages.length; index++) {
+				if (moldStages[index] !== stage) {
+					continue
+				}
+				const x = index % width
+				const y = Math.floor(index / width)
+
+				for (let side = 0; side < CELL_SIDES.length; side++) {
+					const edge = CELL_SIDES[side]
+					if (edge === undefined || moldStageAt(x + edge.dx, y + edge.dy, width, height) !== 0) {
+						continue
+					}
+					const x0 = (x + edge.x0) * tilePx
+					const y0 = (y + edge.y0) * tilePx
+					const x1 = (x + edge.x1) * tilePx
+					const y1 = (y + edge.y1) * tilePx
+
+					if (pass === 'stroke') {
+						ctx.moveTo(x0, y0)
+						ctx.lineTo(x1, y1)
+						continue
+					}
+					for (let tuft = 0; tuft < tufts; tuft++) {
+						const along = (tuft + 0.25 + hash01(x, y, side * 8 + tuft + 80) * 0.5) / tufts
+						const tuftX = x0 + (x1 - x0) * along
+						const tuftY = y0 + (y1 - y0) * along
+						const size = radius * (0.7 + hash01(x, y, side * 8 + tuft + 90) * 0.6)
+						ctx.moveTo(tuftX + size, tuftY)
+						ctx.arc(tuftX, tuftY, size, 0, Math.PI * 2)
+					}
+				}
+			}
+			if (pass === 'stroke') {
+				ctx.stroke()
+			} else {
+				ctx.fill()
+			}
+		}
+	}
 
 	ctx.globalAlpha = 1
 }
 
 /**
- * How visible a slime is, thinning to nothing over the last `SLIME_FADE_FRACTION` of the def's
- * duration. A permanent one, or a write that overrode the duration past it, simply sits at full.
+ * Every patch on the board, as shapes across cells rather than a treatment per cell.
+ *
+ * Drawn live every frame, per the header. The cost is bounded by the pass count rather than the cell
+ * count -- nine or so fills and strokes whatever the size of the patch -- so a bad night 11's hundred
+ * molded cells is a hundred more `rect`s in the same paths, not a hundred more draws.
  */
-function slimeFade(effect: TileEffect): number {
-	const duration = TILE_EFFECT_DEFS.slime.durationTicks
-	if (effect.remainingTicks < 0 || duration <= 0) {
-		return 1
+function drawMoldPatches(ctx: CanvasRenderingContext2D, world: World, tilePx: number): void {
+	if (collectMold(world) === 0) {
+		return
 	}
-	return Math.min(effect.remainingTicks / duration / SLIME_FADE_FRACTION, 1)
+	const width = world.map.widthTiles
+	const height = world.map.heightTiles
+
+	// Stage 2 and up: the translucent patch, and blotches clipped to it.
+	moldCellsPath(ctx, width, tilePx, 2)
+	ctx.fillStyle = TILE_MOLD_PATCH
+	ctx.fill()
+	ctx.save()
+	ctx.clip()
+	drawMoldBlotches(ctx, width, tilePx, 2, 100)
+	ctx.restore()
+
+	// Stage 3: the opaque mass over it, and a second, different set of blotches on the mass.
+	moldCellsPath(ctx, width, tilePx, 3)
+	ctx.fillStyle = TILE_MOLD_MASS
+	ctx.fill()
+	ctx.save()
+	ctx.clip()
+	drawMoldBlotches(ctx, width, tilePx, 3, 200)
+	ctx.restore()
+
+	drawMoldSpecks(ctx, width, tilePx)
+	drawMoldRim(ctx, width, height, tilePx)
 }
 
-/** A wet puddle with a highlight on it. The gloss is what makes it wet rather than merely coloured. */
+/**
+ * How visible a slime is: full until its last `SLIME_FADE_TICKS`, then thinning to nothing. A
+ * permanent one simply sits at full.
+ */
+function slimeFade(effect: TileEffect): number {
+	if (effect.remainingTicks < 0) {
+		return 1
+	}
+	return Math.min(effect.remainingTicks / SLIME_FADE_TICKS, 1)
+}
+
+/**
+ * A wet puddle with a highlight on it, lit from the top-left like everything else on the board.
+ *
+ * The gloss and the glint are what make it wet rather than merely coloured, and they are also what
+ * keep it from being mold: slime is a road handed to the enemy, and it should look slick and almost
+ * inviting where mold is matte and dead.
+ */
 function drawSlime(
 	ctx: CanvasRenderingContext2D,
 	tileX: number,
@@ -238,6 +442,17 @@ function drawSlime(
 		SLIME_GLOSS_RADIUS_X_TILES * tilePx,
 		SLIME_GLOSS_RADIUS_Y_TILES * tilePx,
 		rotation,
+		0,
+		Math.PI * 2,
+	)
+	ctx.fill()
+
+	ctx.fillStyle = TILE_SLIME_GLINT
+	ctx.beginPath()
+	ctx.arc(
+		centreX - SLIME_GLINT_OFFSET_TILES * tilePx,
+		centreY - SLIME_GLINT_OFFSET_TILES * tilePx,
+		SLIME_GLINT_RADIUS_TILES * tilePx,
 		0,
 		Math.PI * 2,
 	)
@@ -310,6 +525,15 @@ export function drawTileEffects(ctx: CanvasRenderingContext2D, world: World | nu
 	const breathWave = (Math.sin((frameCounter / RESIDUE_BREATH_FRAMES) * Math.PI * 2) + 1) / 2
 	const residueBreath = RESIDUE_MIN_ALPHA + (1 - RESIDUE_MIN_ALPHA) * breathWave
 
+	// The marks in the floor, then the mold growing over them, then everything that sits on top.
+	for (const state of world.tiles) {
+		if (effectOf(state.effects, 'scorch') !== null) {
+			drawScorch(ctx, state.tile.x, state.tile.y, tilePx)
+		}
+	}
+
+	drawMoldPatches(ctx, world, tilePx)
+
 	for (const state of world.tiles) {
 		const tileX = state.tile.x
 		const tileY = state.tile.y
@@ -321,12 +545,6 @@ export function drawTileEffects(ctx: CanvasRenderingContext2D, world: World | nu
 			}
 
 			switch (kind) {
-				case 'scorch':
-					drawScorch(ctx, tileX, tileY, tilePx)
-					break
-				case 'mold':
-					drawMold(ctx, tileX, tileY, tilePx, effect.magnitude)
-					break
 				case 'slime':
 					drawSlime(ctx, tileX, tileY, tilePx, effect)
 					break

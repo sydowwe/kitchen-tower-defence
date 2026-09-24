@@ -24,6 +24,7 @@ import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
 import {
 	CHEW_DEBRIS,
+	ENEMY_STATIONARY_PULSE,
 	FLYER_SHADOW,
 	STATUS_BURN_FLAME,
 	STATUS_POISON_BUBBLE,
@@ -89,6 +90,19 @@ const FLYER_SHADOW_SQUASH = 0.42
  */
 const FLYER_SHADOW_SHRINK = 0.28
 
+/**
+ * The breath under an enemy whose def never moves -- the Mold, today.
+ *
+ * Every other enemy's motion is what says "this is a bug you can shoot", and a speed of 0 has none, so
+ * a mold still among walking ants reads as scenery. A swell rather than a health bar, because
+ * `drawHpBar` already draws one the moment it is hit. Aged in frames, and offset by position like
+ * everything else here, so two molds do not breathe in unison.
+ */
+const STATIONARY_MIN_RADIUS_TILES = 0.3
+const STATIONARY_MAX_RADIUS_TILES = 0.44
+/** Radians per frame. ~0.4 of a breath a second: alive, and slower than anything that walks. */
+const STATIONARY_BREATH_PER_FRAME = 0.045
+
 /** Slow: a disc a little wider than the glyph, so it reads as standing in something cold. */
 const SLOW_DISC_TILES = 0.42
 const SLOW_SPECKS = 3
@@ -153,6 +167,8 @@ interface EnemyFrame {
 	 * is an ant with a shadow.
 	 */
 	flying: boolean
+	/** Its def's speed is 0, so it never walks: read off the def and not `enemy.speed`, which a freeze zeroes. */
+	stationary: boolean
 	/** The path's direction where this enemy stands. Only meaningful while `chewing`. */
 	dirX: number
 	dirY: number
@@ -165,9 +181,31 @@ let liveCount = 0
 /** Ages with the display, never with the simulation. See the file header. */
 let ageFrames = 0
 
-/** Every enemy has a glyph on its def, so this cannot fail for a def the world could spawn. */
-function glyphFor(enemy: Enemy): string {
-	return getEnemyDef(enemy.defId).glyph
+/**
+ * The swell under everything that never walks. Batched like `drawSlow`, and drawn before it so a
+ * frozen mold still reads as cold.
+ */
+function drawStationary(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const spread = (STATIONARY_MAX_RADIUS_TILES - STATIONARY_MIN_RADIUS_TILES) * tilePx
+	let any = false
+
+	ctx.fillStyle = ENEMY_STATIONARY_PULSE
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.stationary) {
+			continue
+		}
+		any = true
+		const breath = 0.5 + 0.5 * Math.sin(ageFrames * STATIONARY_BREATH_PER_FRAME + entry.x + entry.y)
+		const radius = STATIONARY_MIN_RADIUS_TILES * tilePx + spread * breath
+		ctx.moveTo(entry.x + radius, entry.y)
+		ctx.arc(entry.x, entry.y, radius, 0, Math.PI * 2)
+	}
+
+	if (any) {
+		ctx.fill()
+	}
 }
 
 function pathFor(map: MapDef, pathId: string) {
@@ -193,6 +231,7 @@ function frameAt(index: number): EnemyFrame {
 		rooted: false,
 		chewing: false,
 		flying: false,
+		stationary: false,
 		dirX: 1,
 		dirY: 0,
 	}
@@ -460,7 +499,9 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		const entry = frameAt(liveCount)
 		entry.x = (displaced.x + 0.5) * tilePx
 		entry.y = (displaced.y + 0.5) * tilePx
-		entry.glyph = glyphFor(enemy)
+		const def = getEnemyDef(enemy.defId)
+		entry.glyph = def.glyph
+		entry.stationary = def.speedTilesPerTick === 0
 		// The path's forward heading, **reversed for anything running for it**: a wake sends every
 		// enemy back down the track, and the sampled angle still points the way they came. Without the
 		// flip, forty ants moonwalk off the board.
@@ -491,6 +532,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		liveCount++
 	}
 
+	drawStationary(ctx, liveCount, tilePx)
 	drawSlow(ctx, liveCount, tilePx)
 	drawFlyerShadows(ctx, liveCount, tilePx)
 

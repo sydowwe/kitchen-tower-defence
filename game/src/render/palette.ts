@@ -214,13 +214,35 @@ export const WAKE_DESATURATE = 'rgb(128, 128, 128)'
  * any real contrast turns the board into soot by the end of a Toaster's shift.
  */
 export const TILE_SCORCH_STAIN = 'rgba(14, 10, 8, 0.36)'
-export const TILE_MOLD_PATCH = 'rgba(118, 146, 92, 0.34)'
-export const TILE_MOLD_SPECK = 'rgba(186, 214, 148, 0.7)'
 export const TILE_SLIME_SHEEN = 'rgba(86, 214, 190, 0.3)'
 export const TILE_SLIME_GLOSS = 'rgba(214, 255, 246, 0.5)'
+/** The pin-point of reflected light on the gloss. What turns "a teal puddle" into "wet". */
+export const TILE_SLIME_GLINT = 'rgba(255, 255, 255, 0.85)'
 export const TILE_HEAT_PULSE = 'rgba(255, 96, 40, 0.85)'
 export const TILE_HEAT_CORE = 'rgba(255, 152, 72, 0.45)'
 export const TILE_RESIDUE_MIST = 'rgba(138, 226, 106, 0.17)'
+
+/**
+ * Mold, by stage: a speckle, then a translucent patch with blotches in it, then an opaque mass.
+ *
+ * Matte and grey-green throughout, where slime is glossy and teal. Slime is a road the enemy is given
+ * and mold is floor the player loses, and the two sit on the same cells on night 15 -- so mold has no
+ * highlight anywhere and slime has nothing fuzzy.
+ *
+ * `TILE_MOLD_RIM` is pale because a real mould's growing edge is: the white fuzz at the front of the
+ * patch. It is the frontier, which is also where the thin new stage-1 cells are.
+ */
+export const TILE_MOLD_PATCH = 'rgba(118, 146, 92, 0.38)'
+export const TILE_MOLD_MASS = 'rgba(78, 100, 62, 0.94)'
+export const TILE_MOLD_BLOTCH = 'rgba(34, 50, 30, 0.55)'
+export const TILE_MOLD_SPECK = 'rgba(186, 214, 148, 0.7)'
+export const TILE_MOLD_RIM = 'rgba(212, 232, 184, 0.75)'
+
+/**
+ * The breath under an enemy that never moves. A Mold standing perfectly still among walking ants reads
+ * as a sticker on the floor; a slow swell under it is what says "this is alive and you can shoot it".
+ */
+export const ENEMY_STATIONARY_PULSE = 'rgba(212, 232, 184, 0.3)'
 
 /** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */
 export const GHOST_NOISE = '#f5c66b'

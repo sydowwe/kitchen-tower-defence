@@ -376,8 +376,9 @@ describe('the Beetle', () => {
 
 describe('nights 4 to 9', () => {
 	it('carries the wave counts of analytic-docs/CONTENT.md section 6', () => {
-		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10, 10, 10, 11])
-		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 13])
+		// 13 is the Weevil's night (step 16) and 14 the Mouse's (step 19); the gap is on purpose.
+		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15])
 	})
 
 	it('is authored on the Counter, on the lane the Counter actually has', () => {

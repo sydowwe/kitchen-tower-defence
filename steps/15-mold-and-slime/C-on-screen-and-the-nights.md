@@ -18,7 +18,7 @@ This is the first time anyone sees any of it. 15A and 15B were both specs.
 
 | File | What's there now |
 | --- | --- |
-| `render/layers/tileEffects.ts` | **step 14's file.** Drawn between terrain and crumbs, batched by state kind, with whatever treatments step 14 wrote for `heat` and `scorch`. You are adding two more, not rewriting it |
+| `render/layers/tileEffects.ts` | **step 14's file.** Drawn between terrain and crumbs, with treatments for all five kinds. *As built:* step 14 had already drafted mold (a per-cell disc and specks, no rim) and slime (fading over the last third of the def's duration), so items 1 and 2 below reworked those two drafts rather than adding them |
 | `render/renderer.ts:146` | `drawFrame`'s documented draw order, and the `ensureBake()` / `drawImage` pair. 15A corrected the `// tile effects: step 15` attribution |
 | `render/palette.ts` | colours named by **role** (`TILE_BUILDABLE`, `TRACK_FILL`), never by colour, because step 23 retunes all of them |
 | `render/layers/terrain.ts` | the bake, and its two hard-won rules: **never vary anything per tile**, and **rim the blocked mass, not the blocked tile**. Both apply to a mold patch and both are written up in `steps/00-done/03-map-and-renderer/B-renderer.md` §2 |
@@ -88,6 +88,12 @@ gradient on each of them is a real per-frame cost. Measure before optimising, an
 bake, the bake key is `(map, dpr)` and would have to gain a mold generation counter — which is step
 14's file and step 14's decision.
 
+*As built:* step 14 decided on live drawing, and its header says why; it stays live. The rework draws
+every patch as one board-wide pass: a clip to the molded cells, translucent then opaque fills,
+blotches clipped inside them, specks, and a rim with tufts on exposed edges only. That is about nine
+fills and strokes whatever the patch size, so 100 cells means 100 more `rect`s in the same paths,
+not 100 more draws. The frame cost has not been measured in a browser.
+
 ### 2. Slime in the same file
 
 A glossy wet sheen: a light, low-saturation highlight offset toward one corner so the cell reads as
@@ -107,6 +113,10 @@ sitting perfectly still among walking ants may read as a piece of scenery rather
 can shoot. If it does, that is a treatment to add here — and the honest fix is probably a slow pulse
 rather than a health bar, since `render/hpBar.ts` already draws one on damage.
 
+*As built:* the pulse was added before anyone looked, because nobody could look. It is a pale disc
+that breathes under any enemy whose **def** speed is 0 (not `enemy.speed`, which a freeze sets to 0).
+If the Mold reads fine without it, `drawStationary` is one call to delete.
+
 ### 4. Nights 11, 12 and 15 — `core/content/nights.ts`
 
 Draft them from arithmetic against night 10 and the `crack`'s 31.1 tiles, then play them. Every
@@ -121,6 +131,14 @@ grow into the pockets the player has already built in, not at the baseboard crac
 nothing. That placement is the whole night, and it is the one acceptance criterion no spec can check:
 by the last wave, ignoring the mold has to have visibly cost board space.
 
+*As built, this premise is only half true.* 15A's `spreadSystem` picks each pulse from the frontier
+of **every** molded cell on the board, and prefers track. So an ignored night eats the whole road
+first, then the build space along both sides of it, everywhere at once. A mold's placement decides
+where the enemy stands, and so where it can be shot from. It does not decide which pocket goes
+first. `spread.ts` is off limits here, so the distances were chosen for reach: each mold stands
+somewhere the middle pocket, the top run or the bend can shoot it. If per-mold patches are wanted,
+that is a change to 15A's candidate rule.
+
 The later waves put mold in at increasing counts and, crucially, at **different distances along the
 lane**, so a player who solved the first one by parking a Vinegar Spray on it has to solve the second
 somewhere else.
@@ -132,7 +150,10 @@ exists, that is step 17's edit and this file should say so.
 
 **Night 15 — the Slug, and the loudest night in v1.** Thirteen waves. Two slugs in wave 3 on the
 usual pattern, then slugs leading roach runs: a slug 4–6 seconds ahead of a tight roach column is the
-entire mechanic, and a slug released *with* the column is a slug nobody notices. Per decision 3 the
+entire mechanic, and a slug released *with* the column is a slug nobody notices. *As built, the
+lead is 15–25 seconds, not 4–6.* A Slug walks 0.4 tiles/s and a Roach ~1.83, so a column released
+5 s behind catches the slug 2.6 tiles out of the crack, far from any tower. A 20 s lead puts the
+catch-up in the middle pocket. Per decision 3 the
 "double crumbs, double spawns" is authored into the composition — larger counts and tighter spacing
 than night 12, not a multiplier — and this is the night that should feel like too much happening at
 once.
@@ -144,13 +165,21 @@ Gotchas that will bite the authoring:
   wave open forever, holds the countdown to the next one, and makes the night unwinnable with nothing
   on screen explaining why. Every mold has to spawn where *some* buildable pocket can reach it. Check
   it by placing a mold and then deliberately ignoring it for the rest of the night.
+  *As built, the countdown half is wrong:* `waveSystem` starts the countdown once a wave has
+  **spawned** out, not once it is cleared. A live mold holds back `waveCleared` and the night's win
+  (`resolve.ts:124`), not the next wave.
 - **The Cookie Jar's destroy penalty buys from the running wave's own composition**
   (`spawn.ts:208`). A jar lost during a mold-heavy wave buys molds at 12 crumbs each — sixteen of
   them for the jar's 200 — every one of which is permanent board damage and an enemy that must be
   killed for the night to end. Night 15's chaos wave is where this lands hardest; look at it
   deliberately rather than discovering it.
+  *As built:* the penalty walks the entries **round-robin**, so a mixed wave buys one mold per
+  pass, not sixteen. The nights still keep molds and slugs out of the flyers-only waves and out of
+  night 15's chaos wave.
 - **Nightmare's `enemyCountMult` is 1.25 and rounds up** (`spawn.ts:102`), so three molds in a wave
   become four. Sanity-check night 11 on nightmare, not only on normal.
+  *As built:* it is `Math.round` per **entry** (`spawn.ts:118`): a 1 stays 1 and a 2 becomes 3. Every
+  mold is therefore its own `count: 1` entry at its own distance, and nightmare adds none.
 
 ### 5. Play it, then tune
 
@@ -160,12 +189,33 @@ and the two towers' numbers in `core/content/towers.ts` if 15B's authored-blind 
 screen. Change them here and in whatever spec pins them, and say in the commit which way each went
 and why — a number moved without a reason is a number the next tuning pass moves back.
 
+*As built, nobody watched anything in this session.* The session that built this had no eyes on
+the board, so it moved only numbers it could measure:
+
+- **Mold spread interval: 360 → 720 ticks.** Measured by running the three nights headless with every
+  non-mold enemy killed and every mold ignored. At 360 with the first-draft counts, all three nights
+  molded all 223 of the Counter's open cells. At 720 with the trimmed counts, night 11 has 88 molded
+  cells at its last wave and 99 at the end (113 on nightmare), which sits inside this step's own
+  60–100 for a bad night 11. Nights 12 and 15 end at 149 and 136.
+- **Mold counts: 16 / 21 / 15 → 12 / 11 / 9** on nights 11 / 12 / 15, on the same runs.
+- **Slime duration 480: not moved.** It has not been watched. The arithmetic for whoever does: at
+  0.4 tiles/s the trail is only ~3.2 tiles long, so a roach passing a slug saves about 0.7 s. That
+  may read as "visibly speeds up" or it may not.
+- **Tower numbers: not moved.** They have not been watched either.
+
+Probe, for re-running: kill every non-mold enemy each tick, run to the last wave plus 10 s, then
+count molded cells and, for each live mold, the free off-path cells within 3 tiles. With everything
+ignored, a few molds on nights 12 and 15 end with none, so reaching them depends on towers placed
+before the mold closed in.
+
 ## Tests
 
 **None.** `../../analytic-docs/ARCHITECTURE.md` §7: no tests over `render/`, and the bugs there are
 visible by definition — a mold patch that reads as a spreadsheet is not something a spec can tell you.
 The nights are content and no spec asserts one: `tests/spawn.spec.ts` and `tests/night.spec.ts` both
 build their own nights on purpose, so the next tuning pass is an edit in `nights.ts` and nothing else.
+*As built, that was stale:* `tests/content.spec.ts` pins the list of wave counts and the list of
+night indices, and both were extended to `…, 11, 12, 13` and `…, 11, 12, 15`.
 
 15A's and 15B's suites are the regression net, and re-tuning the two enemy numbers per decision 4
 will move whatever spec pins them — that is the test doing its job, and the number is what changes,
@@ -184,7 +234,7 @@ not the assertion.
       of.
 - [ ] No molded cell in any of the three nights is out of reach of every buildable pocket — verified
       by ignoring mold for a whole night and still being able to finish it.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every criterion above that is a judgement unticked unless you actually sat and looked. The
 checkboxes are the ledger of what has been confirmed, and ticking a feel criterion destroys the only

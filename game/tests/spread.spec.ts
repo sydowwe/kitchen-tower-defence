@@ -119,14 +119,15 @@ function spawnMold(world: World, distance: number): Enemy {
 }
 
 describe('the mold defs', () => {
-	it('pulses every 6 seconds, forever, at stage 1', () => {
-		// Drafts that 15C re-tunes -- this pins them so the re-tune is a visible edit, not drift.
+	it('pulses every 12 seconds, forever, at stage 1', () => {
+		// Pinned so a re-tune is a visible edit, not drift. 15C moved the mold from 360 to 720 on a
+		// measured night 11; the slug's 480 has not been watched yet.
 		expect(mold.tileWriter).toEqual({
 			effect: 'mold',
 			mode: 'spread',
 			magnitude: 1,
 			durationTicks: -1,
-			intervalTicks: 360,
+			intervalTicks: 720,
 		})
 		expect(slug.tileWriter).toEqual({
 			effect: 'slime',
