@@ -12,8 +12,9 @@
  */
 
 import { isFiring } from '@/core/content/behaviours.ts'
-import type { TargetClass } from '@/core/content/behaviours.ts'
+import type { StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
+import { endsWithItsSource, holdsUntilSourceSpent } from '@/core/content/statuses.ts'
 import { remainingToFridge } from '@/core/path.ts'
 import { bindRng } from '@/core/rng.ts'
 import { chargeAllowsFiring, holdsSourceStatusFrom } from '@/core/systems/charges.ts'
@@ -116,6 +117,18 @@ function distanceSquaredFrom(world: World, tower: Tower, enemy: Enemy): number {
 export interface Reach {
 	rangeTiles: number
 	targets: TargetClass
+	/** What the shot lands. Only read for a hold -- see `appliesHold`. Absent is "applies nothing". */
+	applies?: readonly StatusApplication[]
+}
+
+/** Whether this reach lands a status that holds its enemy until the source is spent. */
+export function appliesHold(reach: Reach): boolean {
+	return reach.applies?.some(application => holdsUntilSourceSpent(application.kind)) ?? false
+}
+
+/** Whether anyone at all is holding this enemy: some tower's root is on it. */
+export function isHeld(enemy: Enemy): boolean {
+	return enemy.statuses.some(endsWithItsSource)
 }
 
 /** The mode applied to a list that has already been filtered by range and targetability. */
@@ -155,12 +168,21 @@ function bestOf(world: World, tower: Tower, candidates: readonly Enemy[]): Enemy
 export function pickTargets(world: World, tower: Tower, reach: Reach, count: number): Enemy[] {
 	// An enemy this tower is already holding is not a target: see `holdsSourceStatusFrom`. It reads
 	// false for every tower that applies nothing `untilSourceSpent`, which is all of them but the
-	// Sticky Tape, so this is a `some` over an empty array on the ordinary path.
+	// Sticky Tape and the Fly Paper, so this is a `some` over an empty array on the ordinary path.
+	//
+	// **A holder skips an enemy *anyone* holds**, not just itself. Two Fly Papers would otherwise pick
+	// the same fly, the second root would overwrite `sourceId`, and the first paper would re-root it
+	// next cooldown: the pair drains itself onto one insect. Only a holder: a Salt Shaker must keep
+	// shooting a rooted ant.
+	const skipHeld = appliesHold(reach)
 	const candidates = queryEnemiesInRange(
 		world,
 		tower.tile,
 		reach.rangeTiles,
-		enemy => isTargetable(enemy, reach.targets) && !holdsSourceStatusFrom(enemy, tower.id),
+		enemy =>
+			isTargetable(enemy, reach.targets) &&
+			!holdsSourceStatusFrom(enemy, tower.id) &&
+			!(skipHeld && isHeld(enemy)),
 	)
 	if (count <= 0 || candidates.length === 0) {
 		return []

@@ -8,9 +8,8 @@
  * tick resolve in the order the two towers are read, and before `projectiles` for no reason beyond
  * keeping the damage sources together.
  *
- * The Nightlight's tier 3 is the only aura in the game today. Step 17's Candle, its light-source
- * pairing and the Gas Stove Burner beside it are that step's, and they need nothing from this file
- * but a config object.
+ * The Candle is an aura plus a `reveal`, and needed nothing from this file but a config object. The
+ * Gas Stove Burner is not an aura: it writes the floor, in `core/systems/tileEffect.ts`.
  */
 
 import { isAura } from '@/core/content/behaviours.ts'

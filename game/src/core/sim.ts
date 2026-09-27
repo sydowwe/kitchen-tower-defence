@@ -19,6 +19,7 @@ import {
 	spreadSystem,
 	statusSystem,
 	targetingSystem,
+	tileEffectSystem,
 	tilesSystem,
 	waveSystem,
 } from '@/core/systems/index.ts'
@@ -43,6 +44,7 @@ export type SystemName =
 	| 'projectiles'
 	| 'spread'
 	| 'cleanse'
+	| 'tileEffect'
 	| 'tiles'
 	| 'crumbs'
 	| 'noise'
@@ -84,6 +86,8 @@ const SYSTEMS: readonly System[] = [
 	// read in one direction within a tick.
 	{ name: 'spread', run: spreadSystem },
 	{ name: 'cleanse', run: cleanseSystem },
+	// Before `tiles`, so a Burner placed this tick burns this tick.
+	{ name: 'tileEffect', run: tileEffectSystem },
 	{ name: 'tiles', run: tilesSystem },
 	{ name: 'crumbs', run: crumbsSystem },
 	{ name: 'noise', run: noiseSystem },
@@ -99,7 +103,7 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
  * One fixed step of the simulation.
  *
  * Order: commands -> spawn -> wave -> status -> movement -> burrow -> barricades -> light -> targeting ->
- * combat -> aura -> projectiles -> spread -> cleanse ->
+ * combat -> aura -> projectiles -> spread -> cleanse -> tileEffect ->
  * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
  *
  * The queue is drained here, once, before anything else runs -- so player input lands at a tick

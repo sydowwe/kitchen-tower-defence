@@ -428,6 +428,38 @@ export const en = {
 				description: 'Every squirt splashes. Whatever is standing near the hit goes soft with it.',
 			},
 		},
+		candle: {
+			name: 'Candle',
+			description: 'A small flame that singes everything close to it, walking or flying. Moths come to it.',
+			tier1: { name: 'Taller Wick' },
+			tier2: { name: 'Scented Pillar' },
+			tier3: {
+				name: 'Dripping Wax',
+				description: 'Whatever it singes catches fire, and keeps burning up to three times over.',
+			},
+		},
+		gasStoveBurner: {
+			name: 'Gas Stove Burner',
+			description:
+				'Sits on the track and keeps its ring lit. Anything that walks across it burns. Loud while it is cooking something.',
+			tier1: { name: 'Medium Flame' },
+			tier2: { name: 'High Flame' },
+			tier3: {
+				name: 'Wok Burner',
+				description: 'The flame spreads to the tiles either side of the ring.',
+			},
+		},
+		flyPaper: {
+			name: 'Fly Paper',
+			description:
+				'Two sticky sheets. Each one catches a flyer and holds it until it dies. Gone once both are used.',
+			tier1: { name: 'Third Sheet' },
+			tier2: { name: 'Fourth Sheet' },
+			tier3: {
+				name: 'Fresh Roll',
+				description: 'A new sheet every ten seconds. It never runs out.',
+			},
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {

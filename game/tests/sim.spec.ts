@@ -78,6 +78,7 @@ describe('system order', () => {
 			'projectiles',
 			'spread',
 			'cleanse',
+			'tileEffect',
 			'tiles',
 			'crumbs',
 			'noise',

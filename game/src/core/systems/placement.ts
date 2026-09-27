@@ -14,6 +14,7 @@
 
 import { isCharge, isIncome } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
+import { endsWithItsSource } from '@/core/content/statuses.ts'
 import { flagsAt, canPlace, TileFlags } from '@/core/map.ts'
 import { blocksPlacement } from '@/core/tiles.ts'
 import { earnCrumbs, spendCrumbs } from '@/core/systems/economy.ts'
@@ -203,6 +204,11 @@ function reindexTowers(world: World): void {
  * This is what a *spent* tower leaves through: a Sticky Tape out of charges is gone with no refund,
  * and emitting `towerSold` with a refund of 0 would lie to a ledger the HUD reads. `sellTower` is
  * this plus the money, and `destroyTower` is this plus the penalty and the event.
+ *
+ * **Every hold this tower has on an enemy goes with it.** A root lasts until its source is spent and
+ * has no timer, so a Sticky Tape sold mid-root would otherwise leave its ant rooted forever -- and a
+ * rooted fly with nothing left that can reach the air is a wave that never clears. Here, because
+ * sell, destroy and retire all come through here.
  */
 export function removeTower(world: World, towerId: EntityId): boolean {
 	const position = world.index.towers[towerId]
@@ -212,8 +218,25 @@ export function removeTower(world: World, towerId: EntityId): boolean {
 
 	world.towers.splice(position, 1)
 	reindexTowers(world)
+	releaseHoldsOf(world, towerId)
 
 	return true
+}
+
+/**
+ * Drops every status this tower applied that ends with its source. `endsWithItsSource` from the
+ * statuses module and not `holdsSourceStatusFrom` from `charges.ts`: that file imports this one, and
+ * the cycle surfaces as an `undefined` at module load.
+ */
+function releaseHoldsOf(world: World, towerId: EntityId): void {
+	for (const enemy of world.enemies) {
+		for (let index = enemy.statuses.length - 1; index >= 0; index--) {
+			const status = enemy.statuses[index]
+			if (status !== undefined && status.sourceId === towerId && endsWithItsSource(status)) {
+				enemy.statuses.splice(index, 1)
+			}
+		}
+	}
 }
 
 /**

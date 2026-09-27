@@ -21,6 +21,7 @@ import {
 	income,
 	reveal,
 	suppress,
+	tileEffect,
 } from '@/core/content/behaviours.ts'
 import { tier } from '@/core/content/upgrades.ts'
 import type { TowerDef } from '@/core/content/schema.ts'
@@ -846,6 +847,167 @@ export const lemon: TowerDefOf<'lemon'> = {
 	}),
 }
 
+/**
+ * What the Candle burns within **and** lights within. One constant, the Nightlight's reason: it burns
+ * exactly the circle it lights.
+ */
+const CANDLE_RADIUS_TILES = 2
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 130 crumbs, DOT, a 4/sec aura, range 2, fire, both, no
+ * noise, off the path -- and the behaviour note, "a light: Moths drift toward it".
+ *
+ * **`[aura, reveal]` and nothing else**, neither of them new: the aura is 12B's and the light is
+ * 11B's registry, which a Moth reads from any tower carrying a `reveal`. It also reveals `hidden`
+ * enemies within 2, which is right for a lit candle and inert in v1, where nothing is hidden.
+ *
+ * `CLOSEST` and `maxHp: 100` are every behaviourless tower's precedent.
+ */
+export const candle: TowerDefOf<'candle'> = {
+	id: 'candle',
+	nameKey: 'tower.candle.name',
+	descriptionKey: 'tower.candle.description',
+	glyph: '🕯️',
+	role: 'DOT',
+	cost: 130,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		aura({
+			radiusTiles: CANDLE_RADIUS_TILES,
+			damagePerTick: 4 / TICKS_PER_SECOND,
+			damageType: 'fire',
+			targets: 'both',
+		}),
+		reveal({ radiusTiles: CANDLE_RADIUS_TILES, attractsLightDrawn: true }),
+	],
+	/**
+	 * 4 -> 5.5 -> 7 a second.
+	 *
+	 * T3 is analytic-docs/CONTENT.md section 1's "burn applied by the aura stacks to 3": the aura starts
+	 * applying `burn`, whose cap of 3 is on the status def, so it reaches it in three pulses. At the
+	 * status table's 5/sec a stack that is +15/sec on top of the aura, which is too much for one tier --
+	 * so the application authors its own 2/sec a stack, +6/sec at the cap. A draft; 17D judges it.
+	 */
+	upgrades: upgradesFor(
+		'candle',
+		raise('aura', 'damagePerTick', 1.5 / TICKS_PER_SECOND),
+		raise('aura', 'damagePerTick', 1.5 / TICKS_PER_SECOND),
+		{ replaceApplies: [{ kind: 'aura', applications: [{ kind: 'burn', magnitude: 2 / TICKS_PER_SECOND }] }] },
+	),
+}
+
+/**
+ * The Burner's 14/sec, per **tick**. `TileEffectBehaviour.magnitude` is unbounded in the schema
+ * because it means a different thing per kind, so a bare `14` would pass validation and burn at
+ * 840/sec. `tests/content.spec.ts` pins this instead.
+ */
+const GAS_STOVE_BURNER_HEAT_PER_TICK = 14 / TICKS_PER_SECOND
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 200 crumbs, TILE_EFFECT, 14/sec, "1 tile", fire, ground,
+ * noise 2, **path_only** -- and the behaviour note, "writes a persistent damaging tile onto the track".
+ *
+ * **One `tileEffect` and nothing else.** It is not a barricade: `barricadePositions` asks
+ * `isBarricade`, so enemies walk straight over it, and the Cardboard Box competes with it for the
+ * same track tiles.
+ *
+ * `durationTicks: 2, refreshIntervalTicks: 1` -- rewritten every tick, each write living two, so the
+ * heat is gone the tick the Burner is sold. Not 1: a 1-tick write is aged out in `tiles` the same
+ * tick it lands, and the renderer, which reads between ticks, would never see the tile it burns on
+ * (steps/17-auras-and-zones/A-candle-burner-fly-paper.md, decision 2).
+ *
+ * The noise is paid once a second **while something on the floor is on the ring**, not constantly --
+ * 2/sec beats the meter's 1.5/sec decay, and a Burner idling through the build phase would wake the
+ * house on its own. `core/systems/tileEffect.ts` has the rule.
+ */
+export const gasStoveBurner: TowerDefOf<'gasStoveBurner'> = {
+	id: 'gasStoveBurner',
+	nameKey: 'tower.gasStoveBurner.name',
+	descriptionKey: 'tower.gasStoveBurner.description',
+	glyph: '♨️',
+	role: 'TILE_EFFECT',
+	cost: 200,
+	maxHp: 100,
+	placement: 'path_only',
+	noise: 2,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		tileEffect({
+			effect: 'heat',
+			radiusTiles: 0,
+			magnitude: GAS_STOVE_BURNER_HEAT_PER_TICK,
+			durationTicks: 2,
+			refreshIntervalTicks: 1,
+		}),
+	],
+	/**
+	 * 14 -> 20 -> 26 a second.
+	 *
+	 * T3 adds a radius of 1: the flame reaches the tiles either side. Around a track tile that also
+	 * lights the buildable tiles beside it, which nothing on the floor stands on today.
+	 */
+	upgrades: upgradesFor(
+		'gasStoveBurner',
+		raise('tileEffect', 'magnitude', 6 / TICKS_PER_SECOND),
+		raise('tileEffect', 'magnitude', 6 / TICKS_PER_SECOND),
+		raise('tileEffect', 'radiusTiles', 1),
+	),
+}
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 35 crumbs, CONTROL, 0 damage, no rate, range 2, **air
+ * only**, no noise, off the path -- and the behaviour note, "2 charges, air-only root, self-removes
+ * when spent". The Sticky Tape for flyers.
+ *
+ * **`maxOutstanding` equals the charges.** A panic button that holds one fly and waits for it to die
+ * before catching the second is not one. "Self-removes when spent" means what it means for the tape:
+ * it leaves the tick after its last stuck flyer dies, which `retireSpentTowers` already does.
+ *
+ * The doc's rate is a dash and an attack needs a cooldown: `perSecond(2)` is a draft. `physical`
+ * against 0 damage is the tape's honest filler, and `projectileSpeed: 0` lands the root the tick it
+ * fires.
+ */
+export const flyPaper: TowerDefOf<'flyPaper'> = {
+	id: 'flyPaper',
+	nameKey: 'tower.flyPaper.name',
+	descriptionKey: 'tower.flyPaper.description',
+	glyph: '🎗️',
+	role: 'CONTROL',
+	cost: 35,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		attack({
+			damage: 0,
+			damageType: 'physical',
+			cooldownTicks: perSecond(2),
+			rangeTiles: 2,
+			targets: 'air',
+			projectileSpeed: 0,
+			applies: ['rooted'],
+		}),
+		charge({ charges: 2, rearmTicks: 0, maxOutstanding: 2 }),
+	],
+	/**
+	 * 2 -> 3 -> 4 sheets, all of them sticky at once.
+	 *
+	 * T3 adds a rearm: a fresh sheet every ten seconds, and the paper stops leaving the board. That is
+	 * a tier-3-shaped change for a disposable tower, and it is pure config -- `spendCharge` and
+	 * `retireSpentTowers` already read `rearmTicks`.
+	 */
+	upgrades: upgradesFor(
+		'flyPaper',
+		{ add: [{ kind: 'charge', fields: { charges: 1, maxOutstanding: 1 } }] },
+		{ add: [{ kind: 'charge', fields: { charges: 1, maxOutstanding: 1 } }] },
+		raise('charge', 'rearmTicks', 10 * TICKS_PER_SECOND),
+	),
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
 export const TOWERS = [
 	saltShaker,
@@ -862,6 +1024,9 @@ export const TOWERS = [
 	bakingSoda,
 	bayLeaf,
 	lemon,
+	candle,
+	gasStoveBurner,
+	flyPaper,
 ]
 
 export type TowerId = (typeof TOWERS)[number]['id']

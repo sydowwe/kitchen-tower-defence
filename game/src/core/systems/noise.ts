@@ -6,9 +6,9 @@
  * reaching the cap costs the player the board's crumbs, the wave's unbanked income and a fifth of
  * every tower's HP -- while the enemies get away.
  *
- * **This system runs after `combat` and before `economy`** (`core/sim.ts`), which is the whole
- * reason it can read shots as events: `combatSystem` pushed this tick's `towerFired` into
- * `world.events` a slot ago, and `world.events` is cleared at the *top* of the next tick, so they
+ * **This system runs after `combat` and `tileEffect`, and before `economy`** (`core/sim.ts`), which is
+ * the whole reason it can read shots as events: both pushed this tick's `towerFired` into
+ * `world.events` a few slots ago, and `world.events` is cleared at the *top* of the next tick, so they
  * are still there. A system running before `combat` would be summing last tick's shots forever.
  *
  * **Whether Act I can fill the cap at all is not this file's question.** A Mousetrap is 0.30/sec at
@@ -17,7 +17,7 @@
  * impression of one played night.
  */
 
-import { isFiring } from '@/core/content/behaviours.ts'
+import { isFiring, isTileEffect } from '@/core/content/behaviours.ts'
 import { forfeitCrumbPiles } from '@/core/systems/crumbs.ts'
 import { forfeitUnbankedCrumbs } from '@/core/systems/economy.ts'
 import { damageTower, destroyTower } from '@/core/systems/placement.ts'
@@ -45,10 +45,16 @@ export function noiseFraction(world: World): number {
  *
  * Takes a **def rather than a tower**: the shop asks about the base def and the inspector asks about
  * `effectiveDefOf`, and a tier that moves either `noise` or `cooldownTicks` moves this for free.
+ *
+ * A tower that writes the board has no shot to count: `tileEffectSystem` pays `def.noise` once a
+ * second while it is burning something, so that is the number, as it is.
  */
 export function projectedNoisePerSecond(def: TowerDef): number {
 	const firing = def.behaviours.find(isFiring)
-	return firing === undefined ? 0 : (def.noise * TICKS_PER_SECOND) / firing.cooldownTicks
+	if (firing !== undefined) {
+		return (def.noise * TICKS_PER_SECOND) / firing.cooldownTicks
+	}
+	return def.behaviours.some(isTileEffect) ? def.noise : 0
 }
 
 /**
@@ -133,10 +139,9 @@ export function noiseSystem(world: World): void {
 	// **Accumulate, then decay, then test the cap, in that order.** Decaying first would shave a
 	// tower's own shot by the same tick's decay -- a silent 2.5% discount on every loud tower.
 	//
-	// There is no per-second emitter here. The only one in v1 is the Gas Stove Burner's `tileEffect`,
-	// and step 14 built the tile *system* without interpreting that behaviour: what writes a cell from
-	// a tower's descriptor is step 17's, with the Burner it exists for. A branch for it now would be a
-	// branch nothing reaches -- and wrong by the time something does.
+	// There is no per-second emitter here. The Gas Stove Burner, the one tower that is loud without
+	// firing, pushes a `towerFired` from `tileEffectSystem` once a second while it burns something, so
+	// this loop counts it with every shot and needs no branch of its own.
 	for (const event of world.events) {
 		if (event.kind === 'towerFired') {
 			noise.level += event.noise

@@ -54,7 +54,8 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 - **Lemon** — every hit applies Armor Strip (§4).
 - **Honey Pot** — 7 crumbs/sec income *and* an aggro radius that pulls nearby ground enemies toward it, holding them in a kill zone. Bait is the point; the income is the bribe for taking the risk.
 - **Fan** — pushback, air-only. Shares the pushback system with Mint Pot (post-v1, ground).
-- **Gas Stove Burner** — writes a persistent damaging tile onto the track. First real area denial.
+- **Gas Stove Burner** — writes a persistent damaging tile onto the track. First real area denial. Its noise is 2 per second **of burning something** — once a second while an enemy on the floor stands on its ring — never constantly: 2/s beats the meter's 1.5/s decay, and an idle Burner would wake the house on its own.
+- **Candle** — a light: Moths drift toward it, from the same 5 tiles they see a Nightlight from.
 
 ### Economy rates
 
@@ -80,7 +81,9 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 - Baking Soda T3 — splash and slime-scrub radius both 1.2 → 2.0, the whole range-2 circle at once
 - Bay Leaf T3 — marks what it holds up: an aura at the base radius 3 that applies `Marked` to ground enemies (tiers 1–2 take the suppression radius 3 → 3.5 → 4)
 - Lemon T3 — the shot splashes (1.0 tile radius), so Armor Strip lands on everything around the hit
-- Candle T3 — burn applied by the aura stacks to 3 *(arrives with the Candle, step 17)*
+- Candle T3 — burn applied by the aura stacks to 3 (at 2/s a stack, not the status table's 5/s: +6/s at the cap)
+- Gas Stove Burner T3 — the flame reaches the tiles either side (radius 0 → 1)
+- Fly Paper T3 — a fresh sheet every 10s, and it stops leaving the board (tiers 1–2 take it from 2 to 4 sheets, all sticky at once)
 - Fan T3 — pushback also applies `Marked` *(arrives with the Fan, step 18)*
 
 ### Selling

@@ -21,7 +21,7 @@ import { chargeAllowsFiring, chargeBehaviourOf, spendCharge } from '@/core/syste
 import { circle, cone } from '@/core/systems/hitbox.ts'
 import { spawnProjectile } from '@/core/systems/projectiles.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
-import { isTargetable, pickTargets } from '@/core/systems/targeting.ts'
+import { appliesHold, isHeld, isTargetable, pickTarget, pickTargets } from '@/core/systems/targeting.ts'
 import type { ConeAttackBehaviour, StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
 import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/types.ts'
 
@@ -191,7 +191,13 @@ export function combatSystem(world: World): void {
 			continue
 		}
 
-		const target = enemyById(world, tower.targetEnemyId)
+		let target = enemyById(world, tower.targetEnemyId)
+		// Targeting ran for every tower before any of them fired, so two holders can have picked the
+		// same enemy this tick. If an earlier one in this loop has just rooted it, pick again rather than
+		// overwrite that root's `sourceId` -- `pickTargets` already skips held enemies.
+		if (target !== null && appliesHold(firing) && isHeld(target)) {
+			target = pickTarget(world, tower, firing)
+		}
 		if (target === null) {
 			continue
 		}

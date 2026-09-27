@@ -96,8 +96,8 @@ export function chargeAllowsFiring(world: World, tower: Tower): boolean {
  * One charge off the magazine, and the rearm clock started if it is not already running.
  *
  * **Not already running** is what keeps a multi-charge tower from resetting its own clock every time
- * it fires: a Fly Paper emptying two charges in two ticks rearms one of them `rearmTicks` after the
- * first shot, not after the second.
+ * it fires: a tier-3 Fly Paper emptying two charges in two shots rearms one of them `rearmTicks` after
+ * the first shot, not after the second.
  */
 export function spendCharge(tower: Tower, behaviour: ChargeBehaviour): void {
 	const state = chargeStateOf(tower)
@@ -118,9 +118,9 @@ export function spendCharge(tower: Tower, behaviour: ChargeBehaviour): void {
  * one extra tick per cycle -- 397 instead of 396 -- for nothing.
  *
  * A rearm restores **one** charge and restarts the timer while the magazine is still below its
- * maximum. That is what step 17's Fly Paper and step 12's tier upgrades need, and a version that
- * refilled the magazine in one go would make a three-charge tower a one-charge tower with a long
- * pause.
+ * maximum. That is what the Fly Paper's tier 3 (a fresh sheet every `rearmTicks`) and step 12's
+ * tier upgrades need, and a version that refilled the magazine in one go would make a four-charge
+ * paper a one-charge paper with a long pause. A base Fly Paper never rearms: `rearmTicks: 0`.
  */
 export function tickRearms(world: World): void {
 	for (const tower of world.towers) {

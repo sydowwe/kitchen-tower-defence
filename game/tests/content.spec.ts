@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isCleanse, isReveal } from '@/core/content/behaviours.ts'
+import { isAura, isCharge, isCleanse, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
 import { ant, beetle, ENEMIES, fly, fruitFly, moth, roach } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
@@ -8,8 +8,11 @@ import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { validateContent } from '@/core/content/schema.ts'
 import {
 	bakingSoda,
+	candle,
 	cardboardBox,
 	cookieJar,
+	flyPaper,
+	gasStoveBurner,
 	iceCubeTray,
 	mousetrap,
 	nightlight,
@@ -652,7 +655,92 @@ describe('the Bay Leaf and the Lemon', () => {
 	it('are the thirteenth and fourteenth towers in the shop, appended and not inserted', () => {
 		expect(TOWERS[12]?.id).toBe('bayLeaf')
 		expect(TOWERS[13]?.id).toBe('lemon')
-		expect(TOWERS).toHaveLength(14)
+	})
+})
+
+describe('the Candle', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(candle.cost).toBe(130)
+		expect(candle.role).toBe('DOT')
+		expect(candle.glyph).toBe('🕯️')
+		expect(candle.maxHp).toBe(100)
+		expect(candle.placement).toBe('off_path')
+		expect(candle.noise).toBe(0)
+		expect(candle.defaultTargetingMode).toBe('CLOSEST')
+	})
+
+	it('is a 4/sec fire aura that applies nothing, and a light of the same radius', () => {
+		const glow = candle.behaviours.find(isAura)
+		expect(glow).toBeDefined()
+		expect(glow?.radiusTiles).toBe(2)
+		expect((glow?.damagePerTick ?? 0) * 60).toBeCloseTo(4, 10)
+		expect(glow?.damageType).toBe('fire')
+		expect(glow?.targets).toBe('both')
+		expect(glow?.applies).toEqual([])
+
+		expect(candle.behaviours.find(isReveal)).toEqual({ kind: 'reveal', radiusTiles: 2, attractsLightDrawn: true })
+		expect(candle.behaviours).toHaveLength(2)
+	})
+})
+
+describe('the Gas Stove Burner', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(gasStoveBurner.cost).toBe(200)
+		expect(gasStoveBurner.role).toBe('TILE_EFFECT')
+		expect(gasStoveBurner.glyph).toBe('♨️')
+		expect(gasStoveBurner.maxHp).toBe(100)
+		expect(gasStoveBurner.placement).toBe('path_only')
+		expect(gasStoveBurner.noise).toBe(2)
+		expect(gasStoveBurner.behaviours).toHaveLength(1)
+	})
+
+	it('burns 14/sec as a per-TICK magnitude, which the schema would not catch as a bare 14', () => {
+		const burner = gasStoveBurner.behaviours.find(isTileEffect)
+		expect(burner).toBeDefined()
+		expect(burner?.effect).toBe('heat')
+		expect(burner?.radiusTiles).toBe(0)
+		expect((burner?.magnitude ?? 0) * 60).toBeCloseTo(14, 10)
+		expect(burner?.magnitude).toBeLessThan(1)
+		// Rewritten every tick, each write living two: see decision 2 of step 17A.
+		expect(burner?.durationTicks).toBe(2)
+		expect(burner?.refreshIntervalTicks).toBe(1)
+	})
+})
+
+describe('the Fly Paper', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(flyPaper.cost).toBe(35)
+		expect(flyPaper.role).toBe('CONTROL')
+		expect(flyPaper.glyph).toBe('🎗️')
+		expect(flyPaper.maxHp).toBe(100)
+		expect(flyPaper.placement).toBe('off_path')
+		expect(flyPaper.noise).toBe(0)
+		expect(flyPaper.defaultTargetingMode).toBe('CLOSEST')
+
+		const shot = attackOf(flyPaper.behaviours)
+		expect(shot.damage).toBe(0)
+		expect(shot.rangeTiles).toBe(2)
+		expect(shot.targets).toBe('air')
+		expect(shot.projectileSpeed).toBe(0)
+		expect(shot.applies.map(application => application.kind)).toEqual(['rooted'])
+	})
+
+	it('holds two flyers at once and never rearms', () => {
+		expect(flyPaper.behaviours.find(isCharge)).toEqual({
+			kind: 'charge',
+			charges: 2,
+			rearmTicks: 0,
+			maxOutstanding: 2,
+		})
+	})
+})
+
+describe('the Candle, the Gas Stove Burner and the Fly Paper', () => {
+	it('are the fifteenth to seventeenth towers in the shop, appended and not inserted', () => {
+		expect(TOWERS[14]?.id).toBe('candle')
+		expect(TOWERS[15]?.id).toBe('gasStoveBurner')
+		expect(TOWERS[16]?.id).toBe('flyPaper')
+		expect(TOWERS).toHaveLength(17)
 	})
 })
 

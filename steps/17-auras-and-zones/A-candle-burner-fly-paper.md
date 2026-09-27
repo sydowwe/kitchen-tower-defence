@@ -87,6 +87,12 @@ then edit this file. Don't leave it lying.
    such a status from any source. **Only then**: a Salt Shaker must keep shooting rooted enemies.
    Name the kind-level check once in `statuses.ts` (e.g. `holdsUntilSourceSpent(kind)`) beside
    `endsWithItsSource`, which asks it of a live status.
+   **`pickTargets` alone is not enough, and 17A added a second check in `combatSystem`.**
+   `targeting` runs for every tower before any of them fires, so two papers that see the same
+   nearest fly both aim at it on the same tick, before either root exists. So, at fire time, a
+   holder whose target has just been rooted by an earlier tower in the loop picks again through
+   `pickTarget`. The two-paper test puts the papers mirrored across the lane for exactly this case;
+   with them side by side, CLOSEST happened to split them and the test passed without the fix.
 7. **Fly Paper is `attack` (0 damage, `targets: 'air'`, `projectileSpeed: 0`, `applies:
    ['rooted']`, range 2) plus `charge({ charges: 2, rearmTicks: 0, maxOutstanding: 2 })`.**
    `maxOutstanding` equals the charges: a panic button that holds one fly and waits for it to die
@@ -98,7 +104,7 @@ then edit this file. Don't leave it lying.
 9. **Tiers are authored here and added to `CONTENT.md` §1 *Upgrades***, as 15B and 16A did. Drafts,
    which D re-tunes:
    - **Candle**: `raise('aura', 'damagePerTick', …)` twice, landing on numbers the card can print
-     (4 → 5.5 → 7/s). T3 is decision 1.
+     (4 → 5.5 → 7/s). T3 is decision 1, authored as `burn` at 2/s a stack (+6/s at the cap).
    - **Burner**: `raise('tileEffect', 'magnitude', …)` twice (14 → 20 → 26/s). T3 is `add`
      `radiusTiles: 1`: the flame reaches the tiles either side.
    - **Fly Paper**: `charges` and `maxOutstanding` both +1, twice (2 → 3 → 4). T3 `add`s
@@ -183,11 +189,12 @@ it; D may want to look at it.
 
 ## Acceptance
 
-- [ ] The Candle required **no change to any file in `core/systems/`**. The Fly Paper's only system
-      changes are decisions 5 and 6, and both are fixes to step 10's roots that the Sticky Tape
-      needed too.
-- [ ] The Burner's only new file is `tileEffect.ts`, and `core/systems/tiles.ts` is untouched.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] The Candle required **no change to any file in `core/systems/`** (beyond the `aura.ts` header
+      sentence this step asked to correct). The Fly Paper's only system changes are decisions 5 and
+      6 (`placement.ts`, `targeting.ts`, and decision 6's fire-time re-check in `combat.ts`), and
+      both are fixes to step 10's roots that the Sticky Tape needed too.
+- [x] The Burner's only new file is `tileEffect.ts`, and `core/systems/tiles.ts` is untouched.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 17B, 17C and 17D
 
@@ -195,7 +202,8 @@ it; D may want to look at it.
 core/systems/tileEffect.ts   tileEffectSystem(world: World): void            // slot 'tileEffect', after 'cleanse'
 core/systems/noise.ts        projectedNoisePerSecond(def)                    // def.noise for a tileEffect tower
 core/content/behaviours.ts   isTileEffect(behaviour: Behaviour): behaviour is TileEffectBehaviour
-core/content/statuses.ts     holdsUntilSourceSpent(kind: StatusKind): boolean   // or the name you chose
+core/content/statuses.ts     holdsUntilSourceSpent(kind: StatusKind): boolean
+core/systems/targeting.ts    appliesHold(reach), isHeld(enemy)               // Reach gained optional `applies`
 core/content/towers.ts       candle, gasStoveBurner, flyPaper                // TOWERS[14], [15], [16]
 ```
 

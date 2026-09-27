@@ -440,7 +440,11 @@ export function pushback(params: PushbackParams): PushbackBehaviour {
 
 /**
  * Gas Stove Burner. Writes a `TileEffect` onto the board; the tile system reads it and everything
- * standing there is affected, whatever put it there. Step 14.
+ * standing there is affected, whatever put it there. The shape is step 14's; `core/systems/tileEffect.ts`
+ * interprets it, step 17A.
+ *
+ * **`magnitude` means what `TILE_EFFECT_DEFS[effect]` says it means**, so it is unbounded in the
+ * schema: heat's is damage per tick, and a bare `14` burns at 840/sec with nothing to reject it.
  */
 export interface TileEffectBehaviour {
 	kind: 'tileEffect'
@@ -659,4 +663,9 @@ export function isSuppress(behaviour: Behaviour): behaviour is SuppressBehaviour
 /** And for scrubbing: `core/systems/cleanse.ts`, the card in `ui/viewModel.ts`, and `reachOf`. */
 export function isCleanse(behaviour: Behaviour): behaviour is CleanseBehaviour {
 	return behaviour.kind === 'cleanse'
+}
+
+/** And for writing cells: `core/systems/tileEffect.ts`, and `projectedNoisePerSecond` in `noise.ts`. */
+export function isTileEffect(behaviour: Behaviour): behaviour is TileEffectBehaviour {
+	return behaviour.kind === 'tileEffect'
 }

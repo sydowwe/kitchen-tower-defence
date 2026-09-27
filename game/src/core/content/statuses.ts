@@ -261,7 +261,16 @@ export function applyStatuses(
  * that scan filters on a property of the def instead of naming a kind.
  */
 export function endsWithItsSource(status: ActiveStatus): boolean {
-	return STATUS_DEFS[status.kind].durationTicks === UNTIL_SOURCE_SPENT
+	return holdsUntilSourceSpent(status.kind)
+}
+
+/**
+ * The same question asked of a kind rather than a live status: does applying this one *hold* an
+ * enemy until its source is spent. `pickTargets` asks it of a tower's `applies`, so two holders never
+ * pick one enemy and overwrite each other's `sourceId`.
+ */
+export function holdsUntilSourceSpent(kind: StatusKind): boolean {
+	return STATUS_DEFS[kind].durationTicks === UNTIL_SOURCE_SPENT
 }
 
 export function findStatus(target: StatusHolder, kind: StatusKind): ActiveStatus | undefined {
