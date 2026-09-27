@@ -146,6 +146,12 @@ export const en = {
 			cleanRate: 'Patches cleaned',
 			// The Bay Leaf's one row, in the same spirit: what happens to a Weevil inside it.
 			bringsUp: 'Brings them up within',
+			// The Burner's. `ownTile` is its value at radius 0, a word for the reason `silent` is one.
+			burns: 'Burns',
+			ownTile: 'Its own tile',
+			// The Honey Pot's two, worded for what happens to whatever walks past it.
+			lures: 'Lures from',
+			holds: 'Holds each for',
 			cone: 'Cone',
 			applies: 'Applies',
 			// A wall's rows. `blocks` is a label and `blocksGround` its answer: the card is a two-column
@@ -188,6 +194,8 @@ export const en = {
 			// The one line a burrowed enemy gets that a surfaced one does not. It explains the towers
 			// ignoring it, which is otherwise the most confusing thing on the board.
 			burrowed: 'Underground. Nothing can reach it down there.',
+			// Same slot, same reason: a stopped Ant is the one enemy a player hovers to ask why.
+			feeding: 'Feeding at the honey. It is not going anywhere for now.',
 		},
 		// Every `EnemyTag`, as the tooltip lists them. Words for the ones the multiplier row cannot
 		// explain -- `burrows`, `fast`, `spreads` -- matter most, because they are the only place those
@@ -428,42 +436,48 @@ export const en = {
 				description: 'Every squirt splashes. Whatever is standing near the hit goes soft with it.',
 			},
 		},
+		// Rewritten in 17C against the cards, which now carry the numbers: the Candle's burn, the
+		// Burner's tile, the pot's lure and hold. So no sentence repeats one. The Candle's is about what
+		// wanders into it, the Burner's about the tile and what it costs in noise, the Fly Paper's about
+		// being cheap and gone, and the Honey Pot's carries the warning -- it is eaten while it works.
 		candle: {
 			name: 'Candle',
-			description: 'A small flame that singes everything close to it, walking or flying. Moths come to it.',
+			description:
+				'A tea light on a saucer, left burning. Anything that wanders too close regrets it, and moths never stop wandering close.',
 			tier1: { name: 'Taller Wick' },
 			tier2: { name: 'Scented Pillar' },
 			tier3: {
 				name: 'Dripping Wax',
-				description: 'Whatever it singes catches fire, and keeps burning up to three times over.',
+				description:
+					'Whatever it singes catches alight, and the burn builds the longer it stays, three times over.',
 			},
 		},
 		gasStoveBurner: {
 			name: 'Gas Stove Burner',
 			description:
-				'Sits on the track and keeps its ring lit. Anything that walks across it burns. Loud while it is cooking something.',
+				'One ring, left lit, in the middle of the track. Nothing should step on it, and whatever does is heard upstairs.',
 			tier1: { name: 'Medium Flame' },
 			tier2: { name: 'High Flame' },
 			tier3: {
 				name: 'Wok Burner',
-				description: 'The flame spreads to the tiles either side of the ring.',
+				description: 'A wider ring. The floor either side of it is no longer safe to walk on either.',
 			},
 		},
 		flyPaper: {
 			name: 'Fly Paper',
 			description:
-				'Two sticky sheets. Each one catches a flyer and holds it until it dies. Gone once both are used.',
+				'A curl of sticky paper from the drawer. It catches a flyer or two, holds on until they stop, and then it is in the bin.',
 			tier1: { name: 'Third Sheet' },
 			tier2: { name: 'Fourth Sheet' },
 			tier3: {
 				name: 'Fresh Roll',
-				description: 'A new sheet every ten seconds. It never runs out.',
+				description: 'Somebody keeps hanging up a new sheet. It stops running out.',
 			},
 		},
 		honeyPot: {
 			name: 'Honey Pot',
 			description:
-				'Pays well, and smells better. Anything walking past stops to feed for three seconds, chewing on the pot while it does.',
+				'It pays well, left open. Whatever walks past stops to feed and stays put for a while — eating the pot the whole time.',
 			tier1: { name: 'Fuller Pot' },
 			tier2: { name: 'Clover Honey' },
 			tier3: {

@@ -25,9 +25,16 @@
 		</ul>
 		<p
 			v-if="tooltip.burrowed"
-			class="burrowed"
+			class="state"
 		>
 			{{ t('hud.enemyTooltip.burrowed') }}
+		</p>
+		<!-- The same slot as the burrowed line: a stopped Ant is the one enemy a player hovers to ask why. -->
+		<p
+			v-else-if="tooltip.feeding"
+			class="state"
+		>
+			{{ t('hud.enemyTooltip.feeding') }}
 		</p>
 	</div>
 </template>
@@ -156,7 +163,7 @@
 		font-weight: 600;
 	}
 
-	.burrowed {
+	.state {
 		margin: 0;
 		color: var(--kd-text-dim);
 		font-style: italic;

@@ -34,6 +34,17 @@
 				<dt>{{ t('hud.stat.cone') }}</dt>
 				<dd>{{ t('hud.stat.degrees', { n: stats.coneHalfAngleDeg }) }}</dd>
 			</template>
+			<!-- A word at 0, like noise: "0 tiles" would read as a flame that burns nothing. -->
+			<template v-if="stats.heatRadiusTiles !== null">
+				<dt>{{ t('hud.stat.burns') }}</dt>
+				<dd>
+					{{
+						stats.heatRadiusTiles === 0
+							? t('hud.stat.ownTile')
+							: t('hud.stat.tiles', { n: stats.heatRadiusTiles })
+					}}
+				</dd>
+			</template>
 			<template v-if="stats.damageType !== null">
 				<dt>{{ t('hud.stat.damageType') }}</dt>
 				<dd>{{ t(`hud.damage.${stats.damageType}`) }}</dd>
@@ -69,6 +80,14 @@
 			<template v-if="stats.crumbsPerSecond !== null">
 				<dt>{{ t('hud.stat.income') }}</dt>
 				<dd>{{ t('hud.stat.perSecond', { n: stats.crumbsPerSecond }) }}</dd>
+			</template>
+			<template v-if="stats.lureRadiusTiles !== null">
+				<dt>{{ t('hud.stat.lures') }}</dt>
+				<dd>{{ t('hud.stat.tiles', { n: stats.lureRadiusTiles }) }}</dd>
+			</template>
+			<template v-if="stats.holdSeconds !== null">
+				<dt>{{ t('hud.stat.holds') }}</dt>
+				<dd>{{ t('hud.stat.seconds', { n: stats.holdSeconds }) }}</dd>
 			</template>
 			<template v-if="stats.collectRadiusTiles !== null">
 				<dt>{{ t('hud.stat.collect') }}</dt>

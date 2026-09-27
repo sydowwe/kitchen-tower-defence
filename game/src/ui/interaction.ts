@@ -13,7 +13,16 @@
  */
 
 import { effectiveDefOf, TOWERS } from '@/core/content/index.ts'
-import { isAttack, isCleanse, isConeAttack, isReveal, isSuppress } from '@/core/content/behaviours.ts'
+import {
+	isAttack,
+	isAura,
+	isBait,
+	isCleanse,
+	isConeAttack,
+	isReveal,
+	isSuppress,
+	isTileEffect,
+} from '@/core/content/behaviours.ts'
 import { nearestPath, samplePath } from '@/core/path.ts'
 import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { canPlaceTower, towerAt, towerById } from '@/core/systems/placement.ts'
@@ -156,6 +165,10 @@ function facingFor(world: World, tile: Vec2, tower: Tower | null): number {
  *
  * A `suppress` radius is folded into both circles the same way (step 16B). The Bay Leaf has nothing
  * else to show, and a tower that someday both shoots and suppresses should show the larger reach.
+ *
+ * Step 17C folds `aura`, `bait` and a `tileEffect` radius into the no-attack circle the same way.
+ * The Honey Pot's is its lure radius, and a pot whose circle misses the lane catches nothing -- that
+ * is the placement decision. A radius-0 Burner draws no circle; its placement tile is its reach.
  */
 function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): OverlayReach | null {
 	const leaf = def.behaviours.find(isSuppress)
@@ -171,7 +184,16 @@ function reachOf(def: TowerDef, world: World, tile: Vec2, tower: Tower | null): 
 	const spray = def.behaviours.find(isConeAttack)
 	if (spray === undefined) {
 		const lamp = def.behaviours.find(isReveal)
-		const radiusTiles = Math.max(lamp?.radiusTiles ?? 0, leaf?.radiusTiles ?? 0)
+		const glow = def.behaviours.find(isAura)
+		const pot = def.behaviours.find(isBait)
+		const flame = def.behaviours.find(isTileEffect)
+		const radiusTiles = Math.max(
+			lamp?.radiusTiles ?? 0,
+			leaf?.radiusTiles ?? 0,
+			glow?.radiusTiles ?? 0,
+			pot?.radiusTiles ?? 0,
+			flame?.radiusTiles ?? 0,
+		)
 		return radiusTiles === 0 ? null : { kind: 'circle', radiusTiles }
 	}
 

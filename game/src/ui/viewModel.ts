@@ -18,15 +18,19 @@
 
 import {
 	isAttack,
+	isAura,
+	isBait,
 	isCharge,
 	isCleanse,
 	isCollect,
 	isConeAttack,
 	isReveal,
 	isSuppress,
+	isTileEffect,
 } from '@/core/content/behaviours.ts'
 import { effectivenessOf, resolveDamage } from '@/core/content/matrix.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
+import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
 import { TOWERS, effectiveDef, effectiveDefOf, getEnemyDef, getTowerDef } from '@/core/content/index.ts'
 import { upgradeCost } from '@/core/content/upgrades.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
@@ -158,6 +162,17 @@ export interface TowerStatsView {
 	 * `suppress`. The Bay Leaf's only row, the way `revealRadiusTiles` is the Nightlight's.
 	 */
 	suppressRadiusTiles: number | null
+	/**
+	 * How far a heat-writing tower's flame reaches beyond its own tile. Null for everything that writes
+	 * no damaging tile. **0 is a real value** -- the Gas Stove Burner burns the tile it stands on -- and
+	 * the card prints it as a word, the way noise 0 is "silent": "0 tiles" reads as a tower that burns
+	 * nothing (step 17C, decision 3).
+	 */
+	heatRadiusTiles: number | null
+	/** How far off a lane a pot catches that lane, in tiles. Null for everything that is not bait. */
+	lureRadiusTiles: number | null
+	/** How long one feed holds an enemy, already in seconds. Null for everything that is not bait. */
+	holdSeconds: number | null
 }
 
 /**
@@ -279,6 +294,11 @@ export interface EnemyTooltipView {
 	damage: EnemyDamageView[]
 	/** Nothing can reach it while this is true. The tooltip says so rather than going away. */
 	burrowed: boolean
+	/**
+	 * Stopped at a Honey Pot. A boolean off `enemy.feeding !== null`, never the feeding record itself:
+	 * that holds a tower id and a release tick, and neither belongs in the snapshot.
+	 */
+	feeding: boolean
 	/** Waypoint space: integers on tile centres, the space `enemyPosition` returns. */
 	at: { x: number; y: number }
 	widthTiles: number
@@ -411,9 +431,9 @@ function appliesOf(applications: readonly StatusApplication[]): TowerStatsView['
 }
 
 /**
- * Derives a card from the def's behaviours through `isAttack` / `isConeAttack` / `isCollect` /
- * `isCharge` / `isReveal`, so a tower that gains a behaviour gains a card line without this file
- * learning its name.
+ * Derives a card from the def's behaviours through `isAttack` / `isConeAttack` / `isAura` /
+ * `isTileEffect` / `isBait` / `isCollect` / `isCharge` / `isReveal`, so a tower that gains a behaviour
+ * gains a card line without this file learning its name.
  *
  * **The def's numbers, never the live ones.** `buildTowerInspector` runs on selection change rather
  * than at 15Hz, so a live rearm countdown here would sit frozen at whatever it read when the tower
@@ -441,6 +461,9 @@ function statsFor(def: TowerDef): TowerStatsView {
 		cleanseRadiusTiles: null,
 		cleansePerSecond: null,
 		suppressRadiusTiles: null,
+		heatRadiusTiles: null,
+		lureRadiusTiles: null,
+		holdSeconds: null,
 	}
 
 	for (const behaviour of def.behaviours) {
@@ -452,9 +475,43 @@ function statsFor(def: TowerDef): TowerStatsView {
 			stats.rangeTiles = behaviour.rangeTiles
 			stats.damageType = behaviour.damageType
 			stats.targets = behaviour.targets
-			stats.applies = appliesOf(behaviour.applies)
+			// Appended, not assigned: an aura earlier in the list may already have landed its own.
+			stats.applies = [...stats.applies, ...appliesOf(behaviour.applies)]
 			// The one line the wedge has and the circle does not. Everything above is the same card.
 			stats.coneHalfAngleDeg = isConeAttack(behaviour) ? behaviour.coneHalfAngleDeg : null
+			continue
+		}
+
+		if (isAura(behaviour)) {
+			// No `damage` or `ratePerSecond`: an aura has no hit to count, only a rate. And `??=`, so a
+			// shot on the same tower keeps the rows -- the shot is the number the player aims with. A
+			// 0-damage aura (the Bay Leaf's and the Honey Pot's tier 3) is its statuses and nothing else;
+			// "Type: physical" on a leaf would be the card inventing a hit (step 17C, decision 1).
+			if (behaviour.damagePerTick > 0) {
+				stats.dps ??= round2(behaviour.damagePerTick * TICKS_PER_SECOND)
+				stats.rangeTiles ??= behaviour.radiusTiles
+				stats.damageType ??= behaviour.damageType
+				stats.targets ??= behaviour.targets
+			}
+			stats.applies = [...stats.applies, ...appliesOf(behaviour.applies)]
+			continue
+		}
+
+		if (isTileEffect(behaviour)) {
+			const tile = TILE_EFFECT_DEFS[behaviour.effect]
+			if (tile.effect === 'damageOverTime') {
+				stats.dps ??= round2(behaviour.magnitude * TICKS_PER_SECOND)
+				stats.damageType ??= tile.damageType
+				// Heat is read through the floor check, so nothing flying ever takes it.
+				stats.targets ??= 'ground'
+				stats.heatRadiusTiles = behaviour.radiusTiles
+			}
+			continue
+		}
+
+		if (isBait(behaviour)) {
+			stats.lureRadiusTiles = behaviour.radiusTiles
+			stats.holdSeconds = round2(behaviour.durationTicks / TICKS_PER_SECOND)
 			continue
 		}
 
@@ -596,11 +653,18 @@ const DIFF_ROWS: readonly { labelKey: string; read: (stats: TowerStatsView) => S
 	{ labelKey: 'hud.stat.dps', read: s => plain(s.dps) },
 	{ labelKey: 'hud.stat.range', read: s => measured('hud.stat.tiles', s.rangeTiles) },
 	{ labelKey: 'hud.stat.cone', read: s => measured('hud.stat.degrees', s.coneHalfAngleDeg) },
+	// A word at 0, like noise: the Burner burns the tile it stands on, and "0 tiles" reads as nothing.
+	{
+		labelKey: 'hud.stat.burns',
+		read: s => (s.heatRadiusTiles === 0 ? word('hud.stat.ownTile') : measured('hud.stat.tiles', s.heatRadiusTiles)),
+	},
 	{ labelKey: 'hud.stat.damageType', read: s => word(s.damageType === null ? null : `hud.damage.${s.damageType}`) },
 	{ labelKey: 'hud.stat.hitPoints', read: s => plain(s.hitPoints) },
 	{ labelKey: 'hud.stat.charges', read: s => plain(s.charges) },
 	{ labelKey: 'hud.stat.rearm', read: s => measured('hud.stat.seconds', s.rearmSeconds) },
 	{ labelKey: 'hud.stat.income', read: s => measured('hud.stat.perSecond', s.crumbsPerSecond) },
+	{ labelKey: 'hud.stat.lures', read: s => measured('hud.stat.tiles', s.lureRadiusTiles) },
+	{ labelKey: 'hud.stat.holds', read: s => measured('hud.stat.seconds', s.holdSeconds) },
 	{ labelKey: 'hud.stat.collect', read: s => measured('hud.stat.tiles', s.collectRadiusTiles) },
 	{ labelKey: 'hud.stat.lights', read: s => measured('hud.stat.tiles', s.revealRadiusTiles) },
 	{ labelKey: 'hud.stat.cleans', read: s => measured('hud.stat.tiles', s.cleanseRadiusTiles) },
@@ -746,6 +810,7 @@ export function buildEnemyTooltip(world: World, enemyId: EntityId): EnemyTooltip
 			return { damageType, multiplier: round2(multiplier), band: effectivenessOf(multiplier) }
 		}),
 		burrowed: enemy.flags.burrowed,
+		feeding: enemy.feeding !== null,
 		at: { x: at.x, y: at.y },
 		widthTiles: world.map.widthTiles,
 		heightTiles: world.map.heightTiles,

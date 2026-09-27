@@ -112,7 +112,7 @@ Assert against the defs' own fields, never the numbers, so D's re-tune moves not
 - [ ] Each of the four cards says what the tower does without its description.
 - [ ] Aiming a Honey Pot shows whether it reaches the lane before the click.
 - [ ] The shop still reads with eighteen towers.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 17D
 

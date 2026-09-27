@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
+import { isAura, isBait, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
 import { ant, beetle, silverfish, weevil } from '@/core/content/enemies.ts'
 import { getTowerDef } from '@/core/content/index.ts'
 import { applyStatus, createStatus } from '@/core/content/statuses.ts'
+import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
+import { candle, gasStoveBurner, honeyPot } from '@/core/content/towers.ts'
 import { tick } from '@/core/sim.ts'
+import { baitSystem } from '@/core/systems/bait.ts'
 import { burrowSystem } from '@/core/systems/burrow.ts'
 import { dropCrumb } from '@/core/systems/crumbs.ts'
 import { canPlaceTower, placeTower, refundFor } from '@/core/systems/placement.ts'
@@ -12,7 +16,7 @@ import { createWorld } from '@/core/world.ts'
 import { buildEnemyTooltip, buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
 import { createTestWorld } from './fixtures/world.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
-import type { EnemyDamageView, EnemyTooltipView, UpgradeSlotView } from '@/ui/viewModel.ts'
+import type { EnemyDamageView, EnemyTooltipView, TowerStatsView, UpgradeSlotView } from '@/ui/viewModel.ts'
 import type { DamageType, FoodItem, Tower, Vec2, World } from '@/core/types.ts'
 
 /**
@@ -404,6 +408,120 @@ describe('the Bay Leaf card', () => {
 	})
 })
 
+/**
+ * Step 17C: three of the four do not fire, so none of their rows came off `attack`. Every expected
+ * number is read off the def, so 17D's re-tune moves nothing here.
+ */
+describe('the aura, tile-effect and bait cards', () => {
+	function shopStats(id: string): TowerStatsView {
+		const stats = buildHudSnapshot(buildableWorld(), VIEW).shop.find(entry => entry.id === id)?.stats
+		if (stats === undefined) {
+			throw new Error(`no shop entry for '${id}'`)
+		}
+		return stats
+	}
+
+	/** The fixture's track tile, for the one tower here that has to stand on it. */
+	const TRACK_TILE = { x: 5, y: 0 }
+
+	function statsAtTier(defId: string, tier: number, at: Vec2 = LEGAL_TILE): TowerStatsView {
+		const world = buildableWorld()
+		const tower = placeTower(world, getTowerDef(defId), at)
+		if (tower === null) {
+			throw new Error(`the fixture refused a legal '${defId}'`)
+		}
+		tower.tier = tier
+		const stats = buildTowerInspector(world, tower.id)?.stats
+		if (stats === undefined) {
+			throw new Error('a tower that was just placed has no inspector')
+		}
+		return stats
+	}
+
+	it("gives the Candle its aura's rate, radius, type and targets, and no hit to count", () => {
+		const glow = candle.behaviours.find(isAura)
+		const lamp = candle.behaviours.find(isReveal)
+		const stats = shopStats('candle')
+
+		expect(stats.dps).toBe(Math.round((glow?.damagePerTick ?? 0) * 60 * 100) / 100)
+		expect(stats.dps).toBeGreaterThan(0)
+		expect(stats.rangeTiles).toBe(glow?.radiusTiles)
+		expect(stats.damageType).toBe('fire')
+		expect(stats.targets).toBe('both')
+		expect(stats.revealRadiusTiles).toBe(lamp?.radiusTiles)
+		expect(stats.damage).toBeNull()
+		expect(stats.ratePerSecond).toBeNull()
+	})
+
+	it("gives the Burner its tile's burn, on the ground only, on its own tile, and its def's noise", () => {
+		const flame = gasStoveBurner.behaviours.find(isTileEffect)
+		const stats = shopStats('gasStoveBurner')
+
+		expect(stats.dps).toBe(Math.round((flame?.magnitude ?? 0) * 60 * 100) / 100)
+		expect(stats.dps).toBeGreaterThan(0)
+		expect(stats.damageType).toBe(TILE_EFFECT_DEFS.heat.damageType)
+		expect(stats.damageType).toBe('fire')
+		expect(stats.targets).toBe('ground')
+		expect(stats.heatRadiusTiles).toBe(0)
+		expect(stats.noise).toBe(gasStoveBurner.noise)
+		expect(stats.damage).toBeNull()
+	})
+
+	it("gives the Burner's radius 0 a word rather than '0 tiles', and its tier 3 a number", () => {
+		const third = statsAtTier('gasStoveBurner', 3, TRACK_TILE).heatRadiusTiles
+		expect(third).toBeGreaterThan(0)
+
+		const world = buildableWorld()
+		const tower = placeTower(world, gasStoveBurner, TRACK_TILE)
+		const slot = buildTowerInspector(world, tower?.id ?? -1)?.upgrades[2]
+		expect(slot?.diff.find(row => row.labelKey === 'hud.stat.burns')).toEqual({
+			labelKey: 'hud.stat.burns',
+			from: { textKey: 'hud.stat.ownTile', params: {} },
+			to: { textKey: 'hud.stat.tiles', params: { n: third } },
+		})
+	})
+
+	it('gives the Honey Pot its income, lure, hold and hit points off the def, and nobody else a lure', () => {
+		const pot = honeyPot.behaviours.find(isBait)
+		const shop = buildHudSnapshot(buildableWorld(), VIEW).shop
+		const stats = shopStats('honeyPot')
+
+		expect(stats.crumbsPerSecond).toBeGreaterThan(0)
+		expect(stats.lureRadiusTiles).toBe(pot?.radiusTiles)
+		expect(stats.holdSeconds).toBe((pot?.durationTicks ?? 0) / 60)
+		expect(stats.hitPoints).toBe(honeyPot.maxHp)
+		expect(stats.dps).toBeNull()
+
+		for (const entry of shop) {
+			if (entry.id !== 'honeyPot') {
+				expect(entry.stats.lureRadiusTiles).toBeNull()
+				expect(entry.stats.holdSeconds).toBeNull()
+			}
+		}
+	})
+
+	it("gives the Bay Leaf's tier 3 its Marked and no damage type, because a leaf has no hit", () => {
+		const stats = statsAtTier('bayLeaf', 3)
+
+		expect(stats.applies.map(applied => applied.kind)).toContain('marked')
+		expect(stats.damageType).toBeNull()
+		expect(stats.dps).toBeNull()
+		expect(stats.targets).toBeNull()
+	})
+
+	it("diffs the Nightlight's tier 3 as the tier that makes a lamp hurt", () => {
+		const world = buildableWorld()
+		const tower = placeTower(world, getTowerDef('nightlight'), LEGAL_TILE)
+		const labels = buildTowerInspector(world, tower?.id ?? -1)?.upgrades[2]?.diff.map(row => row.labelKey)
+
+		expect(labels).toContain('hud.stat.dps')
+		expect(labels).toContain('hud.stat.damageType')
+		expect(labels).toContain('hud.stat.targets')
+		expect(labels).toContain('hud.stat.range')
+		expect(labels).not.toContain('hud.stat.damage')
+	})
+})
+
 describe('the enemy tooltip', () => {
 	function rowFor(tooltip: EnemyTooltipView | null, damageType: DamageType): EnemyDamageView | undefined {
 		return tooltip?.damage.find(row => row.damageType === damageType)
@@ -450,6 +568,41 @@ describe('the enemy tooltip', () => {
 
 		expect(enemy.flags.burrowed).toBe(true)
 		expect(buildEnemyTooltip(world, enemy.id)?.burrowed).toBe(true)
+	})
+
+	it('says an Ant stopped at a Honey Pot is feeding, and stops saying it once the pot lets go', () => {
+		const world = createTestWorld()
+		world.night.phase = 'wave'
+		// Put down directly, two tiles off the lane at arc distance 10: the fixture's board is one tile
+		// tall, and `tests/bait.spec.ts` stands its pots the same way.
+		const pot: Tower = {
+			id: world.nextEntityId++,
+			defId: honeyPot.id,
+			tile: { x: 10, y: 2 },
+			hp: honeyPot.maxHp,
+			maxHp: honeyPot.maxHp,
+			tier: 0,
+			targetingMode: honeyPot.defaultTargetingMode,
+			targetEnemyId: null,
+			cooldownTicks: 0,
+			shotsFired: 0,
+			state: null,
+			totalInvested: honeyPot.cost,
+		}
+		world.index.towers[pot.id] = world.towers.length
+		world.towers.push(pot)
+		const enemy = spawnEnemyAt(world, ant, 'a', 10, 0)
+
+		expect(buildEnemyTooltip(world, enemy.id)?.feeding).toBe(false)
+
+		baitSystem(world)
+		expect(enemy.feeding).not.toBeNull()
+		expect(buildEnemyTooltip(world, enemy.id)?.feeding).toBe(true)
+
+		world.tick = enemy.feeding?.releaseTick ?? 0
+		baitSystem(world)
+		expect(enemy.feeding).toBeNull()
+		expect(buildEnemyTooltip(world, enemy.id)?.feeding).toBe(false)
 	})
 
 	it('is null for an id that is not on the board', () => {
@@ -599,6 +752,7 @@ describe('detachment from the world', () => {
 		fish.hp -= 40
 		fish.distance = 20
 		fish.flags.burrowed = true
+		fish.feeding = { towerId: tower?.id ?? -1, distance: 20, releaseTick: 999 }
 		applyStatus(fish, createStatus('armorStrip'))
 
 		expect(snapshot).toEqual(before)
