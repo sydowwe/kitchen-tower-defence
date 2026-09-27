@@ -19,10 +19,14 @@ import { applyLateralOffset, samplePath } from '@/core/path.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { barricadeHolding, isBarricade } from '@/core/systems/barricades.ts'
 import { isFlyer } from '@/core/systems/targeting.ts'
-import type { Enemy, MapDef, World } from '@/core/types.ts'
+import type { Enemy, MapDef, Path, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
 import {
+	ARMOR_PLATE,
+	BURROW_CREST,
+	BURROW_MOUND,
+	BURROW_TRAIL,
 	CHEW_DEBRIS,
 	ENEMY_STATIONARY_PULSE,
 	FLYER_SHADOW,
@@ -103,6 +107,52 @@ const STATIONARY_MAX_RADIUS_TILES = 0.44
 /** Radians per frame. ~0.4 of a breath a second: alive, and slower than anything that walks. */
 const STATIONARY_BREATH_PER_FRAME = 0.045
 
+/**
+ * A Weevil under the floor: a low dome where the glyph would be, heaving slowly, and a churned line
+ * behind it back toward where it went under.
+ *
+ * The dome is wider than it is tall and sits on the enemy's point rather than centred over it, so it
+ * reads as ground pushed up and not as a brown ball. The heave is aged in frames, like the breath.
+ */
+const MOUND_RADIUS_TILES = 0.34
+const MOUND_HEIGHT_TILES = 0.2
+/** How far below the enemy's point the dome's base sits, so its bulk is where the glyph's was. */
+const MOUND_BASE_TILES = 0.1
+const MOUND_HEAVE = 0.18
+/** Radians per frame. Faster than the mold's breath: this one is going somewhere. */
+const MOUND_HEAVE_PER_FRAME = 0.2
+const MOUND_CREST_WIDTH_PX = 2
+
+/**
+ * The trail, sampled off the path **behind** the mound and never remembered: a pure function of
+ * `distance`, clamped at the window's start so it begins where the Weevil went under (16C, decision 2).
+ * One pass per step back, because `globalAlpha` is per pass -- four fills for the whole board.
+ */
+const TRAIL_STEPS = 4
+const TRAIL_STEP_TILES = 0.38
+const TRAIL_RADIUS_TILES = 0.17
+const TRAIL_SQUASH = 0.55
+const TRAIL_START_ALPHA = 0.7
+
+/**
+ * The Silverfish's plating: overlapping plates over the top half of the glyph, a carapace rather than a
+ * ring, so it never fights the rooted ring at the feet or the slow disc under them.
+ *
+ * Stripped is the same shell with the crown plate gone and cracks at the break -- "halfway", not
+ * "gone", and read off the shape rather than a colour (16C, build item 3).
+ */
+const PLATE_COUNT = 5
+const PLATE_RADIUS_TILES = 0.4
+/** Radians of the half-circle each side left bare, so the shell ends at the flanks and not the floor. */
+const PLATE_FLANK = 0.28
+/** Radians between two whole plates: enough to read as segments, small enough to read as one shell. */
+const PLATE_GAP = 0.09
+const PLATE_WIDTH_PX = 3.5
+/** The plate a strip knocks out: the crown, where it is seen first. */
+const PLATE_BROKEN_INDEX = 2
+const CRACK_LENGTH_TILES = 0.13
+const CRACK_WIDTH_PX = 1.5
+
 /** Slow: a disc a little wider than the glyph, so it reads as standing in something cold. */
 const SLOW_DISC_TILES = 0.42
 const SLOW_SPECKS = 3
@@ -169,6 +219,20 @@ interface EnemyFrame {
 	flying: boolean
 	/** Its def's speed is 0, so it never walks: read off the def and not `enemy.speed`, which a freeze zeroes. */
 	stationary: boolean
+	/**
+	 * Under the floor: `flags.burrowed` and nothing else -- never "is `distance` inside the window",
+	 * which ignores a Bay Leaf holding it up (16C, decision 1). A burrowed entry draws a mound instead of
+	 * its glyph.
+	 */
+	burrowed: boolean
+	/** The trail's inputs. Only meaningful while `burrowed`; `path` is the world's own, read and never kept past the frame. */
+	path: Path | null
+	distance: number
+	burrowFrom: number
+	/** Wears plating: the `armored` tag, copied onto the enemy at spawn, so no def lookup per frame. */
+	armored: boolean
+	/** Carrying Armor Strip: the plating is drawn broken. */
+	stripped: boolean
 	/** The path's direction where this enemy stands. Only meaningful while `chewing`. */
 	dirX: number
 	dirY: number
@@ -232,6 +296,12 @@ function frameAt(index: number): EnemyFrame {
 		chewing: false,
 		flying: false,
 		stationary: false,
+		burrowed: false,
+		path: null,
+		distance: 0,
+		burrowFrom: 0,
+		armored: false,
+		stripped: false,
 		dirX: 1,
 		dirY: 0,
 	}
@@ -257,6 +327,7 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 	entry.burn = 0
 	entry.poison = 0
 	entry.rooted = false
+	entry.stripped = false
 
 	for (const status of enemy.statuses) {
 		if (status.kind === 'slow' || status.kind === 'freeze') {
@@ -267,6 +338,8 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 			entry.poison = status.stacks
 		} else if (status.kind === 'rooted') {
 			entry.rooted = true
+		} else if (status.kind === 'armorStrip') {
+			entry.stripped = true
 		}
 	}
 }
@@ -473,6 +546,163 @@ function drawRooted(ctx: CanvasRenderingContext2D, count: number, tilePx: number
 	ctx.stroke()
 }
 
+/**
+ * The churned line behind every burrowed enemy, oldest-and-faintest first so the nearer steps sit over
+ * it. One pass per step back, each batched across the board: `globalAlpha` is per pass.
+ *
+ * Sampled at `distance - k * step` and clamped at the window's start, so a Weevil that has just gone
+ * under has no trail yet and one halfway through its window has the whole of it.
+ */
+function drawBurrowTrails(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const step = TRAIL_STEP_TILES
+	ctx.fillStyle = BURROW_TRAIL
+
+	for (let k = TRAIL_STEPS; k >= 1; k--) {
+		const falloff = 1 - (k - 1) / TRAIL_STEPS
+		const rx = TRAIL_RADIUS_TILES * tilePx * (0.55 + 0.45 * falloff)
+		const ry = rx * TRAIL_SQUASH
+		let any = false
+
+		ctx.globalAlpha = TRAIL_START_ALPHA * falloff
+		ctx.beginPath()
+		for (let i = 0; i < count; i++) {
+			const entry = frames[i]
+			if (entry === undefined || !entry.burrowed || entry.path === null) {
+				continue
+			}
+			const back = entry.distance - k * step
+			if (back < entry.burrowFrom) {
+				continue
+			}
+			any = true
+			const at = samplePath(entry.path, back)
+			const x = (at.x + 0.5) * tilePx
+			const y = (at.y + 0.5) * tilePx + MOUND_BASE_TILES * tilePx
+			ctx.moveTo(x + rx, y)
+			ctx.ellipse(x, y, rx, ry, at.angle, 0, Math.PI * 2)
+		}
+		if (any) {
+			ctx.fill()
+		}
+	}
+
+	ctx.globalAlpha = 1
+}
+
+/**
+ * The dome, then the crest along its top in a second batched pass: the crest is what lifts it off a
+ * track of the same brown family.
+ */
+function drawMounds(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const base = MOUND_BASE_TILES * tilePx
+	let any = false
+
+	ctx.fillStyle = BURROW_MOUND
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.burrowed) {
+			continue
+		}
+		any = true
+		const heave = 1 + MOUND_HEAVE * Math.sin(ageFrames * MOUND_HEAVE_PER_FRAME + entry.x + entry.y)
+		const rx = MOUND_RADIUS_TILES * tilePx
+		const ry = MOUND_HEIGHT_TILES * tilePx * heave
+		const y = entry.y + base
+		// The upper half only, closed along the floor: ground pushed up, not a ball sitting on it.
+		ctx.moveTo(entry.x - rx, y)
+		ctx.ellipse(entry.x, y, rx, ry, 0, Math.PI, Math.PI * 2)
+		ctx.closePath()
+	}
+
+	if (!any) {
+		return
+	}
+	ctx.fill()
+
+	ctx.strokeStyle = BURROW_CREST
+	ctx.lineWidth = MOUND_CREST_WIDTH_PX
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.burrowed) {
+			continue
+		}
+		const heave = 1 + MOUND_HEAVE * Math.sin(ageFrames * MOUND_HEAVE_PER_FRAME + entry.x + entry.y)
+		const rx = MOUND_RADIUS_TILES * tilePx * 0.8
+		const ry = MOUND_HEIGHT_TILES * tilePx * heave * 0.85
+		const y = entry.y + base
+		const start = Math.PI * 1.2
+		ctx.moveTo(entry.x + Math.cos(start) * rx, y + Math.sin(start) * ry)
+		ctx.ellipse(entry.x, y, rx, ry, 0, start, Math.PI * 1.8)
+	}
+	ctx.stroke()
+}
+
+/**
+ * The shell over every armored enemy: whole plates, or the crown plate gone and cracks either side of
+ * the break. One stroke for the plates and one for the cracks, across the board.
+ */
+function drawPlating(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const radius = PLATE_RADIUS_TILES * tilePx
+	const span = Math.PI - PLATE_FLANK * 2
+	const plate = span / PLATE_COUNT
+	let anyStripped = false
+	let any = false
+
+	ctx.strokeStyle = ARMOR_PLATE
+	ctx.lineWidth = PLATE_WIDTH_PX
+	ctx.lineCap = 'round'
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.armored || entry.burrowed) {
+			continue
+		}
+		any = true
+		anyStripped ||= entry.stripped
+		for (let p = 0; p < PLATE_COUNT; p++) {
+			if (entry.stripped && p === PLATE_BROKEN_INDEX) {
+				continue
+			}
+			const from = Math.PI + PLATE_FLANK + p * plate + PLATE_GAP / 2
+			const to = from + plate - PLATE_GAP
+			ctx.moveTo(entry.x + Math.cos(from) * radius, entry.y + Math.sin(from) * radius)
+			ctx.arc(entry.x, entry.y, radius, from, to)
+		}
+	}
+	if (any) {
+		ctx.stroke()
+	}
+
+	if (anyStripped) {
+		// A short zig outward from each edge of the break: the plates either side are split, not just spaced.
+		const crack = CRACK_LENGTH_TILES * tilePx
+		ctx.lineWidth = CRACK_WIDTH_PX
+		ctx.beginPath()
+		for (let i = 0; i < count; i++) {
+			const entry = frames[i]
+			if (entry === undefined || !entry.armored || !entry.stripped || entry.burrowed) {
+				continue
+			}
+			const left = Math.PI + PLATE_FLANK + PLATE_BROKEN_INDEX * plate - PLATE_GAP / 2
+			const right = left + plate + PLATE_GAP
+			for (let lean = -1; lean <= 1; lean += 2) {
+				const edge = lean < 0 ? left : right
+				const ex = entry.x + Math.cos(edge) * radius
+				const ey = entry.y + Math.sin(edge) * radius
+				const out = edge + lean * 0.35
+				ctx.moveTo(ex, ey)
+				ctx.lineTo(ex + Math.cos(out) * crack * 0.5, ey + Math.sin(out) * crack * 0.5)
+				ctx.lineTo(ex + Math.cos(edge) * crack, ey + Math.sin(edge) * crack)
+			}
+		}
+		ctx.stroke()
+	}
+
+	ctx.lineCap = 'butt'
+}
+
 export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null, tilePx: number, dpr: number): void {
 	if (world === null) {
 		return
@@ -515,6 +745,11 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		entry.dirY = Math.sin(at.angle)
 		entry.chewing = barricades && barricadeHolding(world, enemy) !== null
 		entry.flying = isFlyer(enemy)
+		entry.burrowed = enemy.flags.burrowed
+		entry.path = path
+		entry.distance = enemy.distance
+		entry.burrowFrom = enemy.burrowWindow?.fromTiles ?? 0
+		entry.armored = enemy.tags.includes('armored')
 		readStatuses(entry, enemy)
 
 		if (entry.chewing) {
@@ -535,6 +770,11 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 	drawStationary(ctx, liveCount, tilePx)
 	drawSlow(ctx, liveCount, tilePx)
 	drawFlyerShadows(ctx, liveCount, tilePx)
+	// Trail under the mound, both before the glyph loop. The plating goes under the glyph too, so the
+	// Silverfish sits inside its shell and the health bar draws over the crown.
+	drawBurrowTrails(ctx, liveCount, tilePx)
+	drawMounds(ctx, liveCount, tilePx)
+	drawPlating(ctx, liveCount, tilePx)
 
 	const size = tilePx * ENEMY_SCALE
 	const lunge = CHEW_LUNGE_TILES * tilePx
@@ -542,6 +782,12 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 	for (let i = 0; i < liveCount; i++) {
 		const entry = frames[i]
 		if (entry === undefined) {
+			continue
+		}
+		if (entry.burrowed) {
+			// No glyph: the mound is the enemy. The bar stays, sat on the mound, and only once it has been
+			// hurt -- a poisoned Weevil is still losing health underground, and that is true information.
+			drawHpBar(ctx, entry.x, entry.y - size / 4, tilePx * HP_BAR_WIDTH_SCALE, entry.hp, entry.maxHp)
 			continue
 		}
 		// The lunge moves the glyph and not the frame: the bar and the treatments stay where the enemy

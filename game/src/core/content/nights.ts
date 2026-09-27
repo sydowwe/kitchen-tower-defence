@@ -1,9 +1,10 @@
 /**
- * The night schedule -- nights 1 to 12, then 15 (analytic-docs/CONTENT.md section 6): 6, 7, 8, 8, 9,
- * 9, 10, 10, 10, 11, 11, 12 and 13 waves, Ant from night 1, Roach from night 3, Beetle from night 5,
- * Fly from night 8, Moth from night 10, Mold from night 11, Slug from night 15. **13 and 14 are
- * missing on purpose** -- see the note above `NIGHTS`. All of them are on the Counter; see the note
- * above `night04` for why every night from 4 on is not on the map section 6 names.
+ * The night schedule -- nights 1 to 13, then 15 to 17 (analytic-docs/CONTENT.md section 6): 6, 7, 8,
+ * 8, 9, 9, 10, 10, 10, 11, 11, 12, 12, 13, 13 and 14 waves, Ant from night 1, Roach from night 3,
+ * Beetle from night 5, Fly from night 8, Moth from night 10, Mold from night 11, Weevil from night 13,
+ * Slug from night 15, Silverfish from night 17. **14 and 18 are missing on purpose** -- see the note
+ * above `NIGHTS`. All of them are on the Counter; see the note above `night04` for why every night
+ * from 4 on is not on the map section 6 names.
  *
  * Difficulty scalars are applied at runtime by `startWave` and are never baked in here.
  *
@@ -855,10 +856,11 @@ export const night10: NightDef = {
 }
 
 /**
- * Nights 11, 12 and 15 are authored **on the Counter, single-lane**, for the same reason nights 4-10
- * are: section 6 puts 11 and 12 on the Stove and 15 on the Table, neither map exists, and step 21
- * authors both. Wave counts are section 6's: 11, 12 and 13. Nights 13 and 14 are missing on purpose
- * -- see the note above `NIGHTS`.
+ * Nights 11, 12, 13, 15, 16 and 17 are authored **on the Counter, single-lane**, for the same reason
+ * nights 4-10 are: section 6 puts 11 and 12 on the Stove, 13 and 15 on the Table and 16 and 17 on the
+ * Floor -- with a third spawn point from 16 -- none of those maps exists, and step 21 authors them.
+ * Wave counts are section 6's: 11, 12, 12, 13, 13 and 14. Nights 14 and 18 are missing on purpose --
+ * see the note above `NIGHTS`.
  *
  * The Mold is the new enemy on night 11, and it arrives the way every other one has: **two of them in
  * wave 3**, well behind the wave's opening column and four seconds apart. What no other enemy needed
@@ -1318,6 +1320,153 @@ export const night12: NightDef = {
 }
 
 /**
+ * Night 13: the Weevil. Section 6 gives it the Bay Leaf unlock too, which is step 20's -- the tower
+ * already exists, and this night is what makes it a decision.
+ *
+ * Two of them in wave 3, released after the wave's last Ant and five seconds apart, so each is watched
+ * going under and coming back up on its own. After that they are folded into the ground column in
+ * growing numbers, and never given a wave of their own: a Cookie Jar lost in a Weevil-only wave buys
+ * twenty-odd of them, each with its own window (`spawnDestroyPenalty` buys from the running wave).
+ *
+ * What the night asks: with the Weevil's fractions its window runs from somewhere in the first third
+ * of the `crack` to somewhere past the middle, so a line built entirely at the start of the track has
+ * it for a few seconds before it is gone. No molds -- the Weevil is the only new question, and night
+ * 16 is where the two meet.
+ */
+export const night13: NightDef = {
+	id: 'night13',
+	index: 13,
+	mapId: 'counter',
+	waves: [
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 18, spacingTicks: 38, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 7, spacingTicks: 76, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 200, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 84, startDelayTicks: 380, pathId: 'crack' },
+			],
+			countdownTicks: OPENING_TICKS,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 19, spacingTicks: 36, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 8, spacingTicks: 72, startDelayTicks: 250, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 190, startDelayTicks: 370, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 80, startDelayTicks: 370, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 2, spacingTicks: 150, startDelayTicks: 450, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The Weevil arrives: two, behind the last Ant and 300 ticks apart.
+			entries: [
+				{ enemyDefId: 'ant', count: 19, spacingTicks: 35, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 8, spacingTicks: 70, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 185, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 78, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 2, spacingTicks: 300, startDelayTicks: 780, pathId: 'crack' },
+			],
+			countdownTicks: 9 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 20, spacingTicks: 33, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 3, spacingTicks: 160, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 8, spacingTicks: 66, startDelayTicks: 230, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 175, startDelayTicks: 350, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 7, spacingTicks: 74, startDelayTicks: 350, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 3, spacingTicks: 135, startDelayTicks: 430, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 21, spacingTicks: 31, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 4, spacingTicks: 130, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 9, spacingTicks: 62, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 165, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 7, spacingTicks: 70, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 3, spacingTicks: 125, startDelayTicks: 420, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'fly', count: 14, spacingTicks: 46, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 100, startDelayTicks: 120, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 22, spacingTicks: 30, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 5, spacingTicks: 110, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 58, startDelayTicks: 210, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 160, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 68, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 4, spacingTicks: 120, startDelayTicks: 400, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 23, spacingTicks: 28, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 6, spacingTicks: 95, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 11, spacingTicks: 54, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 150, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 64, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 112, startDelayTicks: 390, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 24, spacingTicks: 27, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 7, spacingTicks: 85, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 50, startDelayTicks: 190, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 140, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 60, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 106, startDelayTicks: 380, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 25, spacingTicks: 25, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 8, spacingTicks: 75, startDelayTicks: 180, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 13, spacingTicks: 46, startDelayTicks: 170, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 130, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 10, spacingTicks: 56, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 6, spacingTicks: 100, startDelayTicks: 360, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 26, spacingTicks: 24, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 9, spacingTicks: 68, startDelayTicks: 160, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 43, startDelayTicks: 160, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 8, spacingTicks: 122, startDelayTicks: 270, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 11, spacingTicks: 52, startDelayTicks: 270, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 92, startDelayTicks: 350, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 28, spacingTicks: 22, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 11, spacingTicks: 58, startDelayTicks: 150, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 15, spacingTicks: 40, startDelayTicks: 150, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 9, spacingTicks: 112, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 12, spacingTicks: 48, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 8, spacingTicks: 84, startDelayTicks: 340, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+	],
+}
+
+/**
  * Night 15: the Slug, and the loudest night in v1. Section 6 calls it "after a dinner party -- double
  * crumbs, double spawns"; that modifier is step 21's, so here it is authored into the composition
  * instead -- counts above night 12's and spacing tighter -- and nothing multiplies anything.
@@ -1555,9 +1704,450 @@ export const night15: NightDef = {
 }
 
 /**
- * Positional, and `GameView.vue` walks it by array position -- so the gap after night 12 is not a bug.
- * Night 13 is the Weevil's (step 16) and 14 the Mouse's (step 19), and authoring either now would be
- * authoring a night its own step rewrites. Continue goes from 12 straight to 15.
+ * Night 16 introduces nothing. It is the night that asks for everything from 11 to 15 at once: slug-led
+ * runs with Weevils released behind the slug, so they surface onto a wet road, and molds dropped at
+ * 8.5, 11 and 13 tiles -- the middle pocket's corner, which is where a Bay Leaf covering the Weevil's
+ * window wants to stand. Every mold distance is one 15C already placed in reach of a pocket.
+ *
+ * The flyers-only wave and the chaos wave carry nothing permanent, for the Cookie Jar reason above
+ * night 11. Section 6's Honey Pot unlock is step 17's, and step 17 may re-tune this night once the
+ * Honey Pot exists, the way it may night 12's for the Burner.
+ */
+export const night16: NightDef = {
+	id: 'night16',
+	index: 16,
+	mapId: 'counter',
+	waves: [
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 22, spacingTicks: 32, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 9, spacingTicks: 60, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 165, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 7, spacingTicks: 72, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 3, spacingTicks: 140, startDelayTicks: 300, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 300,
+					pathId: 'crack',
+					startDistanceTiles: 13,
+				},
+			],
+			countdownTicks: OPENING_TICKS,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 23, spacingTicks: 30, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 56, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 155, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 68, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 4, spacingTicks: 115, startDelayTicks: 400, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 4, spacingTicks: 120, startDelayTicks: 260, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 300,
+					pathId: 'crack',
+					startDistanceTiles: 24,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The first slug-led run: Weevils 10 seconds behind the slug, going under onto its road.
+			entries: [
+				{ enemyDefId: 'slug', count: 1, spacingTicks: 60, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 24, spacingTicks: 28, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 150, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 64, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 5, spacingTicks: 100, startDelayTicks: 600, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 20, startDelayTicks: 1200, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 24, spacingTicks: 28, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 11, spacingTicks: 52, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 145, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 62, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 108, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 5, spacingTicks: 100, startDelayTicks: 240, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 200,
+					pathId: 'crack',
+					startDistanceTiles: 11,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'fly', count: 16, spacingTicks: 40, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 8, spacingTicks: 80, startDelayTicks: 100, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 2, spacingTicks: 240, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 26, spacingTicks: 26, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 140, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 60, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 6, spacingTicks: 90, startDelayTicks: 500, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 18, startDelayTicks: 1140, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 27, spacingTicks: 25, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 48, startDelayTicks: 190, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 130, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 10, spacingTicks: 58, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 6, spacingTicks: 100, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 6, spacingTicks: 88, startDelayTicks: 220, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 240,
+					pathId: 'crack',
+					startDistanceTiles: 8.5,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The chaos wave: everything that flies and a ground rush under it, and nothing permanent.
+			entries: [
+				{ enemyDefId: 'fly', count: 18, spacingTicks: 34, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 9, spacingTicks: 70, startDelayTicks: 100, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 30, spacingTicks: 22, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 40, startDelayTicks: 300, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 28, spacingTicks: 24, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 13, spacingTicks: 46, startDelayTicks: 180, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 125, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 10, spacingTicks: 56, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 6, spacingTicks: 96, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 7, spacingTicks: 80, startDelayTicks: 200, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 200,
+					pathId: 'crack',
+					startDistanceTiles: 4,
+				},
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 640,
+					pathId: 'crack',
+					startDistanceTiles: 26.5,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 1, spacingTicks: 60, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 30, spacingTicks: 23, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 8, spacingTicks: 120, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 11, spacingTicks: 54, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 8, spacingTicks: 72, startDelayTicks: 600, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 18, spacingTicks: 17, startDelayTicks: 1500, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 31, spacingTicks: 22, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 42, startDelayTicks: 170, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 8, spacingTicks: 118, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 12, spacingTicks: 50, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 90, startDelayTicks: 350, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 8, spacingTicks: 70, startDelayTicks: 200, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 360,
+					pathId: 'crack',
+					startDistanceTiles: 13,
+				},
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 520,
+					pathId: 'crack',
+					startDistanceTiles: 22.5,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 2, spacingTicks: 300, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 32, spacingTicks: 21, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 9, spacingTicks: 112, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 12, spacingTicks: 48, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 86, startDelayTicks: 390, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 9, spacingTicks: 64, startDelayTicks: 560, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 20, spacingTicks: 16, startDelayTicks: 1200, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 3, spacingTicks: 300, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 35, spacingTicks: 20, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 10, spacingTicks: 100, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 14, spacingTicks: 44, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 8, spacingTicks: 80, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 11, spacingTicks: 56, startDelayTicks: 500, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 240,
+					pathId: 'crack',
+					startDistanceTiles: 9,
+				},
+				{ enemyDefId: 'roach', count: 24, spacingTicks: 15, startDelayTicks: 1200, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+	],
+}
+
+/**
+ * Night 17: the Silverfish. Two in wave 3, released after the wave's last Ant and five seconds apart,
+ * then more of them in every ground wave. At 0.6 tiles a second one takes ~52 seconds to cross, so a
+ * wave's Silverfish are still walking when the next wave arrives -- the Beetle's overlap, by design.
+ *
+ * What the night asks (16C, decision 7): `armored` is x0.4 physical, so a line of Salt Shakers lands
+ * ~20 on one per shaker per pass against its 110 HP. It is answered **non-physically** -- chemical at
+ * 1.0 from a Spray Bottle, Vinegar Spray or Baking Soda, cold at 1.2 -- or with **a Lemon plus
+ * physical**, since Armor Strip moves the 0.4 halfway to 1.0 for everything that hits after it.
+ *
+ * Never a Silverfish-only wave: a Cookie Jar lost in one buys eleven 110-HP walls. Two chaos-shaped
+ * waves carry none at all.
+ */
+export const night17: NightDef = {
+	id: 'night17',
+	index: 17,
+	mapId: 'counter',
+	waves: [
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 24, spacingTicks: 30, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 56, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 160, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 70, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 4, spacingTicks: 120, startDelayTicks: 260, pathId: 'crack' },
+			],
+			countdownTicks: OPENING_TICKS,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 25, spacingTicks: 29, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 54, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 150, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 66, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 4, spacingTicks: 110, startDelayTicks: 400, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 4, spacingTicks: 110, startDelayTicks: 240, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 300,
+					pathId: 'crack',
+					startDistanceTiles: 13,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The Silverfish arrives: two, behind the last Ant and 300 ticks apart.
+			entries: [
+				{ enemyDefId: 'ant', count: 25, spacingTicks: 28, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 11, spacingTicks: 52, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 150, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 64, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 4, spacingTicks: 110, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 2, spacingTicks: 300, startDelayTicks: 780, pathId: 'crack' },
+			],
+			countdownTicks: 9 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 26, spacingTicks: 27, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 11, spacingTicks: 50, startDelayTicks: 190, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 145, startDelayTicks: 310, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 62, startDelayTicks: 310, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 105, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 5, spacingTicks: 100, startDelayTicks: 230, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 2, spacingTicks: 260, startDelayTicks: 420, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 1, spacingTicks: 60, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 27, spacingTicks: 26, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 60, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 3, spacingTicks: 220, startDelayTicks: 400, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 5, spacingTicks: 95, startDelayTicks: 560, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 19, startDelayTicks: 1200, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'fly', count: 17, spacingTicks: 38, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 8, spacingTicks: 76, startDelayTicks: 100, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 28, spacingTicks: 25, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 48, startDelayTicks: 180, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 135, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 10, spacingTicks: 58, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 100, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 6, spacingTicks: 88, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 3, spacingTicks: 200, startDelayTicks: 380, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 300,
+					pathId: 'crack',
+					startDistanceTiles: 24,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 29, spacingTicks: 24, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 13, spacingTicks: 46, startDelayTicks: 180, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 130, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 10, spacingTicks: 56, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 6, spacingTicks: 96, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 6, spacingTicks: 84, startDelayTicks: 210, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 4, spacingTicks: 180, startDelayTicks: 360, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 2, spacingTicks: 240, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 30, spacingTicks: 23, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 11, spacingTicks: 54, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 4, spacingTicks: 170, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 7, spacingTicks: 78, startDelayTicks: 520, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 16, spacingTicks: 17, startDelayTicks: 1140, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 31, spacingTicks: 22, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 42, startDelayTicks: 170, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 120, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 11, spacingTicks: 52, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 90, startDelayTicks: 350, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 7, spacingTicks: 74, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 5, spacingTicks: 150, startDelayTicks: 340, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 240,
+					pathId: 'crack',
+					startDistanceTiles: 8.5,
+				},
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The chaos wave, and nothing permanent or armored in it.
+			entries: [
+				{ enemyDefId: 'fly', count: 19, spacingTicks: 32, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 10, spacingTicks: 66, startDelayTicks: 100, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 32, spacingTicks: 21, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 16, spacingTicks: 38, startDelayTicks: 300, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 33, spacingTicks: 21, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 15, spacingTicks: 40, startDelayTicks: 160, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 8, spacingTicks: 112, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 12, spacingTicks: 48, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 86, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 8, spacingTicks: 68, startDelayTicks: 190, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 6, spacingTicks: 130, startDelayTicks: 320, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 2, spacingTicks: 300, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 35, spacingTicks: 20, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 8, spacingTicks: 108, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 13, spacingTicks: 46, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 7, spacingTicks: 120, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 9, spacingTicks: 62, startDelayTicks: 500, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 20, spacingTicks: 16, startDelayTicks: 1200, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'slug', count: 3, spacingTicks: 300, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'ant', count: 37, spacingTicks: 19, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 9, spacingTicks: 100, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 14, spacingTicks: 44, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 8, spacingTicks: 80, startDelayTicks: 380, pathId: 'crack' },
+				{ enemyDefId: 'silverfish', count: 8, spacingTicks: 100, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 10, spacingTicks: 56, startDelayTicks: 480, pathId: 'crack' },
+				{
+					enemyDefId: 'mold',
+					count: 1,
+					spacingTicks: 60,
+					startDelayTicks: 240,
+					pathId: 'crack',
+					startDistanceTiles: 11,
+				},
+				{ enemyDefId: 'roach', count: 24, spacingTicks: 15, startDelayTicks: 1200, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+	],
+}
+
+/**
+ * Positional, and `GameView.vue` walks it by array position -- so the two gaps are not bugs, and 13
+ * sits between 12 and 15 rather than appended, or Continue would play it after 15. Night 14 is the
+ * Mouse's (step 19) and 18 the Fan's (step 18), and authoring either now would be authoring a night its
+ * own step rewrites. Continue goes 13, 15, 16, 17.
  */
 export const NIGHTS = [
 	night01,
@@ -1572,5 +2162,8 @@ export const NIGHTS = [
 	night10,
 	night11,
 	night12,
+	night13,
 	night15,
+	night16,
+	night17,
 ]

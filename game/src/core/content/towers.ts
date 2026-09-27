@@ -799,7 +799,18 @@ export const bayLeaf: TowerDefOf<'bayLeaf'> = {
  *
  * **`applies: ['armorStrip']` is bare**, the Vinegar Spray's reason: the status table's 4s and
  * halfway-to-1.0 *are* the numbers, and authoring them here would be a second copy that drifts.
- * `projectileSpeed: 0.1` is every projectile tower's precedent; section 5 gives `FIRST` to a DPS tower.
+ * `projectileSpeed: 0.1` is every projectile tower's precedent.
+ *
+ * **Two fields are step 16C's, from running night 17 headless**, and neither is section 1's:
+ *
+ * - **A 0.6-tile splash at base.** 16A's single-target strip lands on one Silverfish at a time for 4
+ *   seconds, and night 17 walks them in behind Ant columns. Two Lemons in a Salt Shaker line lost all
+ *   23 items; four still lost 16-19, against a same-cost chemical line that lost none. Rate, damage and
+ *   range each barely moved it; a 0.6 splash took the two-Lemon line to 1-3 items lost. T3's 1.0 is
+ *   still the upgrade.
+ * - **`STRONGEST`, not `FIRST`.** On `FIRST` the same line lost 14-16: the Lemon strips the Ant at the
+ *   head of the column and the Silverfish behind it walks through whole. Its job is the strip, not the
+ *   DPS, so it defaults the way section 5 defaults a tower that picks its target.
  */
 export const lemon: TowerDefOf<'lemon'> = {
 	id: 'lemon',
@@ -811,7 +822,7 @@ export const lemon: TowerDefOf<'lemon'> = {
 	maxHp: 100,
 	placement: 'off_path',
 	noise: 0,
-	defaultTargetingMode: 'FIRST',
+	defaultTargetingMode: 'STRONGEST',
 	behaviours: [
 		attack({
 			damage: 8,
@@ -820,13 +831,14 @@ export const lemon: TowerDefOf<'lemon'> = {
 			rangeTiles: 3,
 			targets: 'both',
 			projectileSpeed: 0.1,
+			splashRadiusTiles: 0.6,
 			applies: ['armorStrip'],
 		}),
 	],
 	/**
 	 * 8 -> 11 -> 14 on the hit.
 	 *
-	 * T3 gives the shot a 1-tile splash, so the strip lands on everything around the hit:
+	 * T3 widens the splash from 0.6 to 1 tile, so the strip lands on everything around the hit:
 	 * `dealSplashDamage` applies the shot's statuses to each enemy it catches.
 	 */
 	upgrades: upgradesFor('lemon', raise('attack', 'damage', 3), raise('attack', 'damage', 3), {

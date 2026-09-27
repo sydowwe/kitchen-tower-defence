@@ -18,8 +18,8 @@ decision, and the pass that re-tunes the numbers 16A authored blind.
 
 | File | What's there now |
 | --- | --- |
-| `render/layers/entities.ts:129` | `EnemyFrame`, a pooled entry **every field of which is written every frame**. An unwritten field on a reused entry is stale, and the header says so. `readStatuses` (`:216`) is where a status becomes a frame field. Treatments are **batched passes** (one `beginPath`, many arcs, one `fill`), aged in frames and never in ticks |
-| `render/layers/effects.ts:245` | `pushEvents`, the seam for one-shot visuals, with capped arrays aged in frames. The tower-destroyed puff (`drawPuffs`) is the nearest precedent for a dirt puff. `render/` has no rng, so "scattered" is fixed angles offset by position |
+| `render/layers/entities.ts:143` | `EnemyFrame`, a pooled entry **every field of which is written every frame**. An unwritten field on a reused entry is stale, and the header says so. `readStatuses` (`:255`) is where a status becomes a frame field. Treatments are **batched passes** (one `beginPath`, many arcs, one `fill`), aged in frames and never in ticks |
+| `render/layers/effects.ts:260` | `pushEvents`, the seam for one-shot visuals, with capped arrays aged in frames. The tower-destroyed puff (`drawPuffs`) is the nearest precedent for a dirt puff. `render/` has no rng, so "scattered" is fixed angles offset by position |
 | `render/palette.ts` | colours named by **role**, never by hue. Step 23 retunes all of them |
 | `core/types.ts` | 16A's `flags.burrowed`, `burrowWindow`, and the `enemyBurrowed` / `enemySurfaced` events. 16B's `enemyDamaged.multiplier` |
 | `core/content/nights.ts` | after 15C: nights 1 to 12 and 15, all on the Counter's single `crack` lane (31.1 tiles), with a header sentence explaining the gap at 13 and 14. **The pacing rule at the top of the file**: a wave spawns over roughly as long as the gap after it |
@@ -47,9 +47,10 @@ then edit this file. Don't leave it lying.
    control, since a Weevil re-diving and re-surfacing at a radius edge would stall every time.
 4. **Plating is read off `enemy.tags`, the crack off `armorStrip` in `readStatuses`.** Tags are
    copied onto the enemy at spawn, so no def lookup per frame.
-5. **Nights 13, 16 and 17 are on the Counter, single-lane**, exactly like the note above `night04`
-   and `night08` explains. No map in §6's column exists, and `createWorld` throws on a mismatch.
-   Extend that note; don't write a new one.
+5. **Nights 13, 16 and 17 are on the Counter, single-lane**, exactly like the notes above `night04`
+   and `night08` explain. No map in §6's column exists, and `createWorld` throws on a mismatch.
+   Extend the single-lane note that already exists, the one above `night11` (15C wrote it for 11, 12
+   and 15). Don't write a new one.
 6. **`NIGHTS` becomes 1–13, 15, 16, 17.** 14 is the Mouse's (step 19) and 18 is the Fan's
    (step 18). Put 13 **between 12 and 15**: Continue walks array positions, and an appended 13
    plays after 15. Rewrite the header's gap sentence to say both gaps.
@@ -73,6 +74,11 @@ A `burrowed` frame field, written every frame. A burrowed entry skips the glyph 
 low dirt mound with a slow wobble instead, plus decision 2's trail in the same batched pass. Decide
 by looking whether the HP bar stays. It says "this is an enemy with health"; the mound says "you
 can't touch it". Pick whichever reads better at 3×.
+
+*Built with the bar kept, sat low on the mound, and drawn only once the Weevil has been hurt (which is
+`drawHpBar`'s rule anyway). That was chosen without looking, because the session's browser tab was
+hidden and ran no frames. It is still open: look at it at 3×, and drop the bar if it reads as
+shootable.*
 
 Everything that isn't the glyph still applies: a poisoned Weevil keeps bubbling underground,
 because the DoT is still ticking, and that's true information.
@@ -145,7 +151,7 @@ the two lists at `:379`, and add one "introduces X in wave 3" assertion each for
 - [ ] Night 13 punishes a defence concentrated at the start of the track, on two seeds.
 - [ ] Night 17 is lost with physical damage alone and won both ways from decision 7. Leave this
       unticked unless you played all three.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked. The checkboxes are the
 ledger of what has been confirmed.

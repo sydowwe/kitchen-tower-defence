@@ -258,6 +258,32 @@ export const TILE_MOLD_RIM = 'rgba(212, 232, 184, 0.75)'
  */
 export const ENEMY_STATIONARY_PULSE = 'rgba(212, 232, 184, 0.3)'
 
+/**
+ * A Weevil under the floor: the mound, the lit crest along its top, and the churned line behind it.
+ *
+ * Earth rather than anything bright. The mound says "you cannot touch this", and a mound in a status
+ * colour reads as a treatment on an enemy you can. The crest is what keeps it from vanishing into the
+ * track, which is the same brown family and a step darker.
+ */
+export const BURROW_MOUND = 'rgba(118, 84, 52, 0.95)'
+export const BURROW_CREST = 'rgba(206, 164, 112, 0.9)'
+export const BURROW_TRAIL = 'rgba(96, 68, 42, 1)'
+
+/**
+ * The dirt thrown up by a dive or a surfacing, and the ring that only a surfacing gets.
+ *
+ * The ring is the brightest thing in this family on purpose: a surfacing is the moment the towers can
+ * shoot again, and it has to be caught from across the room without anyone looking for it.
+ */
+export const BURROW_DIRT = 'rgba(176, 132, 86, 0.95)'
+export const BURROW_SURFACE_RING = 'rgba(255, 236, 190, 0.95)'
+
+/**
+ * The Silverfish's plating. One colour for whole and cracked alike: a strip is read off the **shape**
+ * -- a plate missing and cracks at the break -- so it survives a colour-blind read.
+ */
+export const ARMOR_PLATE = 'rgba(200, 212, 228, 0.9)'
+
 /** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */
 export const GHOST_NOISE = '#f5c66b'
 

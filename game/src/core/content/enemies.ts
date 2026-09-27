@@ -258,8 +258,13 @@ export const slug: EnemyDefOf<'slug'> = {
  * shot, is not stopped by a box and takes nothing from the floor. A Bay Leaf's radius brings it up.
  * **`burrow` does that, not the `burrows` tag**, which is descriptive and multiplies by 1.0.
  *
- * The window starts in the first third of the lane and lasts 25-40% of it -- a blind draft that
- * step 16C re-tunes on the board.
+ * The window starts in the first quarter of the lane and lasts 30-40% of it: on the Counter, going
+ * under by tile ~8 and up again somewhere between 9 and 20. **Step 16C moved it earlier and
+ * narrowed the spread** from 16A's blind first-third and 25-40%. Run headless, that draft let the roll
+ * decide night 13: a Weevil drawn to go under late was killed by a front-loaded line before it ever
+ * dived, so the same line lost 5 items on one seed and 13 on another. Now it loses the night on two
+ * seeds of three and 17 of 22 items on the third, and a line spread down the track or holding a Bay Leaf
+ * at the first corner still loses none to Weevils.
  */
 export const weevil: EnemyDefOf<'weevil'> = {
 	id: 'weevil',
@@ -272,7 +277,7 @@ export const weevil: EnemyDefOf<'weevil'> = {
 	reward: 9,
 	steals: 1,
 	tags: ['ground', 'burrows', 'bug'],
-	burrow: { startMaxFraction: 1 / 3, lengthMinFraction: 0.25, lengthMaxFraction: 0.4 },
+	burrow: { startMaxFraction: 0.25, lengthMinFraction: 0.3, lengthMaxFraction: 0.4 },
 }
 
 /**

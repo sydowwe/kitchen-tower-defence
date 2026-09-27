@@ -22,6 +22,8 @@ import { blitGlyph } from '@/render/glyphCache.ts'
 import { forgetCrumbPositions, lastCrumbPosition } from '@/render/layers/crumbs.ts'
 import { foodGlyphSize, shelfSlot } from '@/render/layers/fridge.ts'
 import {
+	BURROW_DIRT,
+	BURROW_SURFACE_RING,
 	CRUMB_POP,
 	CRUMB_VALUE,
 	DAMAGE_NUMBER,
@@ -201,6 +203,37 @@ interface Puff {
 const puffs: Puff[] = []
 
 /**
+ * A Weevil going under or coming up: dirt thrown out of the hole either way, and on a surfacing a
+ * bright ring as well (16C, decision 3). The ring is visual only -- there is no stun and no status,
+ * because a pause at a Bay Leaf's edge would turn it into crowd control.
+ *
+ * Sixteen is the cap because a Cookie Jar lost in a Weevil-only wave buys twenty-odd of them, and at
+ * 3x speed a frame can hand over several dives at once. Oldest dropped first, like everything here.
+ */
+const DIG_LIFE_FRAMES = 22
+const DIG_PIECES = 6
+const DIG_PIECE_RADIUS_PX = 2.2
+const DIG_PIECE_REACH_TILES = 0.5
+/** Dirt goes up before it comes down: the arc's peak height, in tiles. */
+const DIG_PIECE_LOFT_TILES = 0.35
+const SURFACE_LIFE_FRAMES = 20
+const SURFACE_START_RADIUS_TILES = 0.2
+const SURFACE_END_RADIUS_TILES = 0.95
+const SURFACE_LINE_WIDTH_PX = 3.5
+const MAX_DIGS = 16
+
+interface Dig {
+	/** Tile space, from the event's `at`. */
+	x: number
+	y: number
+	/** True for `enemySurfaced`, which gets the ring. */
+	surfaced: boolean
+	ageFrames: number
+}
+
+const digs: Dig[] = []
+
+/**
  * The light coming on: a warm wash over the whole board and the colour draining out from under it.
  *
  * **Animation, not simulation.** A wash driven off `world.noise` would be in every save and every
@@ -316,6 +349,14 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 			puffs.push({ x: event.tile.x, y: event.tile.y, ageFrames: 0 })
 			if (puffs.length > MAX_PUFFS) {
 				puffs.shift()
+			}
+			continue
+		}
+
+		if (event.kind === 'enemyBurrowed' || event.kind === 'enemySurfaced') {
+			digs.push({ x: event.at.x, y: event.at.y, surfaced: event.kind === 'enemySurfaced', ageFrames: 0 })
+			if (digs.length > MAX_DIGS) {
+				digs.shift()
 			}
 			continue
 		}
@@ -538,6 +579,62 @@ function drawPuffs(ctx: CanvasRenderingContext2D, tilePx: number): void {
 	puffs.length = live
 }
 
+/**
+ * The dirt and, for a surfacing, the ring. The ring first so the clods fly over it; each dig is its own
+ * pair of paths, like a puff, because its alpha is its age.
+ */
+function drawDigs(ctx: CanvasRenderingContext2D, tilePx: number): void {
+	let live = 0
+
+	for (const dig of digs) {
+		dig.ageFrames++
+		if (dig.ageFrames >= DIG_LIFE_FRAMES) {
+			continue
+		}
+
+		const x = (dig.x + 0.5) * tilePx
+		const y = (dig.y + 0.5) * tilePx
+
+		if (dig.surfaced && dig.ageFrames < SURFACE_LIFE_FRAMES) {
+			const s = dig.ageFrames / SURFACE_LIFE_FRAMES
+			const eased = 1 - (1 - s) * (1 - s)
+			const radius = SURFACE_START_RADIUS_TILES + (SURFACE_END_RADIUS_TILES - SURFACE_START_RADIUS_TILES) * eased
+			ctx.globalAlpha = 1 - s
+			ctx.strokeStyle = BURROW_SURFACE_RING
+			ctx.lineWidth = SURFACE_LINE_WIDTH_PX
+			ctx.beginPath()
+			ctx.arc(x, y, radius * tilePx, 0, Math.PI * 2)
+			ctx.stroke()
+		}
+
+		// Thrown up and out of the hole, and falling back: a parabola over the life, with fixed angles
+		// off the position the way `drawPuffs` scatters, since `render/` has no rng.
+		const t = dig.ageFrames / DIG_LIFE_FRAMES
+		const reach = DIG_PIECE_REACH_TILES * tilePx * Math.sqrt(t)
+		const loft = DIG_PIECE_LOFT_TILES * tilePx * 4 * t * (1 - t)
+		const phase = dig.x * 1.7 + dig.y
+		ctx.globalAlpha = 1 - t * t
+		ctx.fillStyle = BURROW_DIRT
+		ctx.beginPath()
+		for (let piece = 0; piece < DIG_PIECES; piece++) {
+			const angle = phase + (piece / DIG_PIECES) * Math.PI * 2
+			const pieceX = x + Math.cos(angle) * reach
+			// Squashed vertically, so the spread reads as across the floor, and lifted by the loft.
+			const pieceY = y + Math.sin(angle) * reach * 0.5 - loft
+			const size = DIG_PIECE_RADIUS_PX * (1 - t * 0.3)
+			ctx.moveTo(pieceX + size, pieceY)
+			ctx.arc(pieceX, pieceY, size, 0, Math.PI * 2)
+		}
+		ctx.fill()
+
+		digs[live] = dig
+		live++
+	}
+
+	ctx.globalAlpha = 1
+	digs.length = live
+}
+
 /** Called from `drawFrame` at the particles slot of the draw order. Ages one frame per call. */
 export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: number): void {
 	const size = foodGlyphSize(tilePx)
@@ -566,6 +663,7 @@ export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: 
 	flights.length = live
 
 	drawPuffs(ctx, tilePx)
+	drawDigs(ctx, tilePx)
 	drawHits(ctx, tilePx, dpr)
 	drawCrumbPops(ctx, tilePx, dpr)
 }
@@ -627,6 +725,8 @@ export function resetEffects(): void {
 	pops.length = 0
 	crumbValues.length = 0
 	puffs.length = 0
+	// Without this a retry opens with last night's dirt still settling.
+	digs.length = 0
 	// Without this a retry opens with last night's light still on.
 	wakeAgeFrames = null
 	forgetCrumbPositions()

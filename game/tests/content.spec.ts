@@ -376,9 +376,12 @@ describe('the Beetle', () => {
 
 describe('nights 4 to 9', () => {
 	it('carries the wave counts of analytic-docs/CONTENT.md section 6', () => {
-		expect(NIGHTS.map(night => night.waves.length)).toEqual([6, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 13])
-		// 13 is the Weevil's night (step 16) and 14 the Mouse's (step 19); the gap is on purpose.
-		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15])
+		expect(NIGHTS.map(night => night.waves.length)).toEqual([
+			6, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 12, 13, 13, 14,
+		])
+		// 14 is the Mouse's night (step 19) and 18 the Fan's (step 18); the gaps are on purpose. 13 sits
+		// between 12 and 15 because Continue walks array positions.
+		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17])
 	})
 
 	it('is authored on the Counter, on the lane the Counter actually has', () => {
@@ -689,6 +692,35 @@ describe('night 10', () => {
 		const first = night?.waves.findIndex(wave => wave.entries.some(entry => entry.enemyDefId === 'moth'))
 		expect(first).toBe(2)
 		expect(night?.waves[2]?.entries.find(entry => entry.enemyDefId === 'moth')?.count).toBe(2)
+	})
+})
+
+describe('night 13', () => {
+	it('introduces the Weevil in wave 3 and nowhere earlier', () => {
+		const scheduled = NIGHTS.filter(night => night.index < 13).flatMap(night =>
+			night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId)),
+		)
+		expect(scheduled).not.toContain('weevil')
+
+		// Two of them, in wave 3, the way night 8 introduced the Fly and night 10 the Moth.
+		const night = NIGHTS.find(entry => entry.index === 13)
+		const first = night?.waves.findIndex(wave => wave.entries.some(entry => entry.enemyDefId === 'weevil'))
+		expect(first).toBe(2)
+		expect(night?.waves[2]?.entries.find(entry => entry.enemyDefId === 'weevil')?.count).toBe(2)
+	})
+})
+
+describe('night 17', () => {
+	it('introduces the Silverfish in wave 3 and nowhere earlier', () => {
+		const scheduled = NIGHTS.filter(night => night.index < 17).flatMap(night =>
+			night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId)),
+		)
+		expect(scheduled).not.toContain('silverfish')
+
+		const night = NIGHTS.find(entry => entry.index === 17)
+		const first = night?.waves.findIndex(wave => wave.entries.some(entry => entry.enemyDefId === 'silverfish'))
+		expect(first).toBe(2)
+		expect(night?.waves[2]?.entries.find(entry => entry.enemyDefId === 'silverfish')?.count).toBe(2)
 	})
 })
 
