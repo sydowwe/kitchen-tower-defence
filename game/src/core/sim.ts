@@ -2,6 +2,7 @@ import type { Command, CommandQueue } from '@/core/commands.ts'
 import type { World } from '@/core/types.ts'
 import {
 	auraSystem,
+	baitSystem,
 	barricadesSystem,
 	burrowSystem,
 	cleanseSystem,
@@ -35,6 +36,7 @@ export type SystemName =
 	| 'wave'
 	| 'status'
 	| 'movement'
+	| 'bait'
 	| 'burrow'
 	| 'barricades'
 	| 'light'
@@ -69,6 +71,9 @@ const SYSTEMS: readonly System[] = [
 	{ name: 'wave', run: waveSystem },
 	{ name: 'status', run: statusSystem },
 	{ name: 'movement', run: movementSystem },
+	// After the move so a feeder is reset to its stored distance, before `burrow` so a burrow window is
+	// judged at the frozen distance.
+	{ name: 'bait', run: baitSystem },
 	// After the move so a Weevil stepping into a Bay Leaf radius is targetable this tick, before the
 	// clamp so a burrowed one is never held by a box.
 	{ name: 'burrow', run: burrowSystem },
@@ -102,7 +107,7 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
 /**
  * One fixed step of the simulation.
  *
- * Order: commands -> spawn -> wave -> status -> movement -> burrow -> barricades -> light -> targeting ->
+ * Order: commands -> spawn -> wave -> status -> movement -> bait -> burrow -> barricades -> light -> targeting ->
  * combat -> aura -> projectiles -> spread -> cleanse -> tileEffect ->
  * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
  *

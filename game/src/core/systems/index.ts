@@ -4,6 +4,12 @@
  */
 
 export { AURA_INTERVAL_TICKS, auraSystem } from '@/core/systems/aura.ts'
+export {
+	BAIT_CATCH_WINDOW_TILES,
+	BAIT_LEAN_GAP_TILES,
+	BAIT_LEAN_TILES_PER_TICK,
+	baitSystem,
+} from '@/core/systems/bait.ts'
 export { barricadeAhead, barricadeHolding, barricadesSystem, isBarricade } from '@/core/systems/barricades.ts'
 export { burrowSystem } from '@/core/systems/burrow.ts'
 export { cleanseSystem } from '@/core/systems/cleanse.ts'

@@ -460,6 +460,17 @@ export const en = {
 				description: 'A new sheet every ten seconds. It never runs out.',
 			},
 		},
+		honeyPot: {
+			name: 'Honey Pot',
+			description:
+				'Pays well, and smells better. Anything walking past stops to feed for three seconds, chewing on the pot while it does.',
+			tier1: { name: 'Fuller Pot' },
+			tier2: { name: 'Clover Honey' },
+			tier3: {
+				name: 'Sticky Floor',
+				description: 'The honey gets everywhere. Everything walking near the pot is slowed.',
+			},
+		},
 	} satisfies TowerMessages,
 	enemy: {
 		ant: {

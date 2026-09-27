@@ -355,16 +355,24 @@ export function barricade(params: BarricadeParams = {}): BarricadeBehaviour {
 	}
 }
 
-/** Honey Pot. Pulls ground enemies off their pace and holds them in a kill zone. Step 17. */
+/**
+ * Honey Pot. Enemies walking past it stop, lean in and feed for `durationTicks`, chewing on the pot
+ * while they do -- a kill zone for free. `core/systems/bait.ts` interprets it, step 17B.
+ *
+ * `radiusTiles` is how far off a lane the pot may stand and still catch that lane.
+ */
 export interface BaitBehaviour {
 	kind: 'bait'
 	radiusTiles: number
 	targets: TargetClass
+	/** How long one feed holds an enemy. On the behaviour so a tier can lengthen it. */
+	durationTicks: number
 }
 
 export interface BaitParams {
 	radiusTiles: number
 	targets: TargetClass
+	durationTicks: number
 }
 
 export function bait(params: BaitParams): BaitBehaviour {
@@ -372,6 +380,7 @@ export function bait(params: BaitParams): BaitBehaviour {
 		kind: 'bait',
 		radiusTiles: params.radiusTiles,
 		targets: params.targets,
+		durationTicks: params.durationTicks,
 	}
 }
 
@@ -663,6 +672,11 @@ export function isSuppress(behaviour: Behaviour): behaviour is SuppressBehaviour
 /** And for scrubbing: `core/systems/cleanse.ts`, the card in `ui/viewModel.ts`, and `reachOf`. */
 export function isCleanse(behaviour: Behaviour): behaviour is CleanseBehaviour {
 	return behaviour.kind === 'cleanse'
+}
+
+/** And for pots: `core/systems/bait.ts`, and 17C's card and `reachOf`. */
+export function isBait(behaviour: Behaviour): behaviour is BaitBehaviour {
+	return behaviour.kind === 'bait'
 }
 
 /** And for writing cells: `core/systems/tileEffect.ts`, and `projectedNoisePerSecond` in `noise.ts`. */

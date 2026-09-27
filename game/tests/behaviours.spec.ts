@@ -82,7 +82,7 @@ const everyBehaviour: Behaviour[] = [
 	collect({ radiusTiles: 2.5, travelTicks: 90 }),
 	charge({ charges: 3, rearmTicks: 396 }),
 	barricade(),
-	bait({ radiusTiles: 3, targets: 'ground' }),
+	bait({ radiusTiles: 3, targets: 'ground', durationTicks: 180 }),
 	suppress({ radiusTiles: 3, suppresses: 'burrow' }),
 	pushback({ rangeTiles: 4, coneHalfAngleDeg: 35, pushTilesPerTick: 0.02, targets: 'air' }),
 	tileEffect({ effect: 'heat', radiusTiles: 0, magnitude: 14 / 60, durationTicks: 120, refreshIntervalTicks: 30 }),

@@ -93,6 +93,8 @@ function addEnemy(world: World, def: EnemyDef, options: EnemyOptions): Enemy {
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
 		burrowWindow: options.burrowWindow ?? null,
+		feeding: null,
+		fedAt: [],
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

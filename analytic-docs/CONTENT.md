@@ -52,7 +52,7 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 - **Nightlight** — deals nothing. Reveals hidden enemies and pulls light-drawn ones (Moth) into its radius. T3 upgrade adds damage.
 - **Bay Leaf** — suppresses burrowing inside its radius: Weevils surface and become targetable.
 - **Lemon** — every hit applies Armor Strip (§4).
-- **Honey Pot** — 7 crumbs/sec income *and* an aggro radius that pulls nearby ground enemies toward it, holding them in a kill zone. Bait is the point; the income is the bribe for taking the risk.
+- **Honey Pot** — 7 crumbs/sec income *and* an aggro radius that pulls nearby ground enemies toward it, holding them in a kill zone. Bait is the point; the income is the bribe for taking the risk. Each ground enemy passing within 3 tiles stops and feeds for **3 seconds**, leaning in toward the pot and chewing on it at its own melee rate; each pot feeds an enemy once. If the pot is destroyed, every feeder lets go.
 - **Fan** — pushback, air-only. Shares the pushback system with Mint Pot (post-v1, ground).
 - **Gas Stove Burner** — writes a persistent damaging tile onto the track. First real area denial. Its noise is 2 per second **of burning something** — once a second while an enemy on the floor stands on its ring — never constantly: 2/s beats the meter's 1.5/s decay, and an idle Burner would wake the house on its own.
 - **Candle** — a light: Moths drift toward it, from the same 5 tiles they see a Nightlight from.
@@ -84,6 +84,7 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 - Candle T3 — burn applied by the aura stacks to 3 (at 2/s a stack, not the status table's 5/s: +6/s at the cap)
 - Gas Stove Burner T3 — the flame reaches the tiles either side (radius 0 → 1)
 - Fly Paper T3 — a fresh sheet every 10s, and it stops leaving the board (tiers 1–2 take it from 2 to 4 sheets, all sticky at once)
+- Honey Pot T3 — the honey gets everywhere: an aura at the bait radius 3 that applies `Slow` to ground enemies (tiers 1–2 take the income 7 → 9 → 11/sec). *Draft, as is the pot's 150 HP.*
 - Fan T3 — pushback also applies `Marked` *(arrives with the Fan, step 18)*
 
 ### Selling
@@ -114,7 +115,7 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 
 **Weevil** burrows for a randomised stretch of the track — untargetable while under. Bay Leaf suppresses this inside its radius.
 
-**Moth** deviates from the track toward any active light source (Nightlight, Candle) within 5 tiles, then resumes. This is the one enemy that leaves the polyline; implement it as a lateral offset from the sampled path point, not as free movement.
+**Moth** deviates from the track toward any active light source (Nightlight, Candle) within 5 tiles, then resumes. This is the one enemy a light moves off the polyline (a Honey Pot's feeders are the other off-lane case); implement it as a lateral offset from the sampled path point, not as free movement.
 
 ---
 

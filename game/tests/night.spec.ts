@@ -48,6 +48,8 @@ function putEnemiesAtTheFridge(world: World, count: number, spawnedInWaveIndex =
 			spawnedInWaveIndex,
 			nextTileWriteTick: 0,
 			burrowWindow: null,
+			feeding: null,
+			fedAt: [],
 			stolenItems: [],
 			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 		}

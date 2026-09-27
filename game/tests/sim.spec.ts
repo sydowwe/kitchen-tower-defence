@@ -69,6 +69,7 @@ describe('system order', () => {
 			'wave',
 			'status',
 			'movement',
+			'bait',
 			'burrow',
 			'barricades',
 			'light',

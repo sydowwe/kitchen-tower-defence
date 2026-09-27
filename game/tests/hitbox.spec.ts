@@ -66,6 +66,8 @@ function addEnemyAt(world: World, at: Vec2, overrides: EnemyOverrides = {}): Ene
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
 		burrowWindow: null,
+		feeding: null,
+		fedAt: [],
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

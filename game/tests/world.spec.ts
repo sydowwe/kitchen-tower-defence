@@ -50,6 +50,12 @@ describe('createWorld', () => {
 		const burrower = spawnEnemyAt(world, weevil, lane?.id ?? '', 0, 0)
 		expect(burrower.burrowWindow).not.toBeNull()
 		expect(roundTrip(world)).toEqual(world)
+
+		// Step 17B's `feeding` is the second, with `fedAt` beside it: a feeder mid-feed.
+		burrower.feeding = { towerId: 7, distance: 3.25, releaseTick: 180 }
+		burrower.fedAt.push(7)
+		expect(roundTrip(world)).toEqual(world)
+		expect(roundTrip(world).enemies[0]?.feeding).toEqual({ towerId: 7, distance: 3.25, releaseTick: 180 })
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {

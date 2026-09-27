@@ -13,6 +13,7 @@
 import {
 	attack,
 	aura,
+	bait,
 	barricade,
 	charge,
 	cleanse,
@@ -1008,6 +1009,52 @@ export const flyPaper: TowerDefOf<'flyPaper'> = {
 	),
 }
 
+/** How far off a lane the Honey Pot catches, and what its tier-3 honey spreads within. */
+const HONEY_POT_RADIUS_TILES = 3
+
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 175 crumbs, ECONOMY, no damage, "3 bait", ground, no
+ * noise, off the path, and 7/sec in *Economy rates*. What an enemy does at the pot is
+ * `core/systems/bait.ts`'s.
+ *
+ * **`maxHp: 150` is a draft.** The doc gives the pot no HP, and the pot's HP *is* its risk: feeders
+ * chew it at their own `meleeDamagePerTick`, so it is a number 17D judges on the board. No
+ * `enemyCrumbsOnDestroy`: losing the pot is the cost, not a penalty wave.
+ */
+export const honeyPot: TowerDefOf<'honeyPot'> = {
+	id: 'honeyPot',
+	nameKey: 'tower.honeyPot.name',
+	descriptionKey: 'tower.honeyPot.description',
+	glyph: '🍯',
+	role: 'ECONOMY',
+	cost: 175,
+	maxHp: 150,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		income({ crumbsPerPayout: 7, payoutIntervalTicks: TICKS_PER_SECOND }),
+		bait({ radiusTiles: HONEY_POT_RADIUS_TILES, targets: 'ground', durationTicks: 3 * TICKS_PER_SECOND }),
+	],
+	/**
+	 * 7 -> 9 -> 11 a second: the income is the bribe, so the income is what the tiers raise.
+	 *
+	 * T3, "the honey gets everywhere": a 0-damage aura at the bait radius that slows ground enemies --
+	 * the Bay Leaf's tier-3 shape, so no system changes.
+	 */
+	upgrades: upgradesFor('honeyPot', raise('income', 'crumbsPerPayout', 2), raise('income', 'crumbsPerPayout', 2), {
+		addBehaviours: [
+			aura({
+				radiusTiles: HONEY_POT_RADIUS_TILES,
+				damagePerTick: 0,
+				damageType: 'physical',
+				targets: 'ground',
+				applies: ['slow'],
+			}),
+		],
+	}),
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
 export const TOWERS = [
 	saltShaker,
@@ -1027,6 +1074,7 @@ export const TOWERS = [
 	candle,
 	gasStoveBurner,
 	flyPaper,
+	honeyPot,
 ]
 
 export type TowerId = (typeof TOWERS)[number]['id']

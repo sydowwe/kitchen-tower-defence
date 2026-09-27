@@ -324,6 +324,8 @@ export function contentSchemas() {
 			kind: z.literal('bait'),
 			radiusTiles: tiles(),
 			targets: targetClass,
+			/** A hold is a status-sized duration; the bound is what rejects a pasted 3000. */
+			durationTicks: tickCount(MAX_STATUS_TICKS).min(1),
 		}),
 		z.object({
 			kind: z.literal('suppress'),

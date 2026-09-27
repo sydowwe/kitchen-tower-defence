@@ -61,6 +61,8 @@ function addEnemy(world: World, def: EnemyDef, distance: number, pathId = PATH_I
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
 		burrowWindow: null,
+		feeding: null,
+		fedAt: [],
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

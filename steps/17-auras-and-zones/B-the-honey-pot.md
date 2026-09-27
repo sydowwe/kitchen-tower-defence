@@ -29,9 +29,10 @@ Nothing is drawn. C owns the card and D the ants. **This part carries the step's
 | `core/content/enemies.ts` | `meleeDamagePerTick` on every def: Ant 1/s, Roach 1.8, Beetle 5.5, Weevil 3, Slug 4.5, Silverfish 11. **The Mold's `speedTilesPerTick` is 0**: it never walks |
 | `tests/world.spec.ts` | the JSON round-trip assertion that 16A extended for `burrowWindow` |
 
-**Specs that will break, by design:** every fixture that builds an `Enemy` literal. That's 14
-literals in 13 files: `barricades`, `burrow`, `charges`, `combat`, `crumbs`, `hitbox`, `light`,
-`night`, `noise`, `status`, `tiles`, `upgrades` (two) and `viewModel`. Update them mechanically;
+**Specs that will break, by design:** every fixture that builds an `Enemy` literal. That's 18
+literals in 17 files: `barricades`, `burrow`, `candle`, `charges`, `combat`, `crumbs`, `hitbox`,
+`holds`, `light`, `night`, `noise`, `status`, `tileEffect`, `tiles`, `upgrades` (two) and
+`viewModel`. (Written as 14 in 13 before 17A added four; corrected when 17B was built.) Update them mechanically;
 don't make the new fields optional to dodge it (15A and 16A paid the same). Plus
 `tests/sim.spec.ts`'s order literal, `tests/behaviours.spec.ts:85`, and the tower count.
 
@@ -59,6 +60,9 @@ then edit this file. Don't leave it lying.
    drifts toward 0, so a released enemy walks back onto its lane. **`bait.ts` writes
    `lateralOffsetTiles` for every `!isFlyer` enemy, and `light.ts` keeps flyers**: that's the
    index's unsplittable seam. Say it in both files' headers.
+   *As built:* `light.ts` now also checks `isFlyer` before writing, so the split is enforced and not
+   only true because every `light-drawn` enemy happens to fly. The sign convention lives in
+   `lateralOffsetOf` in `core/path.ts`, beside `applyLateralOffset`, and both systems call it.
 4. **State: `Enemy.feeding: { towerId: EntityId; distance: number; releaseTick: number } | null`
    and `Enemy.fedAt: EntityId[]`**, both required. `distance` is stored because the slot runs after
    `movement`, and resetting to a stored value is exact. Recomputing last tick's step backwards is
@@ -109,7 +113,8 @@ fedAt: []`, and then come the 14 fixtures. Rewrite the three stale "only a Moth"
 
 Decisions 2, 3, 5 and 6. Export the three `BAIT_*` constants: D re-tunes their **values** by
 eye. Skip terminal phases. Early out when no tower has a `bait` **and** no floor enemy has a
-non-zero offset, because this runs for every enemy every tick. Update `tests/sim.spec.ts`, the order
+non-zero offset **and** no enemy is still `feeding` (as built: without the third condition, a feeder
+whose pot was the last one sold would never be released), because this runs for every enemy every tick. Update `tests/sim.spec.ts`, the order
 string in `tick()`'s docstring, and `barricades.ts:175`'s sentence in the same commit.
 
 Gotchas, each of which fails quietly:
@@ -158,11 +163,11 @@ moves no assertion.
 
 ## Acceptance
 
-- [ ] The Honey Pot is a config object. The only new system file is `bait.ts`, and no existing
+- [x] The Honey Pot is a config object. The only new system file is `bait.ts`, and no existing
       system gained a branch on bait. `barricades.ts` changed by one comment.
-- [ ] `grep -n "lateralOffsetTiles =" src/core` finds exactly two writers, `light.ts` and
+- [x] `grep -n "lateralOffsetTiles =" src/core` finds exactly two writers, `light.ts` and
       `bait.ts`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 17C and 17D
 

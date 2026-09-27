@@ -58,6 +58,8 @@ function killAt(world: World, distance: number): void {
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
 		burrowWindow: null,
+		feeding: null,
+		fedAt: [],
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

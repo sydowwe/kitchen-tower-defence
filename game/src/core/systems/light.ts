@@ -7,6 +7,9 @@
  * `enemyPosition` alone. So `remainingToFridge`, `FIRST`/`LAST`, the barricade projection and the
  * leak check all keep working with no knowledge of any of this (analytic-docs/DECISIONS.md section 3).
  *
+ * **This file writes that offset for flyers and nothing else.** `core/systems/bait.ts` owns it for
+ * every enemy on or under the floor. The split is by `isFlyer`, so no enemy has two writers.
+ *
  * **Both halves are stateless and recomputed every tick**, the rule `core/systems/barricades.ts` is
  * built on: `flags.revealed` is written unconditionally for every enemy, so selling the lamp re-hides
  * what it was lighting on the tick of the sale and there is no field to clear in four places. A
@@ -18,8 +21,9 @@
 
 import { isReveal } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
-import { samplePath } from '@/core/path.ts'
+import { lateralOffsetOf, samplePath } from '@/core/path.ts'
 import { enemyPosition } from '@/core/systems/spatial.ts'
+import { isFlyer } from '@/core/systems/targeting.ts'
 import type { Enemy, Tower, World } from '@/core/types.ts'
 
 /**
@@ -112,8 +116,6 @@ function targetOffsetFor(world: World, enemy: Enemy, lights: readonly LightSourc
 	}
 
 	const base = samplePath(path, enemy.distance)
-	const normalX = -Math.sin(base.angle)
-	const normalY = Math.cos(base.angle)
 
 	const reachSquared = LIGHT_ATTRACTION_TILES * LIGHT_ATTRACTION_TILES
 	let nearestSquared = Number.POSITIVE_INFINITY
@@ -132,7 +134,7 @@ function targetOffsetFor(world: World, enemy: Enemy, lights: readonly LightSourc
 			continue
 		}
 		nearestSquared = distanceSquared
-		target = dx * normalX + dy * normalY
+		target = lateralOffsetOf(base, light)
 	}
 
 	return Math.min(Math.max(target, -LIGHT_MAX_OFFSET_TILES), LIGHT_MAX_OFFSET_TILES)
@@ -169,7 +171,9 @@ export function lightSystem(world: World): void {
 				return dx * dx + dy * dy <= light.radiusTiles * light.radiusTiles
 			})
 
-		if (!isLightDrawn(enemy)) {
+		// Flyers only: every floor enemy's offset is `core/systems/bait.ts`'s, and two writers on one
+		// enemy would fight over it every tick.
+		if (!isLightDrawn(enemy) || !isFlyer(enemy)) {
 			continue
 		}
 

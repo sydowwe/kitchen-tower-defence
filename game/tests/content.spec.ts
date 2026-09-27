@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isAura, isCharge, isCleanse, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
+import { isAura, isBait, isCharge, isCleanse, isFiring, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
 import { ant, beetle, ENEMIES, fly, fruitFly, moth, roach } from '@/core/content/enemies.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
@@ -13,6 +13,7 @@ import {
 	cookieJar,
 	flyPaper,
 	gasStoveBurner,
+	honeyPot,
 	iceCubeTray,
 	mousetrap,
 	nightlight,
@@ -740,7 +741,39 @@ describe('the Candle, the Gas Stove Burner and the Fly Paper', () => {
 		expect(TOWERS[14]?.id).toBe('candle')
 		expect(TOWERS[15]?.id).toBe('gasStoveBurner')
 		expect(TOWERS[16]?.id).toBe('flyPaper')
-		expect(TOWERS).toHaveLength(17)
+	})
+})
+
+describe('the Honey Pot', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(honeyPot.cost).toBe(175)
+		expect(honeyPot.role).toBe('ECONOMY')
+		expect(honeyPot.glyph).toBe('🍯')
+		expect(honeyPot.placement).toBe('off_path')
+		expect(honeyPot.noise).toBe(0)
+		expect(honeyPot.defaultTargetingMode).toBe('CLOSEST')
+		expect(honeyPot.behaviours.some(isFiring)).toBe(false)
+	})
+
+	it('pays 7 crumbs a second, the Economy rates row, and owes the enemy side nothing', () => {
+		const pay = incomeOf(honeyPot.behaviours)
+		expect(pay.crumbsPerPayout).toBe(7)
+		expect(pay.payoutIntervalTicks).toBe(60)
+		expect(pay.enemyCrumbsOnDestroy).toBe(0)
+	})
+
+	it('baits ground enemies within 3 tiles for three seconds, in ticks', () => {
+		expect(honeyPot.behaviours.find(isBait)).toEqual({
+			kind: 'bait',
+			radiusTiles: 3,
+			targets: 'ground',
+			durationTicks: 180,
+		})
+	})
+
+	it('is the eighteenth tower in the shop, appended and not inserted', () => {
+		expect(TOWERS[17]?.id).toBe('honeyPot')
+		expect(TOWERS).toHaveLength(18)
 	})
 })
 

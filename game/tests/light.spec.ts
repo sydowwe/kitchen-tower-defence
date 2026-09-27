@@ -87,6 +87,8 @@ function addEnemy(world: World, def: EnemyDef, distance = 0, speed = def.speedTi
 		spawnedInWaveIndex: 0,
 		nextTileWriteTick: 0,
 		burrowWindow: null,
+		feeding: null,
+		fedAt: [],
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

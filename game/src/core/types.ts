@@ -186,13 +186,16 @@ export interface Enemy {
 	/**
 	 * How far this enemy is standing to the side of its lane, in tiles, **signed**: positive is the
 	 * `(-sin θ, cos θ)` side of it, and `applyLateralOffset` in `core/path.ts` is where that sign is
-	 * fixed once for every reader. 0 for everything but a
-	 * Moth being pulled toward a light, and `enemyPosition` returns early on that 0.
+	 * fixed once for every reader. `enemyPosition` returns early on 0, which is what it is for most
+	 * enemies most of the time.
+	 *
+	 * **Two writers, split by `isFlyer`**: `core/systems/light.ts` for flyers (a Moth pulled toward a
+	 * lamp), `core/systems/bait.ts` for everything else (a ground enemy leaning in to a Honey Pot).
 	 *
 	 * **`distance` is never touched by it.** The offset is perpendicular to the arc, so `FIRST`/`LAST`,
 	 * `remainingToFridge`, the barricade projection and the leak check all keep reading the same float
-	 * they always did -- which is the whole reason the one enemy that leaves the polyline does not
-	 * need free movement (analytic-docs/DECISIONS.md section 3).
+	 * they always did -- which is the whole reason an enemy that leaves the polyline does not need free
+	 * movement (analytic-docs/DECISIONS.md section 3).
 	 *
 	 * State on the world rather than a derivation: the drift back is hysteretic -- it keeps going for
 	 * two seconds after the light is gone -- and no function of `distance` alone can answer that.
@@ -233,6 +236,21 @@ export interface Enemy {
 	 * Only `core/systems/burrow.ts` reads it. Everything downstream reads `flags.burrowed`.
 	 */
 	burrowWindow: { fromTiles: number; toTiles: number } | null
+	/**
+	 * The Honey Pot this enemy is feeding at, or null. Written and cleared only by
+	 * `core/systems/bait.ts`; everything downstream reads this rather than re-deriving a feed from a
+	 * distance and a pot position.
+	 *
+	 * `distance` is where it was caught, and the system resets to it every tick rather than recomputing
+	 * this tick's step backwards. `releaseTick` is the tick it walks on again.
+	 */
+	feeding: { towerId: EntityId; distance: number; releaseTick: number } | null
+	/**
+	 * Every pot that has already fed this enemy. A released enemy is still standing inside its pot's
+	 * window, so without this it is caught again the next tick, forever. A list rather than the last
+	 * pot so two pots on one lane each get their feed.
+	 */
+	fedAt: EntityId[]
 	/** Food ids a thief is carrying. Returned to the fridge if it dies before it leaves the map. */
 	stolenItems: EntityId[]
 	flags: Record<EnemyFlag, boolean>

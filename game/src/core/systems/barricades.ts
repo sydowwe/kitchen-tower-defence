@@ -174,7 +174,8 @@ export function barricadesSystem(world: World): void {
 
 		// `movementSystem` has already run, so this tick's step has to be recomputed to know where the
 		// enemy stood before it -- **with the same two factors movement used**. Nothing between the two
-		// systems touches a status or a tile. Leave the tile factor out and `previous` lands 0.6 of a
+		// systems touches a status or a tile; `bait` sits between them and resets a feeder's distance,
+		// which this accepts (a feeder in a box's gap ends each tick one step short, stably). Leave the tile factor out and `previous` lands 0.6 of a
 		// step too far forward, so an enemy held on slime creeps through the gap into the box.
 		//
 		// The floor is read where the enemy is *now*, not where it stood. The two differ only on the one

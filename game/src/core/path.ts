@@ -116,8 +116,8 @@ export function samplePath(path: Path, distance: number): { x: number; y: number
 }
 
 /**
- * The sampled point displaced sideways off its own lane -- the one enemy in v1 that leaves the
- * polyline (the Moth), expressed as an offset rather than as free movement.
+ * The sampled point displaced sideways off its own lane -- a Moth pulled toward a lamp, an ant
+ * leaning in to a Honey Pot -- expressed as an offset rather than as free movement.
  *
  * **The normal is `(-sin(angle), cos(angle))`: a positive `lateralTiles` displaces along the heading
  * turned a quarter turn, so on a lane running `+x` it moves the point toward `+y`.** Nothing else in
@@ -133,6 +133,16 @@ export function applyLateralOffset(at: { x: number; y: number; angle: number }, 
 		x: at.x - Math.sin(at.angle) * lateralTiles,
 		y: at.y + Math.cos(at.angle) * lateralTiles,
 	}
+}
+
+/**
+ * The inverse: how far `point` sits to the side of the sampled point, signed so that
+ * `applyLateralOffset(at, lateralOffsetOf(at, point))` lands on the perpendicular foot of `point`.
+ * `core/systems/light.ts` aims a moth with it and `core/systems/bait.ts` a feeder, and neither writes
+ * the normal out a second time.
+ */
+export function lateralOffsetOf(at: { x: number; y: number; angle: number }, point: Vec2): number {
+	return (point.x - at.x) * -Math.sin(at.angle) + (point.y - at.y) * Math.cos(at.angle)
 }
 
 /**

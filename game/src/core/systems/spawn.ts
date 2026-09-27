@@ -183,8 +183,8 @@ export function spawnEnemyAt(
 		defId: def.id,
 		pathId,
 		distance,
-		// 0 for everything but a Moth in a Nightlight's reach; `core/systems/light.ts` is the only
-		// writer, and `enemyPosition` returns the bare sample while it is 0.
+		// On its lane. `core/systems/light.ts` moves flyers off it and `core/systems/bait.ts` everything
+		// else; `enemyPosition` returns the bare sample while it is 0.
 		lateralOffsetTiles: 0,
 		hp,
 		maxHp: hp,
@@ -195,6 +195,8 @@ export function spawnEnemyAt(
 		// Due now: `spreadSystem` runs after this one, so a writer's first mark lands the tick it spawns.
 		nextTileWriteTick: world.tick,
 		burrowWindow: burrowWindowFor(world, def, pathId),
+		feeding: null,
+		fedAt: [],
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
