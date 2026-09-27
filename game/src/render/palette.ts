@@ -65,6 +65,37 @@ export const FLYER_SHADOW = 'rgba(4, 6, 12, 0.38)'
 export const TOWER_LIGHT_CORE = 'rgba(245, 198, 107, 0.16)'
 export const TOWER_LIGHT_EDGE = 'rgba(245, 198, 107, 0)'
 
+/**
+ * An aura's reach, by **role**: one that hurts (the Candle, the Nightlight's tier 3) and one that only
+ * applies a status (the Bay Leaf's tier 3, the Honey Pot's).
+ *
+ * Both are drawn as a **rim**: clear in the middle, rising to this colour at the radius, with a thin
+ * edge on it. A disc would sit on top of the Candle's own lamp pool at the same radius and the pair
+ * would read as one orange smear, and two overlapping discs are a stain where two rims are still two
+ * circles. The lamp is the light, the rim is where it burns.
+ *
+ * The damaging one is in the ember family of `TILE_HEAT_PULSE`, not the lamp amber, for that
+ * constant's reason: it has to read as *hurts*, not as *lit*. The status one is a cool lilac that is
+ * no status treatment's colour, so a marked or slowed zone does not read as a slowed enemy.
+ */
+export const AURA_DAMAGE_CLEAR = 'rgba(255, 110, 56, 0)'
+export const AURA_DAMAGE_RIM = 'rgba(255, 110, 56, 0.2)'
+export const AURA_DAMAGE_EDGE = 'rgba(255, 110, 56, 0.45)'
+export const AURA_STATUS_CLEAR = 'rgba(176, 164, 255, 0)'
+export const AURA_STATUS_RIM = 'rgba(176, 164, 255, 0.16)'
+export const AURA_STATUS_EDGE = 'rgba(176, 164, 255, 0.4)'
+
+/**
+ * A Honey Pot losing its honey: the empty part of the jar, the puddle leaking under it, and the pulse
+ * round the pad once it is nearly gone.
+ *
+ * The warning is `RANGE_INVALID`'s red on purpose. It is the one colour the board already spends on
+ * "no", and a pot about to be lost is the moment a player has to look.
+ */
+export const HONEY_EMPTY = 'rgba(10, 12, 22, 0.6)'
+export const HONEY_PUDDLE = 'rgba(232, 164, 48, 0.55)'
+export const HONEY_WARNING = 'rgba(232, 106, 96, 0.9)'
+
 /** What is left of an enemy's health, and the socket it sits in. Only drawn on a damaged enemy. */
 export const HP_BAR_BACK = 'rgba(8, 10, 18, 0.8)'
 export const HP_BAR_FILL = '#7ad67a'
@@ -188,6 +219,11 @@ export const STATUS_SLOW_SPECK = 'rgba(214, 234, 255, 0.85)'
 export const STATUS_BURN_FLAME = 'rgba(255, 146, 52, 0.9)'
 export const STATUS_POISON_BUBBLE = 'rgba(138, 226, 106, 0.85)'
 export const STATUS_ROOTED_SHIMMER = 'rgba(236, 242, 255, 0.8)'
+/**
+ * The thread from a Fly Paper to each flyer it holds. The root's own shimmer, fainter: the ring says
+ * *stuck* and the strand says *to what*.
+ */
+export const STATUS_ROOTED_STRAND = 'rgba(236, 242, 255, 0.45)'
 
 /**
  * Somebody flipped the kitchen light on.

@@ -855,7 +855,7 @@ export const lemon: TowerDefOf<'lemon'> = {
 const CANDLE_RADIUS_TILES = 2
 
 /**
- * analytic-docs/CONTENT.md section 1, Act II: 130 crumbs, DOT, a 4/sec aura, range 2, fire, both, no
+ * analytic-docs/CONTENT.md section 1, Act II: 130 crumbs, DOT, a 5/sec aura, range 2, fire, both, no
  * noise, off the path -- and the behaviour note, "a light: Moths drift toward it".
  *
  * **`[aura, reveal]` and nothing else**, neither of them new: the aura is 12B's and the light is
@@ -863,6 +863,14 @@ const CANDLE_RADIUS_TILES = 2
  * enemies within 2, which is right for a lit candle and inert in v1, where nothing is hidden.
  *
  * `CLOSEST` and `maxHp: 100` are every behaviourless tower's precedent.
+ *
+ * **5/sec, up from the 4 section 1 first gave it, from step 17D's headless pass.** A moth crosses a lane-side Candle's
+ * whole radius in about 2.5 seconds and takes one pass, so the aura is a threshold rather than a
+ * slope: on night 10 with every other enemy removed, a Candle beside the lane killed 0 of 40 moths at
+ * 4/sec, about 60% at 5 and all of them at 6. At 4 the tower sold as "moths drift toward it" did
+ * nothing to moths; at 6 it is a complete moth answer for less than a Toaster. At 5 it takes most of
+ * them and wants an air tower beside it. Only beside the lane: three tiles off, it killed none at any
+ * rate up to 8.
  */
 export const candle: TowerDefOf<'candle'> = {
 	id: 'candle',
@@ -878,19 +886,21 @@ export const candle: TowerDefOf<'candle'> = {
 	behaviours: [
 		aura({
 			radiusTiles: CANDLE_RADIUS_TILES,
-			damagePerTick: 4 / TICKS_PER_SECOND,
+			damagePerTick: 5 / TICKS_PER_SECOND,
 			damageType: 'fire',
 			targets: 'both',
 		}),
 		reveal({ radiusTiles: CANDLE_RADIUS_TILES, attractsLightDrawn: true }),
 	],
 	/**
-	 * 4 -> 5.5 -> 7 a second.
+	 * 5 -> 6.5 -> 8 a second.
 	 *
 	 * T3 is analytic-docs/CONTENT.md section 1's "burn applied by the aura stacks to 3": the aura starts
 	 * applying `burn`, whose cap of 3 is on the status def, so it reaches it in three pulses. At the
 	 * status table's 5/sec a stack that is +15/sec on top of the aura, which is too much for one tier --
-	 * so the application authors its own 2/sec a stack, +6/sec at the cap. A draft; 17D judges it.
+	 * so the application authors its own 2/sec a stack, +6/sec at the cap. 17D kept it: 14/sec across a
+	 * 2-tile radius is the Nightlight tier 3's 6/sec across 4 at a little over half the area-damage, which is
+	 * right for a tower that has to be put where the lane is.
 	 */
 	upgrades: upgradesFor(
 		'candle',
@@ -967,7 +977,9 @@ export const gasStoveBurner: TowerDefOf<'gasStoveBurner'> = {
  * before catching the second is not one. "Self-removes when spent" means what it means for the tape:
  * it leaves the tick after its last stuck flyer dies, which `retireSpentTowers` already does.
  *
- * The doc's rate is a dash and an attack needs a cooldown: `perSecond(2)` is a draft. `physical`
+ * The doc's rate is a dash and an attack needs a cooldown: `perSecond(2)`. 17D ran it at 0.5, 1 and 2
+ * a second against night 10's flies and none of them moved a leak -- the charges gate it, not the
+ * rate -- so it stays. `physical`
  * against 0 damage is the tape's honest filler, and `projectileSpeed: 0` lands the root the tick it
  * fires.
  */
@@ -1017,9 +1029,12 @@ const HONEY_POT_RADIUS_TILES = 3
  * noise, off the path, and 7/sec in *Economy rates*. What an enemy does at the pot is
  * `core/systems/bait.ts`'s.
  *
- * **`maxHp: 150` is a draft.** The doc gives the pot no HP, and the pot's HP *is* its risk: feeders
- * chew it at their own `meleeDamagePerTick`, so it is a number 17D judges on the board. No
- * `enemyCrumbsOnDestroy`: losing the pot is the cost, not a penalty wave.
+ * **`maxHp: 150`**, kept by step 17D. The doc gives the pot no HP, and the pot's HP *is* its risk:
+ * feeders chew it at their own `meleeDamagePerTick`. On night 16, headless, two seeds: inside a Salt
+ * Shaker line it lived 80-120 seconds and paid 570-830 crumbs before going; out of every tower's reach
+ * it lived 11-19 and paid 75-131 back on its 175. At 200 an unguarded pot placed at dusk broke even,
+ * and at 250 it paid, which is where the gamble ends. No `enemyCrumbsOnDestroy`: losing the pot is the
+ * cost, not a penalty wave.
  */
 export const honeyPot: TowerDefOf<'honeyPot'> = {
 	id: 'honeyPot',

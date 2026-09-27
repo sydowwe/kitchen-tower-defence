@@ -105,14 +105,14 @@ describe('the Candle as a light', () => {
 })
 
 describe('the Candle as an aura', () => {
-	it('takes 4 x 1.5 off an Ant held in its radius for 60 ticks, through the swarm row', () => {
+	it('takes 5 x 1.5 off an Ant held in its radius for 60 ticks, through the swarm row', () => {
 		const world = makeWorld()
 		addCandle(world, { x: 10, y: 1 })
 		const enemy = addEnemy(world, ant, 10, 0)
 
 		run(world, 60)
 
-		expect(enemy.maxHp - enemy.hp).toBeCloseTo(4 * 1.5, 6)
+		expect(enemy.maxHp - enemy.hp).toBeCloseTo(5 * 1.5, 6)
 		expect(findStatus(enemy, 'burn')).toBeUndefined()
 	})
 

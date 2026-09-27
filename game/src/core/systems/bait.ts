@@ -38,8 +38,14 @@ import type { Enemy, EntityId, World } from '@/core/types.ts'
  */
 export const BAIT_CATCH_WINDOW_TILES = 0.5
 
-/** How far short of the pot a feeder's lean stops, so it stands at the pot's edge and not on its glyph. */
-export const BAIT_LEAN_GAP_TILES = 0.5
+/**
+ * How far short of the pot a feeder's lean stops, so it stands at the pot's edge and not on its glyph.
+ *
+ * 0.7 and not 17B's 0.5: the jar is drawn 0.85 of a tile and a feeder 0.7, so at half a tile the two
+ * glyphs overlapped and the crowd covered the pot whose HP it was eating. At 0.7 the ring the renderer
+ * fans them into clears the jar (17D).
+ */
+export const BAIT_LEAN_GAP_TILES = 0.7
 
 /**
  * How fast the lean moves, in tiles per tick, both in and back out. Linear, for the reason

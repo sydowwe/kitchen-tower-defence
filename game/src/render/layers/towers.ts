@@ -13,14 +13,25 @@
 
 import { TOWERS } from '@/core/content/towers.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
-import { isReveal } from '@/core/content/behaviours.ts'
+import { isAura, isBait, isReveal } from '@/core/content/behaviours.ts'
 import { chargeBehaviourOf, chargePhase, chargeStateOf } from '@/core/systems/charges.ts'
 import { isBarricade } from '@/core/systems/barricades.ts'
+import { hasEffect } from '@/core/tiles.ts'
+import type { AuraBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { Tower, Vec2, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
 import {
+	AURA_DAMAGE_CLEAR,
+	AURA_DAMAGE_EDGE,
+	AURA_DAMAGE_RIM,
+	AURA_STATUS_CLEAR,
+	AURA_STATUS_EDGE,
+	AURA_STATUS_RIM,
+	HONEY_EMPTY,
+	HONEY_PUDDLE,
+	HONEY_WARNING,
 	PROJECTILE_SHOT,
 	RANGE_INVALID,
 	RANGE_INVALID_FILL,
@@ -28,6 +39,8 @@ import {
 	RANGE_NEUTRAL_FILL,
 	RANGE_VALID,
 	RANGE_VALID_FILL,
+	TILE_HEAT_CORE,
+	TILE_HEAT_PULSE,
 	TOWER_CRACK,
 	TOWER_LIGHT_CORE,
 	TOWER_LIGHT_EDGE,
@@ -124,6 +137,46 @@ const BOX_CRACKS: readonly (readonly Vec2[])[] = [
 		{ x: 0.07, y: -0.09 },
 	],
 ]
+
+/**
+ * The Honey Pot's HP, drawn on the jar the way the box's is drawn on the box: the empty part of the jar
+ * darkens from the top down, a puddle spreads under it once it is cracked, and below the last threshold
+ * the pad pulses. The thresholds are the box's, so two towers whose HP is their state break at the
+ * same points.
+ *
+ * The drained shade is clipped to a circle inside the glyph, so it darkens the jar and not the pad.
+ */
+const POT_JAR_RADIUS_TILES = 0.34
+const POT_PUDDLE_RADIUS_TILES = 0.42
+const POT_PUDDLE_SQUASH = 0.38
+/** How far below the centre the puddle sits: at the jar's foot, not behind it. */
+const POT_PUDDLE_DROP_TILES = 0.3
+const POT_WARNING_RADIUS_TILES = 0.5
+const POT_WARNING_MIN_WIDTH_PX = 1.5
+const POT_WARNING_MAX_WIDTH_PX = 4
+/** Radians per frame. ~1.7 pulses a second: urgent, not a strobe. */
+const POT_WARNING_PER_FRAME = 0.18
+
+/**
+ * A tower standing on a heated cell: flame drawn **over** its pad and glyph, because the cell's own
+ * heat ring is under both and the pad covers it (steps/17-auras-and-zones/D-on-screen-and-the-nights.md,
+ * decision 3). An ember ring at the pad's edge and tongues licking up off its lower rim, both aged in
+ * frames so 3x speed is not a strobe.
+ */
+const HEAT_RING_RADIUS_TILES = 0.44
+const HEAT_RING_MIN_WIDTH_PX = 2
+const HEAT_RING_MAX_WIDTH_PX = 4.5
+const HEAT_TONGUES = 4
+/** Across the lower rim, as a fraction of the pad from its centre, and how far down it sits. */
+const HEAT_TONGUE_SPREAD_TILES = 0.3
+const HEAT_TONGUE_BASE_TILES = 0.34
+const HEAT_TONGUE_RADIUS_TILES = 0.075
+const HEAT_TONGUE_HEIGHT = 2.1
+/** Radians per frame of the flicker. The burn status's rate, so fire on an enemy and fire on a cell agree. */
+const HEAT_FLICKER_PER_FRAME = 0.42
+
+/** Ages with the display, never with the simulation, like `entities.ts` and `tileEffects.ts`. */
+let ageFrames = 0
 
 /** The tower bar is the enemy bar at the pad's width, so a box and an ant wear the same object. */
 const TOWER_BAR_WIDTH_SCALE = 0.7
@@ -322,6 +375,142 @@ function drawBox(
 	ctx.restore()
 }
 
+/** A bait tower: its HP is the honey, which is the whole of its risk. */
+function isPot(def: TowerDef): boolean {
+	return def.behaviours.some(isBait)
+}
+
+/**
+ * A Honey Pot, in whichever state its HP puts it in -- `drawBox`'s shape, so the bar above it is the
+ * second tell and not the only one. The shade is the honey going down; the puddle and cracks arrive at
+ * the box's first threshold, and the pulse at its second, where a player who has not looked yet has
+ * seconds left to.
+ *
+ * The clip is inside `save`/`restore` for `drawBox`'s reason: a clip left set hides every tower drawn
+ * after this one.
+ */
+function drawPot(
+	ctx: CanvasRenderingContext2D,
+	dpr: number,
+	glyph: string,
+	center: Vec2,
+	tilePx: number,
+	fraction: number,
+): void {
+	const cracked = fraction <= BOX_DENTED_AT
+
+	if (cracked) {
+		// 40% of its size at the first crack and all of it at 0, so it visibly grows as the pot empties.
+		const rx = POT_PUDDLE_RADIUS_TILES * tilePx * (1 - (fraction / BOX_DENTED_AT) * 0.6)
+		ctx.beginPath()
+		ctx.ellipse(center.x, center.y + POT_PUDDLE_DROP_TILES * tilePx, rx, rx * POT_PUDDLE_SQUASH, 0, 0, Math.PI * 2)
+		ctx.fillStyle = HONEY_PUDDLE
+		ctx.fill()
+	}
+
+	blitGlyph(ctx, dpr, glyph, tilePx * TOWER_SCALE, center.x, center.y)
+
+	if (fraction < 1) {
+		const jar = POT_JAR_RADIUS_TILES * tilePx
+		ctx.save()
+		ctx.beginPath()
+		ctx.arc(center.x, center.y, jar, 0, Math.PI * 2)
+		ctx.clip()
+		ctx.fillStyle = HONEY_EMPTY
+		ctx.fillRect(center.x - jar, center.y - jar, jar * 2, jar * 2 * (1 - Math.max(fraction, 0)))
+		ctx.restore()
+	}
+
+	if (cracked) {
+		drawCracks(ctx, center, tilePx, fraction > BOX_COLLAPSING_AT ? 2 : BOX_CRACKS.length)
+	}
+
+	if (fraction <= BOX_COLLAPSING_AT) {
+		const pulse = 0.5 + 0.5 * Math.sin(ageFrames * POT_WARNING_PER_FRAME)
+		ctx.beginPath()
+		ctx.arc(center.x, center.y, POT_WARNING_RADIUS_TILES * tilePx, 0, Math.PI * 2)
+		ctx.lineWidth = POT_WARNING_MIN_WIDTH_PX + (POT_WARNING_MAX_WIDTH_PX - POT_WARNING_MIN_WIDTH_PX) * pulse
+		ctx.strokeStyle = HONEY_WARNING
+		ctx.stroke()
+	}
+}
+
+/**
+ * The centres of every tower standing on a heated cell this frame, as flat `x, y` pairs. Kept and
+ * truncated rather than rebuilt, so the 60Hz path allocates only when the board grows a Burner.
+ */
+const heated: number[] = []
+
+/**
+ * Flame over every tower on a heated cell: one ember ring stroke, then the tongues and their cores,
+ * each batched across the board. In practice that is the Burners, plus whatever a tier-3 Burner's
+ * radius reaches -- which is true, because that cell is burning too.
+ *
+ * The ring's width is one pulse shared by every Burner, the way `drawTileEffects` shares one heat
+ * phase: a board of burners pulsing in step reads as one gas supply, and it keeps the stroke to one.
+ */
+function drawHeatFlames(ctx: CanvasRenderingContext2D, world: World, tilePx: number): void {
+	heated.length = 0
+	for (const tower of world.towers) {
+		if (hasEffect(world, tower.tile, 'heat')) {
+			const center = tileCenter(tower.tile, tilePx)
+			heated.push(center.x, center.y)
+		}
+	}
+	if (heated.length === 0) {
+		return
+	}
+
+	const phase = ageFrames * HEAT_FLICKER_PER_FRAME
+	const ring = HEAT_RING_RADIUS_TILES * tilePx
+	ctx.lineWidth =
+		HEAT_RING_MIN_WIDTH_PX +
+		(HEAT_RING_MAX_WIDTH_PX - HEAT_RING_MIN_WIDTH_PX) * (0.5 + 0.5 * Math.sin(phase * 0.35))
+	ctx.strokeStyle = TILE_HEAT_PULSE
+	ctx.beginPath()
+	for (let i = 0; i < heated.length; i += 2) {
+		const x = heated[i] ?? 0
+		const y = heated[i + 1] ?? 0
+		ctx.moveTo(x + ring, y)
+		ctx.arc(x, y, ring, 0, Math.PI * 2)
+	}
+	ctx.stroke()
+
+	drawTongues(ctx, tilePx, phase, TILE_HEAT_PULSE, 1)
+	drawTongues(ctx, tilePx, phase, TILE_HEAT_CORE, 0.55)
+}
+
+/** One batched fill of every tongue on every heated tower, at `scale` of the full size. */
+function drawTongues(
+	ctx: CanvasRenderingContext2D,
+	tilePx: number,
+	phase: number,
+	colour: string,
+	scale: number,
+): void {
+	const base = HEAT_TONGUE_BASE_TILES * tilePx
+	const spread = HEAT_TONGUE_SPREAD_TILES * tilePx
+
+	ctx.fillStyle = colour
+	ctx.beginPath()
+	for (let i = 0; i < heated.length; i += 2) {
+		const x = heated[i] ?? 0
+		const y = heated[i + 1] ?? 0
+		for (let tongue = 0; tongue < HEAT_TONGUES; tongue++) {
+			// Offset by tongue and by position, so neither the tongues nor two Burners flicker in lockstep.
+			const flicker = 0.65 + 0.35 * Math.sin(phase + tongue * 1.9 + x * 0.07 + y * 0.05)
+			const rx = HEAT_TONGUE_RADIUS_TILES * tilePx * scale * (0.8 + 0.2 * flicker)
+			const ry = rx * HEAT_TONGUE_HEIGHT * flicker
+			const tx = x - spread + ((spread * 2) / (HEAT_TONGUES - 1)) * tongue
+			// Standing on the rim and rising off it: the ellipse's foot is on the rim, not its centre.
+			const ty = y + base - ry
+			ctx.moveTo(tx + rx, ty)
+			ctx.ellipse(tx, ty, rx, ry, 0, 0, Math.PI * 2)
+		}
+	}
+	ctx.fill()
+}
+
 /**
  * The pools of light, built once and kept.
  *
@@ -374,12 +563,79 @@ function drawLightPools(ctx: CanvasRenderingContext2D, world: World, tilePx: num
 	}
 }
 
+/**
+ * The two roles an aura is coloured by. What it does, not whose it is: a fifth aura tower is a config
+ * object, and it should arrive already coloured.
+ */
+type AuraRole = 'damage' | 'status'
+
+function auraRoleOf(behaviour: AuraBehaviour): AuraRole {
+	return behaviour.damagePerTick > 0 ? 'damage' : 'status'
+}
+
+/**
+ * The aura rims, built once and kept, by `lightPool`'s rule: at the origin, keyed by `tilePx`, radius
+ * **and** role. A radius in the key and not the role would hand the Bay Leaf the Candle's ember.
+ *
+ * Clear to 55% of the radius, then rising to the rim colour at the edge. The clear stop is the role's
+ * own colour at 0 alpha and not `transparent`: interpolating from transparent *black* greys the band.
+ */
+const auraRims = new Map<string, CanvasGradient>()
+
+function auraRim(ctx: CanvasRenderingContext2D, tilePx: number, radiusTiles: number, role: AuraRole): CanvasGradient {
+	const key = `${tilePx}|${radiusTiles}|${role}`
+	const cached = auraRims.get(key)
+	if (cached !== undefined) {
+		return cached
+	}
+
+	const clear = role === 'damage' ? AURA_DAMAGE_CLEAR : AURA_STATUS_CLEAR
+	const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusTiles * tilePx)
+	gradient.addColorStop(0, clear)
+	gradient.addColorStop(0.55, clear)
+	gradient.addColorStop(1, role === 'damage' ? AURA_DAMAGE_RIM : AURA_STATUS_RIM)
+	auraRims.set(key, gradient)
+	return gradient
+}
+
+/**
+ * Every aura's reach, after the lamp pools and before the first pad -- the pools' reason: it falls on
+ * the floor and under every tower, not over whichever were earlier in `world.towers`.
+ *
+ * A rim, not a disc: see `AURA_DAMAGE_RIM`. Filled with an `arc` and never a `fillRect` -- a radial
+ * gradient paints its last stop past its outer radius, so a rect would be a square of rim colour.
+ */
+function drawAuraRims(ctx: CanvasRenderingContext2D, world: World, tilePx: number): void {
+	for (const tower of world.towers) {
+		for (const behaviour of effectiveDefOf(tower).behaviours) {
+			if (!isAura(behaviour)) {
+				continue
+			}
+			const role = auraRoleOf(behaviour)
+			const center = tileCenter(tower.tile, tilePx)
+			const radius = behaviour.radiusTiles * tilePx
+			ctx.save()
+			ctx.translate(center.x, center.y)
+			ctx.beginPath()
+			ctx.arc(0, 0, radius, 0, Math.PI * 2)
+			ctx.fillStyle = auraRim(ctx, tilePx, behaviour.radiusTiles, role)
+			ctx.fill()
+			ctx.lineWidth = 1
+			ctx.strokeStyle = role === 'damage' ? AURA_DAMAGE_EDGE : AURA_STATUS_EDGE
+			ctx.stroke()
+			ctx.restore()
+		}
+	}
+}
+
 export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, tilePx: number, dpr: number): void {
 	if (world === null) {
 		return
 	}
 
+	ageFrames++
 	drawLightPools(ctx, world, tilePx)
+	drawAuraRims(ctx, world, tilePx)
 
 	for (const tower of world.towers) {
 		const def = effectiveDefOf(tower)
@@ -399,6 +655,8 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 			ctx.globalAlpha = 1
 		} else if (isBarricade(def)) {
 			drawBox(ctx, dpr, def.glyph, center, tilePx, tower.hp / tower.maxHp)
+		} else if (isPot(def)) {
+			drawPot(ctx, dpr, def.glyph, center, tilePx, tower.hp / tower.maxHp)
 		} else {
 			blitGlyph(ctx, dpr, def.glyph, tilePx * TOWER_SCALE, center.x, center.y)
 		}
@@ -416,6 +674,9 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 			tower.maxHp,
 		)
 	}
+
+	// After every tower, so a Burner's flame is never under a neighbour's pad.
+	drawHeatFlames(ctx, world, tilePx)
 }
 
 /**

@@ -1104,8 +1104,10 @@ export const night11: NightDef = {
  * ten of the twelve waves, from wave 1. The flyers-only wave carries none, for the Cookie Jar reason
  * above night 11, and neither does wave 9, so there is one breath in the back half to go and clean up.
  *
- * Section 6 gives this night the Gas Stove Burner unlock, which is step 17's tower and not a wave
- * concern. If this night wants re-tuning once the Burner exists, that is step 17's edit here.
+ * Section 6 gives this night the Gas Stove Burner unlock. Step 17D ran it headless with the Burner and
+ * left every wave as it was: a Salt Shaker and Toaster line held it with or without one, and a Burner
+ * on the lane barely moved the meter on its own (7 at most, two of them) -- what it cost was the wakes
+ * it added on top of an already loud Toaster line, one to three, which is the price it is meant to have.
  */
 export const night12: NightDef = {
 	id: 'night12',
@@ -1710,8 +1712,10 @@ export const night15: NightDef = {
  * window wants to stand. Every mold distance is one 15C already placed in reach of a pocket.
  *
  * The flyers-only wave and the chaos wave carry nothing permanent, for the Cookie Jar reason above
- * night 11. Section 6's Honey Pot unlock is step 17's, and step 17 may re-tune this night once the
- * Honey Pot exists, the way it may night 12's for the Burner.
+ * night 11. Section 6 gives it the Honey Pot unlock. Step 17D ran it headless with a pot inside and
+ * outside a tower line and left every wave as it was: the pot changed no food lost either way, because
+ * its feeders are held wherever it stands. What the night does decide is the pot's own life
+ * (analytic-docs/OPEN-QUESTIONS.md, the Honey Pot).
  */
 export const night16: NightDef = {
 	id: 'night16',

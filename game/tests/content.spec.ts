@@ -670,11 +670,11 @@ describe('the Candle', () => {
 		expect(candle.defaultTargetingMode).toBe('CLOSEST')
 	})
 
-	it('is a 4/sec fire aura that applies nothing, and a light of the same radius', () => {
+	it('is a 5/sec fire aura that applies nothing, and a light of the same radius', () => {
 		const glow = candle.behaviours.find(isAura)
 		expect(glow).toBeDefined()
 		expect(glow?.radiusTiles).toBe(2)
-		expect((glow?.damagePerTick ?? 0) * 60).toBeCloseTo(4, 10)
+		expect((glow?.damagePerTick ?? 0) * 60).toBeCloseTo(5, 10)
 		expect(glow?.damageType).toBe('fire')
 		expect(glow?.targets).toBe('both')
 		expect(glow?.applies).toEqual([])

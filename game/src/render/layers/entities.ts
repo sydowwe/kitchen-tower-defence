@@ -18,8 +18,9 @@ import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { applyLateralOffset, samplePath } from '@/core/path.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { barricadeHolding, isBarricade } from '@/core/systems/barricades.ts'
+import { towerById } from '@/core/systems/placement.ts'
 import { isFlyer } from '@/core/systems/targeting.ts'
-import type { Enemy, MapDef, Path, World } from '@/core/types.ts'
+import type { Enemy, EntityId, MapDef, Path, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
 import {
@@ -33,6 +34,7 @@ import {
 	STATUS_BURN_FLAME,
 	STATUS_POISON_BUBBLE,
 	STATUS_ROOTED_SHIMMER,
+	STATUS_ROOTED_STRAND,
 	STATUS_SLOW_DISC,
 	STATUS_SLOW_SPECK,
 } from '@/render/palette.ts'
@@ -61,6 +63,15 @@ const CHEW_ROW_GAP_TILES = 0.32
 const CHEW_LUNGE_TILES = 0.1
 /** Radians per frame of the lunge. ~2.5 bites a second: a chew, not a vibration. */
 const CHEW_LUNGE_PER_FRAME = 0.26
+
+/**
+ * Feeders round a Honey Pot. `core/systems/bait.ts` leans every feeder of one lane to the **same**
+ * offset, and they are caught within half a tile of each other, so the simulation's picture is a
+ * stack on one side of the jar. The fan is the chew queue's answer to the same problem: drawn only,
+ * each feeder turned about the pot's centre by a fixed arc, alternating either side of the first, so
+ * a crowd rings the jar instead of standing on itself. `enemy.distance` and the lean are untouched.
+ */
+const FEED_FAN_ARC_TILES = 0.42
 
 /** Cardboard coming off the box. Two per enemy, so a queue of forty is a haze and not a blizzard. */
 const CHEW_SPECKS = 2
@@ -181,6 +192,8 @@ const ROOTED_RADIUS_TILES = 0.34
 const ROOTED_FOOT_OFFSET_TILES = 0.26
 const ROOTED_LINE_WIDTH_PX = 2
 const ROOTED_SHIMMER_PER_FRAME = 0.16
+/** The thread from a paper to a flyer it holds. Thin: it is a line of glue, not a leash. */
+const ROOTED_STRAND_WIDTH_PX = 1.2
 
 /**
  * One enemy's frame, kept so the layer can draw in treatment order without sampling a path twice.
@@ -203,6 +216,20 @@ interface EnemyFrame {
 	burn: number
 	poison: number
 	rooted: boolean
+	/** The tower whose root this is, off the status's `sourceId`. Null for a root with no source. */
+	rootSource: EntityId | null
+	/**
+	 * A stuck flyer's thread back to its paper, in logical pixels. `strand` is false for anything else,
+	 * including a flyer whose paper has just left the board.
+	 */
+	strand: boolean
+	strandX: number
+	strandY: number
+	/**
+	 * Eating at a Honey Pot: `enemy.feeding` with its pot still on the board. Drawn fanned round the jar
+	 * and biting toward it, with `dirX` / `dirY` pointing at the pot.
+	 */
+	feeding: boolean
 	/**
 	 * Held at a barricade and eating it. Read off `barricadeHolding` while this pool is filled, and
 	 * deliberately not an event: an event per held enemy per tick is forty entries a tick in
@@ -233,7 +260,10 @@ interface EnemyFrame {
 	armored: boolean
 	/** Carrying Armor Strip: the plating is drawn broken. */
 	stripped: boolean
-	/** The path's direction where this enemy stands. Only meaningful while `chewing`. */
+	/**
+	 * The path's direction where this enemy stands, or the direction to its pot while `feeding`. Only
+	 * meaningful while `chewing` or `feeding`.
+	 */
 	dirX: number
 	dirY: number
 }
@@ -293,6 +323,11 @@ function frameAt(index: number): EnemyFrame {
 		burn: 0,
 		poison: 0,
 		rooted: false,
+		rootSource: null,
+		strand: false,
+		strandX: 0,
+		strandY: 0,
+		feeding: false,
 		chewing: false,
 		flying: false,
 		stationary: false,
@@ -327,6 +362,7 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 	entry.burn = 0
 	entry.poison = 0
 	entry.rooted = false
+	entry.rootSource = null
 	entry.stripped = false
 
 	for (const status of enemy.statuses) {
@@ -338,6 +374,7 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 			entry.poison = status.stacks
 		} else if (status.kind === 'rooted') {
 			entry.rooted = true
+			entry.rootSource = status.sourceId
 		} else if (status.kind === 'armorStrip') {
 			entry.stripped = true
 		}
@@ -547,6 +584,64 @@ function drawRooted(ctx: CanvasRenderingContext2D, count: number, tilePx: number
 }
 
 /**
+ * A thread from the paper to every flyer stuck to it, drawn before the glyphs so it runs **under** the
+ * fly and ends in its body. One stroke for the board.
+ *
+ * It follows the bob: a thread to where the fly's shadow is would read as a fly tethered to the floor.
+ */
+function drawStrands(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const bob = FLYER_BOB_TILES * tilePx
+	let any = false
+
+	ctx.strokeStyle = STATUS_ROOTED_STRAND
+	ctx.lineWidth = ROOTED_STRAND_WIDTH_PX
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.strand) {
+			continue
+		}
+		any = true
+		ctx.moveTo(entry.strandX, entry.strandY)
+		ctx.lineTo(entry.x, entry.y - bobPhase(entry) * bob)
+	}
+
+	if (any) {
+		ctx.stroke()
+	}
+}
+
+/**
+ * How many feeders this frame has already fanned round each pot. Cleared every frame and never
+ * rebuilt, so it grows once to the number of pots on the board and allocates nothing after that.
+ */
+const feedersAt = new Map<EntityId, number>()
+
+/**
+ * Turns a feeder about its pot's centre into the next free slot: 0, then +1, -1, +2, -2 arcs of
+ * `FEED_FAN_ARC_TILES` either side of where the lean put it. The radius is kept, so a feeder still
+ * leaning in slides round the ring as it arrives. Points `dirX` / `dirY` at the pot for the bite.
+ */
+function fanAroundPot(entry: EnemyFrame, potX: number, potY: number, potId: EntityId, tilePx: number): void {
+	const index = feedersAt.get(potId) ?? 0
+	feedersAt.set(potId, index + 1)
+
+	const dx = entry.x - potX
+	const dy = entry.y - potY
+	const reach = Math.hypot(dx, dy)
+	if (reach < 1) {
+		return
+	}
+
+	const slot = index === 0 ? 0 : Math.ceil(index / 2) * (index % 2 === 1 ? 1 : -1)
+	const angle = Math.atan2(dy, dx) + (slot * FEED_FAN_ARC_TILES * tilePx) / reach
+	entry.x = potX + Math.cos(angle) * reach
+	entry.y = potY + Math.sin(angle) * reach
+	entry.dirX = -Math.cos(angle)
+	entry.dirY = -Math.sin(angle)
+}
+
+/**
  * The churned line behind every burrowed enemy, oldest-and-faintest first so the nearer steps sit over
  * it. One pass per step back, each batched across the board: `globalAlpha` is per pass.
  *
@@ -710,6 +805,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 
 	ageFrames++
 	liveCount = 0
+	feedersAt.clear()
 
 	const barricades = anyBarricade(world)
 	// How many enemies this frame has already placed in a queue. One box is the v1 case, and a second
@@ -764,6 +860,25 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 			entry.y += -entry.dirY * back + entry.dirX * across
 		}
 
+		entry.feeding = false
+		if (!entry.chewing && enemy.feeding !== null) {
+			const pot = towerById(world, enemy.feeding.towerId)
+			if (pot !== null) {
+				entry.feeding = true
+				fanAroundPot(entry, (pot.tile.x + 0.5) * tilePx, (pot.tile.y + 0.5) * tilePx, pot.id, tilePx)
+			}
+		}
+
+		entry.strand = false
+		if (entry.rooted && entry.flying && entry.rootSource !== null) {
+			const paper = towerById(world, entry.rootSource)
+			if (paper !== null) {
+				entry.strand = true
+				entry.strandX = (paper.tile.x + 0.5) * tilePx
+				entry.strandY = (paper.tile.y + 0.5) * tilePx
+			}
+		}
+
 		liveCount++
 	}
 
@@ -775,6 +890,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 	drawBurrowTrails(ctx, liveCount, tilePx)
 	drawMounds(ctx, liveCount, tilePx)
 	drawPlating(ctx, liveCount, tilePx)
+	drawStrands(ctx, liveCount, tilePx)
 
 	const size = tilePx * ENEMY_SCALE
 	const lunge = CHEW_LUNGE_TILES * tilePx
@@ -794,7 +910,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		// is, so a queue reads as biting rather than as forty ants wobbling. The bob is the same rule for
 		// the same reason -- a shadow and a health bar that rise with the fly are a fly that never leaves
 		// the floor.
-		const bite = entry.chewing ? lungePhase(entry) * lunge : 0
+		const bite = entry.chewing || entry.feeding ? lungePhase(entry) * lunge : 0
 		const lift = entry.flying ? bobPhase(entry) * bob : 0
 		blitGlyph(
 			ctx,

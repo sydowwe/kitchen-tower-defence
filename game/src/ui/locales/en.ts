@@ -443,7 +443,7 @@ export const en = {
 		candle: {
 			name: 'Candle',
 			description:
-				'A tea light on a saucer, left burning. Anything that wanders too close regrets it, and moths never stop wandering close.',
+				'A tea light on a saucer, left burning beside the path. Anything that wanders too close regrets it, and moths never stop wandering close.',
 			tier1: { name: 'Taller Wick' },
 			tier2: { name: 'Scented Pillar' },
 			tier3: {
@@ -477,7 +477,7 @@ export const en = {
 		honeyPot: {
 			name: 'Honey Pot',
 			description:
-				'It pays well, left open. Whatever walks past stops to feed and stays put for a while — eating the pot the whole time.',
+				'It pays well, if something is guarding it. Whatever walks past stops to feed and stays put for a while — eating the pot the whole time.',
 			tier1: { name: 'Fuller Pot' },
 			tier2: { name: 'Clover Honey' },
 			tier3: {

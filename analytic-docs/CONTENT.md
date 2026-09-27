@@ -31,7 +31,7 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 | Tower | Glyph | Role | Cost | DMG | Rate/s | Range | Type | Targets | Noise | Placement |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Nightlight | 💡 | DETECTION | 100 | 0 | — | 4 | — | both | 0 | off_path |
-| Candle | 🕯️ | DOT | 130 | 4/s aura | — | 2 | fire | both | 0 | off_path |
+| Candle | 🕯️ | DOT | 130 | 5/s aura | — | 2 | fire | both | 0 | off_path |
 | Vinegar Spray | 🧪 | DOT | 145 | 4 + 4/s | 1.0 | 3 | chemical | both | 0 | off_path |
 | Fly Paper | 🎗️ | CONTROL | 35 | 0 | — | 2 | — | **air only** | 0 | off_path |
 | Bay Leaf | 🌿 | SUPPRESSION | 160 | 0 | — | 3 | — | ground | 0 | off_path |
@@ -84,7 +84,7 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 - Candle T3 — burn applied by the aura stacks to 3 (at 2/s a stack, not the status table's 5/s: +6/s at the cap)
 - Gas Stove Burner T3 — the flame reaches the tiles either side (radius 0 → 1)
 - Fly Paper T3 — a fresh sheet every 10s, and it stops leaving the board (tiers 1–2 take it from 2 to 4 sheets, all sticky at once)
-- Honey Pot T3 — the honey gets everywhere: an aura at the bait radius 3 that applies `Slow` to ground enemies (tiers 1–2 take the income 7 → 9 → 11/sec). *Draft, as is the pot's 150 HP.*
+- Honey Pot T3 — the honey gets everywhere: an aura at the bait radius 3 that applies `Slow` to ground enemies (tiers 1–2 take the income 7 → 9 → 11/sec). *The T3 is a draft; the pot's 150 HP was judged in step 17D (OPEN-QUESTIONS.md, the Honey Pot).*
 - Fan T3 — pushback also applies `Marked` *(arrives with the Fan, step 18)*
 
 ### Selling
