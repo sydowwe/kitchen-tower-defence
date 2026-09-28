@@ -15,15 +15,15 @@ import { isHeld } from '@/core/systems/targeting.ts'
 import type { Enemy, EntityId, World } from '@/core/types.ts'
 
 /**
- * What fraction of a push still lands once an enemy is fully resisting: 35% (step 18's "~35% after
- * four pushes"). Draft values, all three -- 18C re-tunes them against night 18, and
- * `tests/pushback.spec.ts` asserts against the names, never the numbers.
+ * What fraction of a push still lands once an enemy is fully resisting: 25%. Step 18C lowered it from
+ * the draft's 35% against night 18 and kept the other two; analytic-docs/OPEN-QUESTIONS.md has what
+ * the measurement showed. `tests/pushback.spec.ts` asserts against the names, never the numbers.
  *
- * The floor is what stops two Fans holding a lane shut. Two Fans at 1.5 shots/sec, 1.2 tiles a push,
- * held near the floor by the decay between shots, push a Moth back ~1.45 tiles/sec against its own
- * 1.6 -- the slowest flyer still gains ground.
+ * The floor is what stops a stack of Fans holding a lane shut. Two Fans at 1.5 shots/sec, 1.2 tiles a
+ * push, held near the floor by the decay between shots, push a Moth back ~1.1 tiles/sec against its
+ * own 1.6. It takes four overlapping cones to hold a Moth and five to hold a Fly.
  */
-export const PUSHBACK_FLOOR = 0.35
+export const PUSHBACK_FLOOR = 0.25
 
 /** Pushes, back to back, that take an unresisted enemy down to the floor. */
 export const PUSHES_TO_FLOOR = 4

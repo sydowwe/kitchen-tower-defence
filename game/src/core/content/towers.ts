@@ -1076,8 +1076,10 @@ export const honeyPot: TowerDefOf<'honeyPot'> = {
  * air, noise 1, off the path. What the gust does to an enemy is `core/systems/pushback.ts`'s.
  *
  * **A `coneAttack` with a `pushback` riding it** -- the push is per hit, so it shares the cone's aim,
- * cooldown and wedge rather than keeping its own (`PushbackBehaviour`). `coneHalfAngleDeg: 25` is a
- * draft: the doc gives the range and not the opening. `physical` is the Sticky Tape's honest filler for
+ * cooldown and wedge rather than keeping its own (`PushbackBehaviour`). `coneHalfAngleDeg: 25` is
+ * step 18C's, kept: the doc gives the range and not the opening, and run headless on night 18 a
+ * single Fan held the same share of the Counter's lane-side tiles at 25, 35 and 45 degrees -- the
+ * short straights limit it, not the wedge. `physical` is the Sticky Tape's honest filler for
  * the row's "—" type, and resolves x0.5 against `air`. `CLOSEST` is section 5's default for a cone.
  */
 export const fan: TowerDefOf<'fan'> = {

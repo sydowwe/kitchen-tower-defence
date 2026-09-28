@@ -394,11 +394,11 @@ describe('the Beetle', () => {
 describe('nights 4 to 9', () => {
 	it('carries the wave counts of analytic-docs/CONTENT.md section 6', () => {
 		expect(NIGHTS.map(night => night.waves.length)).toEqual([
-			6, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 12, 13, 13, 14,
+			6, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14,
 		])
-		// 14 is the Mouse's night (step 19) and 18 the Fan's (step 18); the gaps are on purpose. 13 sits
-		// between 12 and 15 because Continue walks array positions.
-		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17])
+		// 14 is the Mouse's night (step 19); the gap is on purpose. 13 sits between 12 and 15 because
+		// Continue walks array positions.
+		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18])
 	})
 
 	it('is authored on the Counter, on the lane the Counter actually has', () => {

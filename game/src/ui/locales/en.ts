@@ -494,7 +494,7 @@ export const en = {
 		fan: {
 			name: 'Fan',
 			description:
-				'A desk fan pointed down the track. Whatever is flying stops getting any closer for a while, though each gust buys a little less until they have their breath back.',
+				'A desk fan pointed down the track. Whatever is flying gets blown back the way it came, though each gust buys a little less until they have their breath back.',
 			tier1: { name: 'Longer Cord' },
 			tier2: { name: 'High Setting' },
 			tier3: {

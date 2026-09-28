@@ -91,9 +91,9 @@ that plays badly isn't something a spec catches.
 - [ ] A Fan on a flyer lane visibly buys time and feels good to place.
 - [ ] Fan spam does not trivialise night 18. Leave this unticked unless you played it with three
       Fans and watched the meter.
-- [ ] Night 18 is winnable with a line that answers air, and lost by one that doesn't.
-- [ ] `OPEN-QUESTIONS.md`'s pushback line says what play showed.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] Night 18 is winnable with a line that answers air, and lost by one that doesn't.
+- [x] `OPEN-QUESTIONS.md`'s pushback line says what play showed.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked. The checkboxes are the
 ledger of what has been confirmed.
