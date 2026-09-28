@@ -29,7 +29,7 @@ Small, cheap, and it's most of what makes a TD feel good:
 - Tower placement thunk; upgrade sparkle; a distinct sell sound.
 - Wave-start banner, and a "final wave" flourish so the end of a night is legible.
 - Enemy idle animation — a slight bob or scuttle. Static emoji look dead, and a two-line sine offset fixes it.
-- **Audio.** A quiet ambient hum (fridge, clock ticking), tower SFX, enemy death sounds, and — most importantly — **the noise meter must be audible**. Loud towers should *sound* loud, and the approach to the cap should get audibly tense. Use Howler or raw WebAudio; keep the whole set under 2MB.
+- **Audio.** A quiet ambient hum (fridge, clock ticking), tower SFX, enemy death sounds, and — most importantly — **the noise meter must be audible**. Loud towers should *sound* loud, and the approach to the cap should get audibly tense. The Mouse's arrival gets a distinct sound of its own: step 19 asked for one and left it here, because it had no audio to put it in. Use Howler or raw WebAudio; keep the whole set under 2MB.
 
 ## C. Onboarding
 
