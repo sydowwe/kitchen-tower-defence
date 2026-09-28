@@ -53,6 +53,12 @@ export type EnemyTag =
 	| 'physical-immune'
 	| 'douses-fire'
 	| 'boss'
+	/**
+	 * Nothing shoves it: `pushEnemy` in `core/systems/pushback.ts` moves it 0. What the enemy *is*,
+	 * like `physical-immune`, and not an `EnemyFlag`. The enemy schema requires it of every def that
+	 * does not walk.
+	 */
+	| 'push-immune'
 
 /**
  * Runtime state an enemy is *in*, as opposed to what it *is*. Later steps extend this union --
@@ -251,6 +257,15 @@ export interface Enemy {
 	 * pot so two pots on one lane each get their feed.
 	 */
 	fedAt: EntityId[]
+	/**
+	 * How much the next shove is resisted, as it stood at `atTick` -- null until the first one.
+	 * Written only by `pushEnemy` in `core/systems/pushback.ts`.
+	 *
+	 * **Lazy, and aged by nobody.** The resistance now is this value decayed linearly by
+	 * `world.tick - atTick`, computed at read time by `pushbackResistanceOf`, so there is no slot, no
+	 * per-tick write, and a save carries no churn for an enemy nobody is shoving.
+	 */
+	pushback: { resistance: number; atTick: number } | null
 	/** Food ids a thief is carrying. Returned to the fridge if it dies before it leaves the map. */
 	stolenItems: EntityId[]
 	flags: Record<EnemyFlag, boolean>
@@ -598,6 +613,21 @@ export type GameEvent =
 	 */
 	| { kind: 'enemyBurrowed'; enemyId: EntityId; at: Vec2 }
 	| { kind: 'enemySurfaced'; enemyId: EntityId; at: Vec2 }
+	/**
+	 * One gust: once per shot of a tower whose def carries a `pushback`, whatever it caught. It carries
+	 * its own shape for `towerDestroyed`'s reason -- by the time a frame reads it the tower may be sold
+	 * or upgraded to a wider cone.
+	 */
+	| {
+			kind: 'pushbackFired'
+			towerId: EntityId
+			tile: Vec2
+			facingRad: number
+			rangeTiles: number
+			halfAngleDeg: number
+	  }
+	/** One enemy that actually moved. `tiles` is the distance moved, after resistance and the clamp at 0. */
+	| { kind: 'enemyPushed'; enemyId: EntityId; sourceTowerId: EntityId; tiles: number }
 
 // --- world ------------------------------------------------------------------------------------
 

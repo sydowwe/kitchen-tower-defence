@@ -121,7 +121,8 @@ export function samplePath(path: Path, distance: number): { x: number; y: number
  *
  * **The normal is `(-sin(angle), cos(angle))`: a positive `lateralTiles` displaces along the heading
  * turned a quarter turn, so on a lane running `+x` it moves the point toward `+y`.** Nothing else in
- * the codebase fixes that sign, and step 18's pushback will want it. The angle convention is
+ * the codebase fixes that sign. (Step 18's pushback never reads it: a shove is a delta on
+ * `distance` along the lane, not a displacement off it.) The angle convention is
  * `atan2(dy, dx)` (`core/systems/hitbox.ts`), which is what the two terms below are turning.
  *
  * One function and two callers -- `enemyPosition` and `render/layers/entities.ts`, which already
@@ -147,8 +148,9 @@ export function lateralOffsetOf(at: { x: number; y: number; angle: number }, poi
 
 /**
  * The inverse of `samplePath`: the arc distance of the point on the polyline closest to `point`, and
- * how far off the track `point` sits. Step 7B hatches a Fruit Fly at the returned distance; step 11's
- * moth deviation and step 18's pushback want the same projection rather than a second copy of it.
+ * how far off the track `point` sits. Step 7B hatches a Fruit Fly at the returned distance, and step
+ * 11's moth deviation wants the same projection rather than a second copy of it. Step 18's pushback
+ * does not: it subtracts from `distance` and never projects a point.
  *
  * **Projected onto each segment with `t` clamped to `[0, 1]`, never onto the infinite line.** A point
  * outside the elbow of a corner projects onto the *extension* of both segments if you forget, and the

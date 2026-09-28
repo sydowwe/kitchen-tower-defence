@@ -198,7 +198,8 @@ export const moth: EnemyDefOf<'moth'> = {
  * 50% faster than this, so this is the dry rate.
  *
  * `fungal` is **x0.2 physical and x2.5 chemical**: a board of Salt Shakers finds it close to
- * immovable. `ground` and `spreads` are descriptive.
+ * immovable. `ground` and `spreads` are descriptive. `push-immune` is what a thing that does not walk
+ * has to be (the enemy schema says so): a Fan's gust shoves it nowhere it could walk back from.
  *
  * `meleeDamagePerTick` is the file's `hp / 10` and is only ever read if a Cardboard Box is placed
  * inside the hold gap in front of a mold that cannot walk to it.
@@ -213,7 +214,7 @@ export const mold: EnemyDefOf<'mold'> = {
 	meleeDamagePerTick: damagePerSecond(4),
 	reward: 12,
 	steals: 0,
-	tags: ['ground', 'spreads', 'fungal'],
+	tags: ['ground', 'spreads', 'fungal', 'push-immune'],
 	/** `magnitude` is mold's growth stage, and 1 is where every patch starts. */
 	tileWriter: { effect: 'mold', mode: 'spread', magnitude: 1, durationTicks: -1, intervalTicks: 720 },
 }

@@ -3,6 +3,7 @@ import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
 import { weevil } from '@/core/content/enemies.ts'
 import { tick } from '@/core/sim.ts'
+import { pushEnemy } from '@/core/systems/pushback.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
@@ -56,6 +57,14 @@ describe('createWorld', () => {
 		burrower.fedAt.push(7)
 		expect(roundTrip(world)).toEqual(world)
 		expect(roundTrip(world).enemies[0]?.feeding).toEqual({ towerId: 7, distance: 3.25, releaseTick: 180 })
+
+		// Step 18A's `pushback` is the third: a shoved enemy carries its resistance and when it was set.
+		// Fed enemies are never shoved, so the feed is cleared first.
+		burrower.feeding = null
+		burrower.distance = 5
+		expect(pushEnemy(world, burrower, 1.2, 7)).toBeGreaterThan(0)
+		expect(burrower.pushback).not.toBeNull()
+		expect(roundTrip(world)).toEqual(world)
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {

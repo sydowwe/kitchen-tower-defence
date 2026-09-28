@@ -89,6 +89,7 @@ function addEnemyAt(world: World, at: Vec2, tags: EnemyTag[] = PLAIN): Enemy {
 		burrowWindow: null,
 		feeding: null,
 		fedAt: [],
+		pushback: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
@@ -120,6 +121,7 @@ function addLaneEnemy(world: World, distance: number, tags: EnemyTag[] = PLAIN):
 		burrowWindow: null,
 		feeding: null,
 		fedAt: [],
+		pushback: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

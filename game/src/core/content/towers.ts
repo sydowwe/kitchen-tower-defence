@@ -20,6 +20,7 @@ import {
 	collect,
 	coneAttack,
 	income,
+	pushback,
 	reveal,
 	suppress,
 	tileEffect,
@@ -1070,6 +1071,49 @@ export const honeyPot: TowerDefOf<'honeyPot'> = {
 	}),
 }
 
+/**
+ * analytic-docs/CONTENT.md section 1, Act II: 170 crumbs, CONTROL, 1 damage, 1.5/sec, "4 cone",
+ * air, noise 1, off the path. What the gust does to an enemy is `core/systems/pushback.ts`'s.
+ *
+ * **A `coneAttack` with a `pushback` riding it** -- the push is per hit, so it shares the cone's aim,
+ * cooldown and wedge rather than keeping its own (`PushbackBehaviour`). `coneHalfAngleDeg: 25` is a
+ * draft: the doc gives the range and not the opening. `physical` is the Sticky Tape's honest filler for
+ * the row's "—" type, and resolves x0.5 against `air`. `CLOSEST` is section 5's default for a cone.
+ */
+export const fan: TowerDefOf<'fan'> = {
+	id: 'fan',
+	nameKey: 'tower.fan.name',
+	descriptionKey: 'tower.fan.description',
+	glyph: '🌀',
+	role: 'CONTROL',
+	cost: 170,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 1,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		coneAttack({
+			damage: 1,
+			damageType: 'physical',
+			cooldownTicks: perSecond(1.5),
+			rangeTiles: 4,
+			coneHalfAngleDeg: 25,
+			targets: 'air',
+		}),
+		pushback({ pushTiles: 1.2, targets: 'air' }),
+	],
+	/**
+	 * Range 4 -> 4.5 -> 5, and **never the push or the rate**: both raise the lock threshold the
+	 * resistance floor is sized against, and two tier-2 Fans pushing 2.0 would hold a Moth at the floor.
+	 * Range widens where the door is held without changing whether it can be held shut.
+	 *
+	 * T3 marks everything the gust reaches (section 1) -- the amplifier, not a bigger shove.
+	 */
+	upgrades: upgradesFor('fan', raise('coneAttack', 'rangeTiles', 0.5), raise('coneAttack', 'rangeTiles', 0.5), {
+		replaceApplies: [{ kind: 'pushback', applications: ['marked'] }],
+	}),
+}
+
 /** Appended, never reordered: the shop renders this order and prints `index + 1` on each button. */
 export const TOWERS = [
 	saltShaker,
@@ -1090,6 +1134,54 @@ export const TOWERS = [
 	gasStoveBurner,
 	flyPaper,
 	honeyPot,
+	fan,
 ]
 
 export type TowerId = (typeof TOWERS)[number]['id']
+
+/**
+ * analytic-docs/ROADMAP-POST-V1.md section 2, the Mint Pot: 190 crumbs, CONTROL, noise 0, off the
+ * path -- a ground pusher that proves `pushback` is general and not the Fan's. **Nobody can buy it**:
+ * it lives in `POST_V1_TOWERS` and not in `TOWERS`, so it is in no shop, on no number key, and
+ * `contentKeys` asks no English of it. Its keys are well-formed and unresolved, because nothing
+ * renders it.
+ *
+ * Every number is a draft. A 180-degree half-angle is the whole circle (`cone()` compares `<= π`),
+ * and the row's "—" rate becomes a one-second pulse. Tiers: range +0.5 twice, then 4 damage for
+ * "repelled enemies take damage" (analytic-docs/DECISIONS.md section 3).
+ */
+export const mintPot: TowerDefOf<'mintPot'> = {
+	id: 'mintPot',
+	nameKey: 'tower.mintPot.name',
+	descriptionKey: 'tower.mintPot.description',
+	glyph: '🌱',
+	role: 'CONTROL',
+	cost: 190,
+	maxHp: 100,
+	placement: 'off_path',
+	noise: 0,
+	defaultTargetingMode: 'CLOSEST',
+	behaviours: [
+		coneAttack({
+			damage: 0,
+			damageType: 'physical',
+			cooldownTicks: perSecond(1),
+			rangeTiles: 2,
+			coneHalfAngleDeg: 180,
+			targets: 'ground',
+		}),
+		pushback({ pushTiles: 0.8, targets: 'ground' }),
+	],
+	upgrades: upgradesFor(
+		'mintPot',
+		raise('coneAttack', 'rangeTiles', 0.5),
+		raise('coneAttack', 'rangeTiles', 0.5),
+		raise('coneAttack', 'damage', 4),
+	),
+}
+
+/**
+ * Authored and validated, never sold. Step 20 owns unlock state and is where one of these would move
+ * into the shop; until then a spec registers it into `TOWERS` for as long as it needs it.
+ */
+export const POST_V1_TOWERS = [mintPot]

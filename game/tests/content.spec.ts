@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { isAura, isBait, isCharge, isCleanse, isFiring, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
-import { ant, beetle, ENEMIES, fly, fruitFly, moth, roach } from '@/core/content/enemies.ts'
+import {
+	isAura,
+	isBait,
+	isCharge,
+	isCleanse,
+	isFiring,
+	isPushback,
+	isReveal,
+	isTileEffect,
+} from '@/core/content/behaviours.ts'
+import { ant, beetle, ENEMIES, fly, fruitFly, mold, moth, roach } from '@/core/content/enemies.ts'
+import { effectiveDef } from '@/core/content/index.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
@@ -11,12 +21,15 @@ import {
 	candle,
 	cardboardBox,
 	cookieJar,
+	fan,
 	flyPaper,
 	gasStoveBurner,
 	honeyPot,
 	iceCubeTray,
+	mintPot,
 	mousetrap,
 	nightlight,
+	POST_V1_TOWERS,
 	saltShaker,
 	sprayBottle,
 	stickyTape,
@@ -773,7 +786,77 @@ describe('the Honey Pot', () => {
 
 	it('is the eighteenth tower in the shop, appended and not inserted', () => {
 		expect(TOWERS[17]?.id).toBe('honeyPot')
-		expect(TOWERS).toHaveLength(18)
+	})
+})
+
+describe('the Fan', () => {
+	it('matches analytic-docs/CONTENT.md section 1 to the number', () => {
+		expect(fan.cost).toBe(170)
+		expect(fan.role).toBe('CONTROL')
+		expect(fan.glyph).toBe('🌀')
+		expect(fan.placement).toBe('off_path')
+		expect(fan.noise).toBe(1)
+		expect(fan.maxHp).toBe(100)
+		expect(fan.defaultTargetingMode).toBe('CLOSEST')
+	})
+
+	it('is a 1-damage, 1.5/sec, range-4 cone at flyers, in ticks', () => {
+		const cone = coneOf(fan.behaviours)
+		expect(cone.damage).toBe(1)
+		expect(cone.cooldownTicks).toBe(40)
+		expect(cone.rangeTiles).toBe(4)
+		expect(cone.targets).toBe('air')
+	})
+
+	it('carries a pushback rider of 1.2 tiles at flyers, and no range or clock of its own', () => {
+		expect(fan.behaviours.find(isPushback)).toEqual({
+			kind: 'pushback',
+			pushTiles: 1.2,
+			targets: 'air',
+			applies: [],
+		})
+	})
+
+	it('widens its range at tiers 1 and 2 and never its push or its rate', () => {
+		const tierTwo = effectiveDef('fan', 2)
+		expect(coneOf(tierTwo.behaviours).rangeTiles).toBe(5)
+		expect(coneOf(tierTwo.behaviours).cooldownTicks).toBe(coneOf(fan.behaviours).cooldownTicks)
+		expect(tierTwo.behaviours.find(isPushback)?.pushTiles).toBe(1.2)
+	})
+
+	it('marks what the gust reaches at tier 3', () => {
+		expect(
+			effectiveDef('fan', 3)
+				.behaviours.find(isPushback)
+				?.applies.map(application => application.kind),
+		).toEqual(['marked'])
+	})
+
+	it('is the nineteenth tower in the shop, appended and not inserted', () => {
+		expect(TOWERS[18]?.id).toBe('fan')
+		expect(TOWERS).toHaveLength(19)
+	})
+})
+
+describe('the Mint Pot', () => {
+	it('is authored in POST_V1_TOWERS and nowhere a player can buy it', () => {
+		expect(POST_V1_TOWERS).toContain(mintPot)
+		// Widened to `string`: the literal-id union already says it is absent, and this says it at runtime.
+		expect(TOWERS.map((def): string => def.id)).not.toContain(mintPot.id)
+	})
+
+	it('validates, and is a whole-circle ground cone with a pushback rider', () => {
+		expect(() => validateContent({ towers: [mintPot] })).not.toThrow()
+		expect(coneOf(mintPot.behaviours).coneHalfAngleDeg).toBe(180)
+		expect(coneOf(mintPot.behaviours).targets).toBe('ground')
+		expect(mintPot.behaviours.find(isPushback)?.targets).toBe('ground')
+	})
+})
+
+describe('the Mold', () => {
+	it('is push-immune, because it does not walk', () => {
+		expect(mold.speedTilesPerTick).toBe(0)
+		expect(mold.tags).toContain('push-immune')
 	})
 })
 

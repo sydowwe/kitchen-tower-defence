@@ -9,10 +9,10 @@
  * guarantee. `tests/behaviours.spec.ts` fails `type-check` the moment a function-typed field
  * appears on one.
  *
- * `attack` (step 6), `coneAttack` (step 9B) and `aura` (step 12B) have systems reading them. The
- * rest are descriptors without an interpreter: the type exists, is a member of the union, and is
- * schema-validated, so content can be authored against it before the step that owns the mechanic
- * arrives.
+ * Every member has an interpreter now -- each docstring below names its reader, and `pushback`
+ * (step 18A) was the last to gain one. The pattern that got them there stands for the next: a
+ * descriptor may exist, be a member of the union and be schema-validated before the step that owns
+ * the mechanic arrives, so content can be authored against it early.
  *
  * Durations are tick counts. Ranges and radii are tiles. Speeds are tiles per tick.
  */
@@ -187,9 +187,9 @@ export function coneAttack(params: ConeAttackParams): ConeAttackBehaviour {
 	}
 }
 
-// --- descriptors without an interpreter -----------------------------------------------------------
-// Each names the step that will read it. Adding the system is that step's work; adding the shape
-// is this one's, so a tower def written in step 2D never has to be revisited to gain a field.
+// --- everything that is not a shot ----------------------------------------------------------------
+// Each names the step that reads it. The shapes arrived before their systems, so a tower def written
+// in step 2D never had to be revisited to gain a field.
 
 /**
  * Continuous damage to everything in radius, no shots and no targeting. `core/systems/aura.ts`
@@ -415,23 +415,28 @@ export function suppress(params: SuppressParams): SuppressBehaviour {
 }
 
 /**
- * Fan. Pushes enemies back along the track they came down -- a negative delta on `distance`, never
- * free movement off the polyline. Step 18.
+ * Fan, Mint Pot. Shoves what a shot hits back along the track it came down -- a negative delta on
+ * `distance`, never free movement off the polyline. Step 18A.
+ *
+ * **A rider on the def's `coneAttack`, with no range, cone or clock of its own.** `fireCone` in
+ * `core/systems/combat.ts` pushes each enemy the gust caught, once per shot, through `pushEnemy` in
+ * `core/systems/pushback.ts`. A pushback with its own aim and cooldown would drift from the shot it
+ * rides, so `validateContent` rejects a def carrying one without a `coneAttack`.
+ *
+ * `targets` narrows the cone's own and never widens it. `applies` lands on everything the gust
+ * reaches and passes `targets`, whether or not it actually moved -- the Fan's tier-3 Marked is the
+ * amplifier, not the displacement.
  */
 export interface PushbackBehaviour {
 	kind: 'pushback'
-	rangeTiles: number
-	coneHalfAngleDeg: number
-	/** Tiles per tick, subtracted from the enemy's path distance while it is in the cone. */
-	pushTilesPerTick: number
+	/** Tiles subtracted from the enemy's path distance per hit, before its resistance. */
+	pushTiles: number
 	targets: TargetClass
 	applies: StatusApplication[]
 }
 
 export interface PushbackParams {
-	rangeTiles: number
-	coneHalfAngleDeg: number
-	pushTilesPerTick: number
+	pushTiles: number
 	targets: TargetClass
 	applies?: readonly StatusApplicationParam[]
 }
@@ -439,9 +444,7 @@ export interface PushbackParams {
 export function pushback(params: PushbackParams): PushbackBehaviour {
 	return {
 		kind: 'pushback',
-		rangeTiles: params.rangeTiles,
-		coneHalfAngleDeg: params.coneHalfAngleDeg,
-		pushTilesPerTick: params.pushTilesPerTick,
+		pushTiles: params.pushTiles,
 		targets: params.targets,
 		applies: toApplications(params.applies),
 	}
@@ -677,6 +680,11 @@ export function isCleanse(behaviour: Behaviour): behaviour is CleanseBehaviour {
 /** And for pots: `core/systems/bait.ts`, and 17C's card and `reachOf`. */
 export function isBait(behaviour: Behaviour): behaviour is BaitBehaviour {
 	return behaviour.kind === 'bait'
+}
+
+/** And for gusts: `fireCone` in `core/systems/combat.ts`, and `validateContent`'s rider check. */
+export function isPushback(behaviour: Behaviour): behaviour is PushbackBehaviour {
+	return behaviour.kind === 'pushback'
 }
 
 /** And for writing cells: `core/systems/tileEffect.ts`, and `projectedNoisePerSecond` in `noise.ts`. */

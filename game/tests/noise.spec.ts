@@ -60,6 +60,7 @@ function putEnemy(world: World, distance: number, speed = 0.05): Enemy {
 		burrowWindow: null,
 		feeding: null,
 		fedAt: [],
+		pushback: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

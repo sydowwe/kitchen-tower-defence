@@ -17,7 +17,7 @@ import { INSTALLATIONS } from '@/core/content/installations.ts'
 import { MAPS } from '@/core/content/maps/index.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContentInDev } from '@/core/content/schema.ts'
-import { TOWERS } from '@/core/content/towers.ts'
+import { POST_V1_TOWERS, TOWERS } from '@/core/content/towers.ts'
 import { foldUpgrades } from '@/core/content/upgrades.ts'
 import type { EnemyDef, FoodDef, NightDef, TowerDef } from '@/core/content/schema.ts'
 import type { DefId, MapDef, Tower } from '@/core/types.ts'
@@ -56,8 +56,9 @@ export type {
  * `maps` is absent for a different reason: `core/content/maps/index.ts` validates its own sources,
  * because that check has to run before `loadMap` derives a `MapDef` from them.
  */
+// `POST_V1_TOWERS` beside the roster: nobody can buy one, and a typo in it still fails at boot.
 validateContentInDev({
-	towers: TOWERS,
+	towers: [...TOWERS, ...POST_V1_TOWERS],
 	enemies: ENEMIES,
 	food: FOODS,
 	nights: NIGHTS,

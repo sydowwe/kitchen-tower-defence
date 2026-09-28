@@ -148,6 +148,7 @@ const ENEMY_TAGS = [
 	'physical-immune',
 	'douses-fire',
 	'boss',
+	'push-immune',
 ] as const satisfies readonly EnemyTag[]
 
 const STATUS_KINDS = [
@@ -334,9 +335,8 @@ export function contentSchemas() {
 		}),
 		z.object({
 			kind: z.literal('pushback'),
-			rangeTiles: tiles(),
-			coneHalfAngleDeg: z.number().min(0).max(180),
-			pushTilesPerTick: z.number().min(0).max(1),
+			/** Per hit, bounded like a range: a shove across the whole board is a typo. */
+			pushTiles: tiles(),
 			targets: targetClass,
 			applies: statusApplications,
 		}),
@@ -428,71 +428,78 @@ export function contentSchemas() {
 
 	// --- enemies ------------------------------------------------------------------------------
 
-	const enemy = z.object({
-		id: defId(),
-		nameKey: i18nKey(),
-		descriptionKey: i18nKey(),
-		glyph: glyph(),
-		hp: z.number().int().min(1).max(100_000),
-		/**
-		 * Tiles per **tick**. The fastest thing in v1 is the Fly at 2.2 tiles/sec, which is 0.037
-		 * here -- so the bound is what catches a tiles-per-second value pasted in from the doc.
-		 */
-		speedTilesPerTick: z.number().min(0).max(0.5),
-		/**
-		 * Damage per **tick** dealt to a barricade this enemy is stopped at
-		 * (`core/systems/barricades.ts`). Bounded like the speed above, and for the same reason: 5.5
-		 * damage a second is 0.092 here, so the bound is what rejects a per-second number pasted in.
-		 *
-		 * **Required, not optional.** A default of 0 is an enemy that stands at a Cardboard Box
-		 * forever and never gets through it, which is a night that never ends.
-		 */
-		meleeDamagePerTick: z.number().min(0).max(0.5),
-		/** Crumbs dropped on death. */
-		reward: z.number().int().min(0).max(1000),
-		/** Food items taken at the fridge. */
-		steals: z.number().int().min(0).max(20),
-		tags: z.array(enemyTag).min(1),
-		/**
-		 * What this enemy writes onto the board, read by `core/systems/spread.ts`. **A field and not a
-		 * tag**: a tag could not carry the interval, the strength or the duration.
-		 *
-		 * - `trail` writes the tile under the enemy -- the Slug.
-		 * - `spread` grows the region of `effect` by one orthogonal neighbour -- the Mold.
-		 *
-		 * `magnitude` is written as-is, so it means what `TILE_EFFECT_DEFS[effect]` says it means: the
-		 * multiplier itself for slime, the growth stage for mold.
-		 */
-		tileWriter: z
-			.object({
-				effect: tileEffectKind,
-				mode: z.enum(['trail', 'spread']),
-				magnitude: z.number(),
-				// -1 is permanent, matching `TileEffect.remainingTicks` -- and the same bound the
-				// `tileEffect` behaviour uses, so a millisecond value fails in both places.
-				durationTicks: z.number().int().min(-1).max(MAX_TILE_EFFECT_TICKS),
-				intervalTicks: z.number().int().min(1).max(MAX_TILE_EFFECT_TICKS),
-			})
-			.optional(),
-		/**
-		 * Who burrows, and for how long, read by `spawnEnemyAt` to roll `Enemy.burrowWindow`. **A field
-		 * and not the `burrows` tag**, for `tileWriter`'s reason: a tag cannot carry the numbers.
-		 *
-		 * Fractions of the lane's `lengthTiles`: the window starts somewhere in `[0, startMaxFraction]`
-		 * and lasts between the two length fractions.
-		 */
-		burrow: z
-			.object({
-				startMaxFraction: z.number().min(0).max(1),
-				lengthMinFraction: z.number().min(0).max(1),
-				lengthMaxFraction: z.number().min(0).max(1),
-			})
-			// `validateCollection` prefixes the enemy id and `burrow:`, so the message names the def.
-			.refine(value => value.lengthMinFraction <= value.lengthMaxFraction, {
-				message: 'lengthMinFraction must not exceed lengthMaxFraction',
-			})
-			.optional(),
-	})
+	const enemy = z
+		.object({
+			id: defId(),
+			nameKey: i18nKey(),
+			descriptionKey: i18nKey(),
+			glyph: glyph(),
+			hp: z.number().int().min(1).max(100_000),
+			/**
+			 * Tiles per **tick**. The fastest thing in v1 is the Fly at 2.2 tiles/sec, which is 0.037
+			 * here -- so the bound is what catches a tiles-per-second value pasted in from the doc.
+			 */
+			speedTilesPerTick: z.number().min(0).max(0.5),
+			/**
+			 * Damage per **tick** dealt to a barricade this enemy is stopped at
+			 * (`core/systems/barricades.ts`). Bounded like the speed above, and for the same reason: 5.5
+			 * damage a second is 0.092 here, so the bound is what rejects a per-second number pasted in.
+			 *
+			 * **Required, not optional.** A default of 0 is an enemy that stands at a Cardboard Box
+			 * forever and never gets through it, which is a night that never ends.
+			 */
+			meleeDamagePerTick: z.number().min(0).max(0.5),
+			/** Crumbs dropped on death. */
+			reward: z.number().int().min(0).max(1000),
+			/** Food items taken at the fridge. */
+			steals: z.number().int().min(0).max(20),
+			tags: z.array(enemyTag).min(1),
+			/**
+			 * What this enemy writes onto the board, read by `core/systems/spread.ts`. **A field and not a
+			 * tag**: a tag could not carry the interval, the strength or the duration.
+			 *
+			 * - `trail` writes the tile under the enemy -- the Slug.
+			 * - `spread` grows the region of `effect` by one orthogonal neighbour -- the Mold.
+			 *
+			 * `magnitude` is written as-is, so it means what `TILE_EFFECT_DEFS[effect]` says it means: the
+			 * multiplier itself for slime, the growth stage for mold.
+			 */
+			tileWriter: z
+				.object({
+					effect: tileEffectKind,
+					mode: z.enum(['trail', 'spread']),
+					magnitude: z.number(),
+					// -1 is permanent, matching `TileEffect.remainingTicks` -- and the same bound the
+					// `tileEffect` behaviour uses, so a millisecond value fails in both places.
+					durationTicks: z.number().int().min(-1).max(MAX_TILE_EFFECT_TICKS),
+					intervalTicks: z.number().int().min(1).max(MAX_TILE_EFFECT_TICKS),
+				})
+				.optional(),
+			/**
+			 * Who burrows, and for how long, read by `spawnEnemyAt` to roll `Enemy.burrowWindow`. **A field
+			 * and not the `burrows` tag**, for `tileWriter`'s reason: a tag cannot carry the numbers.
+			 *
+			 * Fractions of the lane's `lengthTiles`: the window starts somewhere in `[0, startMaxFraction]`
+			 * and lasts between the two length fractions.
+			 */
+			burrow: z
+				.object({
+					startMaxFraction: z.number().min(0).max(1),
+					lengthMinFraction: z.number().min(0).max(1),
+					lengthMaxFraction: z.number().min(0).max(1),
+				})
+				// `validateCollection` prefixes the enemy id and `burrow:`, so the message names the def.
+				.refine(value => value.lengthMinFraction <= value.lengthMaxFraction, {
+					message: 'lengthMinFraction must not exceed lengthMaxFraction',
+				})
+				.optional(),
+		})
+		// A stationary enemy shoved back 1.2 tiles walks nowhere to recover it, so the next one to be
+		// authored cannot forget: something that does not move is not moved.
+		.refine(value => value.speedTilesPerTick > 0 || value.tags.includes('push-immune'), {
+			message: "a stationary enemy (speedTilesPerTick 0) must carry the 'push-immune' tag",
+			path: ['tags'],
+		})
 
 	// --- food ---------------------------------------------------------------------------------
 
@@ -859,6 +866,33 @@ function checkUpgradeTiers(towers: readonly TowerDef[], problems: string[]): voi
 }
 
 /**
+ * A `pushback` rides a `coneAttack` and has no aim or clock of its own (`PushbackBehaviour` in
+ * core/content/behaviours.ts), so a def carrying one without a cone -- on the base def or on a tier
+ * that adds it -- would validate and silently push nothing.
+ *
+ * Checked at every tier, without folding: a tier can add behaviours and never remove one, so the
+ * kinds a tower has at tier N are its base behaviours plus the first N `addBehaviours` lists.
+ */
+function checkPushbackRiders(towers: readonly TowerDef[], problems: string[]): void {
+	for (const tower of towers) {
+		const kinds = new Set(tower.behaviours.map(behaviour => behaviour.kind))
+		for (let tierIndex = 0; tierIndex <= tower.upgrades.length; tierIndex++) {
+			if (tierIndex > 0) {
+				for (const behaviour of tower.upgrades[tierIndex - 1]?.addBehaviours ?? []) {
+					kinds.add(behaviour.kind)
+				}
+			}
+			if (kinds.has('pushback') && !kinds.has('coneAttack')) {
+				problems.push(
+					`tower '${tower.id}': behaviours: a pushback rides a coneAttack, and at tier ${tierIndex} this tower has none`,
+				)
+				break
+			}
+		}
+	}
+}
+
+/**
  * Validates every collection and throws once, with **every** problem it found. Failing on the
  * first would mean fourteen restarts to fix fourteen typos.
  */
@@ -877,6 +911,7 @@ export function validateContent(raw: RawContent): Content {
 	}
 
 	checkUpgradeTiers(content.towers, problems)
+	checkPushbackRiders(content.towers, problems)
 
 	if (problems.length > 0) {
 		throw new ContentValidationError(problems)

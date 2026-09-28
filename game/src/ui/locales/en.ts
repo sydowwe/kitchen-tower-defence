@@ -219,6 +219,7 @@ export const en = {
 			'physical-immune': 'Immune to physical',
 			'douses-fire': 'Puts out fire',
 			boss: 'Boss',
+			'push-immune': 'Too rooted to blow away',
 		} satisfies TagMessages,
 		// One per PlacementRejection, as the player's problem rather than the validator's.
 		reject: {
@@ -483,6 +484,17 @@ export const en = {
 			tier3: {
 				name: 'Sticky Floor',
 				description: 'The honey gets everywhere. Everything walking near the pot is slowed.',
+			},
+		},
+		fan: {
+			name: 'Fan',
+			description:
+				'Blows flyers back the way they came. Each gust shoves a little less than the last, until they have had a moment to recover.',
+			tier1: { name: 'Longer Cord' },
+			tier2: { name: 'High Setting' },
+			tier3: {
+				name: 'Oscillate',
+				description: 'Everything the gust reaches is marked, and takes more damage from every tower.',
 			},
 		},
 	} satisfies TowerMessages,

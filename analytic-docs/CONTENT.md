@@ -53,7 +53,7 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 - **Bay Leaf** — suppresses burrowing inside its radius: Weevils surface and become targetable.
 - **Lemon** — every hit applies Armor Strip (§4).
 - **Honey Pot** — 7 crumbs/sec income *and* an aggro radius that pulls nearby ground enemies toward it, holding them in a kill zone. Bait is the point; the income is the bribe for taking the risk. Each ground enemy passing within 3 tiles stops and feeds for **3 seconds**, leaning in toward the pot and chewing on it at its own melee rate; each pot feeds an enemy once. If the pot is destroyed, every feeder lets go.
-- **Fan** — pushback, air-only. Shares the pushback system with Mint Pot (post-v1, ground).
+- **Fan** — pushback, air-only: each hit of the cone shoves the flyer 1.2 tiles back down the track. A pushed enemy resists the next push (down to 35% of it after four in a row, recovering over ~4s), so two Fans cannot hold a lane shut. Nothing that cannot walk is moved. Shares the pushback behaviour with Mint Pot (post-v1, ground).
 - **Gas Stove Burner** — writes a persistent damaging tile onto the track. First real area denial. Its noise is 2 per second **of burning something** — once a second while an enemy on the floor stands on its ring — never constantly: 2/s beats the meter's 1.5/s decay, and an idle Burner would wake the house on its own.
 - **Candle** — a light: Moths drift toward it, from the same 5 tiles they see a Nightlight from.
 
@@ -85,7 +85,7 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 - Gas Stove Burner T3 — the flame reaches the tiles either side (radius 0 → 1)
 - Fly Paper T3 — a fresh sheet every 10s, and it stops leaving the board (tiers 1–2 take it from 2 to 4 sheets, all sticky at once)
 - Honey Pot T3 — the honey gets everywhere: an aura at the bait radius 3 that applies `Slow` to ground enemies (tiers 1–2 take the income 7 → 9 → 11/sec). *The T3 is a draft; the pot's 150 HP was judged in step 17D (OPEN-QUESTIONS.md, the Honey Pot).*
-- Fan T3 — pushback also applies `Marked` *(arrives with the Fan, step 18)*
+- Fan T3 — pushback also applies `Marked`, to everything the gust reaches (tiers 1–2 take the range 4 → 4.5 → 5, never the push or the rate)
 
 ### Selling
 
@@ -102,7 +102,7 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 | 5 | Beetle | 🪲 | 55 | 0.7 | 10 | 2 | ground, bug |
 | 8 | Fly | 🪰 | 14 | 2.2 | 6 | 1 | air, bug |
 | 10 | Moth | 🦋 | 25 | 1.6 | 8 | 1 | air, light-drawn |
-| 11 | Mold | 🟢 | 40 | 0.15 | 12 | — | ground, spreads, fungal |
+| 11 | Mold | 🟢 | 40 | 0.15 | 12 | — | ground, spreads, fungal, push-immune |
 | 13 | Weevil | 🐛 | 30 | 1.0 | 9 | 1 | ground, burrows, bug |
 | 14 | **Mouse** (mini-boss) | 🐭 | 200 | 1.5 | 40 | 5, flees | ground, thief, mammal |
 | 15 | Slug | 🐌 | 45 | 0.4 | 11 | 2 | ground, slime, soft |

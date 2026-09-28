@@ -84,7 +84,7 @@ const everyBehaviour: Behaviour[] = [
 	barricade(),
 	bait({ radiusTiles: 3, targets: 'ground', durationTicks: 180 }),
 	suppress({ radiusTiles: 3, suppresses: 'burrow' }),
-	pushback({ rangeTiles: 4, coneHalfAngleDeg: 35, pushTilesPerTick: 0.02, targets: 'air' }),
+	pushback({ pushTiles: 1.2, targets: 'air' }),
 	tileEffect({ effect: 'heat', radiusTiles: 0, magnitude: 14 / 60, durationTicks: 120, refreshIntervalTicks: 30 }),
 	reveal({ radiusTiles: 4, attractsLightDrawn: true }),
 	cleanse({ radiusTiles: 3, clears: ['mold'], maxTilesPerPulse: 1, intervalTicks: 60 }),

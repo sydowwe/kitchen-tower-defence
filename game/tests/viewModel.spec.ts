@@ -743,6 +743,7 @@ describe('detachment from the world', () => {
 			burrowWindow: null,
 			feeding: null,
 			fedAt: [],
+			pushback: null,
 			stolenItems: [],
 			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 		})

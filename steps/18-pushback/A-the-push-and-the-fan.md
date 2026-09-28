@@ -198,12 +198,12 @@ Register `mintPot` (and any synthetic def) into `TOWERS` in `beforeAll` and spli
 
 ## Acceptance
 
-- [ ] `grep -rn "mintPot\|Mint Pot" src/core/systems` finds nothing.
-- [ ] The Fan and Mint Pot are config objects. The only new system file is `pushback.ts`, and the
+- [x] `grep -rn "mintPot\|Mint Pot" src/core/systems` finds nothing.
+- [x] The Fan and Mint Pot are config objects. The only new system file is `pushback.ts`, and the
       only existing system changed is `combat.ts`'s cone path.
-- [ ] `grep -n "\.distance = \|\.distance -= " src/core/systems` finds no writer outside `movement`,
+- [x] `grep -n "\.distance = \|\.distance -= " src/core/systems` finds no writer outside `movement`,
       `barricades`, `bait` and `pushback.ts`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 18B and 18C
 

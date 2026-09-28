@@ -10,7 +10,7 @@
  * nothing has moved since, so the id is current and the range it passed is still true.
  */
 
-import { isConeAttack, isFiring } from '@/core/content/behaviours.ts'
+import { isConeAttack, isFiring, isPushback } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
@@ -20,9 +20,15 @@ import { tileAt, writeEffect } from '@/core/tiles.ts'
 import { chargeAllowsFiring, chargeBehaviourOf, spendCharge } from '@/core/systems/charges.ts'
 import { circle, cone } from '@/core/systems/hitbox.ts'
 import { spawnProjectile } from '@/core/systems/projectiles.ts'
+import { pushEnemy } from '@/core/systems/pushback.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import { appliesHold, isHeld, isTargetable, pickTarget, pickTargets } from '@/core/systems/targeting.ts'
-import type { ConeAttackBehaviour, StatusApplication, TargetClass } from '@/core/content/behaviours.ts'
+import type {
+	ConeAttackBehaviour,
+	PushbackBehaviour,
+	StatusApplication,
+	TargetClass,
+} from '@/core/content/behaviours.ts'
 import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/types.ts'
 
 /**
@@ -136,6 +142,14 @@ export function applicationsForShot(
 /**
  * The wedge, aimed at the target the ordinary targeting modes chose and then landing on everything
  * inside it. One target choice, many hits -- that is what makes a cone the crowd answer.
+ *
+ * `pushback` is the def's rider, if it has one (`PushbackBehaviour`): the Fan's gust is this same
+ * shot, so it shares the aim, the cooldown and the wedge. Per caught enemy the order is damage, the
+ * cone's statuses, then -- if the enemy also passes the pushback's `targets` -- the pushback's
+ * statuses and the shove. Damage first keeps the damage number where the hit landed.
+ *
+ * **The position is read here, at fire time, for every tower.** An earlier tower in this tick's loop
+ * may already have pushed the target `targeting` picked, and the cone follows where it is now.
  */
 function fireCone(
 	world: World,
@@ -143,6 +157,7 @@ function fireCone(
 	behaviour: ConeAttackBehaviour,
 	target: Enemy,
 	applies: readonly StatusApplication[],
+	pushback: PushbackBehaviour | undefined,
 ): void {
 	// An enemy whose path the map has lost has no position to aim at. Every caller in core/ skips
 	// such an enemy rather than throwing, or a half-edited map out of step 4's editor takes the whole
@@ -157,9 +172,37 @@ function fireCone(
 		isTargetable(enemy, behaviour.targets),
 	)
 
+	if (pushback === undefined) {
+		for (const enemy of caught) {
+			dealDamage(world, enemy, behaviour.damage, behaviour.damageType, tower.id)
+			applyStatuses(enemy, applies, tower.id, behaviour.damageType)
+		}
+		return
+	}
+
+	// Once per gust, whatever it caught: 18B draws the wedge from this even when it blew on nothing.
+	world.events.push({
+		kind: 'pushbackFired',
+		towerId: tower.id,
+		tile: { x: tower.tile.x, y: tower.tile.y },
+		facingRad: direction,
+		rangeTiles: behaviour.rangeTiles,
+		halfAngleDeg: behaviour.coneHalfAngleDeg,
+	})
+	const pushApplies = applicationsForShot(pushback.applies, tower.shotsFired)
+
 	for (const enemy of caught) {
 		dealDamage(world, enemy, behaviour.damage, behaviour.damageType, tower.id)
 		applyStatuses(enemy, applies, tower.id, behaviour.damageType)
+		// Killed by this hit: `resolve` removes it this tick, and a shove on it is a slide 18B would
+		// start on an enemy it never draws again.
+		if (enemy.hp <= 0 || !isTargetable(enemy, pushback.targets)) {
+			continue
+		}
+		// Before the shove, and whether or not it moves: the Marked lands on everything the gust
+		// reaches, a push-immune or held enemy included.
+		applyStatuses(enemy, pushApplies, tower.id, behaviour.damageType)
+		pushEnemy(world, enemy, pushback.pushTiles, tower.id)
 	}
 }
 
@@ -221,7 +264,7 @@ export function combatSystem(world: World): void {
 
 		if (isConeAttack(firing)) {
 			// A cone lands the tick it fires -- there is no `projectileSpeed` on the descriptor.
-			fireCone(world, tower, firing, target, applies)
+			fireCone(world, tower, firing, target, applies, def.behaviours.find(isPushback))
 		} else if (firing.projectileSpeed > 0) {
 			// One shot per target, in the tower's own mode order. With fewer enemies in range than
 			// `projectilesPerShot` the last one repeats, so the upgrade never fires *less* than it did.

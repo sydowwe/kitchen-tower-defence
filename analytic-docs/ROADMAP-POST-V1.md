@@ -46,7 +46,7 @@ Synergy and board state. This is the act that introduces towers knowing about ea
 |---|---|---|---|---|---|---|---|---|---|---|
 | 19 | Compost Bin | ECONOMY | 220 | — | — | 4 | — | — | 0 | v1 income + death events |
 | 20 | Sharpening Steel | BUFF | 180 | — | — | Adjacent | — | — | 0 | **new: adjacency buffs** |
-| 21 | Mint Pot | CONTROL | 190 | 0 | — | 2 | — | Ground | 0 | v1 pushback (step 18) — **pure config** |
+| 21 | Mint Pot | CONTROL | 190 | 0 | — | 2 | — | Ground | 0 | v1 pushback (step 18) — **pure config**; authored in step 18A as `mintPot` in `POST_V1_TOWERS` (not sold) |
 | 22 | Hot Pan | TILE_EFFECT | 210 | 20 | 0.4 | 3 | Fire | Ground | 1 | v1 tile state (step 14) |
 | 23 | Roomba | AUTONOMOUS | 250 | 6 | 1.0 | 1 | Physical | Ground | 2 | **new: patrol AI** |
 | 24 | Fridge Magnets | BUFF | 200 | — | — | Adjacent | — | — | 0 | adjacency buffs |

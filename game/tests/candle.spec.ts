@@ -47,6 +47,7 @@ function addEnemy(world: World, def: EnemyDef, distance: number, speed: number):
 		burrowWindow: null,
 		feeding: null,
 		fedAt: [],
+		pushback: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

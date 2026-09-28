@@ -197,6 +197,8 @@ export function spawnEnemyAt(
 		burrowWindow: burrowWindowFor(world, def, pathId),
 		feeding: null,
 		fedAt: [],
+		// Unshoved. `pushEnemy` writes the first one.
+		pushback: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}
