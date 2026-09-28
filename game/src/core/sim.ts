@@ -20,6 +20,7 @@ import {
 	spreadSystem,
 	statusSystem,
 	targetingSystem,
+	theftSystem,
 	tileEffectSystem,
 	tilesSystem,
 	waveSystem,
@@ -51,6 +52,7 @@ export type SystemName =
 	| 'crumbs'
 	| 'noise'
 	| 'economy'
+	| 'theft'
 	| 'resolve'
 	| 'events'
 
@@ -97,6 +99,9 @@ const SYSTEMS: readonly System[] = [
 	{ name: 'crumbs', run: crumbsSystem },
 	{ name: 'noise', run: noiseSystem },
 	{ name: 'economy', run: economySystem },
+	// Last before `resolve`, so a thief killed anywhere earlier in the tick its grab completes takes
+	// nothing, and a thief woken this tick is sent home before `resolve` reads it.
+	{ name: 'theft', run: theftSystem },
 	{ name: 'resolve', run: resolveSystem },
 	{ name: 'events', run: eventsSystem },
 ]
@@ -109,7 +114,7 @@ export const SYSTEM_ORDER: readonly SystemName[] = SYSTEMS.map(system => system.
  *
  * Order: commands -> spawn -> wave -> status -> movement -> bait -> burrow -> barricades -> light -> targeting ->
  * combat -> aura -> projectiles -> spread -> cleanse -> tileEffect ->
- * tiles -> crumbs -> noise -> economy -> resolve (deaths, leaks, win/lose) -> events.
+ * tiles -> crumbs -> noise -> economy -> theft -> resolve (deaths, leaks, escapes, win/lose) -> events.
  *
  * The queue is drained here, once, before anything else runs -- so player input lands at a tick
  * boundary and never mid-tick (analytic-docs/ARCHITECTURE.md section 3).

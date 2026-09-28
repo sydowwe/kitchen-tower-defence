@@ -5,6 +5,7 @@ import { saltShaker, toaster, TOWERS } from '@/core/content/towers.ts'
 import { createCommandQueue } from '@/core/commands.ts'
 import { totalLength } from '@/core/path.ts'
 import { tick } from '@/core/sim.ts'
+import { isGone } from '@/core/systems/fridge.ts'
 import { placeTower } from '@/core/systems/placement.ts'
 import { queryEnemiesInRange } from '@/core/systems/spatial.ts'
 import { isFlyer, isTargetable, pickTarget } from '@/core/systems/targeting.ts'
@@ -75,6 +76,7 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 		feeding: null,
 		fedAt: [],
 		pushback: null,
+		theft: null,
 		stolenItems: [],
 		flags: {
 			hidden: overrides.hidden ?? false,
@@ -565,7 +567,7 @@ describe('death', () => {
 
 		expect(ticksOfKind(log, 'enemyKilled')).toEqual([0])
 		expect(ticksOfKind(log, 'enemyLeaked')).toEqual([])
-		expect(world.night.food.some(item => item.lost)).toBe(false)
+		expect(world.night.food.some(isGone)).toBe(false)
 		expect(world.enemies).toEqual([])
 		expect(eventsOfKind(log, 'enemyKilled')[0]?.enemyId).toBe(doomed.id)
 	})
@@ -598,6 +600,6 @@ describe('four Salt Shakers on the Counter', () => {
 		expect(world.night.phase).toBe('won')
 		expect(log.filter(event => event.kind === 'enemyLeaked')).toEqual([])
 		expect(log.filter(event => event.kind === 'enemyKilled')).toHaveLength(5)
-		expect(world.night.food.some(item => item.lost)).toBe(false)
+		expect(world.night.food.some(isGone)).toBe(false)
 	})
 })

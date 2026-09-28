@@ -84,6 +84,7 @@ function addEnemy(world: World, overrides: EnemyOverrides = {}): Enemy {
 		feeding: null,
 		fedAt: [],
 		pushback: null,
+		theft: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

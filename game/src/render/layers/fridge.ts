@@ -16,6 +16,7 @@
 
 import { FOODS } from '@/core/content/food.ts'
 import { getFoodDef } from '@/core/content/index.ts'
+import { isOnShelf } from '@/core/systems/fridge.ts'
 import type { MapDef, Vec2, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { SHELF_BACKDROP, SHELF_EDGE } from '@/render/palette.ts'
@@ -84,7 +85,7 @@ export function drawFridge(ctx: CanvasRenderingContext2D, world: World, tilePx: 
 	drawBackdrop(ctx, world.map, food.length, tilePx)
 
 	food.forEach((item, index) => {
-		if (item.lost) {
+		if (!isOnShelf(item)) {
 			return
 		}
 		const at = shelfSlot(world.map, index)

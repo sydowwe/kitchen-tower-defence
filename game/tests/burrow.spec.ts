@@ -96,6 +96,7 @@ function addEnemy(world: World, def: EnemyDef, options: EnemyOptions): Enemy {
 		feeding: null,
 		fedAt: [],
 		pushback: null,
+		theft: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

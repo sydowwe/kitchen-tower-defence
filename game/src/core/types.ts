@@ -61,8 +61,11 @@ export type EnemyTag =
 	| 'push-immune'
 
 /**
- * Runtime state an enemy is *in*, as opposed to what it *is*. Later steps extend this union --
- * step 16 owns burrowing, step 19 owns fleeing thieves.
+ * Runtime state an enemy is *in*, as opposed to what it *is*.
+ *
+ * `fleeing` is the wake's and only the wake's (`core/systems/noise.ts`): everything on the board
+ * running for the door, untargetable, at a speed nothing slows. A thief running home with the food is
+ * a different flight on every axis a system cares about, and it is `Enemy.theft`, not this flag.
  *
  * `hidden` and `revealed` are two different questions and both are needed: `hidden` is what the
  * enemy *is*, and `revealed` is what a light is doing to it **right now**. `core/systems/light.ts`
@@ -266,7 +269,23 @@ export interface Enemy {
 	 * per-tick write, and a save carries no churn for an enemy nobody is shoving.
 	 */
 	pushback: { resistance: number; atTick: number } | null
-	/** Food ids a thief is carrying. Returned to the fridge if it dies before it leaves the map. */
+	/**
+	 * Where a thief is in its errand, and null for every enemy whose def has no `thief`. Only
+	 * `core/systems/theft.ts` moves the phase on.
+	 *
+	 * **A thief's flight is `phase === 'fleeing'` and never `flags.fleeing`**, which stays the wake's:
+	 * the two differ in speed, in what slows them, in whether a box stops them, in whether a tower may
+	 * shoot them and in which way a pushback shoves. `isRetreating` in `core/systems/theft.ts` is the
+	 * one reader for "walking backwards, for either reason". The wake wins: a woken thief has both.
+	 *
+	 * There is no `escaped` phase -- escaping is removal. `grabEndsTick` is meaningless outside
+	 * `grabbing`, like `Crumb.travelTicksRemaining` without a claim.
+	 */
+	theft: { phase: 'approaching' | 'grabbing' | 'fleeing'; grabEndsTick: number } | null
+	/**
+	 * Food ids a thief is carrying. Written only by `core/systems/fridge.ts`, always together with
+	 * each item's `heldBy`.
+	 */
 	stolenItems: EntityId[]
 	flags: Record<EnemyFlag, boolean>
 }
@@ -414,10 +433,21 @@ export interface FoodItem {
 	defId: DefId
 	/** i18n key, never English. `core/` stores keys and `ui/` resolves them. */
 	nameKey: string
-	/** The thief carrying it. Null while it is safe on the shelf or already off the map. */
+	/**
+	 * The thief carrying it. Null while it is on the shelf, on the floor, or gone.
+	 *
+	 * This and the two fields below are written only by `core/systems/fridge.ts`, and read through
+	 * its `isOnShelf` / `isGone` rather than field by field.
+	 */
 	heldBy: EntityId | null
-	/** True once it has left the map with a thief or been eaten at the fridge. */
-	lost: boolean
+	/** Where it was dropped on the floor, in tile space. Null everywhere else. Step 19B writes it. */
+	droppedAt: Vec2 | null
+	/**
+	 * Why it is gone for the night, or null while it is not: eaten at the fridge, carried off the map,
+	 * or left on the floor (step 19B). A reason and not a boolean, because the summary has to name what
+	 * *escaped*, and a boolean beside a reason is two truths.
+	 */
+	lostTo: 'eaten' | 'escaped' | 'floor' | null
 }
 
 // --- night ------------------------------------------------------------------------------------
@@ -468,11 +498,18 @@ export interface NightState {
 	/**
 	 * Reset every night. This is the health bar (analytic-docs/DECISIONS.md section 6).
 	 *
-	 * A stolen item is marked `lost`, **never spliced out** -- the night-end summary lists what you
-	 * lost by name, and a spliced array cannot answer that. So "the fridge is empty" is
-	 * `food.every(item => item.lost)` and never `food.length === 0`, which is never true.
+	 * A taken item is marked with its `lostTo`, **never spliced out** -- the night-end summary lists
+	 * what you lost by name, and a spliced array cannot answer that. So "the fridge is empty" is
+	 * `food.every(isGone)` (`core/systems/fridge.ts`) and never `food.length === 0`, which is never
+	 * true. An item a thief is still carrying is not gone, so a Mouse holding the last five keeps the
+	 * night alive until it escapes or dies.
 	 */
 	food: FoodItem[]
+	/**
+	 * Taken off every enemy's `steals` at the fridge, never below 1 for one that steals at all -- see
+	 * `stealsFor`. Folded in from `CreateWorldOptions.food` at construction and never written again.
+	 */
+	stealsReduction: number
 	/**
 	 * Ticks of countdown the player skipped by calling waves early, summed over the night. Step 20's
 	 * grocery award reads it and divides by 60 once, at the point it needs seconds.
@@ -628,6 +665,14 @@ export type GameEvent =
 	  }
 	/** One enemy that actually moved. `tiles` is the distance moved, after resistance and the clamp at 0. */
 	| { kind: 'enemyPushed'; enemyId: EntityId; sourceTowerId: EntityId; tiles: number }
+	/** A thief's grab completed. `items` is what it took, and may be empty: the shelf was. */
+	| { kind: 'thiefGrabbed'; enemyId: EntityId; items: EntityId[] }
+	/**
+	 * A thief left the map, by its own flight or the wake's, with `items` now gone for the night. It
+	 * carries its `defId` for `towerDestroyed`'s reason: the enemy is out of `world.enemies` by the time
+	 * anyone reads this.
+	 */
+	| { kind: 'thiefEscaped'; enemyId: EntityId; defId: DefId; items: EntityId[] }
 
 // --- world ------------------------------------------------------------------------------------
 

@@ -9,13 +9,15 @@
  * `core/content/enemies.ts`. There is no `TICK` factor here and there must not be one: `core/` has
  * no clock, and multiplying by 1/60 a second time would put an Ant a minute per tile behind.
  *
- * An enemy walking past the end of its path is not handled here -- step 5B removes it, and
- * `samplePath` clamps for the renderer in the meantime.
+ * An enemy walking past the end of its path is not handled here -- `resolveSystem` removes it (or
+ * `theftSystem` stops a thief there), and `samplePath` clamps for the renderer in the meantime.
  */
 
+import { getEnemyDef } from '@/core/content/index.ts'
 import { speedMultiplier } from '@/core/content/statuses.ts'
+import { isGrabbing, isThiefFleeing } from '@/core/systems/theft.ts'
 import { tileSpeedMultiplier } from '@/core/systems/tiles.ts'
-import type { World } from '@/core/types.ts'
+import type { Enemy, World } from '@/core/types.ts'
 
 /**
  * How fast a fled enemy runs for the door, as a multiple of its own `speed`. Set by
@@ -26,6 +28,27 @@ import type { World } from '@/core/types.ts'
  * speed is exactly `speed * 2`, whatever is stuck to it.
  */
 export const FLEE_SPEED_MULT = 2
+
+/**
+ * This tick's step along the lane for an enemy on its own feet, **signed**: positive toward the
+ * fridge, negative for a thief running home. Not the wake's flight, which `movementSystem` handles
+ * first and nothing else recomputes.
+ *
+ * The one copy of the formula. `barricadesSystem` rebuilds where the enemy stood before this tick
+ * from it, and two copies is the tile-factor bug step 15A already hit once.
+ *
+ * Unlike the wake's flight, a thief's keeps both factors: a frozen or taped Mouse on its way out is
+ * the counterplay the flight exists for.
+ */
+export function stepTiles(world: World, enemy: Enemy): number {
+	// The tile factor is exactly 1 for an enemy on a bare floor, for a flyer, and for an empty
+	// board, so this is unchanged in value for every enemy in the game but a slimed one.
+	const walked = enemy.speed * speedMultiplier(enemy) * tileSpeedMultiplier(world, enemy)
+	if (isThiefFleeing(enemy)) {
+		return -walked * (getEnemyDef(enemy.defId).thief?.fleeSpeedMult ?? 1)
+	}
+	return walked
+}
 
 export function movementSystem(world: World): void {
 	// Terminal phases run nothing, or the night keeps simulating behind the summary screen.
@@ -46,8 +69,14 @@ export function movementSystem(world: World): void {
 			continue
 		}
 
-		// The tile factor is exactly 1 for an enemy on a bare floor, for a flyer, and for an empty
-		// board, so this line is unchanged in value for every enemy in the game but a slimed one.
-		enemy.distance += enemy.speed * speedMultiplier(enemy) * tileSpeedMultiplier(world, enemy)
+		// A thief at the fridge stands still until `theftSystem` sends it home.
+		if (isGrabbing(enemy)) {
+			continue
+		}
+
+		// A thief arriving overshoots the fridge by up to one step; `theftSystem` clamps it, and
+		// `samplePath` clamps for anything that reads in between. A fleeing one runs past the start of
+		// its lane the same way, and `resolveSystem` removes it at 0.
+		enemy.distance += stepTiles(world, enemy)
 	}
 }

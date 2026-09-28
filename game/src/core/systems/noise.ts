@@ -67,9 +67,10 @@ function wake(world: World): void {
 	//
 	// `fleeing` **and** `untargetable`: `fleeing` alone would let a tower kill one on the way out,
 	// dropping a crumb on a board whose crumbs were just forfeited and counting a kill for something
-	// that got away. Step 19's fleeing thief is the opposite case -- you very much want to shoot that
-	// -- which is why the no goes on `untargetable` here rather than into `isTargetable`'s reading of
-	// `fleeing` (step 13A, decision 11).
+	// that got away (step 13A, decision 11).
+	//
+	// This is the only writer of `fleeing`. A thief running home is `Enemy.theft`'s phase, not this
+	// flag; a woken thief gets both, and every system asks this flag first -- the wake wins.
 	for (const enemy of world.enemies) {
 		enemy.flags.fleeing = true
 		enemy.flags.untargetable = true

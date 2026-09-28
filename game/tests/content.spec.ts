@@ -9,7 +9,7 @@ import {
 	isReveal,
 	isTileEffect,
 } from '@/core/content/behaviours.ts'
-import { ant, beetle, ENEMIES, fly, fruitFly, mold, moth, roach } from '@/core/content/enemies.ts'
+import { ant, beetle, ENEMIES, fly, fruitFly, mold, moth, mouse, roach } from '@/core/content/enemies.ts'
 import { effectiveDef } from '@/core/content/index.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
@@ -951,6 +951,33 @@ describe('the Ant', () => {
 		expect(resolveDamage(10, 'physical', target)).toBeCloseTo(10, 10)
 		expect(resolveDamage(10, 'cold', target)).toBeCloseTo(10, 10)
 		expect(resolveDamage(10, 'electric', target)).toBeCloseTo(10, 10)
+	})
+})
+
+describe('the Mouse', () => {
+	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
+		expect(mouse.hp).toBe(200)
+		expect(mouse.reward).toBe(40)
+		expect(mouse.steals).toBe(5)
+		expect(mouse.glyph).toBe('🐭')
+		expect(mouse.tags).toEqual(['ground', 'thief', 'mammal'])
+		expect(mouse.speedTilesPerTick * 60).toBeCloseTo(1.5, 10)
+		expect(mouse.thief).toBeDefined()
+	})
+
+	it('takes 1.5x physical and 0.6x chemical, through the mammal row', () => {
+		const target = { tags: mouse.tags, statuses: [] }
+
+		expect(resolveDamage(10, 'physical', target)).toBeCloseTo(15, 10)
+		expect(resolveDamage(10, 'chemical', target)).toBeCloseTo(6, 10)
+	})
+
+	it('is scheduled by no night yet', () => {
+		const scheduled = NIGHTS.flatMap(night =>
+			night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId)),
+		)
+
+		expect(scheduled).not.toContain('mouse')
 	})
 })
 

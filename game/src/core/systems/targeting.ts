@@ -19,6 +19,7 @@ import { remainingToFridge } from '@/core/path.ts'
 import { bindRng } from '@/core/rng.ts'
 import { chargeAllowsFiring, holdsSourceStatusFrom } from '@/core/systems/charges.ts'
 import { enemyPosition, queryEnemiesInRange } from '@/core/systems/spatial.ts'
+import { isGrabbing, isThiefFleeing } from '@/core/systems/theft.ts'
 import type { Enemy, Tower, World } from '@/core/types.ts'
 
 /**
@@ -92,8 +93,19 @@ function bestBy(
  * Track distance still to walk. `FIRST` and `LAST` compare this and never raw `distance`: on a
  * multi-path map raw distance makes a tower prefer whichever lane happens to be longer
  * (analytic-docs/CONTENT.md section 5).
+ *
+ * For a thief it is the tiles until something is lost for good, which is what it means for a walker
+ * too: 0 while it grabs, and its `distance` back to the start of the lane once it runs. Otherwise a
+ * fleeing Mouse near the crack has the whole lane "remaining", and every `FIRST` tower shoots the ants
+ * walking in instead.
  */
 function remaining(world: World, enemy: Enemy): number {
+	if (isGrabbing(enemy)) {
+		return 0
+	}
+	if (isThiefFleeing(enemy)) {
+		return enemy.distance
+	}
 	const path = world.map.paths.find(candidate => candidate.id === enemy.pathId)
 	// Unreachable from `pickTarget` -- the query already dropped every enemy whose path is missing.
 	return path === undefined ? 0 : remainingToFridge(path, enemy.distance)

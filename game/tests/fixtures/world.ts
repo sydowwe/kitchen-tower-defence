@@ -67,7 +67,17 @@ export function createTestWorld(): World {
 			phase: 'won',
 			countdownTicks: 0,
 			wave: null,
-			food: [{ id: 1, defId: 'cheese', nameKey: 'food.cheese.name', heldBy: null, lost: false }],
+			food: [
+				{
+					id: 1,
+					defId: 'cheese',
+					nameKey: 'food.cheese.name',
+					heldBy: null,
+					droppedAt: null,
+					lostTo: null,
+				},
+			],
+			stealsReduction: 0,
 			ticksSkippedTotal: 0,
 			crumbsDropped: 0,
 			crumbsCollected: 0,

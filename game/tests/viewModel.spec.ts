@@ -40,7 +40,7 @@ function buildableWorld(): World {
 }
 
 function foodItem(id: number, defId: string, lost: boolean): FoodItem {
-	return { id, defId, nameKey: `food.${defId}.name`, heldBy: null, lost }
+	return { id, defId, nameKey: `food.${defId}.name`, heldBy: null, droppedAt: null, lostTo: lost ? 'eaten' : null }
 }
 
 describe('the early-call bonus preview', () => {
@@ -697,7 +697,7 @@ describe('the fridge', () => {
 		expect(food.lastLostNameKey).toBe('food.apple.name')
 
 		for (const item of world.night.food) {
-			item.lost = true
+			item.lostTo = 'eaten'
 		}
 
 		const emptied = buildHudSnapshot(world, VIEW).food
@@ -764,7 +764,7 @@ describe('detachment from the world', () => {
 			tower.tier = 3
 		}
 		world.crumbs -= 50
-		world.night.food[0]!.lost = true
+		world.night.food[0]!.lostTo = 'eaten'
 		world.enemies.push({
 			id: 99,
 			defId: 'ant',
@@ -782,6 +782,7 @@ describe('detachment from the world', () => {
 			feeding: null,
 			fedAt: [],
 			pushback: null,
+			theft: null,
 			stolenItems: [],
 			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 		})

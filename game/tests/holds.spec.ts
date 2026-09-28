@@ -52,6 +52,7 @@ function addEnemy(world: World, def: EnemyDef, distance: number, speed = 0): Ene
 		feeding: null,
 		fedAt: [],
 		pushback: null,
+		theft: null,
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

@@ -19,12 +19,12 @@
 
 import { isBarricadeBehaviour } from '@/core/content/behaviours.ts'
 import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
-import { speedMultiplier } from '@/core/content/statuses.ts'
 import { nearestOnPath } from '@/core/path.ts'
 import { applyDamage } from '@/core/systems/combat.ts'
+import { stepTiles } from '@/core/systems/movement.ts'
 import { damageTower, destroyTower, towerById } from '@/core/systems/placement.ts'
 import { isOnFloor } from '@/core/systems/targeting.ts'
-import { tileSpeedMultiplier } from '@/core/systems/tiles.ts'
+import { isThiefFleeing } from '@/core/systems/theft.ts'
 import type { BarricadeBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { Enemy, EntityId, Tower, World } from '@/core/types.ts'
@@ -86,25 +86,41 @@ function barricadePositions(world: World): BarricadePosition[] {
 }
 
 /**
- * The nearest position strictly ahead of the enemy on its own lane. Nothing off the floor is ever
- * blocked: a flyer goes over the box and a burrowed Weevil under it.
+ * The nearest position strictly ahead of the enemy on its own lane, **in its direction of travel**:
+ * toward the fridge for a walker, toward the start of the lane for a thief running home. Nothing off
+ * the floor is ever blocked: a flyer goes over the box and a burrowed Weevil under it.
  */
 function nearestAhead(positions: readonly BarricadePosition[], enemy: Enemy): BarricadePosition | null {
 	if (!isOnFloor(enemy)) {
 		return null
 	}
 
+	const backwards = isThiefFleeing(enemy)
 	let best: BarricadePosition | null = null
 	for (const position of positions) {
-		if (position.pathId !== enemy.pathId || position.distance <= enemy.distance) {
+		if (position.pathId !== enemy.pathId) {
 			continue
 		}
-		if (best === null || position.distance < best.distance) {
+		const ahead = backwards ? position.distance < enemy.distance : position.distance > enemy.distance
+		if (!ahead) {
+			continue
+		}
+		if (best === null || Math.abs(position.distance - enemy.distance) < Math.abs(best.distance - enemy.distance)) {
 			best = position
 		}
 	}
 
 	return best
+}
+
+/** Where the enemy comes to rest in front of a box, on whichever side it is coming from. */
+function holdPoint(enemy: Enemy, boxDistance: number): number {
+	return isThiefFleeing(enemy) ? boxDistance + HOLD_GAP_TILES : boxDistance - HOLD_GAP_TILES
+}
+
+/** Whether the enemy has reached the hold point, on whichever side it is coming from. */
+function hasReached(enemy: Enemy, holdAt: number): boolean {
+	return isThiefFleeing(enemy) ? enemy.distance <= holdAt : enemy.distance >= holdAt
 }
 
 /**
@@ -138,7 +154,7 @@ export function barricadeHolding(world: World, enemy: Enemy): Tower | null {
 	if (found === null) {
 		return null
 	}
-	return enemy.distance >= found.distance - HOLD_GAP_TILES ? found.tower : null
+	return hasReached(enemy, holdPoint(enemy, found.distance)) ? found.tower : null
 }
 
 export function barricadesSystem(world: World): void {
@@ -154,10 +170,8 @@ export function barricadesSystem(world: World): void {
 	}
 
 	for (const enemy of world.enemies) {
-		// A fled enemy is walking backwards, and every line below assumes forwards: `nearestAhead`
-		// only ever looks ahead, and `previous` adds this tick's forward step back on. The visible
-		// symptom of not skipping it is a retreating ant snapping forward onto a box it already passed
-		// and taking a bite out of it.
+		// The wake's flight goes through boxes: the board has to empty (step 13A, decision 12). A thief's
+		// own flight does not -- `nearestAhead` turns round for it, and so does every line below.
 		if (enemy.flags.fleeing) {
 			continue
 		}
@@ -167,25 +181,26 @@ export function barricadesSystem(world: World): void {
 			continue
 		}
 
-		const holdAt = position.distance - HOLD_GAP_TILES
-		if (enemy.distance < holdAt) {
+		const holdAt = holdPoint(enemy, position.distance)
+		if (!hasReached(enemy, holdAt)) {
 			continue
 		}
 
 		// `movementSystem` has already run, so this tick's step has to be recomputed to know where the
-		// enemy stood before it -- **with the same two factors movement used**. Nothing between the two
-		// systems touches a status or a tile; `bait` sits between them and resets a feeder's distance,
-		// which this accepts (a feeder in a box's gap ends each tick one step short, stably). Leave the tile factor out and `previous` lands 0.6 of a
-		// step too far forward, so an enemy held on slime creeps through the gap into the box.
+		// enemy stood before it -- through `stepTiles`, the one copy of what movement did. Nothing between
+		// the two systems touches a status or a tile; `bait` sits between them and resets a feeder's
+		// distance, which this accepts (a feeder in a box's gap ends each tick one step short, stably).
 		//
 		// The floor is read where the enemy is *now*, not where it stood. The two differ only on the one
 		// tick it crosses a slimed cell's edge, and then by a fraction of a single step.
-		const previous = enemy.distance - enemy.speed * speedMultiplier(enemy) * tileSpeedMultiplier(world, enemy)
+		const previous = enemy.distance - stepTiles(world, enemy)
 
-		// **Never backwards.** An enemy standing at `boxDistance - 0.1` when the box goes down is
-		// already inside the gap, and a plain `min(next, holdAt)` would shove it 0.4 tiles back up the
-		// track -- an ant teleporting backwards the instant you place a box.
-		enemy.distance = Math.min(enemy.distance, Math.max(previous, holdAt))
+		// **Never backwards** for a walker, and **never forwards** for a thief running home: an enemy
+		// already inside the gap when the box goes down stays where it is, rather than teleporting 0.4
+		// tiles against its own direction the instant you place a box.
+		enemy.distance = isThiefFleeing(enemy)
+			? Math.max(enemy.distance, Math.min(previous, holdAt))
+			: Math.min(enemy.distance, Math.max(previous, holdAt))
 
 		// Looked up by id rather than cached, because `destroyTower` splices `world.towers` and
 		// rebuilds the index: a box that dies partway through this loop leaves `positions` stale, and

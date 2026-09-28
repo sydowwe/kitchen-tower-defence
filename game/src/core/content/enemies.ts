@@ -301,6 +301,31 @@ export const silverfish: EnemyDefOf<'silverfish'> = {
 	tags: ['ground', 'armored', 'bug'],
 }
 
-export const ENEMIES = [ant, roach, beetle, fruitFly, fly, moth, mold, slug, weevil, silverfish]
+/**
+ * analytic-docs/CONTENT.md section 2, night 14: 200 HP, 1.5 tiles/sec, 40 crumbs, steals 5 and flees,
+ * `ground thief mammal`. The mini-boss, but not `boss` and not `push-immune`.
+ *
+ * **`thief` does it, not the tag**, and the enemy schema keeps the two together. It walks to the
+ * fridge, stands there for `grabTicks`, and runs home at `fleeSpeedMult` of its own speed with five
+ * items -- statuses and floor still apply on the way out, which is the counterplay. Both numbers are
+ * drafts that step 19D re-tunes.
+ *
+ * `mammal` is x1.5 physical and x0.6 chemical: salt works, spray does not.
+ */
+export const mouse: EnemyDefOf<'mouse'> = {
+	id: 'mouse',
+	nameKey: 'enemy.mouse.name',
+	descriptionKey: 'enemy.mouse.description',
+	glyph: '🐭',
+	hp: 200,
+	speedTilesPerTick: tilesPerSecond(1.5),
+	meleeDamagePerTick: damagePerSecond(20),
+	reward: 40,
+	steals: 5,
+	tags: ['ground', 'thief', 'mammal'],
+	thief: { grabTicks: 90, fleeSpeedMult: 1.3 },
+}
+
+export const ENEMIES = [ant, roach, beetle, fruitFly, fly, moth, mold, slug, weevil, silverfish, mouse]
 
 export type EnemyId = (typeof ENEMIES)[number]['id']

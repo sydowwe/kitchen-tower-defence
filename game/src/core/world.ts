@@ -49,6 +49,11 @@ export interface CreateWorldOptions {
 	 * exactly the same reason.
 	 */
 	noise?: { capDelta?: number; decayPerSecondDelta?: number }
+	/**
+	 * What the player's owned food installations are worth, resolved into numbers the same way and
+	 * for the same reason as `noise` above. Folded into `NightState.stealsReduction`.
+	 */
+	food?: { stealsReduction?: number }
 }
 
 /**
@@ -93,13 +98,20 @@ function stockFridge(rng: Rng, nightIndex: number, foodItemsMult: number, firstI
 
 	for (let index = 0; index < count; index++) {
 		const def = rng.pick(FOODS)
-		items.push({ id: firstItemId + index, defId: def.id, nameKey: def.nameKey, heldBy: null, lost: false })
+		items.push({
+			id: firstItemId + index,
+			defId: def.id,
+			nameKey: def.nameKey,
+			heldBy: null,
+			droppedAt: null,
+			lostTo: null,
+		})
 	}
 
 	return items
 }
 
-export function createWorld({ seed, mapId, nightId, difficulty, noise }: CreateWorldOptions): World {
+export function createWorld({ seed, mapId, nightId, difficulty, noise, food: foodOptions }: CreateWorldOptions): World {
 	const map = getMapDef(mapId)
 	const night = getNightDef(nightId)
 	const tier = resolveDifficulty(difficulty)
@@ -161,6 +173,7 @@ export function createWorld({ seed, mapId, nightId, difficulty, noise }: CreateW
 			countdownTicks: firstWave.countdownTicks,
 			wave: null,
 			food,
+			stealsReduction: foodOptions?.stealsReduction ?? 0,
 			ticksSkippedTotal: 0,
 			crumbsDropped: 0,
 			crumbsCollected: 0,

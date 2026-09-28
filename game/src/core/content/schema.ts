@@ -493,12 +493,30 @@ export function contentSchemas() {
 					message: 'lengthMinFraction must not exceed lengthMaxFraction',
 				})
 				.optional(),
+			/**
+			 * Who walks to the fridge, stands there for `grabTicks`, and runs back down the lane with
+			 * what it took (analytic-docs/DECISIONS.md section 6), read by `core/systems/theft.ts`. **A
+			 * field and not the `thief` tag**, for `tileWriter`'s reason -- but the refine below keeps the
+			 * two in step, so the tooltip's tag and the mechanic cannot disagree.
+			 *
+			 * `fleeSpeedMult` multiplies the enemy's own speed on the way out, statuses and floor included.
+			 */
+			thief: z
+				.object({
+					grabTicks: tickCount(MAX_STATUS_TICKS).min(1),
+					fleeSpeedMult: z.number().gt(0).max(4),
+				})
+				.optional(),
 		})
 		// A stationary enemy shoved back 1.2 tiles walks nowhere to recover it, so the next one to be
 		// authored cannot forget: something that does not move is not moved.
 		.refine(value => value.speedTilesPerTick > 0 || value.tags.includes('push-immune'), {
 			message: "a stationary enemy (speedTilesPerTick 0) must carry the 'push-immune' tag",
 			path: ['tags'],
+		})
+		.refine(value => (value.thief !== undefined) === value.tags.includes('thief'), {
+			message: "an enemy has a 'thief' field exactly when it carries the 'thief' tag",
+			path: ['thief'],
 		})
 
 	// --- food ---------------------------------------------------------------------------------

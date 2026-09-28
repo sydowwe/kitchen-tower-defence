@@ -199,6 +199,8 @@ export function spawnEnemyAt(
 		fedAt: [],
 		// Unshoved. `pushEnemy` writes the first one.
 		pushback: null,
+		// Every thief starts on its way in. `core/systems/theft.ts` moves it on from there.
+		theft: def.thief === undefined ? null : { phase: 'approaching', grabEndsTick: 0 },
 		stolenItems: [],
 		flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 	}

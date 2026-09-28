@@ -36,6 +36,7 @@ import { TOWERS, effectiveDef, effectiveDefOf, getEnemyDef, getTowerDef } from '
 import { upgradeCost } from '@/core/content/upgrades.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
+import { isGone } from '@/core/systems/fridge.ts'
 import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { refundFor, towerById } from '@/core/systems/placement.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
@@ -622,7 +623,7 @@ function foodView(world: World): HudSnapshot['food'] {
 	let remaining = 0
 
 	for (const item of food) {
-		if (item.lost) {
+		if (isGone(item)) {
 			lostNameKeys.push(item.nameKey)
 		} else {
 			remaining++
@@ -841,8 +842,8 @@ export function buildNightSummary(world: World): NightSummaryView {
 		won,
 		wavesSurvived: won ? night.waveIndex + 1 : night.waveIndex,
 		waveCount: night.waveCount,
-		foodLostNameKeys: night.food.filter(item => item.lost).map(item => item.nameKey),
-		foodRemaining: night.food.filter(item => !item.lost).length,
+		foodLostNameKeys: night.food.filter(isGone).map(item => item.nameKey),
+		foodRemaining: night.food.filter(item => !isGone(item)).length,
 		enemiesKilled: night.enemiesKilled,
 		crumbsCollected: night.crumbsCollected,
 		crumbsDropped: night.crumbsDropped,

@@ -554,6 +554,12 @@ export const en = {
 			name: 'Silverfish',
 			description: 'Scaled like a fish. A handful of salt that would flatten an ant barely makes it flinch.',
 		},
+		// First draft. Step 19C rewrites it against the card.
+		mouse: {
+			name: 'Mouse',
+			description:
+				'It does not eat at the fridge. It fills its arms and runs, and whatever it gets home with is gone.',
+		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.
 	food: {

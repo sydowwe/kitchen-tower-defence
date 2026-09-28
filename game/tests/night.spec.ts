@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { tick } from '@/core/sim.ts'
+import { isGone } from '@/core/systems/fridge.ts'
 import { nightClock } from '@/core/systems/wave.ts'
 import { createWorld } from '@/core/world.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
@@ -51,6 +52,7 @@ function putEnemiesAtTheFridge(world: World, count: number, spawnedInWaveIndex =
 			feeding: null,
 			fedAt: [],
 			pushback: null,
+			theft: null,
 			stolenItems: [],
 			flags: { hidden: false, untargetable: false, fleeing: false, revealed: false, burrowed: false },
 		}
@@ -74,7 +76,7 @@ describe('leaks and the fridge', () => {
 		tick(world, createCommandQueue())
 
 		expect(world.night.food).toHaveLength(3)
-		expect(world.night.food.every(item => item.lost)).toBe(true)
+		expect(world.night.food.every(isGone)).toBe(true)
 		expect(world.enemies).toEqual([])
 		expect(world.index.enemies).toEqual({})
 		expect(world.night.phase).toBe('lost')
@@ -93,7 +95,7 @@ describe('leaks and the fridge', () => {
 			expect.objectContaining({ stolenItems: [first] }),
 			expect.objectContaining({ stolenItems: [second] }),
 		])
-		expect(world.night.food.filter(item => item.lost).map(item => item.id)).toEqual([first, second])
+		expect(world.night.food.filter(isGone).map(item => item.id)).toEqual([first, second])
 	})
 })
 
@@ -207,7 +209,7 @@ describe('the end of the night', () => {
 
 		expect(world.enemies).toHaveLength(1)
 		expect(world.enemies[0]?.distance).toBe(1000)
-		expect(world.night.food.some(item => item.lost)).toBe(false)
+		expect(world.night.food.some(isGone)).toBe(false)
 		expect(world.night.countdownTicks).toBe(before.night.countdownTicks)
 	})
 })

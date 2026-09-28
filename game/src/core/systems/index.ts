@@ -25,7 +25,8 @@ export {
 	lightSources,
 	lightSystem,
 } from '@/core/systems/light.ts'
-export { FLEE_SPEED_MULT, movementSystem } from '@/core/systems/movement.ts'
+export { escapeWith, isGone, isOnShelf, returnToShelf, stealsFor, takeFood } from '@/core/systems/fridge.ts'
+export { FLEE_SPEED_MULT, movementSystem, stepTiles } from '@/core/systems/movement.ts'
 export { noiseFraction, noiseSystem, projectedNoisePerSecond } from '@/core/systems/noise.ts'
 export { projectilesSystem } from '@/core/systems/projectiles.ts'
 export { resolveSystem } from '@/core/systems/resolve.ts'
@@ -35,6 +36,7 @@ export { statusSystem } from '@/core/systems/status.ts'
 export { isSuppressedAt, suppressionZones } from '@/core/systems/suppress.ts'
 export type { SuppressionZone } from '@/core/systems/suppress.ts'
 export { isOnFloor, targetingSystem } from '@/core/systems/targeting.ts'
+export { grabProgress, isGrabbing, isRetreating, isThiefFleeing, theftSystem } from '@/core/systems/theft.ts'
 export { tileEffectSystem } from '@/core/systems/tileEffect.ts'
 export { tileSpeedMultiplier, tilesSystem, tileUnder } from '@/core/systems/tiles.ts'
 export { hasFinishedSpawning, nightClock, waveSystem } from '@/core/systems/wave.ts'

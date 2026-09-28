@@ -84,6 +84,7 @@ describe('system order', () => {
 			'crumbs',
 			'noise',
 			'economy',
+			'theft',
 			'resolve',
 			'events',
 		])

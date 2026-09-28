@@ -215,12 +215,12 @@ the Mouse's 200 HP gets in the way.
 
 ## Acceptance
 
-- [ ] `grep -rn "'mouse'" src/core/systems` finds nothing. The Mouse is a config object.
-- [ ] `grep -rn "\.lostTo = \|\.heldBy = \|\.droppedAt = \|stolenItems = \|stolenItems.push" src/core`
+- [x] `grep -rn "'mouse'" src/core/systems` finds nothing. The Mouse is a config object.
+- [x] `grep -rn "\.lostTo = \|\.heldBy = \|\.droppedAt = \|stolenItems = \|stolenItems.push" src/core`
       finds writers only in `core/systems/fridge.ts` (and `spawnEnemyAt` / `stockFridge`, which
       construct them).
-- [ ] `grep -rn "flags.fleeing = " src/core` finds only the wake.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `grep -rn "flags.fleeing = " src/core` finds only the wake.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 19B, 19C and 19D
 
@@ -233,13 +233,18 @@ core/types.ts            Enemy.theft: { phase: 'approaching' | 'grabbing' | 'fle
                                    'thiefEscaped' { enemyId, defId, items }
 core/content/schema.ts   EnemyDef.thief?: { grabTicks: number; fleeSpeedMult: number }
 core/systems/fridge.ts   stealsFor(world, def): number
+                         takeFood(world, enemy): EntityId[]   // the one take: eats for a walker, holds for a thief
+                         escapeWith(world, enemy): EntityId[]   // marks the carried items 'escaped'
                          returnToShelf(world, ids: EntityId[]): void   // B's pickups call it too
                          isOnShelf(item: FoodItem): boolean
                          isGone(item: FoodItem): boolean
 core/systems/theft.ts    theftSystem(world): void
                          isRetreating(enemy): boolean   // wake or thief flight: the renderer's mirror
+                         isThiefFleeing(enemy): boolean   // the thief's own flight, false once woken
                          isGrabbing(enemy): boolean
                          grabProgress(world, enemy): number   // 0..1, C's ring
+core/systems/movement.ts stepTiles(world, enemy): number   // signed step; barricades rebuilds `previous` from it
+render/layers/fridge.ts  drawFridge skips !isOnShelf, so a carried item leaves the shelf with no carry drawn (C)
 core/world.ts            CreateWorldOptions.food?: { stealsReduction?: number }
 core/content/enemies.ts  mouse   // in ENEMIES, scheduled by no night until D
 ```

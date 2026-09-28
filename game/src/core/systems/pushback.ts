@@ -12,6 +12,7 @@
  */
 
 import { isHeld } from '@/core/systems/targeting.ts'
+import { isGrabbing, isThiefFleeing } from '@/core/systems/theft.ts'
 import type { Enemy, EntityId, World } from '@/core/types.ts'
 
 /**
@@ -55,22 +56,28 @@ export function pushbackResistanceOf(world: World, enemy: Enemy): number {
  * - `push-immune` is what the enemy *is* -- the Mold, which cannot walk back to where it stood.
  * - a held enemy is stuck to a Fly Paper or a Sticky Tape, and a fly shoved 1.2 tiles from its paper
  *   while still rooted to it reads as a bug.
- * - a feeder is reset to its catch point by `core/systems/bait.ts` next tick anyway.
- * - a fleeing enemy is heading *away* from the fridge, and subtracting from its distance speeds its
- *   escape. The wake makes every one untargetable today, so this never fires yet; step 19's thief is
- *   fleeing and targetable, and that step decides the sign.
+ * - a feeder is reset to its catch point by `core/systems/bait.ts` next tick anyway, and a thief
+ *   grabbing at the fridge is standing still the same way.
+ * - an enemy fleeing a wake is untargetable and running for the door; the board has to empty.
  */
 function canBePushed(enemy: Enemy): boolean {
-	return !enemy.tags.includes('push-immune') && !isHeld(enemy) && enemy.feeding === null && !enemy.flags.fleeing
+	return (
+		!enemy.tags.includes('push-immune') &&
+		!isHeld(enemy) &&
+		enemy.feeding === null &&
+		!enemy.flags.fleeing &&
+		!isGrabbing(enemy)
+	)
 }
 
 /**
  * Shoves `enemy` up to `tiles` back along its lane, less its resistance, and returns the tiles it
  * actually moved. Publishes `enemyPushed` when that is above 0.
  *
- * **Clamped at 0 and never negative.** `samplePath` would draw a negative distance at the spawn, and
- * `resolve` would keep it, but the tick step 19 flips a thief to `fleeing` a negative distance is an
- * instant escape.
+ * "Back" is away from where it is going. For a walker that is toward the start of the lane,
+ * **clamped at 0**: `samplePath` would draw a negative distance, but `resolve` reads a thief at 0 as
+ * escaped. For a thief running home it is toward the fridge, **clamped at the lane length** -- a gust
+ * that sped a thief's escape would be a tower working for the other side.
  *
  * The raised resistance is stored even when the clamp moved it 0: the gust still hit it.
  */
@@ -80,8 +87,16 @@ export function pushEnemy(world: World, enemy: Enemy, tiles: number, sourceTower
 	}
 
 	const resistance = pushbackResistanceOf(world, enemy)
-	const moved = Math.max(0, Math.min(enemy.distance, tiles * (1 - resistance)))
-	enemy.distance -= moved
+	const wanted = tiles * (1 - resistance)
+	let moved: number
+	if (isThiefFleeing(enemy)) {
+		const length = world.map.paths.find(path => path.id === enemy.pathId)?.lengthTiles ?? enemy.distance
+		moved = Math.max(0, Math.min(length - enemy.distance, wanted))
+		enemy.distance += moved
+	} else {
+		moved = Math.max(0, Math.min(enemy.distance, wanted))
+		enemy.distance -= moved
+	}
 	enemy.pushback = { resistance: Math.min(MAX_RESISTANCE, resistance + RESISTANCE_PER_PUSH), atTick: world.tick }
 
 	if (moved > 0) {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
-import { weevil } from '@/core/content/enemies.ts'
+import { mouse, weevil } from '@/core/content/enemies.ts'
 import { tick } from '@/core/sim.ts'
+import { takeFood } from '@/core/systems/fridge.ts'
 import { pushEnemy } from '@/core/systems/pushback.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
@@ -65,6 +66,15 @@ describe('createWorld', () => {
 		expect(pushEnemy(world, burrower, 1.2, 7)).toBeGreaterThan(0)
 		expect(burrower.pushback).not.toBeNull()
 		expect(roundTrip(world)).toEqual(world)
+
+		// Step 19A's `theft` is the fourth, with a carried item: a Mouse mid-grab holding one, and the
+		// item naming it back.
+		const thief = spawnEnemyAt(world, mouse, lane?.id ?? '', 0, 0)
+		thief.theft = { phase: 'grabbing', grabEndsTick: 90 }
+		expect(takeFood(world, thief)).toHaveLength(mouse.steals)
+		expect(roundTrip(world)).toEqual(world)
+		expect(roundTrip(world).enemies[1]?.theft).toEqual({ phase: 'grabbing', grabEndsTick: 90 })
+		expect(roundTrip(world).night.food[0]?.heldBy).toBe(thief.id)
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {
