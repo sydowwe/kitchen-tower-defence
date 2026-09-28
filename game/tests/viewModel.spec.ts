@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
-import { isAura, isBait, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
+import { isAura, isBait, isConeAttack, isPushback, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
 import { ant, beetle, silverfish, weevil } from '@/core/content/enemies.ts'
-import { getTowerDef } from '@/core/content/index.ts'
+import { TOWERS, getTowerDef } from '@/core/content/index.ts'
 import { applyStatus, createStatus } from '@/core/content/statuses.ts'
 import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
-import { candle, gasStoveBurner, honeyPot } from '@/core/content/towers.ts'
+import { candle, fan, gasStoveBurner, honeyPot } from '@/core/content/towers.ts'
 import { tick } from '@/core/sim.ts'
 import { baitSystem } from '@/core/systems/bait.ts'
 import { burrowSystem } from '@/core/systems/burrow.ts'
@@ -519,6 +519,44 @@ describe('the aura, tile-effect and bait cards', () => {
 		expect(labels).toContain('hud.stat.targets')
 		expect(labels).toContain('hud.stat.range')
 		expect(labels).not.toContain('hud.stat.damage')
+	})
+})
+
+/** Step 18B. Every expected number is read off the def, so 18C's re-tune moves nothing here. */
+describe('the Fan card', () => {
+	it("gives the Fan its push, its cone's range and opening, and air, and nobody else a push", () => {
+		const cone = fan.behaviours.find(isConeAttack)
+		const push = fan.behaviours.find(isPushback)
+		const shop = buildHudSnapshot(buildableWorld(), VIEW).shop
+		const stats = shop.find(entry => entry.id === 'fan')?.stats
+
+		expect(push).toBeDefined()
+		expect(stats?.pushTiles).toBe(push?.pushTiles)
+		expect(stats?.coneHalfAngleDeg).toBe(cone?.coneHalfAngleDeg)
+		expect(stats?.rangeTiles).toBe(cone?.rangeTiles)
+		expect(stats?.targets).toBe('air')
+
+		for (const entry of shop) {
+			if (entry.id !== 'fan') {
+				expect(entry.stats.pushTiles).toBeNull()
+			}
+		}
+		expect(shop).toHaveLength(TOWERS.length)
+	})
+
+	it('diffs tier 1 as the range row, and shows Marked on the tier-3 card', () => {
+		const world = buildableWorld()
+		const tower = placeTower(world, fan, LEGAL_TILE)
+		if (tower === null) {
+			throw new Error("the fixture refused a legal 'fan'")
+		}
+		const inspector = buildTowerInspector(world, tower.id)
+		expect(inspector?.upgrades[0]?.diff.map(row => row.labelKey)).toContain('hud.stat.range')
+
+		tower.tier = 3
+		const third = buildTowerInspector(world, tower.id)?.stats
+		expect(third?.applies.map(applied => applied.kind)).toContain('marked')
+		expect(third?.pushTiles).toBe(fan.behaviours.find(isPushback)?.pushTiles)
 	})
 })
 

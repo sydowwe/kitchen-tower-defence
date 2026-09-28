@@ -153,6 +153,8 @@ export const en = {
 			lures: 'Lures from',
 			holds: 'Holds each for',
 			cone: 'Cone',
+			// The Fan's. Before resistance: the card carries the def's number, like every other row.
+			pushes: 'Pushes back',
 			applies: 'Applies',
 			// A wall's rows. `blocks` is a label and `blocksGround` its answer: the card is a two-column
 			// list and a row with a label and no value reads as a missing number.
@@ -219,7 +221,7 @@ export const en = {
 			'physical-immune': 'Immune to physical',
 			'douses-fire': 'Puts out fire',
 			boss: 'Boss',
-			'push-immune': 'Too rooted to blow away',
+			'push-immune': 'Will not blow away',
 		} satisfies TagMessages,
 		// One per PlacementRejection, as the player's problem rather than the validator's.
 		reject: {
@@ -486,15 +488,18 @@ export const en = {
 				description: 'The honey gets everywhere. Everything walking near the pot is slowed.',
 			},
 		},
+		// Rewritten in 18B against the card, which now carries the push. The sentence is about flyers that
+		// stop getting closer, and the diminishing return the card cannot show; tier 3's is about whatever
+		// else is shooting into the gust.
 		fan: {
 			name: 'Fan',
 			description:
-				'Blows flyers back the way they came. Each gust shoves a little less than the last, until they have had a moment to recover.',
+				'A desk fan pointed down the track. Whatever is flying stops getting any closer for a while, though each gust buys a little less until they have their breath back.',
 			tier1: { name: 'Longer Cord' },
 			tier2: { name: 'High Setting' },
 			tier3: {
 				name: 'Oscillate',
-				description: 'Everything the gust reaches is marked, and takes more damage from every tower.',
+				description: 'Whatever hangs in the gust is Marked. Everything else shooting into it hits harder.',
 			},
 		},
 	} satisfies TowerMessages,

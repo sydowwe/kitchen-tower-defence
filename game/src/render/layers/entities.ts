@@ -23,6 +23,7 @@ import { isFlyer } from '@/core/systems/targeting.ts'
 import type { Enemy, EntityId, MapDef, Path, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
+import { SHOVE_LIFE_FRAMES, shoveOf } from '@/render/layers/effects.ts'
 import {
 	ARMOR_PLATE,
 	BURROW_CREST,
@@ -31,6 +32,7 @@ import {
 	CHEW_DEBRIS,
 	ENEMY_STATIONARY_PULSE,
 	FLYER_SHADOW,
+	SHOVE_AFTERIMAGE_ALPHA,
 	STATUS_BURN_FLAME,
 	STATUS_POISON_BUBBLE,
 	STATUS_ROOTED_SHIMMER,
@@ -196,6 +198,18 @@ const ROOTED_SHIMMER_PER_FRAME = 0.16
 const ROOTED_STRAND_WIDTH_PX = 1.2
 
 /**
+ * A shove: the enemy is drawn where it is, and the push is behind it -- faded copies of its own glyph
+ * back along its line to where it was, closing on it as they fade (step 18B, decision 4). Easing the
+ * glyph itself back would put it somewhere the hit flashes, the projectiles and the Fly Paper's strand
+ * all disagree with.
+ */
+const SHOVE_AFTERIMAGES = 3
+/** The stagger after it: a damped tilt of the glyph, a beat of "what hit me" before it comes on again. */
+const STAGGER_TILT_RAD = 0.35
+/** Radians per frame of the wobble. ~1.5 swings over the shove's life: a stagger, not a shiver. */
+const STAGGER_WOBBLE_PER_FRAME = 0.55
+
+/**
  * One enemy's frame, kept so the layer can draw in treatment order without sampling a path twice.
  *
  * The slow disc goes **under** the glyph and the flicker over it, which needs three passes over the
@@ -266,6 +280,20 @@ interface EnemyFrame {
 	 */
 	dirX: number
 	dirY: number
+	/** `enemy.lateralOffsetTiles`, so the shove's afterimages sit on the Moth's line and not the track's. */
+	lateral: number
+	/**
+	 * Tiles of track behind the glyph the afterimages still cover: the push `effects.ts` recorded,
+	 * shrinking toward the glyph as it ages. 0 for an enemy not shoved.
+	 */
+	shoveTiles: number
+	/** 1 at the push, 0 once it has faded. The afterimages' alpha and the stagger's amplitude. */
+	shoveFade: number
+	/**
+	 * The stagger: radians the glyph is tilted this frame, a damped wobble after a push. Visual only --
+	 * the simulation never pauses a pushed enemy (step 18B, decision 3). 0 for an enemy not shoved.
+	 */
+	stagger: number
 }
 
 const frames: EnemyFrame[] = []
@@ -339,6 +367,10 @@ function frameAt(index: number): EnemyFrame {
 		stripped: false,
 		dirX: 1,
 		dirY: 0,
+		lateral: 0,
+		shoveTiles: 0,
+		shoveFade: 0,
+		stagger: 0,
 	}
 	frames.push(created)
 	return created
@@ -379,6 +411,26 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 			entry.stripped = true
 		}
 	}
+}
+
+/**
+ * Reads `effects.ts`'s shove record onto the frame. Every field is written, shoved or not, so a reused
+ * entry cannot carry last frame's slide onto a different enemy.
+ */
+function readShove(entry: EnemyFrame, enemyId: EntityId): void {
+	const shove = shoveOf(enemyId)
+	if (shove === null) {
+		entry.shoveTiles = 0
+		entry.shoveFade = 0
+		entry.stagger = 0
+		return
+	}
+	const t = shove.ageFrames / SHOVE_LIFE_FRAMES
+	const fade = 1 - t
+	// Eased out: the trail closes on the glyph fast and then lingers, which reads as a slide that stopped.
+	entry.shoveTiles = shove.tiles * fade * fade
+	entry.shoveFade = fade
+	entry.stagger = STAGGER_TILT_RAD * fade * Math.sin(shove.ageFrames * STAGGER_WOBBLE_PER_FRAME)
 }
 
 /** How far into its bite this enemy is, 0 to 1. Frames, so it does not treble its rate at 3x speed. */
@@ -798,6 +850,50 @@ function drawPlating(ctx: CanvasRenderingContext2D, count: number, tilePx: numbe
 	ctx.lineCap = 'butt'
 }
 
+/**
+ * The afterimages behind every shoved enemy, faintest furthest back, drawn before the glyph loop so the
+ * enemy itself sits over its own trail.
+ *
+ * Each copy is sampled along the path at `distance + k/N of the slide`, **through `applyLateralOffset`**
+ * like the glyph, so a Moth leaning toward a Candle trails along its own line and not the bare track's.
+ * The bob rides with them: a trail at the shadow's height would read as a second, grounded fly.
+ */
+function drawShoves(ctx: CanvasRenderingContext2D, count: number, tilePx: number, dpr: number, size: number): void {
+	const bob = FLYER_BOB_TILES * tilePx
+
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		// A chewing or feeding entry is drawn somewhere the path does not say, and is never pushed anyway.
+		if (
+			entry === undefined ||
+			entry.shoveTiles <= 0 ||
+			entry.path === null ||
+			entry.burrowed ||
+			entry.chewing ||
+			entry.feeding
+		) {
+			continue
+		}
+		const lift = entry.flying ? bobPhase(entry) * bob : 0
+		for (let k = SHOVE_AFTERIMAGES; k >= 1; k--) {
+			const at = samplePath(entry.path, entry.distance + (entry.shoveTiles * k) / SHOVE_AFTERIMAGES)
+			const displaced = applyLateralOffset(at, entry.lateral)
+			ctx.globalAlpha = SHOVE_AFTERIMAGE_ALPHA * entry.shoveFade * (1 - (k - 1) / SHOVE_AFTERIMAGES)
+			blitGlyph(
+				ctx,
+				dpr,
+				entry.glyph,
+				size,
+				(displaced.x + 0.5) * tilePx,
+				(displaced.y + 0.5) * tilePx - lift,
+				entry.mirrored,
+			)
+		}
+	}
+
+	ctx.globalAlpha = 1
+}
+
 export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null, tilePx: number, dpr: number): void {
 	if (world === null) {
 		return
@@ -846,6 +942,8 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		entry.distance = enemy.distance
 		entry.burrowFrom = enemy.burrowWindow?.fromTiles ?? 0
 		entry.armored = enemy.tags.includes('armored')
+		entry.lateral = enemy.lateralOffsetTiles
+		readShove(entry, enemy.id)
 		readStatuses(entry, enemy)
 
 		if (entry.chewing) {
@@ -893,6 +991,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 	drawStrands(ctx, liveCount, tilePx)
 
 	const size = tilePx * ENEMY_SCALE
+	drawShoves(ctx, liveCount, tilePx, dpr, size)
 	const lunge = CHEW_LUNGE_TILES * tilePx
 	const bob = FLYER_BOB_TILES * tilePx
 	for (let i = 0; i < liveCount; i++) {
@@ -912,15 +1011,18 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		// the floor.
 		const bite = entry.chewing || entry.feeding ? lungePhase(entry) * lunge : 0
 		const lift = entry.flying ? bobPhase(entry) * bob : 0
-		blitGlyph(
-			ctx,
-			dpr,
-			entry.glyph,
-			size,
-			entry.x + entry.dirX * bite,
-			entry.y + entry.dirY * bite - lift,
-			entry.mirrored,
-		)
+		const glyphX = entry.x + entry.dirX * bite
+		const glyphY = entry.y + entry.dirY * bite - lift
+		if (entry.stagger === 0) {
+			blitGlyph(ctx, dpr, entry.glyph, size, glyphX, glyphY, entry.mirrored)
+		} else {
+			// The one transform in the loop, and only for an enemy mid-stagger: a handful at a time.
+			ctx.save()
+			ctx.translate(glyphX, glyphY)
+			ctx.rotate(entry.stagger)
+			blitGlyph(ctx, dpr, entry.glyph, size, 0, 0, entry.mirrored)
+			ctx.restore()
+		}
 		drawHpBar(ctx, entry.x, entry.y - size / 2, tilePx * HP_BAR_WIDTH_SCALE, entry.hp, entry.maxHp)
 	}
 

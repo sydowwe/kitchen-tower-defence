@@ -34,6 +34,10 @@
 				<dt>{{ t('hud.stat.cone') }}</dt>
 				<dd>{{ t('hud.stat.degrees', { n: stats.coneHalfAngleDeg }) }}</dd>
 			</template>
+			<template v-if="stats.pushTiles !== null">
+				<dt>{{ t('hud.stat.pushes') }}</dt>
+				<dd>{{ t('hud.stat.tiles', { n: stats.pushTiles }) }}</dd>
+			</template>
 			<!-- A word at 0, like noise: "0 tiles" would read as a flame that burns nothing. -->
 			<template v-if="stats.heatRadiusTiles !== null">
 				<dt>{{ t('hud.stat.burns') }}</dt>

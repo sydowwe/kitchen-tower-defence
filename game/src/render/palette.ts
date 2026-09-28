@@ -320,6 +320,17 @@ export const BURROW_SURFACE_RING = 'rgba(255, 236, 190, 0.95)'
  */
 export const ARMOR_PLATE = 'rgba(200, 212, 228, 0.9)'
 
+/**
+ * A Fan's gust, and the flyer it shoved.
+ *
+ * The gust is streaks of moving air, a pale cool grey that is no status colour and not the placement
+ * wedge's `RANGE_*` family -- it has to read as *blowing*, not as *reach*. The shove is not a colour at
+ * all: its afterimages are the enemy's own glyph at a fraction of its alpha, and this is that fraction,
+ * so it lives here with the rest of the tuning.
+ */
+export const GUST_STREAK = 'rgba(198, 222, 232, 0.7)'
+export const SHOVE_AFTERIMAGE_ALPHA = 0.4
+
 /** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */
 export const GHOST_NOISE = '#f5c66b'
 

@@ -24,6 +24,7 @@ import {
 	isCleanse,
 	isCollect,
 	isConeAttack,
+	isPushback,
 	isReveal,
 	isSuppress,
 	isTileEffect,
@@ -113,6 +114,11 @@ export interface TowerStatsView {
 	collectRadiusTiles: number | null
 	/** Half the opening, in degrees, for a tower that sprays a wedge. Null for a circle. */
 	coneHalfAngleDeg: number | null
+	/**
+	 * Tiles a hit shoves an enemy back down the track, **before its resistance** -- the def's number, the
+	 * way every other row is. Null for everything without a `pushback`.
+	 */
+	pushTiles: number | null
 	/**
 	 * What this tower lands on what it hits, **already resolved and already converted**: the
 	 * application's own magnitude where it has one, the status table's otherwise, times 60.
@@ -432,7 +438,7 @@ function appliesOf(applications: readonly StatusApplication[]): TowerStatsView['
 
 /**
  * Derives a card from the def's behaviours through `isAttack` / `isConeAttack` / `isAura` /
- * `isTileEffect` / `isBait` / `isCollect` / `isCharge` / `isReveal`, so a tower that gains a behaviour
+ * `isPushback` / `isTileEffect` / `isBait` / `isCollect` / `isCharge` / `isReveal`, so a tower that gains a behaviour
  * gains a card line without this file learning its name.
  *
  * **The def's numbers, never the live ones.** `buildTowerInspector` runs on selection change rather
@@ -452,6 +458,7 @@ function statsFor(def: TowerDef): TowerStatsView {
 		crumbsPerSecond: null,
 		collectRadiusTiles: null,
 		coneHalfAngleDeg: null,
+		pushTiles: null,
 		applies: [],
 		hitPoints: def.maxHp,
 		charges: null,
@@ -493,6 +500,13 @@ function statsFor(def: TowerDef): TowerStatsView {
 				stats.damageType ??= behaviour.damageType
 				stats.targets ??= behaviour.targets
 			}
+			stats.applies = [...stats.applies, ...appliesOf(behaviour.applies)]
+			continue
+		}
+
+		if (isPushback(behaviour)) {
+			// The rider's own statuses appended to the cone's, so the Fan's tier-3 Marked shows.
+			stats.pushTiles = behaviour.pushTiles
 			stats.applies = [...stats.applies, ...appliesOf(behaviour.applies)]
 			continue
 		}
@@ -653,6 +667,7 @@ const DIFF_ROWS: readonly { labelKey: string; read: (stats: TowerStatsView) => S
 	{ labelKey: 'hud.stat.dps', read: s => plain(s.dps) },
 	{ labelKey: 'hud.stat.range', read: s => measured('hud.stat.tiles', s.rangeTiles) },
 	{ labelKey: 'hud.stat.cone', read: s => measured('hud.stat.degrees', s.coneHalfAngleDeg) },
+	{ labelKey: 'hud.stat.pushes', read: s => measured('hud.stat.tiles', s.pushTiles) },
 	// A word at 0, like noise: the Burner burns the tile it stands on, and "0 tiles" reads as nothing.
 	{
 		labelKey: 'hud.stat.burns',

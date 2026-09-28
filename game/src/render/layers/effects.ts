@@ -29,6 +29,7 @@ import {
 	DAMAGE_NUMBER,
 	DAMAGE_NUMBER_STRONG,
 	DAMAGE_NUMBER_WEAK,
+	GUST_STREAK,
 	HIT_FLASH,
 	TOWER_DEBRIS,
 	WAKE_DESATURATE,
@@ -253,6 +254,72 @@ const WAKE_DESATURATE_PEAK = 0.8
 
 let wakeAgeFrames: number | null = null
 
+/**
+ * A Fan's gust: streaks of air running outward along the facing and fading, never a filled wedge --
+ * the filled wedge is the placement preview, and a gust that looked like it would read as a tower
+ * permanently showing its range (step 18B, decision 1).
+ *
+ * The life is **under the 3x firing period**. A Fan fires every 40 ticks, which at 3x is ~13 frames; a
+ * gust living longer than that never goes out and the wedge reads as solid. Twelve is for a row of
+ * Fans, not for one -- the same lesson as 13B's ripples.
+ */
+const GUST_LIFE_FRAMES = 11
+/** Fractions of the half-angle the streaks run along, so the gust spreads the width of the cone. */
+const GUST_LANES = [-0.75, -0.35, 0.05, 0.45, 0.85] as const
+/** How far out a streak starts, and its length, in tiles. The front reaches the range at the end. */
+const GUST_START_TILES = 0.35
+const GUST_STREAK_FRACTION = 0.35
+const GUST_LINE_WIDTH_PX = 2
+const MAX_GUSTS = 12
+
+interface Gust {
+	/** Tile space, the Fan's tile off the event: it may be sold by the time this is drawn. */
+	x: number
+	y: number
+	facingRad: number
+	rangeTiles: number
+	halfAngleRad: number
+	ageFrames: number
+}
+
+const gusts: Gust[] = []
+
+/**
+ * A shoved enemy, keyed by id: how far it was moved, and how long ago. `entities.ts` reads it through
+ * `shoveOf` while it fills its pool, because that is the only place with the enemy's sampled position.
+ *
+ * **Aged here, whether or not the enemy still exists** (decision 2). An enemy killed mid-slide never
+ * asks again, and a record that waited to be asked would sit in the map for the rest of the night.
+ */
+export const SHOVE_LIFE_FRAMES = 16
+
+export interface Shove {
+	tiles: number
+	ageFrames: number
+}
+
+const shoves = new Map<EntityId, Shove>()
+
+/** The shove still on screen for this enemy, or null. Read-only to the caller: this file ages it. */
+export function shoveOf(enemyId: EntityId): Readonly<Shove> | null {
+	return shoves.get(enemyId) ?? null
+}
+
+/**
+ * One push onto the enemy's one record. Two Fans in step, or three ticks at 3x, hand over several in
+ * one frame: they sum into one slide rather than starting two from two places. A push onto a slide
+ * already fading keeps what is left of it, so the trail always starts where the glyph was last seen.
+ */
+function addShove(enemyId: EntityId, tiles: number): void {
+	const existing = shoves.get(enemyId)
+	if (existing === undefined) {
+		shoves.set(enemyId, { tiles, ageFrames: 0 })
+		return
+	}
+	existing.tiles = existing.tiles * (1 - existing.ageFrames / SHOVE_LIFE_FRAMES) + tiles
+	existing.ageFrames = 0
+}
+
 /** Fast in, slow out: 0 to 1 over the attack, then eased back down across the rest of the life. */
 function wakeEnvelope(ageFrames: number): number {
 	if (ageFrames <= WAKE_ATTACK_FRAMES) {
@@ -350,6 +417,28 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 			if (puffs.length > MAX_PUFFS) {
 				puffs.shift()
 			}
+			continue
+		}
+
+		// Only a tower carrying a `pushback` emits this, so no other cone ever gets a gust.
+		if (event.kind === 'pushbackFired') {
+			gusts.push({
+				x: event.tile.x,
+				y: event.tile.y,
+				facingRad: event.facingRad,
+				rangeTiles: event.rangeTiles,
+				halfAngleRad: (event.halfAngleDeg * Math.PI) / 180,
+				ageFrames: 0,
+			})
+			if (gusts.length > MAX_GUSTS) {
+				gusts.shift()
+			}
+			continue
+		}
+
+		// `tiles` is what actually moved, after resistance and the clamp -- drawn as said, never re-derived.
+		if (event.kind === 'enemyPushed') {
+			addShove(event.enemyId, event.tiles)
 			continue
 		}
 
@@ -635,8 +724,67 @@ function drawDigs(ctx: CanvasRenderingContext2D, tilePx: number): void {
 	digs.length = live
 }
 
+/**
+ * Streaks running out from the Fan along its facing, eased so the air leaves fast and slows as it
+ * thins. One path per gust, because its alpha is its age.
+ */
+function drawGusts(ctx: CanvasRenderingContext2D, tilePx: number): void {
+	let live = 0
+	ctx.strokeStyle = GUST_STREAK
+	ctx.lineWidth = GUST_LINE_WIDTH_PX
+	ctx.lineCap = 'round'
+
+	for (const gust of gusts) {
+		gust.ageFrames++
+		if (gust.ageFrames >= GUST_LIFE_FRAMES) {
+			continue
+		}
+
+		const t = gust.ageFrames / GUST_LIFE_FRAMES
+		const eased = 1 - (1 - t) * (1 - t)
+		const x = (gust.x + 0.5) * tilePx
+		const y = (gust.y + 0.5) * tilePx
+		const length = gust.rangeTiles * GUST_STREAK_FRACTION
+
+		ctx.globalAlpha = 1 - t
+		ctx.beginPath()
+		for (let lane = 0; lane < GUST_LANES.length; lane++) {
+			const angle = gust.facingRad + (GUST_LANES[lane] ?? 0) * gust.halfAngleRad
+			// Alternate lanes lag a little, so the front is ragged air and not a row of spokes.
+			const lag = lane % 2 === 0 ? 0 : 0.12
+			const front = GUST_START_TILES + (gust.rangeTiles - GUST_START_TILES) * Math.max(0, eased - lag)
+			const back = Math.max(GUST_START_TILES, front - length)
+			const cos = Math.cos(angle) * tilePx
+			const sin = Math.sin(angle) * tilePx
+			ctx.moveTo(x + cos * back, y + sin * back)
+			ctx.lineTo(x + cos * front, y + sin * front)
+		}
+		ctx.stroke()
+
+		gusts[live] = gust
+		live++
+	}
+
+	ctx.globalAlpha = 1
+	ctx.lineCap = 'butt'
+	gusts.length = live
+}
+
+/** Ages every shove, and drops the spent ones whether or not their enemy is still on the board. */
+function ageShoves(): void {
+	for (const [id, shove] of shoves) {
+		shove.ageFrames++
+		if (shove.ageFrames >= SHOVE_LIFE_FRAMES) {
+			shoves.delete(id)
+		}
+	}
+}
+
 /** Called from `drawFrame` at the particles slot of the draw order. Ages one frame per call. */
 export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: number): void {
+	ageShoves()
+	drawGusts(ctx, tilePx)
+
 	const size = foodGlyphSize(tilePx)
 	let live = 0
 
@@ -727,6 +875,9 @@ export function resetEffects(): void {
 	puffs.length = 0
 	// Without this a retry opens with last night's dirt still settling.
 	digs.length = 0
+	gusts.length = 0
+	// Enemy ids restart with the world, so a stale shove would land on a new night's enemy.
+	shoves.clear()
 	// Without this a retry opens with last night's light still on.
 	wakeAgeFrames = null
 	forgetCrumbPositions()

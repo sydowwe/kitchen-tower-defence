@@ -118,7 +118,7 @@ Nothing over `render/`, per `../../analytic-docs/ARCHITECTURE.md` §7.
 - [ ] Two Fans on a fly wave stay readable and cost nothing measurable in frame time. Check the
       performance panel before and after.
 - [ ] The Fan's card says what it does without its description.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 
