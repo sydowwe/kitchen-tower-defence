@@ -38,6 +38,12 @@ export interface CollectCrumb {
 	crumbId: EntityId
 }
 
+/** One per item: a thief's drop is several ids at one point, and each is fetched on its own. */
+export interface CollectFood {
+	kind: 'CollectFood'
+	foodId: EntityId
+}
+
 export interface CallWaveEarly {
 	kind: 'CallWaveEarly'
 }
@@ -52,7 +58,8 @@ export interface SetSpeed {
 	speed: number
 }
 
-export type Command = PlaceTower | SellTower | UpgradeTower | SetTargetingMode | CollectCrumb | CallWaveEarly | SetSpeed
+export type Command =
+	PlaceTower | SellTower | UpgradeTower | SetTargetingMode | CollectCrumb | CollectFood | CallWaveEarly | SetSpeed
 
 export type CommandKind = Command['kind']
 

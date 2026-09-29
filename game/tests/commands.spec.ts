@@ -21,6 +21,8 @@ function describeCommand(command: Command): string {
 			return `retarget ${command.towerId} to ${command.mode}`
 		case 'CollectCrumb':
 			return `collect ${command.crumbId}`
+		case 'CollectFood':
+			return `fetch food ${command.foodId}`
 		case 'CallWaveEarly':
 			return 'call wave early'
 		case 'SetSpeed':

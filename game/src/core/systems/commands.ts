@@ -4,6 +4,7 @@ import { MAX_TIER, upgradeCost } from '@/core/content/upgrades.ts'
 import { chargeStateOf } from '@/core/systems/charges.ts'
 import { collectCrumb, crumbById } from '@/core/systems/crumbs.ts'
 import { earnCrumbs, spendCrumbs } from '@/core/systems/economy.ts'
+import { collectFood } from '@/core/systems/fridge.ts'
 import { placeTower, sellTower, towerById } from '@/core/systems/placement.ts'
 import { startWave } from '@/core/systems/spawn.ts'
 import type { Command } from '@/core/commands.ts'
@@ -202,6 +203,10 @@ export function commandsSystem(world: World, commands: readonly Command[]): void
 				break
 			case 'CollectCrumb':
 				collect(world, command.crumbId)
+				break
+			// `null` rather than a tower id is what tells a click from a fetch in the event.
+			case 'CollectFood':
+				collectFood(world, command.foodId, null)
 				break
 			case 'SetTargetingMode':
 				setTargetingMode(world, command.towerId, command.mode)

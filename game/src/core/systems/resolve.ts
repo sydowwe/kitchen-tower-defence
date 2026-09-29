@@ -17,7 +17,7 @@
 import { getEnemyDef } from '@/core/content/index.ts'
 import { totalLength } from '@/core/path.ts'
 import { dropCrumb } from '@/core/systems/crumbs.ts'
-import { escapeWith, isGone, returnToShelf, takeFood } from '@/core/systems/fridge.ts'
+import { dropCarried, escapeWith, forfeitDroppedFood, isGone, takeFood } from '@/core/systems/fridge.ts'
 import { enemyPosition } from '@/core/systems/spatial.ts'
 import { isThiefFleeing } from '@/core/systems/theft.ts'
 import { hasFinishedSpawning } from '@/core/systems/wave.ts'
@@ -84,9 +84,8 @@ export function resolveSystem(world: World): void {
 			world.events.push({ kind: 'enemyKilled', enemyId: enemy.id, defId: enemy.defId, at })
 			night.enemiesKilled++
 			dropCrumb(world, at, crumbValueFor(world, enemy.defId))
-			// Interim: what a dead thief carried goes straight back on the shelf (the simple version
-			// of analytic-docs/DECISIONS.md section 6). Step 19B replaces this one call with a drop.
-			returnToShelf(world, enemy.stolenItems)
+			// Under the crumb. A no-op for the many that carry nothing.
+			dropCarried(world, enemy, at)
 			continue
 		}
 
@@ -113,7 +112,8 @@ export function resolveSystem(world: World): void {
 		reindexEnemies(world)
 	}
 
-	// "The fridge is empty" is every item gone, never a zero length -- see `NightState.food`.
+	// "The fridge is empty" is every item gone, never a zero length -- see `NightState.food`. Food on
+	// the floor is not gone, so it holds this off the way carried food does.
 	if (night.food.every(isGone)) {
 		night.phase = 'lost'
 		world.events.push({ kind: 'nightEnded', won: false })
@@ -125,6 +125,8 @@ export function resolveSystem(world: World): void {
 
 	if (lastWaveIsOut && world.enemies.length === 0) {
 		night.phase = 'won'
+		// Before `nightEnded`, so the summary built off this tick already counts it lost.
+		forfeitDroppedFood(world)
 		world.events.push({ kind: 'nightEnded', won: true })
 	}
 }

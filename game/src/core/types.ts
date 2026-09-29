@@ -440,11 +440,11 @@ export interface FoodItem {
 	 * its `isOnShelf` / `isGone` rather than field by field.
 	 */
 	heldBy: EntityId | null
-	/** Where it was dropped on the floor, in tile space. Null everywhere else. Step 19B writes it. */
+	/** Where it was dropped on the floor, in tile space. Null everywhere else. */
 	droppedAt: Vec2 | null
 	/**
 	 * Why it is gone for the night, or null while it is not: eaten at the fridge, carried off the map,
-	 * or left on the floor (step 19B). A reason and not a boolean, because the summary has to name what
+	 * or left on the floor when the night was won. A reason and not a boolean, because the summary has to name what
 	 * *escaped*, and a boolean beside a reason is two truths.
 	 */
 	lostTo: 'eaten' | 'escaped' | 'floor' | null
@@ -673,6 +673,13 @@ export type GameEvent =
 	 * anyone reads this.
 	 */
 	| { kind: 'thiefEscaped'; enemyId: EntityId; defId: DefId; items: EntityId[] }
+	/** A thief died carrying `items`, and they now lie at `at`. Never pushed for an empty paw. */
+	| { kind: 'foodDropped'; enemyId: EntityId; items: EntityId[]; at: Vec2 }
+	/**
+	 * Food fetched off the floor and back on the shelf. `from` is where it lay, carried because
+	 * `droppedAt` is already cleared by the time anyone reads this. `byTowerId` is null for a click.
+	 */
+	| { kind: 'foodReturned'; items: EntityId[]; from: Vec2; byTowerId: EntityId | null }
 
 // --- world ------------------------------------------------------------------------------------
 

@@ -112,10 +112,10 @@ Extend `tests/theft.spec.ts`, using the synthetic three-item thief 19A registers
 
 ## Acceptance
 
-- [ ] 19A's writer grep still holds: `droppedAt` is written only in `fridge.ts` (and `stockFridge`).
-- [ ] `crumbs.ts` gained a pass, not a branch inside `claimCrumbs`, and `fridge.ts` imports neither
+- [x] 19A's writer grep still holds: `droppedAt` is written only in `fridge.ts` (and `stockFridge`).
+- [x] `crumbs.ts` gained a pass, not a branch inside `claimCrumbs`, and `fridge.ts` imports neither
       `crumbs.ts` nor `resolve.ts`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 19C
 

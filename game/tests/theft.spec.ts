@@ -1,19 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { isPushback, toApplications } from '@/core/content/behaviours.ts'
+import { isCollect, isPushback, toApplications } from '@/core/content/behaviours.ts'
 import { ant, beetle, ENEMIES, mold, mouse } from '@/core/content/enemies.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
 import { validateContent } from '@/core/content/schema.ts'
-import { cardboardBox, mintPot, saltShaker, TOWERS } from '@/core/content/towers.ts'
+import { cardboardBox, mintPot, saltShaker, toasterCrumbTray, TOWERS } from '@/core/content/towers.ts'
 import { createCommandQueue } from '@/core/commands.ts'
 import { tick } from '@/core/sim.ts'
 import { barricadeHolding } from '@/core/systems/barricades.ts'
-import { isGone, isOnShelf, stealsFor, takeFood } from '@/core/systems/fridge.ts'
+import { isDropped, isGone, isOnShelf, stealsFor, takeFood } from '@/core/systems/fridge.ts'
 import { FLEE_SPEED_MULT } from '@/core/systems/movement.ts'
 import { pushEnemy } from '@/core/systems/pushback.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { isTargetable, pickTarget } from '@/core/systems/targeting.ts'
 import { grabProgress, isRetreating } from '@/core/systems/theft.ts'
 import { createWorld } from '@/core/world.ts'
+import type { Command } from '@/core/commands.ts'
 import type { EnemyDef, TowerDef } from '@/core/content/schema.ts'
 import type { Enemy, EntityId, FoodItem, GameEvent, Tower, Vec2, World } from '@/core/types.ts'
 import { createTestWorld } from './fixtures/world.ts'
@@ -327,10 +328,10 @@ describe('the escape', () => {
 		])
 	})
 
-	it('is a kill, with the items back on the shelf, when it dies on the tick it would have escaped', () => {
-		// Step 19A's interim: step 19B turns this return into a drop and updates this assertion.
+	it('is a kill, with the items dropped where it died, when it dies on the tick it would have escaped', () => {
 		const world = makeWorld()
 		const thief = fleeingThief(world, burglar, burglar.speedTilesPerTick / 2)
+		const carried = [...thief.stolenItems]
 		thief.hp = 0
 
 		const log = run(world, 1)
@@ -339,7 +340,8 @@ describe('the escape', () => {
 		expect(world.night.enemiesKilled).toBe(1)
 		expect(eventsOfKind(log, 'enemyKilled')).toHaveLength(1)
 		expect(eventsOfKind(log, 'thiefEscaped')).toHaveLength(0)
-		expect(world.night.food.every(isOnShelf)).toBe(true)
+		expect(world.night.food.filter(isDropped).map(item => item.id)).toEqual(carried)
+		expect(world.night.food.some(isGone)).toBe(false)
 	})
 
 	it('keeps the night alive while a thief holds the last items, and loses it when they escape', () => {
@@ -490,6 +492,170 @@ describe('the stealsReduction hook', () => {
 		const world = createWorld({ seed: 1234, mapId: 'counter', nightId: 'night01', difficulty: 'normal' })
 		expect(world.night.stealsReduction).toBe(0)
 		expect(stealsFor(world, mouse)).toBe(mouse.steals)
+	})
+})
+
+describe('dropped food', () => {
+	const TRAY_RADIUS = toasterCrumbTray.behaviours.find(isCollect)?.radiusTiles ?? 0
+
+	/** One tick with these commands in its batch. */
+	function runWith(world: World, commands: readonly Command[]): GameEvent[] {
+		const queue = createCommandQueue()
+		for (const command of commands) {
+			queue.enqueue(command)
+		}
+		tick(world, queue)
+		return [...world.events]
+	}
+
+	/** A three-item burglar killed halfway home. Returns what it carried and where it fell. */
+	function killCarrying(world: World): { carried: EntityId[]; at: Vec2; log: GameEvent[] } {
+		const thief = fleeingThief(world, burglar, 20)
+		const carried = [...thief.stolenItems]
+		thief.hp = 0
+		const log = run(world, 1)
+		const at = eventsOfKind(log, 'enemyKilled')[0]?.at ?? { x: Number.NaN, y: Number.NaN }
+		return { carried, at, log }
+	}
+
+	function foodById(world: World, id: EntityId): FoodItem | undefined {
+		return world.night.food.find(item => item.id === id)
+	}
+
+	it('lands exactly the carried items at the death position, off the shelf and not gone', () => {
+		const world = makeWorld()
+		const thief = fleeingThief(world, burglar, 20)
+		const carried = [...thief.stolenItems]
+		thief.hp = 0
+
+		const log = run(world, 1)
+		const killed = eventsOfKind(log, 'enemyKilled')
+		expect(killed).toHaveLength(1)
+		const at = killed[0]?.at
+
+		expect(carried).toHaveLength(3)
+		expect(world.night.food.filter(isDropped).map(item => item.id)).toEqual(carried)
+		for (const id of carried) {
+			const item = foodById(world, id)
+			expect(item?.droppedAt).toEqual(at)
+			// A copy, never the event's object.
+			expect(item?.droppedAt).not.toBe(at)
+			expect(item?.heldBy).toBeNull()
+			expect(item && isOnShelf(item)).toBe(false)
+			expect(item && isGone(item)).toBe(false)
+		}
+		expect(thief.stolenItems).toEqual([])
+		expect(eventsOfKind(log, 'foodDropped')).toEqual([
+			{ kind: 'foodDropped', enemyId: thief.id, items: carried, at },
+		])
+	})
+
+	it('goes back on the shelf, as the same food, one CollectFood per item, and once for a double click', () => {
+		const world = makeWorld()
+		const before = structuredClone(world.night.food)
+		const { carried, at } = killCarrying(world)
+		const [first] = carried
+
+		const log = runWith(world, [
+			...carried.map((foodId): Command => ({ kind: 'CollectFood', foodId })),
+			{ kind: 'CollectFood', foodId: first ?? -1 },
+		])
+
+		expect(world.night.food).toEqual(before)
+		expect(world.night.food.every(isOnShelf)).toBe(true)
+		expect(eventsOfKind(log, 'foodReturned')).toEqual(
+			carried.map(id => ({ kind: 'foodReturned', items: [id], from: at, byTowerId: null })),
+		)
+	})
+
+	it('is fetched by a Toaster Crumb Tray in reach on the next tick, and left by one out of it', () => {
+		expect(TRAY_RADIUS).toBe(2.5)
+
+		// In reach: the tower is there before the kill, so the tick after it is the first chance.
+		const world = makeWorld()
+		const near = addTower(world, toasterCrumbTray, { x: 20, y: 1 })
+		const { carried, at } = killCarrying(world)
+		expect(Math.hypot(at.x - near.tile.x, at.y - near.tile.y)).toBeLessThanOrEqual(TRAY_RADIUS)
+		expect(world.night.food.filter(isDropped)).toHaveLength(3)
+
+		const log = run(world, 1)
+		expect(world.night.food.every(isOnShelf)).toBe(true)
+		expect(eventsOfKind(log, 'foodReturned')).toEqual(
+			carried.map(id => ({ kind: 'foodReturned', items: [id], from: at, byTowerId: near.id })),
+		)
+
+		// Out of reach: six tiles along the lane.
+		const other = makeWorld()
+		const far = addTower(other, toasterCrumbTray, { x: 26, y: 0 })
+		const dropped = killCarrying(other)
+		expect(Math.hypot(dropped.at.x - far.tile.x, dropped.at.y - far.tile.y)).toBeGreaterThan(TRAY_RADIUS)
+
+		const idle = run(other, 60)
+		expect(eventsOfKind(idle, 'foodReturned')).toHaveLength(0)
+		for (const id of dropped.carried) {
+			expect(foodById(other, id)?.droppedAt).toEqual(dropped.at)
+		}
+	})
+
+	it('is lost to the floor on the tick a night is won with it still there', () => {
+		const world = makeWorld()
+		const { carried } = killCarrying(world)
+		expect(world.night.phase).toBe('wave')
+
+		// The last spawn is out and the board is empty: the next resolve wins the night.
+		const lastSpawn = world.night.wave?.spawns[0]
+		expect(lastSpawn).toBeDefined()
+		if (lastSpawn !== undefined) {
+			lastSpawn.remaining = 0
+		}
+		const log = run(world, 1)
+
+		expect(eventsOfKind(log, 'nightEnded')).toEqual([{ kind: 'nightEnded', won: true }])
+		for (const item of world.night.food) {
+			expect(item.lostTo).toBe(carried.includes(item.id) ? 'floor' : null)
+			expect(item.droppedAt).toBeNull()
+		}
+	})
+
+	it('is left exactly where it was by a wake', () => {
+		const world = makeWorld()
+		// A wave still to come. A wake zeroes the remaining spawns, so on the fixture's one-wave night
+		// it would also win the night on the spot -- and a win is what forfeits the floor, not the wake.
+		world.night.waveCount = 2
+		const { carried, at } = killCarrying(world)
+		const before = structuredClone(world.night.food)
+
+		world.noise.level = world.noise.cap * 2
+		const log = run(world, 1)
+
+		expect(eventsOfKind(log, 'humanWoke')).toHaveLength(1)
+		expect(world.night.food).toEqual(before)
+		for (const id of carried) {
+			expect(foodById(world, id)?.droppedAt).toEqual(at)
+		}
+	})
+
+	it('drops nothing for an Ant, and CollectFood for a shelf, carried or unknown id changes nothing', () => {
+		const world = makeWorld()
+		const walker = spawn(world, ant, 10)
+		walker.hp = 0
+		expect(eventsOfKind(run(world, 1), 'foodDropped')).toHaveLength(0)
+
+		const thief = fleeingThief(world, burglar, 20)
+		const [held] = thief.stolenItems
+		const [shelved] = shelfIds(world)
+		const before = structuredClone(world.night.food)
+
+		const log = runWith(world, [
+			{ kind: 'CollectFood', foodId: shelved ?? -1 },
+			{ kind: 'CollectFood', foodId: held ?? -1 },
+			{ kind: 'CollectFood', foodId: 999_999 },
+		])
+
+		expect(world.night.food).toEqual(before)
+		expect(thief.stolenItems).toHaveLength(3)
+		expect(eventsOfKind(log, 'foodReturned')).toHaveLength(0)
+		expectHoldsConsistent(world)
 	})
 })
 

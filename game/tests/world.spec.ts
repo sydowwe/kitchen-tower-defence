@@ -3,7 +3,7 @@ import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
 import { mouse, weevil } from '@/core/content/enemies.ts'
 import { tick } from '@/core/sim.ts'
-import { takeFood } from '@/core/systems/fridge.ts'
+import { dropCarried, takeFood } from '@/core/systems/fridge.ts'
 import { pushEnemy } from '@/core/systems/pushback.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
@@ -75,6 +75,12 @@ describe('createWorld', () => {
 		expect(roundTrip(world)).toEqual(world)
 		expect(roundTrip(world).enemies[1]?.theft).toEqual({ phase: 'grabbing', grabEndsTick: 90 })
 		expect(roundTrip(world).night.food[0]?.heldBy).toBe(thief.id)
+
+		// Step 19B's `droppedAt`: the same items, now on the floor where the thief fell.
+		dropCarried(world, thief, { x: 3.5, y: 0.25 })
+		expect(roundTrip(world)).toEqual(world)
+		expect(roundTrip(world).night.food[0]?.droppedAt).toEqual({ x: 3.5, y: 0.25 })
+		expect(roundTrip(world).night.food[0]?.heldBy).toBeNull()
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {

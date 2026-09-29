@@ -5,18 +5,26 @@
  * else, and always together: an item a thief holds is in that thief's list and names it back. Two
  * writers is how the same pizza ends up on two sprites, or on one that no longer exists.
  *
- * **A helper file, not a slot.** `resolve` and `theft` call it. It never imports either of them --
- * `resolve.ts` imports this, and the cycle surfaces as an `undefined` at module load.
+ * **A helper file, not a slot.** `resolve`, `theft`, `crumbs` and `commands` call it. It never imports
+ * any of them -- they import this, and the cycle surfaces as an `undefined` at module load.
  */
 
 import { getEnemyDef } from '@/core/content/index.ts'
 import { enemyById } from '@/core/systems/spatial.ts'
 import type { EnemyDef } from '@/core/content/schema.ts'
-import type { Enemy, EntityId, FoodItem, World } from '@/core/types.ts'
+import type { Enemy, EntityId, FoodItem, Vec2, World } from '@/core/types.ts'
 
 /** Sitting on the shelf: not carried, not on the floor, not gone. Only these can be taken. */
 export function isOnShelf(item: FoodItem): boolean {
 	return item.heldBy === null && item.droppedAt === null && item.lostTo === null
+}
+
+/**
+ * Lying on the floor where a thief died, waiting to be fetched. Not `isOnFloor`: that is
+ * `core/systems/targeting.ts`'s, about an enemy, and the two would be auto-imported for each other.
+ */
+export function isDropped(item: FoodItem): boolean {
+	return item.droppedAt !== null
 }
 
 /**
@@ -93,8 +101,65 @@ export function escapeWith(world: World, enemy: Enemy): EntityId[] {
 }
 
 /**
+ * A thief died carrying: everything it held lands at `at`, the point its crumb dropped on, and stays
+ * there until a click or a `collect` radius fetches it. Every item sits at the one exact point --
+ * fanning them apart is the renderer's.
+ *
+ * An enemy carrying nothing pushes no event, or every Ant death is one the renderer has to filter.
+ */
+export function dropCarried(world: World, enemy: Enemy, at: Vec2): void {
+	const items = [...enemy.stolenItems]
+	if (items.length === 0) {
+		return
+	}
+
+	for (const id of items) {
+		const item = foodItem(world, id)
+		if (item !== null) {
+			item.heldBy = null
+			item.droppedAt = { x: at.x, y: at.y }
+		}
+	}
+	enemy.stolenItems = []
+
+	world.events.push({ kind: 'foodDropped', enemyId: enemy.id, items, at: { x: at.x, y: at.y } })
+}
+
+/**
+ * The one door off the floor, for the click (`byTowerId` null) and a tower's `collect` radius alike.
+ *
+ * A silent no-op for anything not on the floor -- on the shelf, carried, gone, or unknown. Frames pass
+ * between a click and its tick, and a tower may have fetched it in between; two clicks in one batch
+ * return it once because the second finds it already on the shelf.
+ */
+export function collectFood(world: World, foodId: EntityId, byTowerId: EntityId | null): void {
+	const item = foodItem(world, foodId)
+	if (item === null || item.droppedAt === null) {
+		return
+	}
+
+	// Read before `returnToShelf` clears it: the flight home starts where the food lay.
+	const from = item.droppedAt
+	returnToShelf(world, [foodId])
+	world.events.push({ kind: 'foodReturned', items: [foodId], from, byTowerId })
+}
+
+/**
+ * The night was won with food still on the floor: it is lost where it lies. Called before
+ * `nightEnded` is pushed, so a summary built off that tick already sees it.
+ */
+export function forfeitDroppedFood(world: World): void {
+	for (const item of world.night.food) {
+		if (item.droppedAt !== null) {
+			item.droppedAt = null
+			item.lostTo = 'floor'
+		}
+	}
+}
+
+/**
  * Puts these items back on the shelf, from a thief's paws or from the floor, and takes each out of
- * the list of whoever was holding it. Step 19B's pickups call it too.
+ * the list of whoever was holding it. `collectFood` is the floor's caller.
  */
 export function returnToShelf(world: World, ids: readonly EntityId[]): void {
 	for (const id of ids) {

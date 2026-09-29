@@ -19,6 +19,7 @@ import { isCollect } from '@/core/content/behaviours.ts'
 import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { nearestPath } from '@/core/path.ts'
 import { earnCrumbs } from '@/core/systems/economy.ts'
+import { collectFood } from '@/core/systems/fridge.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import type { Crumb, EntityId, Vec2, World } from '@/core/types.ts'
@@ -256,6 +257,39 @@ function deliverCrumbs(world: World): void {
 }
 
 /**
+ * A `collect` radius also fetches food a thief dropped: back to the fridge, on the tick it is in reach,
+ * with no claim and no flight. Same array order and same measure from `tower.tile` as `claimCrumbs`,
+ * so two overlapping radii resolve the same way on a replay.
+ *
+ * Its own pass and not a branch inside `claimCrumbs`: food is not a crumb and shares none of the
+ * claim machinery. `collectFood` is a no-op for an item an earlier tower already fetched.
+ */
+function fetchDroppedFood(world: World): void {
+	for (const tower of world.towers) {
+		for (const behaviour of effectiveDefOf(tower).behaviours) {
+			if (!isCollect(behaviour)) {
+				continue
+			}
+
+			const radiusSquared = behaviour.radiusTiles * behaviour.radiusTiles
+
+			for (const item of world.night.food) {
+				const at = item.droppedAt
+				if (at === null) {
+					continue
+				}
+
+				const dx = at.x - tower.tile.x
+				const dy = at.y - tower.tile.y
+				if (dx * dx + dy * dy <= radiusSquared) {
+					collectFood(world, item.id, tower.id)
+				}
+			}
+		}
+	}
+}
+
+/**
  * The unpaying exit door. The pile is consumed and a Fruit Fly hatches on the spot, joining the
  * nearest lane **mid-board** -- past most of the defences, which is the whole sting
  * (analytic-docs/DECISIONS.md section 9, change 1).
@@ -308,4 +342,5 @@ export function crumbsSystem(world: World): void {
 	ageCrumbs(world)
 	claimCrumbs(world)
 	deliverCrumbs(world)
+	fetchDroppedFood(world)
 }
