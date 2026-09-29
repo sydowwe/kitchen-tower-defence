@@ -307,8 +307,13 @@ export const silverfish: EnemyDefOf<'silverfish'> = {
  *
  * **`thief` does it, not the tag**, and the enemy schema keeps the two together. It walks to the
  * fridge, stands there for `grabTicks`, and runs home at `fleeSpeedMult` of its own speed with five
- * items -- statuses and floor still apply on the way out, which is the counterplay. Both numbers are
- * drafts that step 19D re-tunes.
+ * items -- statuses and floor still apply on the way out, which is the counterplay.
+ *
+ * **Step 19D ran both headless on nights 14 and 17 and moved neither.** `grabTicks` decided no outcome
+ * in any line tried, because nothing builds at the fridge by default: it is how long the grab ring is
+ * on screen, and nothing else. `fleeSpeedMult` from 1.3 down to 1.0 moved the kill on the way out about
+ * a tile and did not widen the band of lines that get the second pass. What decides that band is the
+ * 200 HP against the line, and the kill lands where the line stands, not at the crack.
  *
  * `mammal` is x1.5 physical and x0.6 chemical: salt works, spray does not.
  */

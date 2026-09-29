@@ -21,9 +21,10 @@ campaign then has all eighteen nights, and the milestone below is played rather 
 | --- | --- |
 | `core/content/nights.ts` (`NIGHTS`) | Positional, and `GameView.vue` walks it by array position. **14 is missing on purpose.** The note above `NIGHTS` and the file header both say it's the Mouse's (step 19). `night13` is the template for 12 waves: `OPENING_TICKS` first, `8 * 60` countdowns, a new enemy introduced as two in wave 3, and a flyer-only wave. `night17` is the Silverfish night, and its note explains what it asks |
 | `tests/content.spec.ts` (`nights 4 to 9`) | Pins every night's wave count and index as literals. Its comment says "14 is the Mouse's night (step 19)". The next test requires `mapId: 'counter'` and `pathId: 'crack'` everywhere |
+| `tests/content.spec.ts` (`the Mouse`) | `is scheduled by no night yet` asserts no night carries a `mouse`. This step makes it false: it is replaced by the night-14 test below, not kept |
 | `core/content/enemies.ts` (`mouse`) | 19A's draft `thief: { grabTicks: 90, fleeSpeedMult: 1.3 }`, and **values you may move**. HP, speed, reward and steals are CONTENT.md §2's row |
 | `core/systems/spawn.ts` (`spawnDestroyPenalty`) | Buys extra enemies from the running wave's own entries, one of each affordable per round, at each enemy's `reward` |
-| `ui/views/GameView.vue` | `SEED = 1234`. If `dev/night/NightPanel.vue` is in the tree (it was uncommitted when this was written), use it to jump straight to 14 |
+| `ui/views/GameView.vue` | `SEED = 1234`. If `dev/night/NightPanel.vue` is in the tree (it was uncommitted when this was written), use it to jump straight to 14. Its header comment calls 14 and 18 documented gaps; neither is one after this step |
 | `ui/locales/en.ts` | C's Mouse copy |
 
 ## Decisions already made
@@ -56,8 +57,8 @@ then edit this file. Don't leave it lying.
 ### 1. Night 14, and the Mouse on night 17: `core/content/nights.ts`, `tests/content.spec.ts`
 
 Decisions 1 to 3. Update both literal lists in `content.spec.ts` (the wave counts gain a 12, and the
-indices gain a 14 between 13 and 15). Add "introduces the Mouse on night 14 and nowhere earlier",
-following the Silverfish test.
+indices gain a 14 between 13 and 15). Replace the Mouse's "is scheduled by no night yet" with
+"introduces the Mouse on night 14 and nowhere earlier", following the Silverfish test.
 
 Gotchas that will bite the authoring:
 
@@ -104,7 +105,7 @@ commit. A's, B's and C's suites are the regression net for everything you re-tun
 - [ ] Letting it escape with five items on night 14 is survivable but clearly costly.
 - [ ] Dropped food is impossible to miss.
 - [ ] On night 17, a chemical-heavy line feels the Mouse.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked. The checkboxes are the
 ledger of what has been confirmed.

@@ -394,11 +394,12 @@ describe('the Beetle', () => {
 describe('nights 4 to 9', () => {
 	it('carries the wave counts of analytic-docs/CONTENT.md section 6', () => {
 		expect(NIGHTS.map(night => night.waves.length)).toEqual([
-			6, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14,
+			6, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 12, 12, 13, 13, 14, 14,
 		])
-		// 14 is the Mouse's night (step 19); the gap is on purpose. 13 sits between 12 and 15 because
-		// Continue walks array positions.
-		expect(NIGHTS.map(night => night.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18])
+		// In index order, because Continue walks array positions.
+		expect(NIGHTS.map(night => night.index)).toEqual([
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+		])
 	})
 
 	it('is authored on the Counter, on the lane the Counter actually has', () => {
@@ -972,12 +973,54 @@ describe('the Mouse', () => {
 		expect(resolveDamage(10, 'chemical', target)).toBeCloseTo(6, 10)
 	})
 
-	it('is scheduled by no night yet', () => {
-		const scheduled = NIGHTS.flatMap(night =>
+	it('is introduced on night 14 and nowhere earlier, and comes back once on night 17', () => {
+		const scheduled = NIGHTS.filter(night => night.index < 14).flatMap(night =>
 			night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId)),
 		)
-
 		expect(scheduled).not.toContain('mouse')
+
+		function miceIn(index: number): { wave: number; count: number }[] {
+			const night = NIGHTS.find(entry => entry.index === index)
+			return (night?.waves ?? []).flatMap((wave, waveIndex) =>
+				wave.entries
+					.filter(entry => entry.enemyDefId === 'mouse')
+					.map(entry => ({ wave: waveIndex, count: entry.count })),
+			)
+		}
+
+		// One entry per Mouse, never `count: 2` -- nightmare's 1.25 rounds a 2 to a 3. Never wave 1:
+		// the warning needs a wave in front of it.
+		expect(miceIn(14)).toEqual([
+			{ wave: 6, count: 1 },
+			{ wave: 11, count: 1 },
+		])
+		expect(miceIn(15)).toEqual([])
+		expect(miceIn(16)).toEqual([])
+		// Night 17's, in a wave that also carries Silverfish; night 18 is 18C's and carries none.
+		expect(miceIn(17)).toEqual([{ wave: 9, count: 1 }])
+		const night17 = NIGHTS.find(entry => entry.index === 17)
+		expect(night17?.waves[9]?.entries.some(entry => entry.enemyDefId === 'silverfish')).toBe(true)
+		expect(miceIn(18)).toEqual([])
+	})
+
+	it('is never the whole of its wave, and is the last thing its wave releases', () => {
+		for (const night of NIGHTS) {
+			for (const wave of night.waves) {
+				const mouseEntry = wave.entries.find(entry => entry.enemyDefId === 'mouse')
+				if (mouseEntry === undefined) {
+					continue
+				}
+				// A Mouse-only wave is five Mice for one lost Cookie Jar.
+				expect(wave.entries.length).toBeGreaterThan(1)
+				for (const entry of wave.entries) {
+					if (entry === mouseEntry) {
+						continue
+					}
+					const lastSpawn = entry.startDelayTicks + (entry.count - 1) * entry.spacingTicks
+					expect(lastSpawn).toBeLessThan(mouseEntry.startDelayTicks)
+				}
+			}
+		}
 	})
 })
 

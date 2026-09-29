@@ -1,10 +1,9 @@
 /**
- * The night schedule -- nights 1 to 13, then 15 to 18 (analytic-docs/CONTENT.md section 6): 6, 7, 8,
- * 8, 9, 9, 10, 10, 10, 11, 11, 12, 12, 13, 13, 14 and 14 waves, Ant from night 1, Roach from night 3,
- * Beetle from night 5, Fly from night 8, Moth from night 10, Mold from night 11, Weevil from night 13,
- * Slug from night 15, Silverfish from night 17. **14 is missing on purpose** -- see the note above
- * `NIGHTS`. All of them are on the Counter; see the note above `night04` for why every night from 4 on
- * is not on the map section 6 names.
+ * The night schedule -- nights 1 to 18 (analytic-docs/CONTENT.md section 6): 6, 7, 8, 8, 9, 9, 10, 10,
+ * 10, 11, 11, 12, 12, 12, 13, 13, 14 and 14 waves, Ant from night 1, Roach from night 3, Beetle from
+ * night 5, Fly from night 8, Moth from night 10, Mold from night 11, Weevil from night 13, Mouse from
+ * night 14, Slug from night 15, Silverfish from night 17. All of them are on the Counter; see the note
+ * above `night04` for why every night from 4 on is not on the map section 6 names.
  *
  * Difficulty scalars are applied at runtime by `startWave` and are never baked in here.
  *
@@ -856,11 +855,10 @@ export const night10: NightDef = {
 }
 
 /**
- * Nights 11, 12, 13, 15, 16 and 17 are authored **on the Counter, single-lane**, for the same reason
- * nights 4-10 are: section 6 puts 11 and 12 on the Stove, 13 and 15 on the Table and 16 and 17 on the
- * Floor -- with a third spawn point from 16 -- none of those maps exists, and step 21 authors them.
- * Wave counts are section 6's: 11, 12, 12, 13, 13 and 14. Night 14 is missing on purpose -- see the
- * note above `NIGHTS`.
+ * Nights 11 to 17 are authored **on the Counter, single-lane**, for the same reason nights 4-10 are:
+ * section 6 puts 11 and 12 on the Stove, 13 to 15 on the Table and 16 and 17 on the Floor -- with a
+ * third spawn point from 16 -- none of those maps exists, and step 21 authors them. Wave counts are
+ * section 6's: 11, 12, 12, 12, 13, 13 and 14.
  *
  * The Mold is the new enemy on night 11, and it arrives the way every other one has: **two of them in
  * wave 3**, well behind the wave's opening column and four seconds apart. What no other enemy needed
@@ -1469,6 +1467,166 @@ export const night13: NightDef = {
 }
 
 /**
+ * Night 14: the Mouse, the Act II mini-boss. Section 6 gives it the Fly Paper unlock too, which is step
+ * 20's. It introduces nothing else, so apart from the Mouse it is night 13 with more of everything.
+ *
+ * **Two Mice, in waves 7 and 12, one entry each** -- nightmare's `enemyCountMult` rounds a 2 to a 3. The
+ * wave in front of each is what carries the `thiefWarning`, so neither is early: wave 6 is the night's
+ * flyers-only wave, and it is the one that names the Mouse coming.
+ *
+ * **Each Mouse is the last thing its wave releases, and nothing spawns behind it.** It overtakes the
+ * tail on the way in, and its flight home runs back up an emptying lane, so the grab and the run are
+ * both watched. Wave 7 is thin -- a ground column and no flyers -- with a 12-second countdown behind it,
+ * so the next wave's head meets the fleeing Mouse late rather than on the grab. Wave 12 puts it last on
+ * the night: the final seconds are a Mouse running home with the food or dying on the way, and at
+ * worst that holds the board open for one crossing and a flight, all of it on screen.
+ *
+ * **A Cookie Jar lost in either Mouse wave buys two more Mice**, and that is accepted. Every entry ahead
+ * of the Mouse is bought first each round, so a wave whose other entries cost 27 crumbs or more gets
+ * two out of the jar's 200, and no composition gets fewer. That is ten more items at risk against the
+ * shelf's 22 -- a lost jar on this night is the costliest one in the game, which it should be. Never a
+ * Mouse-only wave: that is five.
+ */
+export const night14: NightDef = {
+	id: 'night14',
+	index: 14,
+	mapId: 'counter',
+	waves: [
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 19, spacingTicks: 37, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 7, spacingTicks: 74, startDelayTicks: 250, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 195, startDelayTicks: 370, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 6, spacingTicks: 82, startDelayTicks: 370, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 2, spacingTicks: 200, startDelayTicks: 600, pathId: 'crack' },
+			],
+			countdownTicks: OPENING_TICKS,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 20, spacingTicks: 35, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 3, spacingTicks: 150, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 8, spacingTicks: 70, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 4, spacingTicks: 185, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 7, spacingTicks: 78, startDelayTicks: 360, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 3, spacingTicks: 140, startDelayTicks: 440, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 21, spacingTicks: 33, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 4, spacingTicks: 130, startDelayTicks: 280, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 9, spacingTicks: 64, startDelayTicks: 230, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 170, startDelayTicks: 350, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 7, spacingTicks: 72, startDelayTicks: 350, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 3, spacingTicks: 125, startDelayTicks: 420, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 22, spacingTicks: 31, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 5, spacingTicks: 115, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 9, spacingTicks: 60, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 5, spacingTicks: 160, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 68, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 4, spacingTicks: 120, startDelayTicks: 410, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 23, spacingTicks: 30, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 6, spacingTicks: 100, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 10, spacingTicks: 56, startDelayTicks: 210, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 150, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 8, spacingTicks: 64, startDelayTicks: 330, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 4, spacingTicks: 115, startDelayTicks: 400, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The flyers-only wave, and the one the Mouse is named in: the ground lane is quiet while the
+			// warning is up.
+			entries: [
+				{ enemyDefId: 'fly', count: 15, spacingTicks: 44, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 96, startDelayTicks: 120, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The Mouse arrives: a thin ground column, then the Mouse 4 seconds behind the last Beetle.
+			entries: [
+				{ enemyDefId: 'ant', count: 16, spacingTicks: 34, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 6, spacingTicks: 70, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 3, spacingTicks: 170, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 3, spacingTicks: 150, startDelayTicks: 240, pathId: 'crack' },
+				{ enemyDefId: 'mouse', count: 1, spacingTicks: 60, startDelayTicks: 900, pathId: 'crack' },
+			],
+			countdownTicks: 12 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 24, spacingTicks: 28, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 7, spacingTicks: 90, startDelayTicks: 220, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 11, spacingTicks: 54, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 6, spacingTicks: 145, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 9, spacingTicks: 62, startDelayTicks: 320, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 108, startDelayTicks: 390, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 25, spacingTicks: 27, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 8, spacingTicks: 80, startDelayTicks: 200, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 12, spacingTicks: 50, startDelayTicks: 190, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 135, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 10, spacingTicks: 58, startDelayTicks: 300, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 5, spacingTicks: 102, startDelayTicks: 380, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 26, spacingTicks: 25, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 9, spacingTicks: 72, startDelayTicks: 180, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 13, spacingTicks: 46, startDelayTicks: 170, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 7, spacingTicks: 126, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 10, spacingTicks: 54, startDelayTicks: 290, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 6, spacingTicks: 96, startDelayTicks: 360, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			entries: [
+				{ enemyDefId: 'ant', count: 27, spacingTicks: 24, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 10, spacingTicks: 64, startDelayTicks: 160, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 14, spacingTicks: 43, startDelayTicks: 160, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 8, spacingTicks: 118, startDelayTicks: 270, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 11, spacingTicks: 50, startDelayTicks: 270, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 7, spacingTicks: 88, startDelayTicks: 350, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+		{
+			// The last Mouse, released 6 seconds after the last Beetle: the night ends on its run.
+			entries: [
+				{ enemyDefId: 'ant', count: 29, spacingTicks: 22, startDelayTicks: 0, pathId: 'crack' },
+				{ enemyDefId: 'weevil', count: 11, spacingTicks: 56, startDelayTicks: 150, pathId: 'crack' },
+				{ enemyDefId: 'roach', count: 16, spacingTicks: 39, startDelayTicks: 150, pathId: 'crack' },
+				{ enemyDefId: 'beetle', count: 9, spacingTicks: 108, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'fly', count: 13, spacingTicks: 46, startDelayTicks: 260, pathId: 'crack' },
+				{ enemyDefId: 'moth', count: 8, spacingTicks: 82, startDelayTicks: 340, pathId: 'crack' },
+				{ enemyDefId: 'mouse', count: 1, spacingTicks: 60, startDelayTicks: 1480, pathId: 'crack' },
+			],
+			countdownTicks: 8 * 60,
+		},
+	],
+}
+
+/**
  * Night 15: the Slug, and the loudest night in v1. Section 6 calls it "after a dinner party -- double
  * crumbs, double spawns"; that modifier is step 21's, so here it is authored into the composition
  * instead -- counts above night 12's and spacing tighter -- and nothing multiplies anything.
@@ -1949,6 +2107,12 @@ export const night16: NightDef = {
  *
  * Never a Silverfish-only wave: a Cookie Jar lost in one buys eleven 110-HP walls. Two chaos-shaped
  * waves carry none at all.
+ *
+ * **One Mouse, in wave 10**, released last, the way night 14 releases both of its own. It is here as
+ * a check on the answer this night teaches: `mammal` takes chemical at x0.6, so the line the
+ * Silverfish pushed you into is the line the Mouse walks through. Wave 10 because it also carries a
+ * mold, whose 12 crumbs push the rest of the wave past what a lost Cookie Jar can buy two Mice with
+ * -- it buys one.
  */
 export const night17: NightDef = {
 	id: 'night17',
@@ -2086,6 +2250,8 @@ export const night17: NightDef = {
 					pathId: 'crack',
 					startDistanceTiles: 8.5,
 				},
+				// The Mouse's second night: last out of the wave, 2 seconds behind the last Beetle.
+				{ enemyDefId: 'mouse', count: 1, spacingTicks: 60, startDelayTicks: 1130, pathId: 'crack' },
 			],
 			countdownTicks: 8 * 60,
 		},
@@ -2383,10 +2549,8 @@ export const night18: NightDef = {
 }
 
 /**
- * Positional, and `GameView.vue` walks it by array position -- so the gap is not a bug, and 13 sits
- * between 12 and 15 rather than appended, or Continue would play it after 15. Night 14 is the Mouse's
- * (step 19), and authoring it now would be authoring a night its own step rewrites. Continue goes 13,
- * 15, 16, 17, 18.
+ * Positional, and `GameView.vue` walks it by array position, so the order here is the order Continue
+ * plays them in: a night added later goes in by its index, never appended.
  */
 export const NIGHTS = [
 	night01,
@@ -2402,6 +2566,7 @@ export const NIGHTS = [
 	night11,
 	night12,
 	night13,
+	night14,
 	night15,
 	night16,
 	night17,
