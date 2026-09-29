@@ -33,7 +33,7 @@ This is the step the entire architecture was built for. `core/` has no DOM depen
 
 3. **Metrics per night**, to CSV: night, map, difficulty, policy, seed, won, waves survived, food remaining, crumbs earned / spent / wasted-at-sunrise, crumbs dropped vs collected, towers built, peak noise, wake count, Grocery Money, and **`towersAffordablePerNight`** — the headline number.
 
-   `peakNoise` is the harness's own running maximum of `world.noise.level`, **not a field on the world** — step 13A deliberately kept one off `NoiseState`, because nothing in the game reads it and a field with no reader goes into every save and every replay for nothing. `wakeCount` is on `NoiseState` and is read straight off it.
+   `peakNoise` is `world.noise.peakLevel`, read at night end. Step 13A kept a peak off `NoiseState` while nothing read it; step 20B added it for the night summary, written inside `noiseSystem` because the level is zeroed on the wake tick and a running maximum taken between ticks never sees the cap. `wakeCount` is on `NoiseState` too. Grocery Money is `world.night.pay.total` (20B), and a campaign run builds each night with `worldOptionsFor(progress, seed)` from `core/campaign.ts` so the harness plays the same unlocks and installations the game does.
 
 4. **The sweep mode.** Vary one global parameter across a range and re-run everything:
    ```

@@ -37,7 +37,7 @@ Turn one map into eighteen distinct nights. Five new maps in the editor you buil
    - Score is waves survived; persist a per-map best in the save.
    - Reuse the night pipeline entirely — endless is a `NightDef` produced by a generator function, not a separate mode with its own code path. If it needs its own path, the night model is too rigid.
 
-5. **Wire up nights 1–18 in full** per the `../analytic-docs/CONTENT.md` §6 table: map, wave count, unlocks, modifier. This is the first time the whole campaign exists as data.
+5. **Wire up nights 1–18 in full** per the `../analytic-docs/CONTENT.md` §6 table: map, wave count, modifier. This is the first time the whole campaign exists as data. Unlocks are already authored (`NightDef.unlocksTowerIds`, step 20B); moving a night to its real map does not touch them.
 
    **Loadout constraint (step 20a):** every night must be winnable by **more than one loadout**. A night whose enemy mix admits exactly one valid answer is a lockout, not a puzzle. Design each night so at least two distinct counters exist — night 17's Silverfish, for instance, should fall to either a cold build or a Lemon-plus-physical build. Step 22's `blind` loadout policy is what verifies this.
 
