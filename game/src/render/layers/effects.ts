@@ -15,7 +15,9 @@
 
 import { getFoodDef } from '@/core/content/index.ts'
 import { effectivenessOf } from '@/core/content/matrix.ts'
+import { samplePath } from '@/core/path.ts'
 import { towerById } from '@/core/systems/placement.ts'
+import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import type { Effectiveness } from '@/core/content/matrix.ts'
 import type { EntityId, GameEvent, Vec2, World } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
@@ -31,6 +33,7 @@ import {
 	DAMAGE_NUMBER_WEAK,
 	GUST_STREAK,
 	HIT_FLASH,
+	THIEF_ESCAPE_POOF,
 	TOWER_DEBRIS,
 	WAKE_DESATURATE,
 	WAKE_WASH,
@@ -300,6 +303,86 @@ export interface Shove {
 
 const shoves = new Map<EntityId, Shove>()
 
+/**
+ * A thief's take: each item off its own shelf slot and onto the Mouse, one after another (step 19C,
+ * decision 2). The Mouse is standing still at the fridge while it grabs, so where it stood when the
+ * event was pushed is where the flight lands, and `drawEffects` needs no world. From that frame on the
+ * carry is `entities.ts`'s, drawn off `stolenItems`, so this only has to get the item there.
+ *
+ * Staggered so five items read as five items leaving. The cap is two Mice' worth.
+ */
+const TAKE_LIFE_FRAMES = 22
+const TAKE_STAGGER_FRAMES = 5
+/** Tiles the item arcs up on its way over, so it reads as lifted out and not slid across. */
+const TAKE_LOFT_TILES = 0.7
+const MAX_TAKES = 12
+
+/**
+ * The same journey backwards: off the floor where it lay and into its own shelf slot, where
+ * `drawFridge` holds off drawing it until this lands (decision 7). From `foodReturned.from`, never
+ * `droppedAt` -- that is null by the time the event is read.
+ */
+const RETURN_LIFE_FRAMES = 30
+const RETURN_LOFT_TILES = 1.4
+const MAX_RETURNS = 16
+
+interface FoodFlight {
+	foodId: EntityId
+	glyph: string
+	fromX: number
+	fromY: number
+	toX: number
+	toY: number
+	/** Counts up from `-delay`; the item sits still (and unseen) until it reaches 0. */
+	ageFrames: number
+}
+
+const takes: FoodFlight[] = []
+const returns: FoodFlight[] = []
+
+/**
+ * A thief out of the crack with what it carried: a cold puff where it left, and nothing flying home.
+ * The items go with it (decision 7).
+ *
+ * The escape event names no lane and the thief is gone by the time it is read, so its lane is
+ * remembered when it grabs -- the only thief worth a puff is one carrying something, and that one has
+ * grabbed. Forgotten on its death or its escape, and on reset.
+ */
+const ESCAPE_LIFE_FRAMES = 30
+const ESCAPE_START_RADIUS_TILES = 0.2
+const ESCAPE_END_RADIUS_TILES = 1.1
+const ESCAPE_LINE_WIDTH_PX = 3
+const ESCAPE_WISPS = 8
+const ESCAPE_WISP_RADIUS_PX = 3
+const ESCAPE_WISP_REACH_TILES = 0.9
+const MAX_ESCAPES = 4
+
+interface Escape {
+	x: number
+	y: number
+	ageFrames: number
+}
+
+const escapes: Escape[] = []
+const thiefLanes = new Map<EntityId, string>()
+
+/** True while a returned item is still in the air. `drawFridge` skips it until it lands. */
+export function isFlyingHome(foodId: EntityId): boolean {
+	for (const flight of returns) {
+		if (flight.foodId === foodId) {
+			return true
+		}
+	}
+	return false
+}
+
+/** Oldest dropped first, like every list in this file. */
+function capped<T>(list: T[], max: number): void {
+	while (list.length > max) {
+		list.shift()
+	}
+}
+
 /** The shove still on screen for this enemy, or null. Read-only to the caller: this file ages it. */
 export function shoveOf(enemyId: EntityId): Readonly<Shove> | null {
 	return shoves.get(enemyId) ?? null
@@ -348,6 +431,74 @@ function collectedAt(world: World, crumbId: EntityId, byTowerId: EntityId | null
 	}
 	const tower = towerById(world, byTowerId)
 	return tower === null ? null : { x: tower.tile.x, y: tower.tile.y }
+}
+
+/** An item's slot on the shelf and its glyph, looked up now: see `pushEvents` on why nothing is kept. */
+function shelfItem(world: World, foodId: EntityId): { glyph: string; slot: Vec2 } | null {
+	const index = world.night.food.findIndex(item => item.id === foodId)
+	const item = world.night.food[index]
+	if (item === undefined) {
+		return null
+	}
+	return { glyph: getFoodDef(item.defId).glyph, slot: shelfSlot(world.map, index) }
+}
+
+function pushTakes(world: World, enemyId: EntityId, items: readonly EntityId[]): void {
+	const thief = enemyById(world, enemyId)
+	const at = thief === null ? null : enemyPosition(world, thief)
+	if (thief !== null) {
+		thiefLanes.set(enemyId, thief.pathId)
+	}
+	// A thief killed in the same batch as its grab has already dropped everything; the floor has it.
+	const to = at ?? world.map.fridge.tile
+
+	items.forEach((id, order) => {
+		const found = shelfItem(world, id)
+		if (found === null) {
+			return
+		}
+		takes.push({
+			foodId: id,
+			glyph: found.glyph,
+			fromX: found.slot.x,
+			fromY: found.slot.y,
+			toX: to.x,
+			toY: to.y,
+			ageFrames: -order * TAKE_STAGGER_FRAMES,
+		})
+	})
+	capped(takes, MAX_TAKES)
+}
+
+function pushReturns(world: World, items: readonly EntityId[], from: Vec2): void {
+	for (const id of items) {
+		const found = shelfItem(world, id)
+		if (found === null) {
+			continue
+		}
+		returns.push({
+			foodId: id,
+			glyph: found.glyph,
+			fromX: from.x,
+			fromY: from.y,
+			toX: found.slot.x,
+			toY: found.slot.y,
+			ageFrames: 0,
+		})
+	}
+	capped(returns, MAX_RETURNS)
+}
+
+function pushEscape(world: World, enemyId: EntityId): void {
+	const pathId = thiefLanes.get(enemyId)
+	thiefLanes.delete(enemyId)
+	const path = pathId === undefined ? undefined : world.map.paths.find(candidate => candidate.id === pathId)
+	if (path === undefined) {
+		return
+	}
+	const crack = samplePath(path, 0)
+	escapes.push({ x: crack.x, y: crack.y, ageFrames: 0 })
+	capped(escapes, MAX_ESCAPES)
 }
 
 /**
@@ -439,6 +590,29 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 		// `tiles` is what actually moved, after resistance and the clamp -- drawn as said, never re-derived.
 		if (event.kind === 'enemyPushed') {
 			addShove(event.enemyId, event.tiles)
+			continue
+		}
+
+		if (event.kind === 'thiefGrabbed') {
+			pushTakes(world, event.enemyId, event.items)
+			continue
+		}
+
+		if (event.kind === 'foodReturned') {
+			pushReturns(world, event.items, event.from)
+			// The click gets the pop a clicked pile gets; a tower's fetch gets the quiet one.
+			pops.push({ x: event.from.x, y: event.from.y, strong: event.byTowerId === null, ageFrames: 0 })
+			capped(pops, MAX_POPS)
+			continue
+		}
+
+		if (event.kind === 'thiefEscaped') {
+			pushEscape(world, event.enemyId)
+			continue
+		}
+
+		if (event.kind === 'enemyKilled') {
+			thiefLanes.delete(event.enemyId)
 			continue
 		}
 
@@ -770,6 +944,88 @@ function drawGusts(ctx: CanvasRenderingContext2D, tilePx: number): void {
 	gusts.length = live
 }
 
+/**
+ * One list of food flights, aged and drawn: a straight line from one point to the other with a lift
+ * over the middle, eased so it leaves quickly and settles. Full opacity the whole way -- this is the
+ * item itself, not a trace of it, and it has to be the thing the eye follows.
+ */
+function drawFoodFlights(
+	ctx: CanvasRenderingContext2D,
+	list: FoodFlight[],
+	lifeFrames: number,
+	loftTiles: number,
+	tilePx: number,
+	dpr: number,
+): void {
+	const size = foodGlyphSize(tilePx)
+	let live = 0
+
+	for (const flight of list) {
+		flight.ageFrames++
+		if (flight.ageFrames >= lifeFrames) {
+			continue
+		}
+		list[live] = flight
+		live++
+		if (flight.ageFrames < 0) {
+			continue
+		}
+
+		const t = flight.ageFrames / lifeFrames
+		const eased = 1 - (1 - t) * (1 - t)
+		const x = flight.fromX + (flight.toX - flight.fromX) * eased
+		const y = flight.fromY + (flight.toY - flight.fromY) * eased - loftTiles * 4 * eased * (1 - eased)
+		blitGlyph(ctx, dpr, flight.glyph, size, (x + 0.5) * tilePx, (y + 0.5) * tilePx)
+	}
+
+	list.length = live
+}
+
+/** The puff at the crack: a ring and wisps going outward, the shape of `drawPuffs` in a colder colour. */
+function drawEscapes(ctx: CanvasRenderingContext2D, tilePx: number): void {
+	let live = 0
+	ctx.strokeStyle = THIEF_ESCAPE_POOF
+	ctx.fillStyle = THIEF_ESCAPE_POOF
+	ctx.lineWidth = ESCAPE_LINE_WIDTH_PX
+
+	for (const escape of escapes) {
+		escape.ageFrames++
+		if (escape.ageFrames >= ESCAPE_LIFE_FRAMES) {
+			continue
+		}
+
+		const t = escape.ageFrames / ESCAPE_LIFE_FRAMES
+		const eased = 1 - (1 - t) * (1 - t)
+		const x = (escape.x + 0.5) * tilePx
+		const y = (escape.y + 0.5) * tilePx
+
+		ctx.globalAlpha = 1 - t
+		ctx.beginPath()
+		const radius = ESCAPE_START_RADIUS_TILES + (ESCAPE_END_RADIUS_TILES - ESCAPE_START_RADIUS_TILES) * eased
+		ctx.arc(x, y, radius * tilePx, 0, Math.PI * 2)
+		ctx.stroke()
+
+		// Rising rather than falling, which is the one difference from a tower's debris: dust, not pieces.
+		const reach = ESCAPE_WISP_REACH_TILES * tilePx * eased
+		ctx.beginPath()
+		for (let wisp = 0; wisp < ESCAPE_WISPS; wisp++) {
+			const angle = escape.x + escape.y + (wisp / ESCAPE_WISPS) * Math.PI * 2
+			const wispX = x + Math.cos(angle) * reach
+			const wispY = y + Math.sin(angle) * reach * 0.6 - ESCAPE_WISP_REACH_TILES * tilePx * t * 0.5
+			const size = ESCAPE_WISP_RADIUS_PX * (1 - t * 0.5)
+			ctx.moveTo(wispX + size, wispY)
+			ctx.arc(wispX, wispY, size, 0, Math.PI * 2)
+		}
+		ctx.fill()
+
+		escapes[live] = escape
+		live++
+	}
+
+	ctx.globalAlpha = 1
+	escapes.length = live
+}
+
 /** Ages every shove, and drops the spent ones whether or not their enemy is still on the board. */
 function ageShoves(): void {
 	for (const [id, shove] of shoves) {
@@ -810,6 +1066,9 @@ export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: 
 	ctx.globalAlpha = 1
 	flights.length = live
 
+	drawFoodFlights(ctx, takes, TAKE_LIFE_FRAMES, TAKE_LOFT_TILES, tilePx, dpr)
+	drawFoodFlights(ctx, returns, RETURN_LIFE_FRAMES, RETURN_LOFT_TILES, tilePx, dpr)
+	drawEscapes(ctx, tilePx)
 	drawPuffs(ctx, tilePx)
 	drawDigs(ctx, tilePx)
 	drawHits(ctx, tilePx, dpr)
@@ -878,6 +1137,12 @@ export function resetEffects(): void {
 	gusts.length = 0
 	// Enemy ids restart with the world, so a stale shove would land on a new night's enemy.
 	shoves.clear()
+	// Without these a retry opens with last night's pizza flying home, and last night's Mouse's lane
+	// waiting for a new night's enemy with the same id.
+	takes.length = 0
+	returns.length = 0
+	escapes.length = 0
+	thiefLanes.clear()
 	// Without this a retry opens with last night's light still on.
 	wakeAgeFrames = null
 	forgetCrumbPositions()

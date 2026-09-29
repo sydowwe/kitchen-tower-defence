@@ -32,6 +32,7 @@ import {
 	isOnBoard,
 	LOGICAL_WIDTH,
 	pickCrumb,
+	pickFood,
 	toGridPoint,
 	toTile,
 	type OverlayReach,
@@ -52,6 +53,12 @@ import type { Selection } from '@/ui/selection.ts'
  * Buy-a-Broom widens exactly this.
  */
 const CRUMB_CLICK_FORGIVENESS_PX = 8
+
+/**
+ * The same margin for food a thief dropped. Wider: a missed click on a pile costs a few crumbs, and a
+ * missed click on the pizza costs the pizza if a tower does not get there first.
+ */
+const FOOD_CLICK_FORGIVENESS_PX = 10
 
 /**
  * The pointer's own half of the answer, so the tile is readable without tracking the tint.
@@ -335,6 +342,11 @@ export function createInteraction(
 		return point !== null && pickCrumb(world, point, tilePxFor(world), CRUMB_CLICK_FORGIVENESS_PX) !== null
 	}
 
+	function foodUnder(world: World): boolean {
+		const point = selection.hoverPoint
+		return point !== null && pickFood(world, point, tilePxFor(world), FOOD_CLICK_FORGIVENESS_PX).length > 0
+	}
+
 	/**
 	 * One `canPlaceTower` answer into `tone` and `reason`, and the cursor off the same answer. The
 	 * tint, the pointer and the toast therefore cannot disagree with each other or with the executor.
@@ -367,7 +379,9 @@ export function createInteraction(
 			applyCursor(selection.tone === 'valid' ? CURSOR_PLACEABLE : CURSOR_REFUSED)
 			return
 		}
-		applyCursor(crumbUnder(world) || towerAt(world, tile) !== null ? CURSOR_SELECTABLE : CURSOR_DEFAULT)
+		applyCursor(
+			foodUnder(world) || crumbUnder(world) || towerAt(world, tile) !== null ? CURSOR_SELECTABLE : CURSOR_DEFAULT,
+		)
 	}
 
 	function onPointerMove(event: PointerEvent): void {
@@ -406,9 +420,11 @@ export function createInteraction(
 	 * default buys a second tower every time the player clicks the board to deselect, and
 	 * place-and-exit is what the genre trained them to expect.
 	 *
-	 * The order is: armed def builds, else a crumb is collected, else a tower is selected, else the
-	 * selection is cleared. The armed def goes first because a green ghost that quietly collects a
-	 * crumb instead of building reads as the placement being broken.
+	 * The order is: armed def builds, else dropped food is sent home, else a crumb is collected, else a
+	 * tower is selected, else the selection is cleared. The armed def goes first because a green ghost
+	 * that quietly collects a crumb instead of building reads as the placement being broken. Food goes
+	 * before crumbs because it is the thing that matters, and it lies on the track where piles gather
+	 * (step 19C, decision 6).
 	 */
 	function onPointerDown(event: PointerEvent): void {
 		const world = getWorld()
@@ -436,6 +452,16 @@ export function createInteraction(
 			queue.enqueue({ kind: 'PlaceTower', defId: def.id, tile: { x: tile.x, y: tile.y } })
 			if (!event.shiftKey) {
 				selection.selectedDefId.value = null
+			}
+			return
+		}
+
+		// Every item under the pointer, one command each: a spill is several ids at one point, and one
+		// click on it sends the lot home.
+		const food = pickFood(world, gridToWaypoint(grid), tilePxFor(world), FOOD_CLICK_FORGIVENESS_PX)
+		if (food.length > 0) {
+			for (const item of food) {
+				queue.enqueue({ kind: 'CollectFood', foodId: item.id })
 			}
 			return
 		}

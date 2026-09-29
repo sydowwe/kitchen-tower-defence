@@ -12,7 +12,6 @@ Things not settled, things assumed without discussion, and things most likely to
 | **Does the game need a "recommended tile" placement hint?** The step 22 harness needs track-coverage scoring anyway, so exposing it to players is nearly free. | Might be helpful onboarding, might remove the interesting decision | Step 22 or 23 |
 | **Endless mode: which map, and does it use installations?** Player's choice of beaten map is assumed; whether owned installations apply is not decided. | Affects whether endless is a victory lap or a fresh challenge | Step 21 |
 | **Is there any catch-up mechanic for a player stuck on a night?** Currently: retry with installations intact, plus 40% Grocery Money on a loss. That may not be enough on Nightmare. | Only measurable with real playtesting | After step 22's data |
-| **How many food items should a thief be able to carry visibly?** The Mouse steals 5; five glyphs riding on one sprite may look absurd. | Visual, not mechanical | Step 19 |
 | **Audio direction.** "The noise meter must be audible" is specified; nothing else is. No decisions on music, ambience, or whether there's a soundtrack at all. | Deferred to polish | Step 23 |
 | **Auth token storage for the .NET backend** — httpOnly cookie versus a token in localStorage. The cookie is the safer answer (a localStorage token is readable by any XSS) but it constrains CORS and the hosting setup. | Must be decided *with* the backend, not after it | When the backend work starts |
 | **Does progression need server validation?** Recommendation is no — it's single-player, and a player editing their own save only cheats themselves. Leaderboards are the exception and *should* be validated by headless replay. | Costs far more than it's worth for progression | Only if leaderboards ship |
@@ -69,3 +68,13 @@ Not oversights — out of scope until v1 ships.
 - Achievements, statistics tracking, or a progression screen beyond the kitchen hub.
 - Any narrative framing beyond the premise. No characters, no text between nights, no ending.
 - Steam/Electron packaging, mobile, or controller support.
+
+---
+
+## 6. Resolved
+
+Questions from §1 that have been answered, kept with what was chosen so nobody reopens them blind.
+
+| Question | Answer | Where |
+|---|---|---|
+| **How many food items should a thief be able to carry visibly?** The Mouse steals 5; five glyphs riding on one sprite may look absurd. | **Two, then a count.** The first two items taken ride on its back at shelf size, side by side along the way it is running; anything past two is a small `+N` beside them. "It has the pizza and the cheese" reads at 3×, and the number says there is more without turning the sprite into a pile of food with a tail. | Step 19C, `render/layers/entities.ts` (`drawCarry`) |

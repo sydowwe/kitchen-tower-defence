@@ -7,6 +7,7 @@
 		:groceryMoney="snapshot.groceryMoney"
 		:food="snapshot.food"
 		:noise="snapshot.noise"
+		:upcomingThief="snapshot.upcomingThief"
 	/>
 
 	<TowerShop
@@ -44,6 +45,11 @@
 		:wake="wake"
 	/>
 
+	<ThiefCard
+		v-if="thiefBanner !== null"
+		:banner="thiefBanner"
+	/>
+
 	<ToastStack :toasts="toasts" />
 
 	<NightSummary
@@ -59,6 +65,7 @@
 	import { computed } from 'vue'
 	import EnemyTooltip from '@/ui/components/hud/EnemyTooltip.vue'
 	import NightSummary from '@/ui/components/hud/NightSummary.vue'
+	import ThiefCard from '@/ui/components/hud/ThiefCard.vue'
 	import ToastStack from '@/ui/components/hud/ToastStack.vue'
 	import TopBar from '@/ui/components/hud/TopBar.vue'
 	import TowerInspector from '@/ui/components/hud/TowerInspector.vue'
@@ -66,7 +73,15 @@
 	import WakeCard from '@/ui/components/hud/WakeCard.vue'
 	import WaveControl from '@/ui/components/hud/WaveControl.vue'
 	import type { Selection } from '@/ui/selection.ts'
-	import type { DefId, EntityId, HudSnapshot, Speed, TargetingMode, WakeView } from '@/ui/viewModel.ts'
+	import type {
+		DefId,
+		EntityId,
+		HudSnapshot,
+		Speed,
+		TargetingMode,
+		ThiefBannerView,
+		WakeView,
+	} from '@/ui/viewModel.ts'
 
 	/**
 	 * The whole interface, laid out over the board.
@@ -84,6 +99,7 @@
 		selection,
 		toasts = [],
 		wake = null,
+		thiefBanner = null,
 		canContinue = true,
 	} = defineProps<{
 		snapshot: HudSnapshot
@@ -95,6 +111,8 @@
 		 * rebuilt from the world at 15Hz (step 13B, decision 1).
 		 */
 		wake?: WakeView | null
+		/** The Mouse's announcement, or null. A prop for `wake`'s reason: it is said once, off an event. */
+		thiefBanner?: ThiefBannerView | null
 		/** False on the last authored night. `GameView.vue` steps through `NIGHTS` and stops. */
 		canContinue?: boolean
 	}>()

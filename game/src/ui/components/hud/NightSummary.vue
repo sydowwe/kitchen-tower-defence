@@ -10,8 +10,20 @@
 			<p class="subtitle">{{ t(summary.won ? 'night.wonSubtitle' : 'night.lostSubtitle') }}</p>
 
 			<!-- The emotional payload (DECISIONS.md section 6): a sentence with the names in it. Not a
-				 table row, and never collapsed into a count. -->
-			<p class="lost">{{ lostSentence }}</p>
+				 table row, and never collapsed into a count. What a thief got away with goes first and on
+				 its own line: carried off is a different loss from eaten. -->
+			<p
+				v-if="escapedSentence !== null"
+				class="lost"
+			>
+				{{ escapedSentence }}
+			</p>
+			<p
+				v-if="lostSentence !== null"
+				class="lost"
+			>
+				{{ lostSentence }}
+			</p>
 
 			<dl class="tally">
 				<dt>{{ t('night.wavesSurvived', { survived: summary.wavesSurvived, total: summary.waveCount }) }}</dt>
@@ -54,6 +66,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import { joinNames } from '@/ui/joinNames.ts'
 	import type { NightSummaryView } from '@/ui/viewModel.ts'
 
 	/**
@@ -74,21 +87,26 @@
 
 	const { t } = useI18n()
 
-	/** `a, b and c`. The separator and the word for "and" are both catalogue entries, not literals. */
-	function joinNames(names: string[]): string {
-		if (names.length <= 1) {
-			return names[0] ?? ''
-		}
-
-		const head = names.slice(0, -1).join(t('night.listSeparator'))
-
-		return `${head} ${t('general.and')} ${names[names.length - 1] ?? ''}`
+	function names(keys: string[]): string {
+		return joinNames(
+			keys.map(key => t(key)),
+			t('night.listSeparator'),
+			t('general.and'),
+		)
 	}
 
-	const lostSentence = computed(() => {
-		const names = summary.foodLostNameKeys.map(key => t(key))
+	const escapedSentence = computed(() =>
+		summary.foodEscapedNameKeys.length === 0
+			? null
+			: t('night.foodEscaped', { items: names(summary.foodEscapedNameKeys) }),
+	)
 
-		return names.length === 0 ? t('night.foodNothingLost') : t('night.foodLost', { items: joinNames(names) })
+	/** "Nothing was taken" only when nothing was: a night that lost only to the Mouse says that line alone. */
+	const lostSentence = computed(() => {
+		if (summary.foodLostNameKeys.length > 0) {
+			return t('night.foodLost', { items: names(summary.foodLostNameKeys) })
+		}
+		return summary.foodEscapedNameKeys.length === 0 ? t('night.foodNothingLost') : null
 	})
 </script>
 

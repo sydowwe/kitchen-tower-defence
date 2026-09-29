@@ -42,7 +42,7 @@
 					</span>
 					<!--
 						Keyed on the count, never on a timer: a changed key remounts the element and replays
-						the CSS animation, the same trick `food.lastLostNameKey` uses below. One ripple per
+						the CSS animation, the same trick `food.lastLost` uses below. One ripple per
 						publish rather than one per shot -- see `HudSnapshot.noise.loudShots`.
 					-->
 					<span
@@ -64,27 +64,49 @@
 			<!-- The health bar. Nothing else in this bar is allowed to compete with it. -->
 			<span class="food">
 				<span class="food-label">{{ t('hud.food') }}</span>
-				<b class="food-count">{{ t('hud.foodCount', { remaining: food.remaining, total: food.total }) }}</b>
+				<b class="food-count">
+					{{ t('hud.foodCount', { remaining: food.remaining, total: food.total }) }}
+					<!-- Off the shelf and not gone yet: carried, or on the floor. Still yours to win back. -->
+					<i
+						v-if="food.atRisk > 0"
+						class="at-risk"
+						:title="t('hud.foodAtRiskTitle')"
+					>
+						{{ t('hud.foodAtRisk', { n: food.atRisk }) }}
+					</i>
+				</b>
 				<span class="meter food-meter">
 					<span
 						class="meter-fill owned"
 						:style="{ width: `${foodFraction}%` }"
+					/>
+					<span
+						class="meter-fill at-risk-fill"
+						:style="{ width: `${atRiskFraction}%` }"
 					/>
 				</span>
 			</span>
 		</div>
 
 		<!--
-			Keyed on the name, not on a timer: a changed key remounts the element and replays the CSS
-			fade, so the sting says itself once and this component owns no state at all. A `setTimeout`
-			here would be a second clock in a codebase whose whole point is that there is one.
+			Keyed on the loss's running count, not on a timer and not on a name: a changed key remounts the
+			element and replays the CSS fade, so the sting says itself once and this component owns no
+			state at all. Two cheeses lost in a row are two keys; a name key would never replay the second.
 		-->
 		<p
-			v-if="food.lastLostNameKey !== null"
-			:key="food.lastLostNameKey"
+			v-if="food.lastLost !== null"
+			:key="food.lastLost.id"
 			class="lost"
 		>
-			{{ t('hud.lastLost', { item: t(food.lastLostNameKey) }) }}
+			{{ lostLine }}
+		</p>
+
+		<!-- A wave ahead, like the mini-boss it is: says who, and leaves the rest to the player. -->
+		<p
+			v-if="upcomingThief !== null"
+			class="warning"
+		>
+			{{ t('hud.thiefWarning', { thief: t(upcomingThief.nameKey) }) }}
 		</p>
 	</div>
 </template>
@@ -92,6 +114,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import { joinNames } from '@/ui/joinNames.ts'
 	import type { HudSnapshot } from '@/ui/viewModel.ts'
 
 	/**
@@ -103,7 +126,7 @@
 	 * count and **the name of what just went**, which is the half the canvas cannot say.
 	 */
 
-	const { clock, wave, crumbs, crumbsOnBoard, groceryMoney, food, noise } = defineProps<{
+	const { clock, wave, crumbs, crumbsOnBoard, groceryMoney, food, noise, upcomingThief } = defineProps<{
 		clock: HudSnapshot['clock']
 		wave: HudSnapshot['wave']
 		crumbs: number
@@ -111,9 +134,26 @@
 		groceryMoney: number
 		food: HudSnapshot['food']
 		noise: HudSnapshot['noise']
+		upcomingThief: HudSnapshot['upcomingThief']
 	}>()
 
 	const { t } = useI18n()
+
+	/** Every item the loss took, by name; and who carried them off, when something did. */
+	const lostLine = computed(() => {
+		const loss = food.lastLost
+		if (loss === null) {
+			return ''
+		}
+		const items = joinNames(
+			loss.nameKeys.map(key => t(key)),
+			t('night.listSeparator'),
+			t('general.and'),
+		)
+		return loss.thiefNameKey === null
+			? t('hud.lastLost', { item: items })
+			: t('hud.thiefGotAway', { thief: t(loss.thiefNameKey), items })
+	})
 
 	/**
 	 * Where the meter stops being a reading and starts being the thing you are looking at, as a
@@ -125,6 +165,8 @@
 	const minute = computed(() => String(clock.minute).padStart(2, '0'))
 
 	const foodFraction = computed(() => (food.total === 0 ? 0 : (food.remaining / food.total) * 100))
+	/** Drawn after the shelf's fill in a dimmer, striped band: gone from the fridge, not yet gone for good. */
+	const atRiskFraction = computed(() => (food.total === 0 ? 0 : (food.atRisk / food.total) * 100))
 	const noiseFraction = computed(() => (noise.cap === 0 ? 0 : (noise.level / noise.cap) * 100))
 
 	const loud = computed(() => noiseFraction.value >= PULSE_AT)
@@ -330,10 +372,57 @@
 		line-height: 1.1;
 	}
 
+	/* Flex, so the at-risk band sits after the shelf's fill instead of under it. */
 	.food-meter {
+		display: flex;
 		grid-column: 1 / -1;
 		width: 100%;
 		margin-top: 0.15rem;
+	}
+
+	.food-meter .meter-fill {
+		flex: none;
+	}
+
+	.at-risk-fill {
+		background: repeating-linear-gradient(-45deg, var(--kd-danger) 0 0.18rem, transparent 0.18rem 0.36rem);
+		opacity: 0.8;
+	}
+
+	.at-risk {
+		margin-left: 0.3rem;
+		color: var(--kd-danger);
+		font-size: 0.75rem;
+		font-style: normal;
+		font-weight: 500;
+	}
+
+	/*
+		Standing, not fading: it is true for the whole of the wave before and its countdown, and the
+		player may want to read it again after placing something. The slow breath is the only thing that
+		says it is a warning rather than a label.
+	*/
+	.warning {
+		margin: 0;
+		padding: 0.25rem 0.7rem;
+		border: 1px solid var(--kd-panel-edge);
+		border-radius: 999px;
+		background: var(--kd-panel);
+		color: var(--kd-lamp);
+		font-size: 0.78rem;
+		letter-spacing: 0.02em;
+		animation: warning-breath 2.4s ease-in-out infinite;
+	}
+
+	@keyframes warning-breath {
+		0%,
+		100% {
+			opacity: 1;
+		}
+
+		50% {
+			opacity: 0.6;
+		}
 	}
 
 	.lost {

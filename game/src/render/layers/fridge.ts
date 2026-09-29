@@ -17,8 +17,9 @@
 import { FOODS } from '@/core/content/food.ts'
 import { getFoodDef } from '@/core/content/index.ts'
 import { isOnShelf } from '@/core/systems/fridge.ts'
-import type { MapDef, Vec2, World } from '@/core/types.ts'
+import type { EntityId, MapDef, Vec2, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
+import { droppedFoodGlyphSize } from '@/render/layers/food.ts'
 import { SHELF_BACKDROP, SHELF_EDGE } from '@/render/palette.ts'
 
 /** Items per row. Eighteen-odd items is three rows, and a fourth has room below it. */
@@ -80,12 +81,24 @@ function drawBackdrop(ctx: CanvasRenderingContext2D, map: MapDef, count: number,
 	ctx.strokeRect(left, top, width, height)
 }
 
-export function drawFridge(ctx: CanvasRenderingContext2D, world: World, tilePx: number, dpr: number): void {
+/**
+ * `inFlight` is `effects.ts`'s answer to "is this item still in the air on its way home". A returned
+ * item is on the shelf in `core/` the tick it is fetched, and drawn here as well as mid-flight it
+ * would be on the shelf twice until the flight lands. Handed in by `drawFrame` rather than imported,
+ * because `effects.ts` imports `shelfSlot` from this file.
+ */
+export function drawFridge(
+	ctx: CanvasRenderingContext2D,
+	world: World,
+	tilePx: number,
+	dpr: number,
+	inFlight: (foodId: EntityId) => boolean,
+): void {
 	const food = world.night.food
 	drawBackdrop(ctx, world.map, food.length, tilePx)
 
 	food.forEach((item, index) => {
-		if (!isOnShelf(item)) {
+		if (!isOnShelf(item) || inFlight(item.id)) {
 			return
 		}
 		const at = shelfSlot(world.map, index)
@@ -100,15 +113,17 @@ export function drawFridge(ctx: CanvasRenderingContext2D, world: World, tilePx: 
 	})
 }
 
-/** The size the shelf and the theft animation both blit a food glyph at. */
+/** The size the shelf, the theft animation and a thief's carry all blit a food glyph at. */
 export function foodGlyphSize(tilePx: number): number {
 	return tilePx * ITEM_SCALE
 }
 
 /**
- * Rasterises the twelve foods at that one size. See `preloadEnemyGlyphs` on why the size matters and
- * why this runs after `Renderer.setMap`.
+ * Rasterises the twelve foods at both sizes they are drawn at: the shelf's, and the floor's larger one
+ * for food a thief dropped. See `preloadEnemyGlyphs` on why the size matters and why this runs after
+ * `Renderer.setMap`.
  */
 export function preloadFoodGlyphs(tilePx: number): void {
 	preload(FOODS.map(def => ({ emoji: def.glyph, sizePx: foodGlyphSize(tilePx) })))
+	preload(FOODS.map(def => ({ emoji: def.glyph, sizePx: droppedFoodGlyphSize(tilePx) })))
 }

@@ -47,6 +47,16 @@ export const en = {
 		// The top bar's half of analytic-docs/DECISIONS.md section 6: the sting is the *name*, said
 		// once and left to fade. `night.foodLost` is the same sentence with the whole list in it.
 		lastLost: 'Lost: {item}',
+		// --- step 19C, the thief ------------------------------------------------------------------
+		// The same sting when a thief gets out, with who took it. "Gone with" rather than "stolen by":
+		// it is a mouse with a slice of pizza, and the plainer the sentence the better it lands.
+		thiefGotAway: 'Gone with the {thief}: {items}',
+		// Beside the food count, for what is off the shelf and not yet gone -- in a thief's arms, or on
+		// the floor where one died. The title says what can still be done about it.
+		foodAtRisk: '{n} out',
+		foodAtRiskTitle: 'Off the shelf, but not gone yet. Stop the thief, or fetch it off the floor.',
+		// Up for the whole wave before, and its countdown. It names the thing and trusts the player.
+		thiefWarning: 'Next wave, a {thief} comes for the fridge.',
 		groceryMoney: 'Grocery money',
 		noiseLevel: '{level} of {cap}',
 		// The word at the cap end of the meter past 70%. A floorboard, not a siren -- somebody upstairs
@@ -198,6 +208,12 @@ export const en = {
 			burrowed: 'Underground. Nothing can reach it down there.',
 			// Same slot, same reason: a stopped Ant is the one enemy a player hovers to ask why.
 			feeding: 'Feeding at the honey. It is not going anywhere for now.',
+			// Keyed by `Enemy.theft.phase`. What it is doing, never how fast: the rows above have the numbers.
+			thief: {
+				approaching: 'On its way to the fridge. It does not eat there — it carries things off.',
+				grabbing: 'At the fridge, filling its arms.',
+				fleeing: 'Heading back the way it came, with the food. Stop it and it drops everything.',
+			},
 		},
 		// Every `EnemyTag`, as the tooltip lists them. Words for the ones the multiplier row cannot
 		// explain -- `burrows`, `fast`, `spreads` -- matter most, because they are the only place those
@@ -554,11 +570,12 @@ export const en = {
 			name: 'Silverfish',
 			description: 'Scaled like a fish. A handful of salt that would flatten an ant barely makes it flinch.',
 		},
-		// First draft. Step 19C rewrites it against the card.
+		// Rewritten in 19C against the tooltip, which now says what it is doing phase by phase. So the
+		// sentence is about what it is: the one thing in the kitchen that is not hungry.
 		mouse: {
 			name: 'Mouse',
 			description:
-				'It does not eat at the fridge. It fills its arms and runs, and whatever it gets home with is gone.',
+				'Quiet, quick, and not hungry. It stands at the fridge just long enough to fill its arms, then goes home the way it came.',
 		},
 	} satisfies EnemyMessages,
 	// No descriptions: what a food item is for is being taken by name. See `FoodMessages`.
@@ -609,6 +626,12 @@ export const en = {
 		tower: 'a {name}',
 		towers: '{n} × {name}',
 	},
+	// The Mouse's announcement, when the wave carrying it starts (19C). A mini-boss gets a card; it does
+	// not get a fanfare. The second line is the counterplay, said as a fact about the mouse.
+	thief: {
+		bannerTitle: 'A {thief} is in the kitchen.',
+		bannerLine: 'Whatever it reaches, it tries to take home.',
+	},
 	// The night-end summary. `foodLost` is the line analytic-docs/DECISIONS.md section 6 calls the
 	// emotional payload -- the specificity is the whole joke, so it lists items by name and never
 	// collapses them into a count. The UI joins them with `listSeparator` and `general.and` for the
@@ -619,6 +642,9 @@ export const en = {
 		wonSubtitle: 'The kitchen is more or less as you left it.',
 		lostSubtitle: 'There is nothing left on the shelves to defend.',
 		wavesSurvived: 'Survived {survived} of {total} waves',
+		// Above `foodLost`, on its own line: what a thief got out of the kitchen with. Carried off, and
+		// the names do the rest.
+		foodEscaped: 'Carried off: {items}',
 		foodLost: 'Lost: {items}',
 		foodNothingLost: 'Nothing was taken.',
 		foodRemaining: 'Still in the fridge: {n}',

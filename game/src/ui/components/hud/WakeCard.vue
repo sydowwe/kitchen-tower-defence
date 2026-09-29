@@ -2,7 +2,7 @@
 	<!--
 		Keyed on the wake's id, not on a timer: a second wake in one night replaces this card and
 		replays its fade rather than stacking another one under it, and the component owns no state.
-		The same trick `TopBar.vue` uses for `food.lastLostNameKey`.
+		The same trick `TopBar.vue` uses for `food.lastLost`.
 	-->
 	<p
 		:key="wake.id"
@@ -16,6 +16,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import { joinNames } from '@/ui/joinNames.ts'
 	import type { WakeView } from '@/ui/viewModel.ts'
 
 	/**
@@ -25,25 +26,12 @@
 	 * this is the top bar's `lastLost` line, not `NightSummary.vue`'s backdrop. It says itself once and
 	 * goes, and the player should be finished reacting after it has left.
 	 *
-	 * The list is joined the way the night-end summary joins food names, down to `night.listSeparator`
-	 * and `general.and` being catalogue entries rather than literals -- one house pattern for a list of
-	 * names read as a sentence.
+	 * The list is joined by `joinNames`, the one house pattern for a list of names read as a sentence.
 	 */
 
 	const { wake } = defineProps<{ wake: WakeView }>()
 
 	const { t } = useI18n()
-
-	/** `a, b and c`. The same function `NightSummary.vue` has, against the same two catalogue entries. */
-	function joinNames(names: string[]): string {
-		if (names.length <= 1) {
-			return names[0] ?? ''
-		}
-
-		const head = names.slice(0, -1).join(t('night.listSeparator'))
-
-		return `${head} ${t('general.and')} ${names[names.length - 1] ?? ''}`
-	}
 
 	/**
 	 * The crumbs first and the towers after, because the crumbs are the part every wake costs and a
@@ -63,7 +51,9 @@
 			items.push(tower.count === 1 ? t('wake.tower', { name }) : t('wake.towers', { n: tower.count, name }))
 		}
 
-		return items.length === 0 ? t('wake.nothingLost') : t('wake.lost', { items: joinNames(items) })
+		return items.length === 0
+			? t('wake.nothingLost')
+			: t('wake.lost', { items: joinNames(items, t('night.listSeparator'), t('general.and')) })
 	})
 </script>
 

@@ -13,6 +13,7 @@
 				:selection="selection"
 				:toasts="toasts"
 				:wake="wake"
+				:thiefBanner="thiefBanner"
 				:canContinue="canContinue"
 				@select="onSelect"
 				@sell="onSell"
@@ -67,8 +68,22 @@
 	import HudLayer from '@/ui/components/hud/HudLayer.vue'
 	import { createInteraction, type Interaction, type Toast } from '@/ui/interaction.ts'
 	import { createSelection } from '@/ui/selection.ts'
-	import { buildEnemyTooltip, buildHudSnapshot, buildTowerInspector, buildWakeView } from '@/ui/viewModel.ts'
-	import type { EnemyTooltipView, HudSnapshot, TowerInspectorView, WakeView } from '@/ui/viewModel.ts'
+	import {
+		buildEnemyTooltip,
+		buildHudSnapshot,
+		buildLossView,
+		buildThiefBanner,
+		buildTowerInspector,
+		buildWakeView,
+	} from '@/ui/viewModel.ts'
+	import type {
+		EnemyTooltipView,
+		HudSnapshot,
+		LossView,
+		ThiefBannerView,
+		TowerInspectorView,
+		WakeView,
+	} from '@/ui/viewModel.ts'
 	import type { DefId, EntityId, GameEvent, MapDef, TargetingMode, World } from '@/core/types.ts'
 	import type { DebugController } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
@@ -129,6 +144,15 @@
 	 */
 	let loudShots = 0
 	const wake = shallowRef<WakeView | null>(null)
+
+	/**
+	 * The last thing that left the fridge for good, and how many losses tonight. Read off events in
+	 * `tick()` for the reason `loudShots` is: the shelf can no longer say which loss was the latest once a
+	 * Mouse is taking from the front (see `LossView`). And the Mouse's announcement, off `waveStarted`.
+	 */
+	let lossCount = 0
+	let lastLoss: LossView | null = null
+	const thiefBanner = shallowRef<ThiefBannerView | null>(null)
 
 	/** Dev only: the editor's preview map, stashed until there is a world to hang it on. */
 	let previewMap: MapDef | null = null
@@ -258,6 +282,9 @@
 		// Without this a retry opens with last night's card still fading and the ripple replaying off a
 		// count that belongs to a world that no longer exists -- the same reason `resetEffects` is here.
 		wake.value = null
+		lossCount = 0
+		lastLoss = null
+		thiefBanner.value = null
 		resetEffects()
 		// Both selections point at a world that no longer exists.
 		selection.clear()
@@ -415,6 +442,21 @@
 						// the one number that is exactly "which wake is this" -- so the card's key comes
 						// off the simulation rather than off a counter here that could drift from it.
 						wake.value = buildWakeView(world.noise.wakeCount, event)
+						continue
+					}
+					if (event.kind === 'enemyLeaked' || event.kind === 'thiefEscaped') {
+						const loss = buildLossView(lossCount + 1, world, event)
+						if (loss !== null) {
+							lossCount = loss.id
+							lastLoss = loss
+						}
+						continue
+					}
+					if (event.kind === 'waveStarted') {
+						const banner = buildThiefBanner(world, event.waveIndex)
+						if (banner !== null) {
+							thiefBanner.value = banner
+						}
 					}
 				}
 			},
@@ -456,7 +498,7 @@
 					refreshInspector()
 					hud.value = buildHudSnapshot(
 						world,
-						{ speed: activeLoop.speed, paused: activeLoop.paused, loudShots },
+						{ speed: activeLoop.speed, paused: activeLoop.paused, loudShots, lastLost: lastLoss },
 						inspector,
 						buildTooltip(),
 					)
@@ -482,6 +524,9 @@
 		frameEvents.length = 0
 		loudShots = 0
 		wake.value = null
+		lossCount = 0
+		lastLoss = null
+		thiefBanner.value = null
 		resetEffects()
 		interaction?.destroy()
 		interaction = null

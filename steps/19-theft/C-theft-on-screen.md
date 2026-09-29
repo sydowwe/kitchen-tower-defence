@@ -76,15 +76,22 @@ then edit this file. Don't leave it lying.
    thing that matters, and it lies on the track where crumbs pile up.
 7. **The return is a flight from `foodReturned.from` to the item's shelf slot**, landing where
    `drawFridge` will draw it next frame. **The escape is a poof at the crack** from `thiefEscaped`.
-   The items go with it and are never drawn flying home.
+   The items go with it and are never drawn flying home. *As built: the returned item is on the shelf in
+   `core/` on the tick it's fetched, so `drawFridge` takes an `inFlight` predicate (`isFlyingHome`, passed
+   in by `drawFrame` because `effects.ts` imports `fridge.ts`). It skips the item until the flight lands,
+   or the item would sit on the shelf twice. `thiefEscaped` names no lane and arrives after the thief is
+   gone, so `effects.ts` remembers each thief's lane at `thiefGrabbed` and forgets it on the kill or the
+   escape.*
 8. **HUD and summary**, in `viewModel.ts`: `food.remaining` counts `isOnShelf`, and the snapshot
    gains how many are carried or on the floor ("at risk"), so the meter drops the moment the Mouse
    takes them rather than when it leaves. `NightSummaryView` splits the sentence: `foodEscapedNameKeys`
    (`lostTo === 'escaped'`) gets a line of its own, above the eaten and floor ones. The step's
    "the summary lists what escaped, by name" is that line.
 9. **The announcement is derived, not stored.** `HudSnapshot.upcomingThief: { nameKey } | null` is
-   the first def with `thief` in the **next** wave's composition, read off `getNightDef` (wave 0 during
-   `building`, `waveIndex + 1` after). It's shown as a warning during the wave before and its
+   the first def with `thief` in the **next** wave's composition, read off the night's def (wave 0 during
+   `building`, `waveIndex + 1` after). *As built: `NIGHTS.find`, not `getNightDef`. `getNightDef` throws
+   on an unknown id, and the spec fixtures build snapshots for worlds on a synthetic night id. It's still
+   one walk of the night list per publish.* It's shown as a warning during the wave before and its
    countdown. When the wave carrying it starts (`waveStarted`), a banner goes up once, in the
    `WakeCard` idiom. That's the Mouse's announcement only: step 23 owns the general wave-start banner.
    No sound (step 23).
@@ -133,6 +140,11 @@ Gotchas:
   front of the shelf, after Ants have eaten further along it, reports an older loss as the latest one.
   Key `TopBar`'s line on something that changes once per loss, like a running count of gone items,
   not on a name. Two cheeses lost in a row share a key, and the second never replays the line.
+  *As built: the key was the easy half. The **name** can't come from the shelf either, because no state
+  says which loss was the latest. So the line is a `LossView` (`id` = running count of losses,
+  `nameKeys`, `thiefNameKey`). `GameView.vue` builds it off `enemyLeaked` / `thiefEscaped` in its tick
+  loop and passes it into `buildHudSnapshot` the way `loudShots` is passed. `food.lastLostNameKey` is
+  gone, replaced by `food.lastLost`.*
 - **`foodView` runs at 15 Hz. Don't walk `NIGHTS` in it**: `getNightDef` once, then index the wave.
 
 ### 5. The copy: `ui/locales/en.ts`
@@ -161,10 +173,10 @@ Over `ui/viewModel.ts` only, per `../../analytic-docs/ARCHITECTURE.md` §7. Noth
 - [ ] The grab is noticed in time to do something about it.
 - [ ] The flight reads as a sprint with every tower on it, not as an enemy walking backwards.
 - [ ] Dropped food is impossible to miss next to a big crumb pile, and one click sends it home.
-- [ ] The OPEN-QUESTIONS carry row says what was chosen.
+- [x] The OPEN-QUESTIONS carry row says what was chosen.
 - [ ] A board with the Mouse, its carry and its trail costs nothing measurable in frame time. Check
       the performance panel.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked. To see a Mouse before D
 schedules one, add it to a night **locally and don't commit it**, or use `dev/night/NightPanel.vue`

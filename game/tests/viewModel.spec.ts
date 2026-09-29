@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { isAura, isBait, isConeAttack, isPushback, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
-import { ant, beetle, silverfish, weevil } from '@/core/content/enemies.ts'
-import { TOWERS, getTowerDef } from '@/core/content/index.ts'
+import { ant, beetle, mouse, silverfish, weevil } from '@/core/content/enemies.ts'
+import { NIGHTS, TOWERS, getTowerDef } from '@/core/content/index.ts'
 import { applyStatus, createStatus } from '@/core/content/statuses.ts'
 import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
 import { candle, fan, gasStoveBurner, honeyPot } from '@/core/content/towers.ts'
@@ -13,11 +13,19 @@ import { dropCrumb } from '@/core/systems/crumbs.ts'
 import { canPlaceTower, placeTower, refundFor } from '@/core/systems/placement.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
-import { buildEnemyTooltip, buildHudSnapshot, buildTowerInspector } from '@/ui/viewModel.ts'
+import {
+	buildEnemyTooltip,
+	buildHudSnapshot,
+	buildLossView,
+	buildNightSummary,
+	buildThiefBanner,
+	buildTowerInspector,
+} from '@/ui/viewModel.ts'
 import { createTestWorld } from './fixtures/world.ts'
+import type { NightDef } from '@/core/content/index.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
 import type { EnemyDamageView, EnemyTooltipView, TowerStatsView, UpgradeSlotView } from '@/ui/viewModel.ts'
-import type { DamageType, FoodItem, Tower, Vec2, World } from '@/core/types.ts'
+import type { DamageType, FoodItem, NightPhase, Tower, Vec2, World } from '@/core/types.ts'
 
 /**
  * The half of step 8 that can be silently wrong: a bonus preview that disagrees with what the wallet
@@ -692,9 +700,8 @@ describe('the fridge', () => {
 		const food = buildHudSnapshot(world, VIEW).food
 		expect(food.remaining).toBe(2)
 		expect(food.total).toBe(4)
+		expect(food.atRisk).toBe(0)
 		expect(food.lostNameKeys).toEqual(['food.pizzaSlice.name', 'food.apple.name'])
-		// The highest lost index, not the last element: theft takes from the front and never splices.
-		expect(food.lastLostNameKey).toBe('food.apple.name')
 
 		for (const item of world.night.food) {
 			item.lostTo = 'eaten'
@@ -703,7 +710,155 @@ describe('the fridge', () => {
 		const emptied = buildHudSnapshot(world, VIEW).food
 		expect(emptied.remaining).toBe(0)
 		expect(emptied.total).toBe(4)
-		expect(emptied.lastLostNameKey).toBe('food.milk.name')
+	})
+
+	/**
+	 * Step 19C: `remaining` is the shelf, so the meter drops when the Mouse **takes**, not when it gets
+	 * out. The fixture lane ends at 39, where the Mouse stands to grab.
+	 */
+	it('drops by the carried count on the tick a grab completes, and rises as the floor is fetched', () => {
+		const world = createTestWorld()
+		world.night.phase = 'wave'
+		world.night.wave = {
+			index: 0,
+			startedAtTick: 0,
+			spawns: [{ enemyDefId: 'ant', remaining: 1, nextSpawnTick: 1_000_000, spacingTicks: 60, pathId: 'a' }],
+		}
+		world.night.food = Array.from({ length: 8 }, (_, index) => foodItem(100 + index, 'cheese', false))
+		const thief = spawnEnemyAt(world, mouse, 'a', 39, 0)
+		const queue = createCommandQueue()
+
+		let grabbedAt: number | null = null
+		for (let i = 0; i < 600 && grabbedAt === null; i++) {
+			const before = buildHudSnapshot(world, VIEW).food.remaining
+			tick(world, queue)
+			if (world.events.some(event => event.kind === 'thiefGrabbed')) {
+				grabbedAt = world.tick
+				expect(before).toBe(8)
+			}
+		}
+		expect(grabbedAt).not.toBeNull()
+
+		const carrying = buildHudSnapshot(world, VIEW).food
+		expect(thief.stolenItems).toHaveLength(5)
+		expect(carrying.remaining).toBe(3)
+		expect(carrying.atRisk).toBe(5)
+
+		// Killed on the way out: all five on the floor, still at risk and still off the shelf.
+		thief.hp = 0
+		tick(world, queue)
+		const dropped = buildHudSnapshot(world, VIEW).food
+		expect(world.night.food.filter(item => item.droppedAt !== null)).toHaveLength(5)
+		expect(dropped.remaining).toBe(3)
+		expect(dropped.atRisk).toBe(5)
+
+		// One click's worth, two items: the shelf gains exactly those two.
+		queue.enqueue({ kind: 'CollectFood', foodId: 100 })
+		queue.enqueue({ kind: 'CollectFood', foodId: 101 })
+		tick(world, queue)
+		const fetched = buildHudSnapshot(world, VIEW).food
+		expect(fetched.remaining).toBe(5)
+		expect(fetched.atRisk).toBe(3)
+	})
+
+	it('names the loss the event reports, not the highest lost index on the shelf', () => {
+		const world = createTestWorld()
+		world.night.food = [
+			foodItem(1, 'pizzaSlice', false),
+			foodItem(2, 'cheese', false),
+			foodItem(3, 'apple', true),
+			foodItem(4, 'milk', true),
+		]
+		// A Mouse got out with the front of the shelf after Ants had eaten the back of it.
+		world.night.food[0]!.lostTo = 'escaped'
+		world.night.food[1]!.lostTo = 'escaped'
+
+		const loss = buildLossView(7, world, { kind: 'thiefEscaped', enemyId: 50, defId: 'mouse', items: [1, 2] })
+		expect(loss).toEqual({
+			id: 7,
+			nameKeys: ['food.pizzaSlice.name', 'food.cheese.name'],
+			thiefNameKey: 'enemy.mouse.name',
+		})
+
+		const snapshot = buildHudSnapshot(world, { ...VIEW, lastLost: loss })
+		expect(snapshot.food.lastLost?.nameKeys).toEqual(['food.pizzaSlice.name', 'food.cheese.name'])
+		// An arrival at an empty shelf is no news.
+		expect(buildLossView(8, world, { kind: 'enemyLeaked', enemyId: 51, defId: 'ant', stolenItems: [] })).toBeNull()
+	})
+})
+
+describe('the thief warning', () => {
+	const SPEC_LANE = 'a'
+
+	function waveOf(enemyDefId: string): NightDef['waves'][number] {
+		return {
+			entries: [{ enemyDefId, count: 1, spacingTicks: 60, startDelayTicks: 0, pathId: SPEC_LANE }],
+			countdownTicks: 300,
+		}
+	}
+
+	/** Ants, ants, then the Mouse -- and a Mouse-first night, and a night with none. Synthetic, not night 14. */
+	const mouseThird: NightDef = {
+		id: 'viewModelSpecMouseThird',
+		index: 1,
+		mapId: 'test',
+		waves: [waveOf('ant'), waveOf('ant'), waveOf('mouse')],
+	}
+	const mouseFirst: NightDef = {
+		...mouseThird,
+		id: 'viewModelSpecMouseFirst',
+		waves: [waveOf('mouse'), waveOf('ant')],
+	}
+	const noMouse: NightDef = { ...mouseThird, id: 'viewModelSpecNoMouse', waves: [waveOf('ant'), waveOf('roach')] }
+
+	beforeAll(() => {
+		;(NIGHTS as NightDef[]).push(mouseThird, mouseFirst, noMouse)
+	})
+
+	afterAll(() => {
+		;(NIGHTS as NightDef[]).splice(NIGHTS.length - 3, 3)
+	})
+
+	function upcomingAt(night: NightDef, phase: NightPhase, waveIndex: number): { nameKey: string } | null {
+		const world = createTestWorld()
+		world.night.nightId = night.id
+		world.night.waveCount = night.waves.length
+		world.night.phase = phase
+		world.night.waveIndex = waveIndex
+		return buildHudSnapshot(world, VIEW).upcomingThief
+	}
+
+	it('warns through the wave before the thief and its countdown, and not during its own wave', () => {
+		expect(upcomingAt(mouseThird, 'building', 0)).toBeNull()
+		expect(upcomingAt(mouseThird, 'wave', 0)).toBeNull()
+		expect(upcomingAt(mouseThird, 'wave', 1)).toEqual({ nameKey: 'enemy.mouse.name' })
+		expect(upcomingAt(mouseThird, 'countdown', 1)).toEqual({ nameKey: 'enemy.mouse.name' })
+		expect(upcomingAt(mouseThird, 'wave', 2)).toBeNull()
+		expect(upcomingAt(mouseThird, 'countdown', 2)).toBeNull()
+	})
+
+	it('warns while building when the first wave carries it, and never once the night is over', () => {
+		expect(upcomingAt(mouseFirst, 'building', 0)).toEqual({ nameKey: 'enemy.mouse.name' })
+		expect(upcomingAt(mouseFirst, 'wave', 0)).toBeNull()
+		expect(upcomingAt(mouseThird, 'lost', 1)).toBeNull()
+	})
+
+	it('is null all night on a night with no thief', () => {
+		for (const [phase, waveIndex] of [
+			['building', 0],
+			['wave', 0],
+			['countdown', 0],
+			['wave', 1],
+		] as const) {
+			expect(upcomingAt(noMouse, phase, waveIndex)).toBeNull()
+		}
+	})
+
+	it('announces the wave that carries a thief, and only that one', () => {
+		const world = createTestWorld()
+		world.night.nightId = mouseThird.id
+		expect(buildThiefBanner(world, 2)).toEqual({ waveIndex: 2, nameKey: 'enemy.mouse.name' })
+		expect(buildThiefBanner(world, 1)).toBeNull()
 	})
 })
 
@@ -735,6 +890,22 @@ describe('the summary', () => {
 	it('is null while the night is still being played', () => {
 		const world = buildableWorld()
 		expect(buildHudSnapshot(world, VIEW).summary).toBeNull()
+	})
+
+	it('puts exactly what escaped on its own line, and what was eaten or left on the floor on the other', () => {
+		const world = createTestWorld()
+		world.night.phase = 'lost'
+		const kept = foodItem(1, 'pizzaSlice', false)
+		const eaten = foodItem(2, 'cheese', true)
+		const escaped = { ...foodItem(3, 'apple', false), lostTo: 'escaped' as const }
+		const floor = { ...foodItem(4, 'milk', false), lostTo: 'floor' as const }
+		const escapedToo = { ...foodItem(5, 'cake', false), lostTo: 'escaped' as const }
+		world.night.food = [kept, eaten, escaped, floor, escapedToo]
+
+		const summary = buildNightSummary(world)
+		expect(summary.foodEscapedNameKeys).toEqual(['food.apple.name', 'food.cake.name'])
+		expect(summary.foodLostNameKeys).toEqual(['food.cheese.name', 'food.milk.name'])
+		expect(summary.foodRemaining).toBe(1)
 	})
 })
 

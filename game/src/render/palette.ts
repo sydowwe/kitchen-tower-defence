@@ -331,6 +331,36 @@ export const ARMOR_PLATE = 'rgba(200, 212, 228, 0.9)'
 export const GUST_STREAK = 'rgba(198, 222, 232, 0.7)'
 export const SHOVE_AFTERIMAGE_ALPHA = 0.4
 
+/**
+ * A thief at the fridge, and a thief running home with it (step 19C).
+ *
+ * The grab ring is the rearm sweep's idea -- a gauge that fills -- in the danger family rather than
+ * the rearm's yellow: a rearming trap is the player's tower getting ready and this is the kitchen
+ * about to lose something. It is half a second at 3x, so it is the brightest stroke on the board.
+ *
+ * The trail is the Mouse's own glyph at a fraction of alpha, like the shove's afterimages, so this is
+ * the fraction. The count is the `+N` for the items past the two drawn on its back: warm and pale, so
+ * it reads as a label on the sprite and not as a damage number.
+ */
+export const THIEF_GRAB_TRACK = 'rgba(8, 10, 18, 0.55)'
+export const THIEF_GRAB_SWEEP = 'rgba(255, 112, 92, 0.98)'
+export const THIEF_TRAIL_ALPHA = 0.32
+export const THIEF_CARRY_COUNT = '#ffe3c2'
+
+/**
+ * Food on the floor where a thief died: a warm pulse under it and a ring round it.
+ *
+ * It shares the track with the crumb piles and has to beat the biggest of them for attention, so it is
+ * the food's own colour -- `--kd-owned`'s gold family, what the HUD spends on "yours" -- and it moves.
+ * No crumb pulses; the rot tell is static on purpose, so the one thing on the floor that breathes is
+ * the thing worth a click.
+ */
+export const DROPPED_FOOD_GLOW = 'rgba(255, 214, 120, 0.34)'
+export const DROPPED_FOOD_RING = 'rgba(255, 226, 150, 0.9)'
+
+/** A thief getting out at the crack with what it carried. Grey and cold: something left, and that is all. */
+export const THIEF_ESCAPE_POOF = 'rgba(190, 196, 214, 0.85)'
+
 /** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */
 export const GHOST_NOISE = '#f5c66b'
 

@@ -1,9 +1,11 @@
 import { blitGlyph } from '@/render/glyphCache.ts'
 import {
 	drawCrumbs,
+	drawDroppedFood,
 	drawEffects,
 	drawEntities,
 	drawFridge,
+	isFlyingHome,
 	drawProjectiles,
 	drawTerrain,
 	drawTileEffects,
@@ -173,9 +175,11 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// Crumbs sit under the towers and under the enemies: the litter is on the floor, and an ant
 		// walking over a pile is the right picture (step 7C, decision 9).
 		drawCrumbs(ctx, world, tilePx, dpr)
+		// Food a thief dropped lies on the same floor, over the crumbs: it is the one worth the click.
+		drawDroppedFood(ctx, world, tilePx, dpr)
 		drawTowers(ctx, world, tilePx, dpr)
 		if (world !== null) {
-			drawFridge(ctx, world, tilePx, dpr)
+			drawFridge(ctx, world, tilePx, dpr, isFlyingHome)
 		}
 		drawEntities(ctx, world, tilePx, dpr)
 		drawProjectiles(ctx, world, tilePx)

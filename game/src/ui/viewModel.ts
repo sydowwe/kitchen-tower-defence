@@ -32,11 +32,11 @@ import {
 import { effectivenessOf, resolveDamage } from '@/core/content/matrix.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
-import { TOWERS, effectiveDef, effectiveDefOf, getEnemyDef, getTowerDef } from '@/core/content/index.ts'
+import { NIGHTS, TOWERS, effectiveDef, effectiveDefOf, getEnemyDef, getTowerDef } from '@/core/content/index.ts'
 import { upgradeCost } from '@/core/content/upgrades.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
-import { isGone } from '@/core/systems/fridge.ts'
+import { isGone, isOnShelf } from '@/core/systems/fridge.ts'
 import { projectedNoisePerSecond } from '@/core/systems/noise.ts'
 import { refundFor, towerById } from '@/core/systems/placement.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
@@ -306,6 +306,12 @@ export interface EnemyTooltipView {
 	 * that holds a tower id and a release tick, and neither belongs in the snapshot.
 	 */
 	feeding: boolean
+	/**
+	 * Where a thief is in its errand, off `enemy.theft.phase`; null for everything that is not a thief.
+	 * The tooltip says what it is doing in words, because it is the one enemy whose job changes on the
+	 * way -- and whose way home is the player's last chance.
+	 */
+	thiefPhase: 'approaching' | 'grabbing' | 'fleeing' | null
 	/** Waypoint space: integers on tile centres, the space `enemyPosition` returns. */
 	at: { x: number; y: number }
 	widthTiles: number
@@ -317,6 +323,13 @@ export interface NightSummaryView {
 	/** `waveIndex + 1` on a win; `waveIndex` on a loss -- you did not survive the one that emptied the fridge. */
 	wavesSurvived: number
 	waveCount: number
+	/**
+	 * What a thief got out of the kitchen with (`lostTo === 'escaped'`). Its own line, above the rest:
+	 * this is the sequence the Mouse exists for, and folding it into "Lost" would lose that it was
+	 * carried off rather than eaten (step 19C, decision 8).
+	 */
+	foodEscapedNameKeys: string[]
+	/** Everything else gone: eaten at the fridge, or left on the floor when the night was won. */
 	foodLostNameKeys: string[]
 	foodRemaining: number
 	enemiesKilled: number
@@ -376,6 +389,105 @@ export function buildWakeView(id: number, event: Extract<GameEvent, { kind: 'hum
 	return { id, crumbs: event.crumbsForfeited + event.crumbsOnBoardForfeited, towers }
 }
 
+/**
+ * The top bar's "what just went" line: one loss, by name.
+ *
+ * **From the event, not from the shelf.** The shelf cannot say which loss is the latest -- the highest
+ * lost index was true while only walkers took, from the front, and stopped being true the first time a
+ * Mouse got out with the front of the shelf after Ants had eaten further along it. So `GameView.vue`
+ * builds one of these off `enemyLeaked` and `thiefEscaped` in its tick loop and passes it in, the way
+ * `loudShots` is passed in.
+ *
+ * `id` is a running count of losses, and the line is keyed on it: two cheeses lost in a row are two
+ * keys, where keying on the name would never replay the second.
+ */
+export interface LossView {
+	id: number
+	/** Every item this one loss took, in take order. */
+	nameKeys: string[]
+	/** The thief that got out with them, or null for something that ate at the fridge. */
+	thiefNameKey: string | null
+}
+
+/**
+ * One loss event resolved into keys. Null for a leak that took nothing -- an enemy arriving at an empty
+ * shelf, or a thief escaping empty-handed after a wake -- which is no news.
+ */
+export function buildLossView(
+	id: number,
+	world: World,
+	event: Extract<GameEvent, { kind: 'enemyLeaked' | 'thiefEscaped' }>,
+): LossView | null {
+	const ids = event.kind === 'enemyLeaked' ? event.stolenItems : event.items
+	const nameKeys: string[] = []
+	for (const foodId of ids) {
+		const item = world.night.food.find(candidate => candidate.id === foodId)
+		if (item !== undefined) {
+			nameKeys.push(item.nameKey)
+		}
+	}
+	if (nameKeys.length === 0) {
+		return null
+	}
+
+	return {
+		id,
+		nameKeys,
+		thiefNameKey: event.kind === 'thiefEscaped' ? getEnemyDef(event.defId).nameKey : null,
+	}
+}
+
+/**
+ * The first thief def in wave `waveIndex` of this night, or null.
+ *
+ * `NIGHTS.find` rather than `getNightDef`, which throws: the spec fixtures run on a synthetic night id,
+ * and the snapshot is built for those worlds too. One walk of the night list and one of the wave's
+ * entries -- never a walk of every night's every wave, which is what this runs at 15Hz for.
+ */
+function thiefInWave(nightId: DefId, waveIndex: number): { nameKey: string } | null {
+	const wave = NIGHTS.find(night => night.id === nightId)?.waves[waveIndex]
+	if (wave === undefined) {
+		return null
+	}
+	for (const entry of wave.entries) {
+		const def = getEnemyDef(entry.enemyDefId)
+		if (def.thief !== undefined) {
+			return { nameKey: def.nameKey }
+		}
+	}
+	return null
+}
+
+/**
+ * The next wave carries a thief. Derived off the night's def every publish, never stored: the wave to
+ * look at is 0 while building and `waveIndex + 1` once a wave has run, which covers the wave before
+ * and its countdown. Null during the thief's own wave, and once the night is over.
+ */
+function upcomingThief(world: World): { nameKey: string } | null {
+	const night = world.night
+	if (night.phase === 'won' || night.phase === 'lost') {
+		return null
+	}
+	return thiefInWave(night.nightId, night.phase === 'building' ? 0 : night.waveIndex + 1)
+}
+
+/**
+ * The Mouse's announcement, when the wave carrying it starts. A one-shot card in `WakeCard.vue`'s idiom,
+ * built by `GameView.vue` off `waveStarted` and handed to the HUD as a prop -- the snapshot is rebuilt
+ * at 15Hz and would have to remember that it had already said it. Step 23 owns the general wave-start
+ * banner; this is the thief's alone.
+ */
+export interface ThiefBannerView {
+	/** The wave it announces. The card keys on it, so a retry of the same wave says it again. */
+	waveIndex: number
+	nameKey: string
+}
+
+export function buildThiefBanner(world: World, waveIndex: number): ThiefBannerView | null {
+	const thief = thiefInWave(world.night.nightId, waveIndex)
+	return thief === null ? null : { waveIndex, nameKey: thief.nameKey }
+}
+
 export interface HudSnapshot {
 	/** `{ hour, minute }` from `nightClock`. Formatted in `ui/`, never here and never on the world. */
 	clock: { hour: number; minute: number }
@@ -394,7 +506,14 @@ export interface HudSnapshot {
 	 * are the same count and nothing like the same wallet.
 	 */
 	crumbsOnBoard: { piles: number; value: number; rotting: number }
-	food: { remaining: number; total: number; lostNameKeys: string[]; lastLostNameKey: string | null }
+	/**
+	 * `remaining` is what is **on the shelf**, so the meter drops the moment a Mouse takes something
+	 * rather than when it gets out with it. `atRisk` is what is off the shelf and not yet gone -- carried,
+	 * or on the floor -- and is the part a kill or a click can still bring back.
+	 */
+	food: { remaining: number; total: number; atRisk: number; lostNameKeys: string[]; lastLost: LossView | null }
+	/** The next wave has a thief in it. See `upcomingThief`. */
+	upcomingThief: { nameKey: string } | null
 	/**
 	 * `wakeCount` is what the no-wake bonus reads at 0.
 	 *
@@ -614,28 +733,26 @@ function crumbsOnBoard(world: World): { piles: number; value: number; rotting: n
  * `total` is `food.length` and never a count of survivors: the shelf is never spliced, so the number
  * the fridge started the night with is still there to divide by.
  *
- * `lastLostNameKey` is the **highest lost index**, not the last element. Theft takes from the front,
- * so the most recently lost item is the last one in stocked order that is marked lost.
+ * Every item is exactly one of on the shelf, at risk, or gone, so the three always add up to `total`.
+ * `lastLost` is the caller's; see `LossView` on why the shelf cannot answer it.
  */
-function foodView(world: World): HudSnapshot['food'] {
+function foodView(world: World, lastLost: LossView | null): HudSnapshot['food'] {
 	const food = world.night.food
 	const lostNameKeys: string[] = []
 	let remaining = 0
+	let atRisk = 0
 
 	for (const item of food) {
 		if (isGone(item)) {
 			lostNameKeys.push(item.nameKey)
-		} else {
+		} else if (isOnShelf(item)) {
 			remaining++
+		} else {
+			atRisk++
 		}
 	}
 
-	return {
-		remaining,
-		total: food.length,
-		lostNameKeys,
-		lastLostNameKey: lostNameKeys[lostNameKeys.length - 1] ?? null,
-	}
+	return { remaining, total: food.length, atRisk, lostNameKeys, lastLost }
 }
 
 /** A number the card prints bare, the way `StatCard.vue` prints damage and hit points. */
@@ -827,6 +944,7 @@ export function buildEnemyTooltip(world: World, enemyId: EntityId): EnemyTooltip
 		}),
 		burrowed: enemy.flags.burrowed,
 		feeding: enemy.feeding !== null,
+		thiefPhase: enemy.theft?.phase ?? null,
 		at: { x: at.x, y: at.y },
 		widthTiles: world.map.widthTiles,
 		heightTiles: world.map.heightTiles,
@@ -842,7 +960,10 @@ export function buildNightSummary(world: World): NightSummaryView {
 		won,
 		wavesSurvived: won ? night.waveIndex + 1 : night.waveIndex,
 		waveCount: night.waveCount,
-		foodLostNameKeys: night.food.filter(isGone).map(item => item.nameKey),
+		foodEscapedNameKeys: night.food.filter(item => item.lostTo === 'escaped').map(item => item.nameKey),
+		foodLostNameKeys: night.food
+			.filter(item => isGone(item) && item.lostTo !== 'escaped')
+			.map(item => item.nameKey),
 		foodRemaining: night.food.filter(item => !isGone(item)).length,
 		enemiesKilled: night.enemiesKilled,
 		crumbsCollected: night.crumbsCollected,
@@ -863,7 +984,7 @@ export function buildNightSummary(world: World): NightSummaryView {
  */
 export function buildHudSnapshot(
 	world: World,
-	view: { speed: Speed; paused: boolean; loudShots?: number },
+	view: { speed: Speed; paused: boolean; loudShots?: number; lastLost?: LossView | null },
 	inspector: TowerInspectorView | null = null,
 	enemyTooltip: EnemyTooltipView | null = null,
 ): HudSnapshot {
@@ -878,7 +999,9 @@ export function buildHudSnapshot(
 		unbankedCrumbs: world.unbankedCrumbs,
 		groceryMoney: world.groceryMoney,
 		crumbsOnBoard: crumbsOnBoard(world),
-		food: foodView(world),
+		// Passed in like `loudShots`, and for the same reason: it is read off events, not the world.
+		food: foodView(world, view.lastLost ?? null),
+		upcomingThief: upcomingThief(world),
 		noise: {
 			level: world.noise.level,
 			cap: world.noise.cap,

@@ -14,16 +14,18 @@
  * for (step 9C, decision 1). `render/` reads core state and never writes it.
  */
 
-import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
+import { effectiveDefOf, getEnemyDef, getFoodDef } from '@/core/content/index.ts'
 import { applyLateralOffset, samplePath } from '@/core/path.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { barricadeHolding, isBarricade } from '@/core/systems/barricades.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import { isFlyer } from '@/core/systems/targeting.ts'
+import { grabProgress, isGrabbing, isRetreating, isThiefFleeing } from '@/core/systems/theft.ts'
 import type { Enemy, EntityId, MapDef, Path, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
 import { SHOVE_LIFE_FRAMES, shoveOf } from '@/render/layers/effects.ts'
+import { foodGlyphSize } from '@/render/layers/fridge.ts'
 import {
 	ARMOR_PLATE,
 	BURROW_CREST,
@@ -39,6 +41,10 @@ import {
 	STATUS_ROOTED_STRAND,
 	STATUS_SLOW_DISC,
 	STATUS_SLOW_SPECK,
+	THIEF_CARRY_COUNT,
+	THIEF_GRAB_SWEEP,
+	THIEF_GRAB_TRACK,
+	THIEF_TRAIL_ALPHA,
 } from '@/render/palette.ts'
 
 /** An enemy is drawn a little under its tile, so a queue of them on the track stays countable. */
@@ -210,6 +216,46 @@ const STAGGER_TILT_RAD = 0.35
 const STAGGER_WOBBLE_PER_FRAME = 0.55
 
 /**
+ * A thief at the fridge: a ring round it that fills with `grabProgress` (step 19C, decision 1). Read off
+ * state rather than an event, because the grab is a duration the renderer can read. Wider than the
+ * glyph and thick, because at 3x the whole window is half a second of real time.
+ */
+const GRAB_RING_RADIUS_TILES = 0.52
+const GRAB_TRACK_WIDTH_PX = 6
+const GRAB_SWEEP_WIDTH_PX = 4
+
+/**
+ * What a thief is carrying, drawn off `stolenItems` every frame so it moves with the Mouse and never
+ * drifts from what `core/` says it holds (decision 3).
+ *
+ * **Two drawn full-size, the rest as a `+N`** -- the OPEN-QUESTIONS carry row. Five glyphs on one
+ * sprite is a pile of food with a tail; two says "it has the pizza and the cheese" at 3x, and the
+ * number says there is more. The first two taken are the ones drawn, in take order.
+ */
+const CARRY_DRAWN = 2
+/** Above the glyph, and either side of its middle along the way it is going. */
+const CARRY_LIFT = 0.5
+const CARRY_SPREAD = 0.24
+const CARRY_COUNT_SCALE = 0.3
+/** `+1` to `+19`, built once, so a label is never a fresh string per thief per frame. */
+const CARRY_LABELS = Array.from({ length: 20 }, (_, n) => `+${n}`)
+
+/**
+ * A thief on its way out: a scurry and a trail (decision 4). Nothing on the floor bobs when it walks,
+ * so any hop at all reads as faster than the walk; the trail is afterimages sampled **on the stretch of
+ * track it has just run down** -- `distance + k * gap`, since home is distance 0 -- through
+ * `applyLateralOffset` like the glyph. Stateless: no pool, no ageing, no record, so it cannot leak or go stale, and it bends round a
+ * corner because the track does.
+ *
+ * Thieves on their own flight only. A woken ant, or a woken Mouse, runs as the wake draws it.
+ */
+const SCURRY_TILES = 0.07
+/** Radians per frame: ~5 hops a second. */
+const SCURRY_PER_FRAME = 0.55
+const THIEF_TRAIL_STEPS = 4
+const THIEF_TRAIL_GAP_TILES = 0.3
+
+/**
  * One enemy's frame, kept so the layer can draw in treatment order without sampling a path twice.
  *
  * The slow disc goes **under** the glyph and the flicker over it, which needs three passes over the
@@ -294,6 +340,18 @@ interface EnemyFrame {
 	 * the simulation never pauses a pushed enemy (step 18B, decision 3). 0 for an enemy not shoved.
 	 */
 	stagger: number
+	/** At the fridge with its hands in it. `grab` is how far through, 0 to 1; 0 when not grabbing. */
+	grabbing: boolean
+	grab: number
+	/**
+	 * `stolenItems.length`, and the glyphs of the first two. **Written for every entry every frame** --
+	 * an unwritten carry on a reused entry is the last Mouse's five items riding on an Ant.
+	 */
+	carry: number
+	carryGlyph0: string
+	carryGlyph1: string
+	/** On its own flight home: the scurry and the trail. Not a woken one. */
+	thiefFleeing: boolean
 }
 
 const frames: EnemyFrame[] = []
@@ -371,6 +429,12 @@ function frameAt(index: number): EnemyFrame {
 		shoveTiles: 0,
 		shoveFade: 0,
 		stagger: 0,
+		grabbing: false,
+		grab: 0,
+		carry: 0,
+		carryGlyph0: '',
+		carryGlyph1: '',
+		thiefFleeing: false,
 	}
 	frames.push(created)
 	return created
@@ -431,6 +495,155 @@ function readShove(entry: EnemyFrame, enemyId: EntityId): void {
 	entry.shoveTiles = shove.tiles * fade * fade
 	entry.shoveFade = fade
 	entry.stagger = STAGGER_TILT_RAD * fade * Math.sin(shove.ageFrames * STAGGER_WOBBLE_PER_FRAME)
+}
+
+/** The glyph of a food item by id, or '' for one the shelf no longer has. A loop, not a `find` closure. */
+function foodGlyph(world: World, foodId: EntityId): string {
+	for (const item of world.night.food) {
+		if (item.id === foodId) {
+			return getFoodDef(item.defId).glyph
+		}
+	}
+	return ''
+}
+
+/** Reads the theft state onto the frame. Every field is written, thief or not. */
+function readTheft(entry: EnemyFrame, world: World, enemy: Enemy): void {
+	entry.grabbing = isGrabbing(enemy)
+	entry.grab = entry.grabbing ? grabProgress(world, enemy) : 0
+	entry.thiefFleeing = isThiefFleeing(enemy)
+
+	const held = enemy.stolenItems
+	entry.carry = held.length
+	const first = held[0]
+	const second = held[1]
+	entry.carryGlyph0 = first === undefined ? '' : foodGlyph(world, first)
+	entry.carryGlyph1 = second === undefined ? '' : foodGlyph(world, second)
+}
+
+/**
+ * The ring round every grabbing thief: the whole circle dark, then the part done bright over it,
+ * clockwise from twelve. Two strokes for the board.
+ */
+function drawGrabRings(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const radius = GRAB_RING_RADIUS_TILES * tilePx
+	let any = false
+
+	ctx.strokeStyle = THIEF_GRAB_TRACK
+	ctx.lineWidth = GRAB_TRACK_WIDTH_PX
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.grabbing) {
+			continue
+		}
+		any = true
+		ctx.moveTo(entry.x + radius, entry.y)
+		ctx.arc(entry.x, entry.y, radius, 0, Math.PI * 2)
+	}
+	if (!any) {
+		return
+	}
+	ctx.stroke()
+
+	ctx.strokeStyle = THIEF_GRAB_SWEEP
+	ctx.lineWidth = GRAB_SWEEP_WIDTH_PX
+	ctx.lineCap = 'round'
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || !entry.grabbing || entry.grab <= 0) {
+			continue
+		}
+		const start = -Math.PI / 2
+		const end = start + entry.grab * Math.PI * 2
+		ctx.moveTo(entry.x + Math.cos(start) * radius, entry.y + Math.sin(start) * radius)
+		ctx.arc(entry.x, entry.y, radius, start, end)
+	}
+	ctx.stroke()
+	ctx.lineCap = 'butt'
+}
+
+/**
+ * The afterimages behind every thief on its own flight, faintest furthest back, before the glyph loop
+ * so the Mouse sits over its own trail. One pass per step, because `globalAlpha` is per pass.
+ */
+function drawThiefTrails(
+	ctx: CanvasRenderingContext2D,
+	count: number,
+	tilePx: number,
+	dpr: number,
+	size: number,
+): void {
+	for (let k = THIEF_TRAIL_STEPS; k >= 1; k--) {
+		ctx.globalAlpha = THIEF_TRAIL_ALPHA * (1 - (k - 1) / THIEF_TRAIL_STEPS)
+		for (let i = 0; i < count; i++) {
+			const entry = frames[i]
+			// A chewing thief is drawn in a queue the path does not say, and is not running anyway.
+			if (entry === undefined || !entry.thiefFleeing || entry.path === null || entry.chewing || entry.feeding) {
+				continue
+			}
+			const at = samplePath(entry.path, entry.distance + k * THIEF_TRAIL_GAP_TILES)
+			const displaced = applyLateralOffset(at, entry.lateral)
+			blitGlyph(
+				ctx,
+				dpr,
+				entry.glyph,
+				size,
+				(displaced.x + 0.5) * tilePx,
+				(displaced.y + 0.5) * tilePx,
+				entry.mirrored,
+			)
+		}
+	}
+
+	ctx.globalAlpha = 1
+}
+
+/**
+ * What it is carrying, over the glyph: the first two side by side on its back, and a `+N` for the
+ * rest. Called from the glyph loop, after the glyph and **before the health bar**, so the bar is never
+ * under a slice of pizza.
+ */
+function drawCarry(
+	ctx: CanvasRenderingContext2D,
+	entry: EnemyFrame,
+	glyphX: number,
+	glyphY: number,
+	size: number,
+	tilePx: number,
+	dpr: number,
+): void {
+	const itemSize = foodGlyphSize(tilePx)
+	const y = glyphY - size * CARRY_LIFT
+	// Along the way it is going, so the first-taken item rides at the back whichever way it faces.
+	const along = entry.dirX < 0 ? -1 : 1
+	const spread = size * CARRY_SPREAD
+
+	if (entry.carry === 1) {
+		blitGlyph(ctx, dpr, entry.carryGlyph0, itemSize, glyphX, y)
+		return
+	}
+
+	blitGlyph(ctx, dpr, entry.carryGlyph0, itemSize, glyphX - along * spread, y)
+	if (entry.carryGlyph1 !== '') {
+		blitGlyph(ctx, dpr, entry.carryGlyph1, itemSize, glyphX + along * spread, y)
+	}
+
+	const extra = entry.carry - CARRY_DRAWN
+	if (extra > 0) {
+		const label = CARRY_LABELS[extra] ?? `+${extra}`
+		blitGlyph(
+			ctx,
+			dpr,
+			label,
+			tilePx * CARRY_COUNT_SCALE,
+			glyphX + along * (spread + itemSize * 0.75),
+			y,
+			false,
+			THIEF_CARRY_COUNT,
+		)
+	}
 }
 
 /** How far into its bite this enemy is, 0 to 1. Frames, so it does not treble its rate at 3x speed. */
@@ -924,17 +1137,19 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		const def = getEnemyDef(enemy.defId)
 		entry.glyph = def.glyph
 		entry.stationary = def.speedTilesPerTick === 0
-		// The path's forward heading, **reversed for anything running for it**: a wake sends every
-		// enemy back down the track, and the sampled angle still points the way they came. Without the
-		// flip, forty ants moonwalk off the board.
+		// The path's forward heading, **reversed for anything running for it** -- the wake's flight or a
+		// thief's, through `isRetreating` and never `flags.fleeing` alone, or the Mouse runs home facing
+		// the fridge. Without the flip, forty ants moonwalk off the board.
 		//
-		// `dirX` / `dirY` below are deliberately left on the forward heading. They place a chewing queue
-		// behind a barricade, and a fleeing enemy is never chewing -- `barricadesSystem` skips one.
-		entry.mirrored = (enemy.flags.fleeing ? -Math.cos(at.angle) : Math.cos(at.angle)) < 0
+		// `dirX` / `dirY` follow it. They place a chewing queue behind its barricade and aim the bite, and
+		// a thief running home chews the box **behind** it: forward-facing, the bite would point at the
+		// fridge and the queue would stack on the wrong side of the box (step 19C).
+		const heading = isRetreating(enemy) ? -1 : 1
+		entry.mirrored = heading * Math.cos(at.angle) < 0
 		entry.hp = enemy.hp
 		entry.maxHp = enemy.maxHp
-		entry.dirX = Math.cos(at.angle)
-		entry.dirY = Math.sin(at.angle)
+		entry.dirX = heading * Math.cos(at.angle)
+		entry.dirY = heading * Math.sin(at.angle)
 		entry.chewing = barricades && barricadeHolding(world, enemy) !== null
 		entry.flying = isFlyer(enemy)
 		entry.burrowed = enemy.flags.burrowed
@@ -945,6 +1160,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		entry.lateral = enemy.lateralOffsetTiles
 		readShove(entry, enemy.id)
 		readStatuses(entry, enemy)
+		readTheft(entry, world, enemy)
 
 		if (entry.chewing) {
 			// Rows of three behind the box, across the track and back down it, so a queue can be
@@ -992,8 +1208,10 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 
 	const size = tilePx * ENEMY_SCALE
 	drawShoves(ctx, liveCount, tilePx, dpr, size)
+	drawThiefTrails(ctx, liveCount, tilePx, dpr, size)
 	const lunge = CHEW_LUNGE_TILES * tilePx
 	const bob = FLYER_BOB_TILES * tilePx
+	const scurry = SCURRY_TILES * tilePx
 	for (let i = 0; i < liveCount; i++) {
 		const entry = frames[i]
 		if (entry === undefined) {
@@ -1011,8 +1229,12 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 		// the floor.
 		const bite = entry.chewing || entry.feeding ? lungePhase(entry) * lunge : 0
 		const lift = entry.flying ? bobPhase(entry) * bob : 0
+		const hop =
+			entry.thiefFleeing && !entry.chewing
+				? Math.abs(Math.sin(ageFrames * SCURRY_PER_FRAME + entry.x + entry.y)) * scurry
+				: 0
 		const glyphX = entry.x + entry.dirX * bite
-		const glyphY = entry.y + entry.dirY * bite - lift
+		const glyphY = entry.y + entry.dirY * bite - lift - hop
 		if (entry.stagger === 0) {
 			blitGlyph(ctx, dpr, entry.glyph, size, glyphX, glyphY, entry.mirrored)
 		} else {
@@ -1023,9 +1245,13 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 			blitGlyph(ctx, dpr, entry.glyph, size, 0, 0, entry.mirrored)
 			ctx.restore()
 		}
+		if (entry.carry > 0) {
+			drawCarry(ctx, entry, glyphX, glyphY, size, tilePx, dpr)
+		}
 		drawHpBar(ctx, entry.x, entry.y - size / 2, tilePx * HP_BAR_WIDTH_SCALE, entry.hp, entry.maxHp)
 	}
 
+	drawGrabRings(ctx, liveCount, tilePx)
 	drawChew(ctx, liveCount, tilePx)
 	drawBurn(ctx, liveCount, tilePx)
 	drawPoison(ctx, liveCount, tilePx)

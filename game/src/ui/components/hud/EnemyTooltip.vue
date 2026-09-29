@@ -36,6 +36,13 @@
 		>
 			{{ t('hud.enemyTooltip.feeding') }}
 		</p>
+		<!-- What a thief is doing: the one enemy whose errand changes halfway down the track. -->
+		<p
+			v-else-if="tooltip.thiefPhase !== null"
+			class="state"
+		>
+			{{ t(`hud.enemyTooltip.thief.${tooltip.thiefPhase}`) }}
+		</p>
 	</div>
 </template>
 
