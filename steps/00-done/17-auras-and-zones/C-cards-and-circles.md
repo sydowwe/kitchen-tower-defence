@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
-reactivity trap), `../../analytic-docs/DECISIONS.md` §1 (tone), and `../../analytic-docs/CONTENT.md`
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
+reactivity trap), `../../../analytic-docs/DECISIONS.md` §1 (tone), and `../../../analytic-docs/CONTENT.md`
 §1 (the Candle, Fly Paper, Gas Stove Burner and Honey Pot rows, to check the cards against).
 **Prereq:** steps 17A and 17B.
 

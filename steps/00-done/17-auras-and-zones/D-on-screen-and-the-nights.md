@@ -2,10 +2,10 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §2 (*Art: emoji sprites*),
-`../../analytic-docs/ARCHITECTURE.md` §6 (the performance budget), `../../analytic-docs/CONTENT.md`
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §2 (*Art: emoji sprites*),
+`../../../analytic-docs/ARCHITECTURE.md` §6 (the performance budget), `../../../analytic-docs/CONTENT.md`
 §6 (the night table, rows 10, 12 and 16), and the Honey Pot line of
-`../../analytic-docs/OPEN-QUESTIONS.md`.
+`../../../analytic-docs/OPEN-QUESTIONS.md`.
 **Prereq:** steps 17A, 17B and 17C.
 
 ## Goal
@@ -134,7 +134,7 @@ Gotchas that will bite the tuning:
 
 ## Tests
 
-**None.** `../../analytic-docs/ARCHITECTURE.md` §7 excludes `render/`, and an aura that reads as a
+**None.** `../../../analytic-docs/ARCHITECTURE.md` §7 excludes `render/`, and an aura that reads as a
 stain isn't something a spec catches. Keep `tests/content.spec.ts` true: if a night's wave count
 changes, change its literal in the same commit. A's, B's and C's suites are the regression net for
 everything you re-tune.

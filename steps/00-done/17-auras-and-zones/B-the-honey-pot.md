@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the **Honey Pot** row, its
-behaviour note, and *Economy rates*), `../../analytic-docs/DECISIONS.md` §3 (the fixed track) and
-the last line of §4, and the Moth lateral-offset row of `../../analytic-docs/DECISION-LOG.md`.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the **Honey Pot** row, its
+behaviour note, and *Economy rates*), `../../../analytic-docs/DECISIONS.md` §3 (the fixed track) and
+the last line of §4, and the Moth lateral-offset row of `../../../analytic-docs/DECISION-LOG.md`.
 **Prereq:** step 17A.
 
 ## Goal

@@ -30,7 +30,7 @@ Candle's pull on a moth until they're drawn and carded.
 **A and B carry every test the step file asked for.** They are headless and each one checks a
 number that drifts silently. **C carries a few tests** over `statsFor` and the tooltip, following
 the precedent `tests/viewModel.spec.ts` set in 16B. **D carries no behaviour tests**; it only keeps
-`tests/content.spec.ts` true, per `../analytic-docs/ARCHITECTURE.md` §7.
+`tests/content.spec.ts` true, per `../../analytic-docs/ARCHITECTURE.md` §7.
 
 **Numbers are authored blind in A and B and re-tuned in D**, the way 16A's burrow fractions were:
 every tier, the Burner's heat, the Fly Paper's cooldown, the Honey Pot's HP, and the three named
@@ -87,7 +87,7 @@ Each is settled in the part that implements it, with the reason there.
       frame time.
 - [ ] The four towers are config objects. The only new system files are `tileEffect.ts` and
       `bait.ts`. The only edits to existing systems are the two root fixes in A, the Burner's
-      branch in `projectedNoisePerSecond`, and the two slots in `sim.ts` (`../CLAUDE.md`,
+      branch in `projectedNoisePerSecond`, and the two slots in `sim.ts` (`../../CLAUDE.md`,
       *Content is data, not classes*).
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 

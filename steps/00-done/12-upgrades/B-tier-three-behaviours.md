@@ -47,7 +47,7 @@ Four more assertions break on descriptors that grow a field, none of them listed
 `toEqual`, and both `content.spec.ts` and `status.spec.ts` pin a normalised `applies` entry as
 `{ kind, magnitude }`. Each is one line.
 
-`../../17-auras-and-zones.md` item 1 is "**`aura` behaviour**" — the interpreter. Decision 6 builds
+`../17-auras-and-zones.md` item 1 is "**`aura` behaviour**" — the interpreter. Decision 6 builds
 it here. **Correct that step file in this commit**: item 1 becomes "the interpreter exists from step
 12B; add the Candle and pair it with step 11's light registry".
 
@@ -266,7 +266,7 @@ Author them in `core/content/towers.ts` through 12A's `tier()`, and write the En
       field of the vocabulary. *(`PENDING` is gone from `towers.ts`, and the only comparison against
       a tier number anywhere is still 12A's `tower.tier >= MAX_TIER` in `commands.ts`.)*
 - [x] Every tower in `TOWERS` has three real tiers; none is the empty placeholder 12A left.
-- [x] `../../17-auras-and-zones.md` item 1 says the interpreter already exists.
+- [x] `../17-auras-and-zones.md` item 1 says the interpreter already exists.
 - [x] `npm run test` (391), `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 12C

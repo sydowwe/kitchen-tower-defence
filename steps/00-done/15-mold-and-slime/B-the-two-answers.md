@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the **Act II** table — the
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the **Act II** table — the
 Vinegar Spray and Baking Soda rows — and the *Upgrades* section) and §3 (the `fungal`, `slime` and
-`soft` rows only), `../../analytic-docs/ARCHITECTURE.md` §4.
+`soft` rows only), `../../../analytic-docs/ARCHITECTURE.md` §4.
 **Prereq:** step 15A.
 
 ## Goal
@@ -236,7 +236,7 @@ Tiers:
 
 - [x] Adding both towers required **no change to any file in `core/systems/` except the new
       `cleanse.ts`**. If it needed one, the composition is wrong — fix the vocabulary, not the entry
-      (`../../CLAUDE.md`, *Content is data, not classes*; `ARCHITECTURE.md` §4).
+      (`../../../CLAUDE.md`, *Content is data, not classes*; `ARCHITECTURE.md` §4).
 - [x] `core/systems/tiles.ts` is unchanged by this session.
 - [x] A hypothetical third tower that cleared `residue` in a radius would be a config object here and
       nothing else — check it by writing one in a scratch spec, then delete it.

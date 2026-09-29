@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §2 (*Art: emoji sprites*),
-`../../analytic-docs/CONTENT.md` §6 (the night table — rows 11 to 15).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §2 (*Art: emoji sprites*),
+`../../../analytic-docs/CONTENT.md` §6 (the night table — rows 11 to 15).
 **Prereq:** steps 15A and 15B.
 
 ## Goal
@@ -21,7 +21,7 @@ This is the first time anyone sees any of it. 15A and 15B were both specs.
 | `render/layers/tileEffects.ts` | **step 14's file.** Drawn between terrain and crumbs, with treatments for all five kinds. *As built:* step 14 had already drafted mold (a per-cell disc and specks, no rim) and slime (fading over the last third of the def's duration), so items 1 and 2 below reworked those two drafts rather than adding them |
 | `render/renderer.ts:146` | `drawFrame`'s documented draw order, and the `ensureBake()` / `drawImage` pair. 15A corrected the `// tile effects: step 15` attribution |
 | `render/palette.ts` | colours named by **role** (`TILE_BUILDABLE`, `TRACK_FILL`), never by colour, because step 23 retunes all of them |
-| `render/layers/terrain.ts` | the bake, and its two hard-won rules: **never vary anything per tile**, and **rim the blocked mass, not the blocked tile**. Both apply to a mold patch and both are written up in `steps/00-done/03-map-and-renderer/B-renderer.md` §2 |
+| `render/layers/terrain.ts` | the bake, and its two hard-won rules: **never vary anything per tile**, and **rim the blocked mass, not the blocked tile**. Both apply to a mold patch and both are written up in `../03-map-and-renderer/B-renderer.md` §2 |
 | `render/layers/entities.ts` | `drawEntities` and `preloadEnemyGlyphs` — every enemy is a glyph blit at a rounded device pixel |
 | `core/content/nights.ts:856` | `NIGHTS` — ten nights, all on the Counter, all single-lane. The header comment explains why nights 4–10 are not on the maps `CONTENT.md` §6 names, and it is the precedent you are following |
 | `core/content/nights.ts:1` | the pacing rule the whole file was tuned to: **a wave spawns over roughly as long as the gap that follows it**, and `waves[0].countdownTicks` is both the run-up and the gap after wave 1 |
@@ -210,7 +210,7 @@ before the mold closed in.
 
 ## Tests
 
-**None.** `../../analytic-docs/ARCHITECTURE.md` §7: no tests over `render/`, and the bugs there are
+**None.** `../../../analytic-docs/ARCHITECTURE.md` §7: no tests over `render/`, and the bugs there are
 visible by definition — a mold patch that reads as a spreadsheet is not something a spec can tell you.
 The nights are content and no spec asserts one: `tests/spawn.spec.ts` and `tests/night.spec.ts` both
 build their own nights on purpose, so the next tuning pass is an edit in `nights.ts` and nothing else.

@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the Act II table's
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the Act II table's
 **Candle**, **Fly Paper** and **Gas Stove Burner** rows, their behaviour notes, and the *Upgrades*
-list), §4 (the Burn and Rooted rows), and `../../analytic-docs/DECISIONS.md` §8 (noise).
+list), §4 (the Burn and Rooted rows), and `../../../analytic-docs/DECISIONS.md` §8 (noise).
 **Prereq:** step 16, all three parts.
 
 ## Goal

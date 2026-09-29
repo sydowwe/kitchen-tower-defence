@@ -12,7 +12,7 @@ those files. Re-read them before trusting any line reference there.
 ## Goal
 
 Move enemies *backwards* along the track. It's a small system with one v1 tower, but it's the
-redesign that saved Mint Pot from the fixed-path decision (`../analytic-docs/DECISIONS.md` §3), and
+redesign that saved Mint Pot from the fixed-path decision (`../../analytic-docs/DECISIONS.md` §3), and
 building it now means Mint Pot arrives post-v1 as pure config. Against a fly wave, a well-placed Fan
 should feel like holding a door shut.
 
@@ -32,7 +32,7 @@ finale that doesn't exist yet.
 **A carries every test the step file asked for.** They're headless, and each one checks a number
 that drifts silently. **B carries two small tests** over `statsFor`, following 17C's precedent.
 **C carries no behaviour tests.** It keeps `tests/content.spec.ts` true for night 18, per
-`../analytic-docs/ARCHITECTURE.md` §7.
+`../../analytic-docs/ARCHITECTURE.md` §7.
 
 **Numbers are authored blind in A and re-tuned in C.** That covers the Fan's cone angle and tiers,
 and the three resistance constants in `pushback.ts`. The English goes the same way: A drafts it
@@ -92,7 +92,7 @@ Each is settled in the part that implements it, with the reason there.
       it by name.
 - [ ] The Fan is a config object. The only new system file is `pushback.ts`. The only edits to
       existing systems are the rider in `combat.ts`'s cone path and the comments this step corrects
-      (`../CLAUDE.md`, *Content is data, not classes*).
+      (`../../CLAUDE.md`, *Content is data, not classes*).
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not

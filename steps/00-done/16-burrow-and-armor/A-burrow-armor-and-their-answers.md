@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §1 (the Act II table's **Bay
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §1 (the Act II table's **Bay
 Leaf** and **Lemon** rows, the Bay Leaf behaviour note, and the *Upgrades* list), §2 (the Weevil and
 Silverfish rows and the Weevil paragraph), §3 (the `armored` row) and §4 (the Armor Strip row).
 **Prereq:** step 15, all three parts.

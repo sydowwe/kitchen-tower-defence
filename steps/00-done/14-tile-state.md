@@ -62,7 +62,7 @@ build the API to be checked.
 - [ ] With no tile states active, the tile system costs effectively nothing per tick — measure it.
 - [ ] The API is general enough that step 15's mold and step 17's burner are pure consumers, adding
       no new grid code. Neither is built here, so this one is a design review, not a test: read
-      `../15-mold-and-slime.md` §1–4 and `../17-auras-and-zones.md` §3–4 against the exports
+      `15-mold-and-slime.md` §1–4 and `17-auras-and-zones.md` §3–4 against the exports
       in A's `Hands to 14B` block and name anything either step would have to add.
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 

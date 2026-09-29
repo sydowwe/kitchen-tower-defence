@@ -2,10 +2,10 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §6 (the night table, row 18,
-and the lines under it) and §2 (the roster), `../../analytic-docs/DECISIONS.md` §5 (night
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §6 (the night table, row 18,
+and the lines under it) and §2 (the roster), `../../../analytic-docs/DECISIONS.md` §5 (night
 structure) and §8 (noise), and the *Pushback resistance curve* line of
-`../../analytic-docs/OPEN-QUESTIONS.md`.
+`../../../analytic-docs/OPEN-QUESTIONS.md`.
 **Prereq:** steps 18A and 18B.
 
 ## Goal
@@ -83,7 +83,7 @@ Gotchas that will bite the tuning:
 ## Tests
 
 **None new.** Keep `tests/content.spec.ts` true for night 18, in the same commit. A's and B's suites
-are the regression net for everything you re-tune. `../../analytic-docs/ARCHITECTURE.md` §7: a night
+are the regression net for everything you re-tune. `../../../analytic-docs/ARCHITECTURE.md` §7: a night
 that plays badly isn't something a spec catches.
 
 ## Acceptance

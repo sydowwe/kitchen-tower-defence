@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §2 (*Art: emoji sprites*),
-`../../analytic-docs/CONTENT.md` §6 (the night table, rows 13 to 17) and the Silverfish line of
-`../../analytic-docs/OPEN-QUESTIONS.md`.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §2 (*Art: emoji sprites*),
+`../../../analytic-docs/CONTENT.md` §6 (the night table, rows 13 to 17) and the Silverfish line of
+`../../../analytic-docs/OPEN-QUESTIONS.md`.
 **Prereq:** steps 16A and 16B.
 
 ## Goal
@@ -136,7 +136,7 @@ four defs against the board.
 
 ## Tests
 
-**No behaviour tests.** `../../analytic-docs/ARCHITECTURE.md` §7 excludes `render/`, and a mound
+**No behaviour tests.** `../../../analytic-docs/ARCHITECTURE.md` §7 excludes `render/`, and a mound
 that reads as a pebble is not something a spec can catch. Keep `tests/content.spec.ts` true: extend
 the two lists at `:379`, and add one "introduces X in wave 3" assertion each for the Weevil (night
 13) and the Silverfish (night 17), following the Beetle, Fly and Moth precedents in the same file.

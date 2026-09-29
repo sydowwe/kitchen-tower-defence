@@ -30,7 +30,7 @@ the spread, its determinism, the trail, the expiry, the placement refusal. B ass
 taking one off again, plus the damage-matrix pair: `fungal` at 0.2× physical and 2.5× chemical is one
 assertion about a *product*, and it needs a real chemical tower to be end-to-end at all, so both
 halves stay in the session where both towers exist. C has no `Tests` section beyond the word
-**None**, by `../analytic-docs/ARCHITECTURE.md` §7 — say it out loud there so it doesn't invent
+**None**, by `../../analytic-docs/ARCHITECTURE.md` §7 — say it out loud there so it doesn't invent
 coverage to look thorough.
 
 **Two numbers are authored blind in A and re-tuned in C**, the way 6B's `projectileSpeed` and 7A's
@@ -68,7 +68,7 @@ Two committed contradictions this step resolves, both settled in **A**:
 
 - `core/map.ts:26` and `core/world.ts:58` say mold sets a bit in `MapDef.flags`. It does not:
   `TileEffectKind` in `core/types.ts` has carried `'mold'` since step 2A and
-  `../analytic-docs/DECISIONS.md` §11 says anything touching a tile writes tile state. Those two
+  `../../analytic-docs/DECISIONS.md` §11 says anything touching a tile writes tile state. Those two
   comments are wrong and A corrects them.
 - `render/renderer.ts:168` says `// tile effects: step 15`. The layer is step 14's; only the mold and
   slime *treatments* are this step's.
@@ -80,14 +80,14 @@ Two committed contradictions this step resolves, both settled in **A**:
 - [ ] Neither enemy nor either tower required a change to `core/systems/tiles.ts`.
 - [ ] Adding both towers required no change to any file in `core/systems/` except the one new
       interpreter — if a system file grew a branch on a tower id, the composition is wrong
-      (`../CLAUDE.md`, *Content is data, not classes*).
+      (`../../CLAUDE.md`, *Content is data, not classes*).
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
 Add Bleach, the Gas Stove Burner, or any other tile-writing tower — the Burner is step 17's and
 Bleach is Act III's. Two enemies, two answers. Do not build the night-modifier system: "damp night"
-and "after a dinner party" are named in `../analytic-docs/CONTENT.md` §6 and owned by **step 21**,
+and "after a dinner party" are named in `../../analytic-docs/CONTENT.md` §6 and owned by **step 21**,
 which authors `core/content/modifiers.ts`; this step authors the numbers those modifiers will later
 patch and nothing else. Do not implement the Pantry Shelf Liner installation — installation effects
 are step 20's.

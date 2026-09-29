@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
-reactivity trap), `../../analytic-docs/DECISIONS.md` §1 (tone) and §2 (*Art*: emoji on the board,
-FontAwesome for chrome), `../../analytic-docs/CONTENT.md` §3 (the matrix, to check the tooltip
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
+reactivity trap), `../../../analytic-docs/DECISIONS.md` §1 (tone) and §2 (*Art*: emoji on the board,
+FontAwesome for chrome), `../../../analytic-docs/CONTENT.md` §3 (the matrix, to check the tooltip
 against).
 **Prereq:** step 16A.
 

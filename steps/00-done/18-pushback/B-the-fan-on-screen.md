@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
-reactivity trap) and §6 (the performance budget), `../../analytic-docs/DECISIONS.md` §1 (tone) and
-§2 (*Art: emoji sprites*), and `../../analytic-docs/CONTENT.md` §1 (the **Fan** row and its
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
+reactivity trap) and §6 (the performance budget), `../../../analytic-docs/DECISIONS.md` §1 (tone) and
+§2 (*Art: emoji sprites*), and `../../../analytic-docs/CONTENT.md` §1 (the **Fan** row and its
 behaviour note).
 **Prereq:** step 18A.
 
@@ -109,7 +109,7 @@ Assert against the def's own fields, never the numbers, so C's re-tune moves not
   off its cone, `targets` `air`. Every other tower in `TOWERS` has `pushTiles` null.
 - The Fan's tier-1 diff has the range row. Its tier-3 card's `applies` contains `marked`.
 
-Nothing over `render/`, per `../../analytic-docs/ARCHITECTURE.md` §7.
+Nothing over `render/`, per `../../../analytic-docs/ARCHITECTURE.md` §7.
 
 ## Acceptance
 

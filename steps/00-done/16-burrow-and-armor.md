@@ -33,7 +33,7 @@ the mound is drawn and the tooltip exists.
 a number that can drift silently. **B carries a few tests** over its two pure seams, the event's
 multiplier and the tooltip view model; `tests/viewModel.spec.ts` sets that precedent. **C carries
 no behaviour tests.** It only keeps `tests/content.spec.ts`'s night lists true, per
-`../analytic-docs/ARCHITECTURE.md` §7.
+`../../analytic-docs/ARCHITECTURE.md` §7.
 
 **Some numbers are authored blind in A and re-tuned in C**, the way 15A's spread interval was: the
 Weevil's burrow-window fractions, the Bay Leaf's radius and tiers, and the Lemon's tiers. The
@@ -76,7 +76,7 @@ Each is settled in the part that implements it, with the reason:
 - [ ] Colour-coded damage numbers make "this isn't working" obvious without opening a menu.
 - [ ] Adding the Weevil, Silverfish, Bay Leaf and Lemon required **no new behaviour kind**. The
       only new system file is `burrow.ts`, plus the `suppress.ts` query it calls. Armor needed
-      no system change at all (`../CLAUDE.md`, *Content is data, not classes*).
+      no system change at all (`../../CLAUDE.md`, *Content is data, not classes*).
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not

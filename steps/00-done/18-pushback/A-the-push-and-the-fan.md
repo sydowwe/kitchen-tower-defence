@@ -2,11 +2,11 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §3 (the *Towers redesigned*
-table, the Mint Pot and Fan rows), `../../analytic-docs/CONTENT.md` §1 (the **Fan** row, its
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §3 (the *Towers redesigned*
+table, the Mint Pot and Fan rows), `../../../analytic-docs/CONTENT.md` §1 (the **Fan** row, its
 behaviour note, the *Upgrades* list), §2 (the Mold paragraph) and §4 (the Marked row), the
-*Pushback resistance curve* line of `../../analytic-docs/OPEN-QUESTIONS.md`, and the **Mint Pot** row
-of `../../analytic-docs/ROADMAP-POST-V1.md` §2.
+*Pushback resistance curve* line of `../../../analytic-docs/OPEN-QUESTIONS.md`, and the **Mint Pot** row
+of `../../../analytic-docs/ROADMAP-POST-V1.md` §2.
 **Prereq:** step 17, all four parts.
 
 ## Goal

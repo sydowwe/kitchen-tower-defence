@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §2 (the Mold and Slug rows, and
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §2 (the Mold and Slug rows, and
 the two paragraphs under the table) and §3 (the `fungal`, `slime` and `soft` rows only),
-`../../analytic-docs/DECISIONS.md` §11.
+`../../../analytic-docs/DECISIONS.md` §11.
 **Prereq:** step 14.
 
 ## Goal
@@ -76,7 +76,7 @@ row exists to prevent — do them first, in one pass, then start.
 Reasons given so you don't re-derive them. Override one only if the code proves it wrong — and then
 edit this file, don't leave it lying.
 
-1. **Mold and slime live in `world.tiles`, never in `MapDef.flags`.** `../../analytic-docs/DECISIONS.md`
+1. **Mold and slime live in `world.tiles`, never in `MapDef.flags`.** `../../../analytic-docs/DECISIONS.md`
    §11 is explicit, `TileEffectKind` has carried `'mold'` since step 2A, and the whole point of step
    14 is that there is one place. A flag bit would be a second truth that `canPlaceTower` and the
    renderer could disagree about, and it could not carry the 8-second expiry slime needs. (The two
@@ -107,7 +107,7 @@ edit this file, don't leave it lying.
 7. **Mold's `speedTilesPerTick` is 0, and `core/systems/movement.ts` is not touched for it.**
    `enemy.distance += 0 * multiplier` is already "never moves", the leak check at
    `core/systems/resolve.ts:100` is already "never reaches the fridge", and `FLEE_SPEED_MULT` on a
-   wake is already 0. `../../analytic-docs/CONTENT.md` §2 lists a speed of 0.15 for it *and* says in
+   wake is already 0. `../../../analytic-docs/CONTENT.md` §2 lists a speed of 0.15 for it *and* says in
    the paragraph below that it does not walk; the paragraph wins, and the 0.15 is a leftover.
 8. **A tile effect never applies to an enemy whose own def writes that kind.** Otherwise the Slug
    slimes the tile it is standing on and speeds *itself* up by 60%, and the authored 0.4 tiles/sec
@@ -199,7 +199,7 @@ Gotchas, in the order they will bite:
 
 ### 3. The two defs — `core/content/enemies.ts`
 
-Both from `../../analytic-docs/CONTENT.md` §2, through this file's existing `tilesPerSecond` and
+Both from `../../../analytic-docs/CONTENT.md` §2, through this file's existing `tilesPerSecond` and
 `damagePerSecond` helpers, and both appended to `ENEMIES` (never reordered).
 
 **Mold** — 🟢, 40 HP, speed **0**, reward 12, steals **0**, `['ground', 'spreads', 'fungal']`.
