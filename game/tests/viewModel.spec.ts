@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { endlessResultOf } from '@/core/campaign.ts'
 import { createCommandQueue } from '@/core/commands.ts'
 import { isAura, isBait, isConeAttack, isPushback, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
 import { ant, beetle, mouse, silverfish, weevil } from '@/core/content/enemies.ts'
@@ -886,6 +887,15 @@ describe('the summary', () => {
 
 		world.night.phase = 'lost'
 		expect(buildHudSnapshot(world, VIEW).summary?.wavesSurvived).toBe(4)
+	})
+
+	it('prints the same waves survived as the endless best records', () => {
+		const world = createWorld({ ...OPTIONS, mapId: 'sink', nightId: 'endlessSink' })
+		world.night.waveIndex = 7
+		world.night.phase = 'lost'
+
+		expect(buildNightSummary(world).wavesSurvived).toBe(7)
+		expect(endlessResultOf(world).waves).toBe(7)
 	})
 
 	it('is null while the night is still being played', () => {

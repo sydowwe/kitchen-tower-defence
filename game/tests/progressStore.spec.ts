@@ -2,11 +2,14 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { newProgress } from '@/core/campaign.ts'
 import { getInstallationDef } from '@/core/content/index.ts'
+import { createLocalProgressStore } from '@/data/adapters/localStorage/progress.ts'
 import { createDataLayer, setDataLayer, setMockFailureRate } from '@/data/index.ts'
+import { useAuth } from '@/ui/composables/useAuth.ts'
 import { SETTINGS_SAVE_DEBOUNCE_MS } from '@/ui/composables/useSettings.ts'
 import { useProgressStore } from '@/ui/stores/progress.ts'
 import { useSettingsStore } from '@/ui/stores/settings.ts'
 import { createMemoryStorage } from './fixtures/memoryStorage.ts'
+import type { Progress } from '@/core/campaign.ts'
 import type { MemoryStorage } from './fixtures/memoryStorage.ts'
 
 /**
@@ -60,6 +63,29 @@ async function loadedWithMoney(groceryMoney: number): Promise<ReturnType<typeof 
 	expect(await settle(store.recordNightResult({ nightId: 'night01', won: true, groceryMoney }))).toBe('ok')
 	return store
 }
+
+/** A store loaded from a save already on disk at revision 1. */
+async function loadedFrom(saved: Progress): Promise<ReturnType<typeof useProgressStore>> {
+	// The signed-in user outlives a spec, so the save goes under whoever that is.
+	const user = await settle(useAuth().ensureUser())
+	await createLocalProgressStore(storage).save(user.id, saved)
+	const store = useProgressStore()
+	await settle(store.ensureLoaded())
+	expect(store.progress).toEqual(saved)
+	return store
+}
+
+/** Night 18 on Normal, a broom owned and money in hand: one win from the clear. */
+function onNight18(): Progress {
+	return { ...newProgress(), nightId: 'night18', groceryMoney: 90, installations: ['buyABroom'] }
+}
+
+/** The campaign won on Normal. */
+function clearedNormal(): Progress {
+	return { ...onNight18(), nightId: null, cleared: ['normal'] }
+}
+
+const NIGHT_18_WIN = { nightId: 'night18', won: true, groceryMoney: 300 }
 
 describe('the progress store', () => {
 	it('starts a first run from newProgress() in memory and writes nothing until the first change', async () => {
@@ -122,6 +148,9 @@ describe('the progress store', () => {
 		expect(await store.recordNightResult({ nightId: 'night01', won: false, groceryMoney: 20 })).toBe('busy')
 		expect(await store.buyInstallation(HINGES)).toBe('busy')
 		expect(await store.chooseLoadout(['saltShaker'])).toBe('busy')
+		expect(await store.startCampaign('cozy')).toBe('busy')
+		expect(await store.chooseEndlessLoadout('sink', ['saltShaker'])).toBe('busy')
+		expect(await store.recordEndlessResult({ mapId: 'sink', difficulty: 'normal', waves: 3 })).toBe('busy')
 		expect(await store.resetProgress()).toBe('busy')
 
 		expect(await settle(first)).toBe('ok')
@@ -204,6 +233,71 @@ describe('the progress store', () => {
 		await settle(store.retry())
 		expect(store.progress?.groceryMoney).toBe(190)
 		expect(progressRecord()?.revision).toBe(2)
+	})
+
+	it('starts a new campaign only once its save resolved, keeping the clear and dropping the kitchen', async () => {
+		const store = await loadedFrom(clearedNormal())
+		const before = store.progress
+
+		setMockFailureRate(1)
+		expect(await settle(store.startCampaign('nightmare'))).toBe('failed')
+		expect(store.progress).toBe(before)
+		expect(progressRecord()?.revision).toBe(1)
+
+		setMockFailureRate(0)
+		await settle(store.retry())
+		expect(store.progress).toEqual({ ...newProgress(), difficulty: 'nightmare', cleared: ['normal'] })
+		expect(progressRecord()).toMatchObject({
+			revision: 2,
+			data: { difficulty: 'nightmare', groceryMoney: 0, installations: [], cleared: ['normal'] },
+		})
+	})
+
+	it('names a locked tier without saving anything', async () => {
+		const store = await loadedFrom(onNight18())
+
+		expect(await store.startCampaign('nightmare')).toBe('locked')
+		expect(store.status).toBe('idle')
+		expect(progressRecord()?.revision).toBe(1)
+	})
+
+	it('starts Nightmare on a night-18 win whose save failed, and lands the clear once', async () => {
+		const store = await loadedFrom(onNight18())
+
+		setMockFailureRate(1)
+		expect(await settle(store.recordNightResult(NIGHT_18_WIN))).toBe('failed')
+		// Shown, the campaign is still on night 18 with nothing cleared; pending, Nightmare is open.
+		expect(store.progress?.cleared).toEqual([])
+		expect(await settle(store.startCampaign('nightmare'))).toBe('failed')
+		expect(store.progress?.nightId).toBe('night18')
+
+		setMockFailureRate(0)
+		await settle(store.retry())
+		expect(store.progress).toEqual({ ...newProgress(), difficulty: 'nightmare', cleared: ['normal'] })
+		expect(progressRecord()).toMatchObject({ revision: 2, data: { difficulty: 'nightmare', cleared: ['normal'] } })
+
+		await settle(store.retry())
+		expect(store.progress?.cleared).toEqual(['normal'])
+		expect(progressRecord()?.revision).toBe(2)
+	})
+
+	it('saves an endless loadout and an endless best, and names a refused loadout without saving', async () => {
+		const store = await loadedFrom(clearedNormal())
+
+		expect(await store.chooseEndlessLoadout('sink', [])).toBe('empty')
+		expect(progressRecord()?.revision).toBe(1)
+
+		expect(await settle(store.chooseEndlessLoadout('sink', ['fan', 'saltShaker']))).toBe('ok')
+		expect(await settle(store.recordEndlessResult({ mapId: 'sink', difficulty: 'normal', waves: 17 }))).toBe('ok')
+		expect(await settle(store.recordEndlessResult({ mapId: 'sink', difficulty: 'normal', waves: 11 }))).toBe('ok')
+
+		expect(store.progress?.loadouts).toEqual({ endlessSink: ['fan', 'saltShaker'] })
+		expect(store.progress?.endlessBests).toEqual({ normal: { sink: 17 } })
+		expect(store.progress?.groceryMoney).toBe(90)
+		expect(progressRecord()).toMatchObject({
+			revision: 4,
+			data: { loadouts: { endlessSink: ['fan', 'saltShaker'] }, endlessBests: { normal: { sink: 17 } } },
+		})
 	})
 
 	it('reports a failed load as an error, and retry loads it', async () => {

@@ -16,6 +16,7 @@
  * cannot translate, `ui/` resolves, and a snapshot is exactly where that gets broken first.
  */
 
+import { wavesSurvivedOf } from '@/core/campaign.ts'
 import {
 	isAttack,
 	isAura,
@@ -1065,7 +1066,7 @@ export function buildNightSummary(world: World): NightSummaryView {
 
 	return {
 		won,
-		wavesSurvived: won ? night.waveIndex + 1 : night.waveIndex,
+		wavesSurvived: wavesSurvivedOf(world),
 		waveCount: night.waveCount,
 		foodEscapedNameKeys: night.food.filter(item => item.lostTo === 'escaped').map(item => item.nameKey),
 		foodLostNameKeys: night.food

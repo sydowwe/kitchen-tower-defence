@@ -1,12 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
-import { applyNightResult, buyInstallation as buy, newProgress, setLoadout } from '@/core/campaign.ts'
+import {
+	applyEndlessResult,
+	applyNightResult,
+	buyInstallation as buy,
+	newProgress,
+	setEndlessLoadout,
+	setLoadout,
+	startCampaign as start,
+} from '@/core/campaign.ts'
 import { toError } from '@/ui/composables/tracked.ts'
 import { useAuth } from '@/ui/composables/useAuth.ts'
 import { useProgress } from '@/ui/composables/useProgress.ts'
-import type { NightResult, Progress } from '@/core/campaign.ts'
+import type { EndlessResult, NightResult, Progress } from '@/core/campaign.ts'
 import type { LoadoutProblem } from '@/core/loadout.ts'
-import type { DefId } from '@/core/types.ts'
+import type { DefId, DifficultyId } from '@/core/types.ts'
 
 export type ProgressStatus = 'idle' | 'loading' | 'saving' | 'error'
 
@@ -118,6 +126,44 @@ export const useProgressStore = defineStore('progress', () => {
 		return commit(applyNightResult(base(), result))
 	}
 
+	/**
+	 * A new campaign on `tier`, keeping the lifetime record. On `base()` above all: the night-18 win that
+	 * opened the tier may be the save that failed, and building on the shown state would drop its clear.
+	 */
+	async function startCampaign(tier: DifficultyId): Promise<'ok' | 'locked' | 'busy' | 'failed'> {
+		if (isBusy()) {
+			return 'busy'
+		}
+		const started = start(base(), tier)
+		if (!started.ok) {
+			return started.reason
+		}
+		return commit(started.progress)
+	}
+
+	/** Saves the loadout for a run on `mapId`, as the run starts. */
+	async function chooseEndlessLoadout(
+		mapId: DefId,
+		ids: DefId[],
+	): Promise<'ok' | LoadoutProblem | 'busy' | 'failed'> {
+		if (isBusy()) {
+			return 'busy'
+		}
+		const chosen = setEndlessLoadout(base(), mapId, ids)
+		if (!chosen.ok) {
+			return chosen.reason
+		}
+		return commit(chosen.progress)
+	}
+
+	async function recordEndlessResult(result: EndlessResult): Promise<'ok' | 'busy' | 'failed'> {
+		if (isBusy()) {
+			return 'busy'
+		}
+		return commit(applyEndlessResult(base(), result))
+	}
+
+	/** The full erase, the lifetime record included. `startCampaign` is the one that keeps it. */
 	async function resetProgress(): Promise<'ok' | 'busy' | 'failed'> {
 		if (isBusy()) {
 			return 'busy'
@@ -146,6 +192,9 @@ export const useProgressStore = defineStore('progress', () => {
 		buyInstallation,
 		chooseLoadout,
 		recordNightResult,
+		startCampaign,
+		chooseEndlessLoadout,
+		recordEndlessResult,
 		resetProgress,
 	}
 })

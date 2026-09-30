@@ -6,6 +6,7 @@
 
 import { z } from 'zod'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
+import { ENDLESS_NIGHTS, isEndlessNightId } from '@/core/content/endless.ts'
 import { INSTALLATIONS } from '@/core/content/installations.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { TOWERS } from '@/core/content/towers.ts'
@@ -39,12 +40,30 @@ export const progressSchemaV2 = z.strictObject({
 
 export type ProgressDtoV2 = z.infer<typeof progressSchemaV2>
 
+/**
+ * v3 carries the lifetime record: the tiers cleared, and the endless bests per tier and map. Loadout
+ * keys may now be endless night ids as well.
+ */
+export const progressSchemaV3 = z.strictObject({
+	...progressSchemaV2.shape,
+	cleared: z.array(z.string()),
+	endlessBests: z.record(z.string(), z.record(z.string(), count)),
+})
+
+export type ProgressDtoV3 = z.infer<typeof progressSchemaV3>
+
 /** Every v1 save gets exactly one default: nothing chosen yet, for any night. */
 function progressV1ToV2(data: unknown): ProgressDtoV2 {
 	return { ...progressSchemaV1.parse(data), loadouts: {} }
 }
 
-export function toProgressDto(progress: Progress): ProgressDtoV2 {
+/** A v2 save that already finished the campaign keeps its clear, and with it endless and the next tier. */
+function progressV2ToV3(data: unknown): ProgressDtoV3 {
+	const v2 = progressSchemaV2.parse(data)
+	return { ...v2, cleared: v2.nightId === null ? [v2.difficulty] : [], endlessBests: {} }
+}
+
+export function toProgressDto(progress: Progress): ProgressDtoV3 {
 	return {
 		nightId: progress.nightId,
 		groceryMoney: progress.groceryMoney,
@@ -54,11 +73,25 @@ export function toProgressDto(progress: Progress): ProgressDtoV2 {
 		),
 		difficulty: progress.difficulty,
 		loadouts: Object.fromEntries(Object.entries(progress.loadouts).map(([nightId, ids]) => [nightId, [...ids]])),
+		cleared: [...progress.cleared],
+		endlessBests: Object.fromEntries(
+			Object.entries(progress.endlessBests).map(([tier, byMap]) => [tier, { ...byMap }]),
+		),
 	}
 }
 
+/** A campaign night. The next night to play and every result are keyed by one of these. */
 function isNightId(id: string): boolean {
 	return NIGHTS.some(night => night.id === id)
+}
+
+/** What a stored loadout may be keyed by: a campaign night or an endless run's. */
+function isLoadoutKey(id: string): boolean {
+	return isNightId(id) || isEndlessNightId(id)
+}
+
+function isEndlessMapId(id: string): boolean {
+	return ENDLESS_NIGHTS.some(night => night.mapId === id)
 }
 
 function isTowerId(id: string): boolean {
@@ -66,16 +99,16 @@ function isTowerId(id: string): boolean {
 }
 
 /**
- * The stored loadouts, less anything the content no longer has: a night key not in `NIGHTS` drops its
- * entry, a tower id not in `TOWERS` drops the id, and an entry left empty drops too. Dropped rather
- * than corrupt, unlike an installation: a remembered loadout is a preference, and `tonightsLoadout`
- * re-checks it on every read anyway.
+ * The stored loadouts, less anything the content no longer has: a key that is neither a campaign nor
+ * an endless night drops its entry, a tower id not in `TOWERS` drops the id, and an entry left empty
+ * drops too. Dropped rather than corrupt, unlike an installation: a remembered loadout is a
+ * preference, and `tonightsLoadout` and `endlessLoadout` re-check it on every read anyway.
  */
-function knownLoadouts(loadouts: ProgressDtoV2['loadouts']): Record<DefId, DefId[]> {
+function knownLoadouts(loadouts: ProgressDtoV3['loadouts']): Record<DefId, DefId[]> {
 	const known: Record<DefId, DefId[]> = {}
 	for (const [nightId, ids] of Object.entries(loadouts)) {
 		const towers = ids.filter(isTowerId)
-		if (isNightId(nightId) && towers.length > 0) {
+		if (isLoadoutKey(nightId) && towers.length > 0) {
 			known[nightId] = towers
 		}
 	}
@@ -86,12 +119,44 @@ function isDifficultyId(id: string): id is DifficultyId {
 	return Object.hasOwn(DIFFICULTIES, id)
 }
 
+/** The tiers cleared, in order, a repeat dropped. Throws on one that is not a tier. */
+function knownClears(cleared: ProgressDtoV3['cleared']): DifficultyId[] {
+	const known: DifficultyId[] = []
+	for (const id of cleared) {
+		if (!isDifficultyId(id)) {
+			throw new Error(`cleared an unknown difficulty '${id}'`)
+		}
+		if (!known.includes(id)) {
+			known.push(id)
+		}
+	}
+	return known
+}
+
+/**
+ * The endless bests. One under an unknown tier throws; one for a map with no endless run drops, like a
+ * loadout's unknown tower -- there is nothing left to show it against -- and a tier left empty drops too.
+ */
+function knownBests(bests: ProgressDtoV3['endlessBests']): Progress['endlessBests'] {
+	const known: Progress['endlessBests'] = {}
+	for (const [tier, byMap] of Object.entries(bests)) {
+		if (!isDifficultyId(tier)) {
+			throw new Error(`an endless best under unknown difficulty '${tier}'`)
+		}
+		const maps = Object.fromEntries(Object.entries(byMap).filter(([mapId]) => isEndlessMapId(mapId)))
+		if (Object.keys(maps).length > 0) {
+			known[tier] = maps
+		}
+	}
+	return known
+}
+
 /**
  * Throws on an id the content doesn't have. A renamed id ships with a migration; an unknown
  * installation is never dropped, because dropping it takes back something the player paid for. The
- * one exception is a stored loadout -- see `knownLoadouts`.
+ * exceptions are a stored loadout and an endless best -- see `knownLoadouts` and `knownBests`.
  */
-export function fromProgressDto(dto: ProgressDtoV2): Progress {
+export function fromProgressDto(dto: ProgressDtoV3): Progress {
 	if (dto.nightId !== null && !isNightId(dto.nightId)) {
 		throw new Error(`unknown night id '${dto.nightId}'`)
 	}
@@ -121,14 +186,16 @@ export function fromProgressDto(dto: ProgressDtoV2): Progress {
 		),
 		difficulty: dto.difficulty,
 		loadouts: knownLoadouts(dto.loadouts),
+		cleared: knownClears(dto.cleared),
+		endlessBests: knownBests(dto.endlessBests),
 	}
 }
 
-export const progressCodec: Codec<Progress, ProgressDtoV2> = {
+export const progressCodec: Codec<Progress, ProgressDtoV3> = {
 	store: 'progress',
-	version: 2,
-	migrations: { 1: progressV1ToV2 },
-	schema: progressSchemaV2,
+	version: 3,
+	migrations: { 1: progressV1ToV2, 2: progressV2ToV3 },
+	schema: progressSchemaV3,
 	toDto: toProgressDto,
 	fromDto: fromProgressDto,
 }

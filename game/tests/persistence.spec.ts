@@ -8,7 +8,7 @@ import { settingsCodec } from '@/data/dto/settings.ts'
 import { createDataLayer, RemoteUnavailableError } from '@/data/index.ts'
 import { createMemoryStorage } from './fixtures/memoryStorage.ts'
 import type { Progress } from '@/core/campaign.ts'
-import type { Codec, ProgressDtoV1, ProgressDtoV2 } from '@/data/dto/index.ts'
+import type { Codec, ProgressDtoV1, ProgressDtoV2, ProgressDtoV3 } from '@/data/dto/index.ts'
 import type { MemoryStorage } from './fixtures/memoryStorage.ts'
 import type { z } from 'zod'
 
@@ -35,7 +35,25 @@ function sampleProgress(): Progress {
 			night03: ['mousetrap', 'saltShaker', 'stickyTape'],
 			night04: ['cookieJar', 'mousetrap', 'saltShaker', 'stickyTape'],
 		},
+		cleared: [],
+		endlessBests: {},
 	}
+}
+
+/** A second campaign, on Nightmare, after a Normal clear: the whole lifetime record in use. */
+function lifetimeProgress(): Progress {
+	return {
+		...sampleProgress(),
+		loadouts: { ...sampleProgress().loadouts, endlessSink: ['fan', 'honeyPot', 'saltShaker'] },
+		cleared: ['normal'],
+		endlessBests: { normal: { sink: 23, floor: 9 }, nightmare: { sink: 4 } },
+	}
+}
+
+/** `sampleProgress` as a v2 build wrote it: everything but the lifetime record. */
+function sampleV2Data(nightId: string | null = 'night04'): ProgressDtoV2 {
+	const { groceryMoney, installations, nightResults, difficulty, loadouts } = progressCodec.toDto(sampleProgress())
+	return { nightId, groceryMoney, installations, nightResults, difficulty, loadouts }
 }
 
 /** `sampleProgress` as a v1 build wrote it: everything but the loadouts. */
@@ -67,7 +85,7 @@ describe('a progress record', () => {
 
 		await store.save(USER, sampleProgress())
 		expect([...storage.entries.keys()]).toEqual([KEY])
-		expect(storedRecord(storage, KEY)).toMatchObject({ version: 2, revision: 1 })
+		expect(storedRecord(storage, KEY)).toMatchObject({ version: 3, revision: 1 })
 		expect(await store.load(USER)).toEqual(sampleProgress())
 
 		await store.save(USER, sampleProgress())
@@ -89,10 +107,23 @@ describe('a progress record', () => {
 		expect(storage.entries.size).toBe(0)
 	})
 
-	it('ships at v2 with exactly the 1→2 migration', () => {
-		expect(progressCodec.version).toBe(2)
-		expect(Object.keys(progressCodec.migrations)).toEqual(['1'])
+	it('ships at v3 with exactly the 1→2 and 2→3 migrations', () => {
+		expect(progressCodec.version).toBe(3)
+		expect(Object.keys(progressCodec.migrations)).toEqual(['1', '2'])
 		expect(settingsCodec.version).toBe(1)
+	})
+
+	it('round-trips a clear, the endless bests and an endless loadout deep-equal', async () => {
+		const storage = createMemoryStorage()
+		const store = createLocalProgressStore(storage)
+
+		await store.save(USER, lifetimeProgress())
+
+		expect(await store.load(USER)).toEqual(lifetimeProgress())
+		expect(storedRecord(storage, KEY).data).toMatchObject({
+			cleared: ['normal'],
+			loadouts: { endlessSink: ['fan', 'honeyPot', 'saltShaker'] },
+		})
 	})
 
 	it('drops a loadout’s unknown tower and an unknown night’s entry, and keeps the rest out of :corrupt:', async () => {
@@ -102,13 +133,30 @@ describe('a progress record', () => {
 				night03: ['mousetrap', 'goldenToaster', 'saltShaker'],
 				night04: ['goldenToaster'],
 				night99: ['saltShaker'],
+				endlessSink: ['fan'],
+				endlessAttic: ['fan'],
 			},
 		}
-		const storage = createMemoryStorage({ [KEY]: envelope(2, data) })
+		const storage = createMemoryStorage({ [KEY]: envelope(3, data) })
 
 		expect((await createLocalProgressStore(storage).load(USER))?.loadouts).toEqual({
 			night03: ['mousetrap', 'saltShaker'],
+			endlessSink: ['fan'],
 		})
+		expect(corruptKeys(storage)).toEqual([])
+	})
+
+	it('drops a best for a map with no endless run, and a repeated clear, and keeps the rest out of :corrupt:', async () => {
+		const data = {
+			...progressCodec.toDto(lifetimeProgress()),
+			cleared: ['normal', 'cozy', 'normal'],
+			endlessBests: { normal: { sink: 23, atticMap: 40 }, cozy: { atticMap: 12 } },
+		}
+		const storage = createMemoryStorage({ [KEY]: envelope(3, data) })
+		const loaded = await createLocalProgressStore(storage).load(USER)
+
+		expect(loaded?.cleared).toEqual(['normal', 'cozy'])
+		expect(loaded?.endlessBests).toEqual({ normal: { sink: 23 } })
 		expect(corruptKeys(storage)).toEqual([])
 	})
 })
@@ -121,7 +169,7 @@ describe('the migration chain', () => {
 		expect(corruptKeys(storage)).toEqual([])
 	})
 
-	it('writes a migrated v1 record back as v2, one revision on', async () => {
+	it('writes a migrated v1 record back as v3, one revision on', async () => {
 		const storage = createMemoryStorage({ [KEY]: envelope(1, sampleV1Data()) })
 		const store = createLocalProgressStore(storage)
 
@@ -131,11 +179,30 @@ describe('the migration chain', () => {
 		}
 		await store.save(USER, loaded)
 
-		expect(storedRecord(storage, KEY)).toMatchObject({ version: 2, revision: 4, data: { loadouts: {} } })
+		expect(storedRecord(storage, KEY)).toMatchObject({
+			version: 3,
+			revision: 4,
+			data: { loadouts: {}, cleared: [], endlessBests: {} },
+		})
+	})
+
+	it('reads a stored v2 mid-campaign with nothing cleared', async () => {
+		const storage = createMemoryStorage({ [KEY]: envelope(2, sampleV2Data()) })
+
+		expect(await createLocalProgressStore(storage).load(USER)).toEqual(sampleProgress())
+		expect(corruptKeys(storage)).toEqual([])
+	})
+
+	it('reads a stored v2 that finished the campaign as having cleared its tier', async () => {
+		const storage = createMemoryStorage({ [KEY]: envelope(2, sampleV2Data(null)) })
+		const loaded = await createLocalProgressStore(storage).load(USER)
+
+		expect(loaded).toEqual({ ...sampleProgress(), nightId: null, cleared: ['nightmare'], endlessBests: {} })
+		expect(corruptKeys(storage)).toEqual([])
 	})
 
 	const progressSchemaV0 = progressSchemaV1.omit({ difficulty: true })
-	const codecWithV0: Codec<Progress, ProgressDtoV2> = {
+	const codecWithV0: Codec<Progress, ProgressDtoV3> = {
 		...progressCodec,
 		migrations: {
 			...progressCodec.migrations,
@@ -149,18 +216,20 @@ describe('the migration chain', () => {
 		nightResults: { night01: { attempts: 2, wins: 1, bestGroceryMoney: 48 } },
 	}
 
-	it('walks a v0 record missing difficulty up the whole chain to a valid v2 Progress', async () => {
+	it('walks a v0 record missing difficulty up the whole chain to a valid v3 Progress', async () => {
 		const storage = createMemoryStorage({ [KEY]: envelope(0, v0Data) })
 
 		expect(await createRecordStore(storage, codecWithV0).load(USER)).toEqual({
 			...v0Data,
 			difficulty: 'normal',
 			loadouts: {},
+			cleared: [],
+			endlessBests: {},
 		})
 		expect(corruptKeys(storage)).toEqual([])
 	})
 
-	it('writes the migrated record back as v2, one revision on', async () => {
+	it('writes the migrated record back as v3, one revision on', async () => {
 		const storage = createMemoryStorage({ [KEY]: envelope(0, v0Data) })
 		const store = createRecordStore(storage, codecWithV0)
 
@@ -171,9 +240,9 @@ describe('the migration chain', () => {
 		await store.save(USER, loaded)
 
 		expect(storedRecord(storage, KEY)).toMatchObject({
-			version: 2,
+			version: 3,
 			revision: 4,
-			data: { difficulty: 'normal', loadouts: {} },
+			data: { difficulty: 'normal', loadouts: {}, cleared: [], endlessBests: {} },
 		})
 	})
 
@@ -186,20 +255,33 @@ describe('the migration chain', () => {
 })
 
 describe('a corrupt record', () => {
-	// At the codec's own version: a v1 envelope around v2 data would go corrupt in the migration's strict
-	// v1 parse, whichever check a case names.
-	const valid = progressCodec.toDto(sampleProgress())
+	// At the codec's own version: a v2 envelope around v3 data would go corrupt in the migration's strict
+	// v2 parse, whichever check a case names.
+	const valid = progressCodec.toDto(lifetimeProgress())
 	const cases: [string, string][] = [
-		['unparseable JSON', '{"version":2,"updatedAt":'],
-		['a record failing its schema', envelope(2, { ...valid, groceryMoney: -5 })],
-		['an unknown installation', envelope(2, { ...valid, installations: ['oilTheHinges', 'goldenToaster'] })],
-		['an installation owned twice', envelope(2, { ...valid, installations: ['buyABroom', 'buyABroom'] })],
-		['an unknown night', envelope(2, { ...valid, nightId: 'night99' })],
-		['an unknown difficulty', envelope(2, { ...valid, difficulty: 'impossible' })],
-		['an extra field from another build', envelope(2, { ...valid, seenTutorial: true })],
+		['unparseable JSON', '{"version":3,"updatedAt":'],
+		['a record failing its schema', envelope(3, { ...valid, groceryMoney: -5 })],
+		['an unknown installation', envelope(3, { ...valid, installations: ['oilTheHinges', 'goldenToaster'] })],
+		['an installation owned twice', envelope(3, { ...valid, installations: ['buyABroom', 'buyABroom'] })],
+		['an unknown night', envelope(3, { ...valid, nightId: 'night99' })],
+		['an endless night as the next night', envelope(3, { ...valid, nightId: 'endlessSink' })],
+		[
+			'a result for an endless night',
+			envelope(3, { ...valid, nightResults: { endlessSink: { attempts: 1, wins: 0, bestGroceryMoney: 0 } } }),
+		],
+		['an unknown difficulty', envelope(3, { ...valid, difficulty: 'impossible' })],
+		['a clear of an unknown difficulty', envelope(3, { ...valid, cleared: ['normal', 'impossible'] })],
+		[
+			'an endless best under an unknown difficulty',
+			envelope(3, { ...valid, endlessBests: { impossible: { sink: 5 } } }),
+		],
+		['a negative endless best', envelope(3, { ...valid, endlessBests: { normal: { sink: -1 } } })],
+		['an extra field from another build', envelope(3, { ...valid, seenTutorial: true })],
+		['a v3 record missing its lifetime record', envelope(3, sampleV2Data())],
+		['a v2 record already carrying the lifetime record', envelope(2, valid)],
 		['a v2 record missing its loadouts', envelope(2, sampleV1Data())],
-		['a v1 record already carrying loadouts', envelope(1, valid)],
-		['a version newer than this build', envelope(3, valid)],
+		['a v1 record already carrying loadouts', envelope(1, sampleV2Data())],
+		['a version newer than this build', envelope(4, valid)],
 	]
 
 	it.each(cases)('%s loads null, is kept under one :corrupt: key, and the original is removed', async (_, raw) => {

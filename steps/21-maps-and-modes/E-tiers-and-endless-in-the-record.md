@@ -61,7 +61,9 @@ edit this file. Don't leave it lying.
    the step allows, with no new field. `endlessLoadout(progress, mapId)` returns the stored loadout if
    it passes `checkLoadout` against `endlessTowerIds()` and `loadoutSlots`. Otherwise night 18's stored
    loadout if that passes. Otherwise the first `slots` of `endlessTowerIds()`. `setEndlessLoadout` works
-   whatever `nightId` is, unlike `setLoadout`.
+   whatever `nightId` is, unlike `setLoadout`. *(Added in the build:)* it throws while endless is locked,
+   the way `setLoadout` throws with no night to choose for and `worldOptionsForEndless` throws while
+   locked. Both throw on a map with no endless run.
 6. **Bests are per tier and per map:**
    `endlessBests: Partial<Record<DifficultyId, Record<DefId, number>>>`, keyed by map id. The step says
    "a per-map best". It's per map *within a tier*: a Cozy best is a number a Nightmare run can't
@@ -70,7 +72,8 @@ edit this file. Don't leave it lying.
    `buildNightSummary` reads it. The best and the summary then print the same number.
 8. **`endlessResultOf(world): EndlessResult` returns `{ mapId, difficulty, waves }`** and throws while
    the night runs or on a campaign night. `applyEndlessResult(progress, result)` keeps the maximum.
-   Nothing else moves.
+   Nothing else moves. *(Added in the build:)* it throws on a map with no endless run, since the next
+   load would drop that best anyway.
 9. **`applyNightResult` throws on a night id that isn't in `NIGHTS`.** An endless world recorded as a
    campaign night pays Grocery Money and writes `nightResults.endlessSink`. The next load then sends
    the whole save to `:corrupt:`, because `fromProgressDto` throws on a result for an unknown night.
@@ -153,10 +156,10 @@ Extensions to `campaign.spec`, `persistence.spec`, `progressStore.spec` and `vie
 
 ## Acceptance
 
-- [ ] Nothing outside `core/campaign.ts` decides whether a tier or endless is open, or what a run is
+- [x] Nothing outside `core/campaign.ts` decides whether a tier or endless is open, or what a run is
       played with.
-- [ ] `OPEN-QUESTIONS.md` has no open endless row.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `OPEN-QUESTIONS.md` has no open endless row.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 21F and 21G
 

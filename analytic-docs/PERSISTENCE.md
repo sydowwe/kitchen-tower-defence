@@ -110,7 +110,8 @@ useSettings()    // { load, saveDebounced, flush, loading, error }   -- the 500m
 useLeaderboard() // { entries, submit, refresh, loading, error }      -- post-v1, not built
 useSync()        // { status: 'local' | 'syncing' | 'synced' | 'offline' | 'error', lastSyncedAt, retry }
 
-useProgressStore()  // { progress, status, error, ensureLoaded, retry, buyInstallation, recordNightResult, resetProgress }
+useProgressStore()  // { progress, status, error, ensureLoaded, retry, buyInstallation, chooseLoadout, recordNightResult,
+                    //   startCampaign, chooseEndlessLoadout, recordEndlessResult, resetProgress }
 useSettingsStore()  // { settings, ensureLoaded, update }
 useProfileStore()   // { profile, ensureLoaded }
 ```
