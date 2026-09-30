@@ -1,88 +1,133 @@
 # Step 22 — Headless balance harness
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is six sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index. It only says what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/ARCHITECTURE.md` §1, §3, `../analytic-docs/CONTENT.md` (the whole thing — you're about to change most of its numbers).
-**Prereq:** step 21.
+**Prereq:** step 20a, both parts, for A, B and C. **Step 21, all seven parts, for D, E and F.** This
+split was written against `eb45174`. Step 21 was being split in another session at the same time, and
+its index and parts A–E were read for this one. Neither split edits the other.
 
 ## Goal
 
-Play five hundred nights in ten seconds and find out whether the income curve is right.
+Play hundreds of nights headless and find out whether the income curve is right.
 
-This is the step the entire architecture was built for. `core/` has no DOM dependency and the sim is deterministic, which means the whole game runs in Node with no renderer — so balance stops being a matter of opinion and becomes a matter of data.
+This is the step the architecture was built for. `core/` has no DOM and the sim is deterministic, so
+the whole game runs in Node with no renderer, and balance stops being opinion and becomes data. **The
+one number that must be right is crumbs earned per wave against tower cost**
+(`../analytic-docs/CONTENT.md`, preamble). Everything else can move after launch. That one can't.
 
-**The one number that must be right is crumbs earned per wave versus tower cost.** Everything else in `../analytic-docs/CONTENT.md` can be adjusted after launch without breaking anything. The income curve cannot.
+## Parts
 
-## Build
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](22-balance-harness/A-runner-and-ledger.md) | The runner, the ledger and the CSV | `NightState.crumbsEarned` / `crumbsSpent` and damage booked by source; `dev/harness/`'s job, runner, row, CSV, campaign fold and `idle` policy; the Vite launcher and `npm run balance` |
+| [B](22-balance-harness/B-policies.md) | The policies | `core/coverage.ts`; `greedy`, `noEconomy`, `casual`, `random`; the `optimal`, `blind` and `fixed` loadout policies; the smoke run |
+| [C](22-balance-harness/C-sweep-and-report.md) | Sweep, parallel jobs, the report | `--sweep` as world patches, `--jobs` across processes, the static HTML report and its flag list |
+| [D](22-balance-harness/D-tuning-the-curve.md) | Tuning the income curve | numbers in `core/content/`, `CONTENT.md` rewritten from what was measured, each night's two named answers proven |
+| [E](22-balance-harness/E-the-noise-answer.md) | The noise answer | one noise number or none, and `OPEN-QUESTIONS.md` §3 answered with a measurement |
+| [F](22-balance-harness/F-the-endless-curve.md) | The endless curve, measured | an endless job kind, run lengths per map and tier, a constant moved only where it's broken |
 
-1. **The runner** (`src/dev/harness/run.ts`), executed via `tsx`. Not part of the app bundle.
-   ```
-   npm run balance -- --nights 1-18 --difficulty normal --runs 50 --policy greedy --out results.csv
-   ```
-   Creates a world, runs `tick()` in a tight loop with no rendering and no frame limiter, and records the outcome.
+**Order: A → B → C → step 21 → D → E → F.** A, B and C build an instrument and depend on nothing
+step 21 builds. Built first, they're ready when step 21 wants them: its Nightmare criterion asks for
+this step's data, and its "more than one loadout wins every night" rule is what C's lockout flag and
+B's `fixed` loadouts check. Step 21 needs only 20a too, so the other order also works. The two touch
+the same `applyDamage` and the same `Progress`, and each of A's two notes on it says what to do if 21
+landed first.
 
-2. **Scripted policies** — a `Policy` interface returning commands each tick, so you can compare how different players fare:
-   - `greedy` — always buy the highest DPS-per-crumb tower it can afford, place it at the free tile covering the most track length, always call waves as early as possible, collect crumbs the instant they land. **The upper bound on income.**
-   - `casual` — buys the most recently unlocked tower, places it near the fridge, never calls early, collects only crumbs inside tower radii. **The lower bound.** If `casual` cannot clear night 8, your difficulty curve is broken for real players.
-   - `noEconomy` — never builds an economy tower. Tests whether economy towers are mandatory (they should be strong, not required).
-   - `random` — seeded random legal actions. A crash-finder more than a balance tool, and it will find crashes.
+D, E and F tune. Tuning eighteen nights that step 21 is about to move onto five new maps with five
+modifiers would be thrown away. E comes after D because how loud a board gets depends on how many
+towers the income buys. F comes after D because endless plays on the same economy.
 
-   Coverage scoring for placement needs to be shared with the real game's future "recommended tile" hint, so put it in `core/`, not in the harness.
+**A, B, C and F carry the tests.** A covers the ledgers, determinism, replay and the wave schedule. B
+covers coverage, policy purity and the smoke run. C covers the sweep's isolation, sharding and the flag
+rules. F covers the endless job. D and E add none: when a pinned number moves, its literal in
+`tests/content.spec.ts` or `tests/noise.spec.ts` moves with it, in the same commit.
 
-   **Every policy must also select a loadout** (step 20a): build the list with `core/loadout.ts`, store it with `setLoadout`, then `worldOptionsFor` — the same path the game takes, so the harness cannot play a night with a loadout the game would refuse. A policy that selects nothing plays `tonightsLoadout`, the screen's default. Add a `loadoutPolicy` dimension: `optimal` picks the best counters given full knowledge of the night's composition; `blind` picks generically strong towers, ignoring the preview. **The gap between those two win rates measures whether loadouts are a fair puzzle or a memorisation tax** — if `blind` cannot clear Act I, either the night preview isn't informative enough or slots are too tight.
+## The seam that can't be split
 
-3. **Metrics per night**, to CSV: night, map, difficulty, policy, seed, won, waves survived, food remaining, crumbs earned / spent / wasted-at-sunrise, crumbs dropped vs collected, towers built, peak noise, wake count, Grocery Money, and **`towersAffordablePerNight`** — the headline number.
+**A row is a pure function of its job.** A job is plain data: nights, difficulty, seed, policy,
+loadout policy, installations and a sweep value. Its world is built by `worldOptionsFor` and
+`createWorld`, the game's own path, and nothing from one job survives into the next. B's policies keep
+their state on the object the runner creates each night. C's sweep patches the world's own copies,
+never a content table, and C's shards are merged by sorting. If any part lets state leak between jobs,
+the CSV starts depending on job order and on how many processes ran it, and every number D tunes
+against shifts with `--jobs`. The byte-identical tests in A and C are what catch it. Step 21's own
+seam (everything that makes a night itself is resolved inside `createWorld`) is the other half: it's
+why the harness plays every modifier without knowing any of them.
 
-   `peakNoise` is `world.noise.peakLevel`, read at night end. Step 13A kept a peak off `NoiseState` while nothing read it; step 20B added it for the night summary, written inside `noiseSystem` because the level is zeroed on the wake tick and a running maximum taken between ticks never sees the cap. `wakeCount` is on `NoiseState` too. Grocery Money is `world.night.pay.total` (20B), and a campaign run builds each night with `worldOptionsFor(progress, seed)` from `core/campaign.ts` so the harness plays the same unlocks and installations the game does.
+## Contradictions this split resolved
 
-4. **The sweep mode.** Vary one global parameter across a range and re-run everything:
-   ```
-   npm run balance -- --sweep income=0.6:1.6:0.1 --nights 1-18 --runs 20
-   ```
-   Sweepable: global income multiplier, enemy HP, enemy count, tower cost multiplier, crumb rot time, noise decay.
+Each one is settled in the part that implements it, with its reason there.
 
-5. **A report.** Markdown or a small static HTML page: win rate per night per policy, the income curve plotted against tower costs, and a **flag list** — nights where `greedy` loses (too hard), nights where `casual` wins comfortably (too easy), nights where a single tower type accounts for over 60% of damage (a dominant strategy).
+1. **Prereq step 21, which isn't built.** A, B and C need nothing from it, and D, E and F need all of
+   it. Hence the order above.
+2. **"Executed via `tsx`."** `tsx` isn't installed, and it can't evaluate the
+   `import.meta.env.DEV` that `core/content/schema.ts` reads at load, so the first content import dies.
+   The launcher is Vite's own dev server used as a module runner (A, decision 1). That was checked
+   while splitting: it boots in ~0.4 s, and night 1 undefended ends on the same tick as under vitest.
+3. **"Five hundred nights in ten seconds."** Measured while splitting on this machine: a board built
+   on every lane-side tile runs at ~100–125 µs a tick. A defended night takes 0.5–3 s, an undefended
+   one ~10 ms, and all eighteen defended ~30 s. Five hundred defended nights take about ten minutes on
+   one core. So `--jobs` spreads jobs across processes (C, decision 4), and "writes a CSV in seconds"
+   became an 18-night `greedy` campaign under 30 s (B, Acceptance).
+4. **"Byte-identical across Node and browser sim runs."** There is no browser runner, and vitest
+   already runs the sim through Vite's transform in Node. The property kept is that nothing in
+   `dev/harness/` except `cli.ts` imports anything Node-only, enforced by lint (A, decision 2).
+   Byte-identity is asserted across runs, across job orders (A) and across shards (C).
+5. **"A full 18-night greedy run completes in under 30 seconds"** as a test. That's a 30-second spec
+   in a suite that takes 4 seconds today. It became an acceptance timing in B. The per-commit spec is
+   the smoke run, kept under 5 s.
+6. **"Sim tick count per simulated night matches the expected wave schedule."** This only holds for
+   a night where nobody calls early and no Cookie Jar dies, because the jar's penalty holds its wave
+   open. So it's asserted on `idle` (A, Tests).
+7. **"Per night" or "per wave".** `CONTENT.md` line 7 and the original brief both say "crumbs per wave
+   versus tower cost" and "1.5 new towers per night" in one sentence. Per night can't be meant, since
+   night 1 opens with four Salt Shakers' worth of starting crumbs before any income. The headline is per
+   wave, over the unlocked roster's mean price, and every input is its own CSV column (A, decision
+   10). D writes the definition into `CONTENT.md` (D, decision 6).
+8. **`greedy` buys "the highest DPS-per-crumb tower", and `greedy` must choose economy towers.**
+   Economy towers have no DPS. So there's one value-per-crumb scale with an economy weight on it, and
+   `noEconomy` is the same policy with that weight at 0 (B, decisions 4–5).
+9. **`casual` "buys the most recently unlocked tower".** Read literally, night 2's casual buys only
+   Sticky Tape, which does 0 damage. It would lose every night whose unlock is a specialist, and the
+   step's own "casual clears nights 1–8" would be unreachable. So casual buys newest-first, round
+   robin (B, decision 6).
+10. **Tower cost and crumb rot are listed as sweepable.** Neither is on the world. Tower cost is swept
+    as income and starting crumbs divided by the same factor (C, decision 2). Rot isn't sweepable in
+    this step, and `OPEN-QUESTIONS.md` §3's rot bullet stays open (C, decision 3).
+11. **"A single tower type accounts for over 60% of damage."** Poison, burn, auras, Burner heat and
+    box reflect publish no `enemyDamaged` event. Counted from events, every DoT board reads as "Salt
+    Shaker, 90%". Damage is booked by source inside `applyDamage` instead (A, decision 9).
+12. **`optimal` "given full knowledge of the night's composition".** Full knowledge would measure
+    memorising the file. The step says the gap measures whether the preview is informative enough, so
+    `optimal` reads the preview the loadout screen shows (B, decision 3).
+13. **"The decay is one number in `core/world.ts`."** It's also pinned at two lines of
+    `tests/noise.spec.ts`, quoted in nine other places, and the Gas Stove Burner's noise rule is
+    argued against 1.5/s (E, Already in the repo).
+14. **Step 21 hands this step two jobs its file never mentioned.** 21C writes into each night's note
+    the two loadouts it falls to, and calls proving them "step 22's". 21's index says the endless curve
+    "gets measured" by the harness. The first is B's `fixed` loadout policy and D's check. The second is
+    part F.
 
-6. **Then actually use it.** Tune until:
-   - `casual` clears nights 1–8 on Normal and struggles from 13 onward.
-   - `greedy` clears all 18 on Normal and loses some nights on Nightmare.
-   - Affordable new towers per night runs **~1.5 in Act I falling to ~0.5 by night 18** (`../analytic-docs/CONTENT.md` §1).
-   - No single tower exceeds 60% of total damage on any night.
-   - Economy towers are chosen by `greedy` but `noEconomy` still clears Act I — strong, not mandatory.
+## Step acceptance
 
-   **Write the resulting numbers back into `../analytic-docs/CONTENT.md`** so the reference doc is never stale.
-
-7. **Answer the noise curve.** `OPEN-QUESTIONS.md` §3 has carried this since before the meter existed and step 13 deliberately shipped without touching a number, because the question needs a measurement rather than a judgement. The arithmetic step 13 handed over:
-
-   - a Mousetrap is `noise: 2` every 396 ticks — **0.30/sec**, and only while something is inside its range of 1;
-   - a Toaster is `noise: 3` every 200 ticks — **0.90/sec**, and only while something is in the air inside its range of 4;
-   - decay is **1.5/sec**, always.
-
-   So five Mousetraps firing without a pause merely hold the meter level. Measure what `greedy` and `casual` actually reach on nights 3, 6 and 8 across all three difficulties, then decide — and change **one** thing, in this order of preference:
-
-   1. **Nothing**, if a plausible night 6 board wakes a human once and still wins. Write that down and stop.
-   2. **The decay**, if it is only just out of reach. It is one number in `core/world.ts`, it is what Oil the Hinges is priced against, and it is already sweepable here.
-   3. **The per-shot values**, if the towers are the problem rather than the decay. `CONTENT.md` §1's noise column and `tests/content.spec.ts`'s two pinned literals move together.
-
-   Whichever moves, **change `DECISIONS.md` §8 and/or `CONTENT.md` §1 first**, then the code: one source of truth per decision. Then strike the `OPEN-QUESTIONS.md` §3 bullet and replace it with what you measured — the boards, the peaks, what moved and what did not — in the shape 11C's fruit-fly entry uses. A balance question answered in a commit message is a question that gets asked again in six months.
-
-   The failure this is looking for is the one the doc names: if nothing in Act I can fill the meter, the mechanic is inert until Act IV, which defeats the point of shipping it early.
-
-8. **CI-friendly smoke run**: 3 nights × 5 seeds × 2 policies, asserting no crashes and no NaN. Fast enough to run on every commit.
-
-## Tests
-
-- The harness produces byte-identical CSV output for the same seed across runs, and across Node and browser sim runs.
-- A full 18-night `greedy` run completes in under 30 seconds.
-- Sim tick count per simulated night matches the expected wave schedule.
-
-## Acceptance
-
-- [ ] `npm run balance` runs the whole campaign and writes a CSV in seconds.
+- [ ] `npm run balance -- --campaign` plays all eighteen nights, and the full policy matrix runs with
+      `--jobs` in minutes, not hours.
 - [ ] The report's flag list points at real problems you can feel when you play those nights.
-- [ ] `../analytic-docs/CONTENT.md` has been updated with the tuned numbers.
-- [ ] `../analytic-docs/OPEN-QUESTIONS.md` §3's "Noise cap 100 with 1.5/s decay" is struck through and answered with a measurement, not an opinion.
+- [ ] `../analytic-docs/CONTENT.md` has been updated with the tuned numbers, and states what the
+      headline number measures.
+- [ ] `../analytic-docs/OPEN-QUESTIONS.md` §3's "Noise cap 100 with 1.5/s decay" is struck through and
+      answered with a measurement, not an opinion.
+- [ ] Every night's two named answers win, and no endless run clears every generated wave.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+
+## Consequences for later steps
+
+- **Step 23:** `core/coverage.ts`'s `trackCoverage` is the answer a "recommended tile" hint would give
+  (`OPEN-QUESTIONS.md` §1). Whether to show one is still step 23's call.
 
 ## Do not
 
-Try to make the policies play *well*. They are measuring instruments, not AI opponents. A `greedy` policy that plays like a mediocre human is exactly right.
+Try to make the policies play *well*. They are measuring instruments, not AI opponents. A `greedy`
+that plays like a mediocre human is exactly right. Don't build the recommended-tile hint (step 23),
+anything of endless beyond measuring it (step 21's), or a replay viewer.
