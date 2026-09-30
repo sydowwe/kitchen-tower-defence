@@ -14,7 +14,7 @@
 				:toasts="toasts"
 				:wake="wake"
 				:thiefBanner="thiefBanner"
-				:canContinue="canContinue"
+				:saveState="saveState"
 				@select="onSelect"
 				@sell="onSell"
 				@upgrade="onUpgrade"
@@ -22,9 +22,19 @@
 				@callWave="onCallWave"
 				@setSpeed="applySpeed"
 				@togglePause="togglePause"
-				@retry="retry"
-				@continueNight="continueNight"
+				@retry="restart"
+				@continueNight="toKitchen"
+				@retrySave="progressStore.retry"
 			/>
+			<div
+				v-if="progressStore.progress === null"
+				class="waiting"
+			>
+				<LoadState
+					:failed="progressStore.status === 'error'"
+					@retry="retryLoad"
+				/>
+			</div>
 			<DebugOverlay
 				:visible="snapshot.debugEnabled"
 				:fps="snapshot.fps"
@@ -41,14 +51,22 @@
 				@restart="onDevModifiers"
 				@wakeNow="onDevWakeNow"
 			/>
+			<component
+				:is="NightPanel"
+				v-if="NightPanel !== null"
+				:current="nightId"
+				@pick="onDevPickNight"
+			/>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
 	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type Component } from 'vue'
+	import { useRouter } from 'vue-router'
 	import { createLoop, type Loop, type Speed } from '@/loop.ts'
-	import { getMapDef, NIGHTS } from '@/core/content/index.ts'
+	import { nightResultOf, worldOptionsFor, type Progress } from '@/core/campaign.ts'
+	import { getMapDef, getNightDef, NIGHTS, resolveModifiers } from '@/core/content/index.ts'
 	import { createCommandQueue } from '@/core/commands.ts'
 	import { tick as stepWorld } from '@/core/sim.ts'
 	import { createWorld, type CreateWorldOptions } from '@/core/world.ts'
@@ -66,6 +84,9 @@
 	} from '@/render/index.ts'
 	import DebugOverlay from '@/ui/components/DebugOverlay.vue'
 	import HudLayer from '@/ui/components/hud/HudLayer.vue'
+	import LoadState from '@/ui/components/LoadState.vue'
+	import { useProgressStore } from '@/ui/stores/progress.ts'
+	import { useSettingsStore } from '@/ui/stores/settings.ts'
 	import { createInteraction, type Interaction, type Toast } from '@/ui/interaction.ts'
 	import { createSelection } from '@/ui/selection.ts'
 	import {
@@ -108,19 +129,44 @@
 		debugEnabled: boolean
 	}
 
+	/** The debug controller's map before the first world exists. Every night after is built from progress. */
 	const MAP_ID = 'counter'
 	/** Fixed, so retrying a night reopens the same one: same ants, same fridge, same order. */
 	const SEED = 1234
 	/** `core/` holds ticks; the dev panel reads a decay a human can compare against a tower. */
 	const TICKS_PER_SECOND = 60
 
+	const router = useRouter()
+	const progressStore = useProgressStore()
+	const settingsStore = useSettingsStore()
+
+	/** The night on the board, for the dev picker. Null until the first world. */
+	const nightId = ref<DefId | null>(null)
+
 	/**
-	 * Which of `NIGHTS` is on the board. Retry rebuilds this one, Continue steps to the next and stops
-	 * at the last -- and that is the whole of the night flow. Campaign progress, unlocks, scoring and
-	 * saves are step 20's.
+	 * Whether this world is the campaign's night, so its result is saved. False under any dev override
+	 * -- an editor preview, a picked night, the noise panel's modifiers -- none of which is the night the
+	 * progress would have built.
 	 */
-	const nightIndex = ref(0)
-	const canContinue = computed(() => nightIndex.value < NIGHTS.length - 1)
+	let records = false
+	/**
+	 * Set in `tick()` the first time this world's `nightEnded` is seen, and **reset in `restart`**. A flag
+	 * that is never cleared records the first night and silently no retry after it.
+	 */
+	let recorded = false
+	/** `onMounted` awaits the store; a view that has gone by then must not build a world. */
+	let unmounted = false
+
+	/**
+	 * Where the night's result is on its way to the save. Both summary buttons wait on `'saving'`: leaving
+	 * before the save lands is how a night's money disappears.
+	 */
+	const saveState = computed(() => {
+		if (progressStore.status === 'saving') {
+			return 'saving'
+		}
+		return progressStore.status === 'error' ? 'failed' : 'saved'
+	})
 
 	let world: World | null = null
 	const queue = createCommandQueue()
@@ -167,6 +213,13 @@
 	const NoisePanel = shallowRef<Component | null>(null)
 	const noiseDev = shallowRef<{ level: number; cap: number; decayPerSecond: number; wakeCount: number } | null>(null)
 	let devModifiers: CreateWorldOptions['modifiers']
+
+	/**
+	 * Dev only: the night picker, imported the same way as `NoisePanel`, and the night it picked. A
+	 * picked night is played instead of the campaign's, with every tower available, and records nothing.
+	 */
+	const NightPanel = shallowRef<Component | null>(null)
+	let devNightId: DefId | null = null
 
 	/**
 	 * The map the debug controller works against: **the world's clone**, not the authored def. It
@@ -250,25 +303,55 @@
 	}
 
 	/**
-	 * A fresh night on the same seed, plus the three things that are not part of the world: the bake
-	 * (the new world's map is a different object, so it re-fires exactly once), the transient
-	 * effects, which would otherwise keep flying items out of the night that just ended, and the
-	 * selection, whose tower id points at nothing once the world is replaced.
+	 * What to build tonight, and whether its result counts. The campaign's night is
+	 * `worldOptionsFor(progress)` and nothing else; null once the campaign is finished.
+	 *
+	 * Every override below is dev only -- nothing assigns `devNightId`, `devModifiers` or `previewMap`
+	 * in a production build -- and each one makes a night that is not the campaign's, so none records.
 	 */
-	function restart(index: number): void {
-		const night = NIGHTS[index]
-		if (night === undefined) {
+	function optionsFor(progress: Progress): { options: CreateWorldOptions; records: boolean } | null {
+		const campaign = progress.nightId === null ? null : worldOptionsFor(progress, SEED)
+		if (devNightId === null && devModifiers === undefined && previewMap === null) {
+			return campaign === null ? null : { options: campaign, records: true }
+		}
+
+		const id = devNightId ?? campaign?.nightId ?? NIGHTS[0]?.id
+		if (id === undefined) {
+			return null
+		}
+		return {
+			records: false,
+			options: {
+				seed: SEED,
+				mapId: getNightDef(id).mapId,
+				nightId: id,
+				difficulty: progress.difficulty,
+				modifiers: devModifiers ?? resolveModifiers(progress.installations),
+				availableTowerIds: devNightId === null ? (campaign?.availableTowerIds ?? null) : null,
+			},
+		}
+	}
+
+	/**
+	 * A fresh night on the same seed, built from the progress, plus the things that are not part of the
+	 * world: the bake (the new world's map is a different object, so it re-fires exactly once), the
+	 * transient effects, which would otherwise keep flying items out of the night that just ended, the
+	 * selection, whose tower id points at nothing once the world is replaced, and the player's speed.
+	 *
+	 * A finished campaign has no night to build, and goes back to the Kitchen.
+	 */
+	function restart(): void {
+		const progress = progressStore.progress
+		if (progress === null) {
 			return
 		}
-		nightIndex.value = index
+		const built = optionsFor(progress)
+		if (built === null) {
+			void router.replace({ name: 'kitchen' })
+			return
+		}
 
-		const next = createWorld({
-			seed: SEED,
-			mapId: MAP_ID,
-			nightId: night.id,
-			difficulty: 'normal',
-			modifiers: devModifiers,
-		})
+		const next = createWorld(built.options)
 		// A world cannot be built from an unregistered map, so the editor's preview is assigned on
 		// afterwards. A preview whose paths were renamed has no 'crack', and `startWave` throws with
 		// both ids in the message -- the right failure for a dev-only route.
@@ -277,6 +360,10 @@
 		}
 
 		world = next
+		records = built.records
+		recorded = false
+		nightId.value = next.night.nightId
+		loop?.setSpeed(settingsStore.settings.speed)
 		frameEvents.length = 0
 		loudShots = 0
 		// Without this a retry opens with last night's card still fading and the ripple replaying off a
@@ -301,12 +388,24 @@
 		}
 	}
 
-	function retry(): void {
-		restart(nightIndex.value)
+	/** The summary's Continue. The result was saved before the button was enabled. */
+	function toKitchen(): void {
+		void router.push({ name: 'kitchen' })
 	}
 
-	function continueNight(): void {
-		restart(nightIndex.value + 1)
+	/** The first world waits on the store: auth and progress, either of which can be slow or fail. */
+	async function begin(): Promise<void> {
+		await Promise.all([progressStore.ensureLoaded(), settingsStore.ensureLoaded()])
+		if (!unmounted && world === null) {
+			restart()
+		}
+	}
+
+	async function retryLoad(): Promise<void> {
+		await progressStore.retry()
+		if (!unmounted && world === null) {
+			restart()
+		}
 	}
 
 	/**
@@ -314,12 +413,16 @@
 	 * button and the speed buttons disagree about which one is lit. Picking a speed therefore resumes.
 	 *
 	 * Every change also enqueues `SetSpeed`. The simulation ignores it by design -- the command log is
-	 * the whole reason the command exists, and nothing has ever enqueued one.
+	 * the whole reason the command exists, and nothing has ever enqueued one. A playing speed is also
+	 * the player's setting, which `restart` applies to the next night; the store debounces the save.
 	 */
 	function applySpeed(speed: Speed): void {
 		queue.enqueue({ kind: 'SetSpeed', speed })
 		loop?.setSpeed(speed)
 		loop?.resume()
+		if (speed !== 0) {
+			settingsStore.update({ speed })
+		}
 	}
 
 	function togglePause(): void {
@@ -361,7 +464,13 @@
 	 */
 	function onDevModifiers(modifiers: WorldModifiers): void {
 		devModifiers = modifiers
-		restart(nightIndex.value)
+		restart()
+	}
+
+	/** Dev only. The picked night stays picked for Retry, until the view is left. */
+	function onDevPickNight(id: DefId): void {
+		devNightId = id
+		restart()
 	}
 
 	/**
@@ -386,15 +495,22 @@
 		if (import.meta.env.DEV) {
 			// Dynamic import keeps dev/ entirely out of the production bundle -- the same pattern
 			// router.ts uses for the step 4 editor route.
-			const [{ createDebugController }, { drawDebugOverlay: draw }, { takePreviewMap }, { default: noisePanel }] =
-				await Promise.all([
-					import('@/dev/debug/state.ts'),
-					import('@/dev/debug/overlay.ts'),
-					import('@/dev/editor/preview.ts'),
-					import('@/dev/noise/NoisePanel.vue'),
-				])
+			const [
+				{ createDebugController },
+				{ drawDebugOverlay: draw },
+				{ takePreviewMap },
+				{ default: noisePanel },
+				{ default: nightPanel },
+			] = await Promise.all([
+				import('@/dev/debug/state.ts'),
+				import('@/dev/debug/overlay.ts'),
+				import('@/dev/editor/preview.ts'),
+				import('@/dev/noise/NoisePanel.vue'),
+				import('@/dev/night/NightPanel.vue'),
+			])
 
 			NoisePanel.value = noisePanel
+			NightPanel.value = nightPanel
 
 			// One-shot: the editor's preview slot is read and cleared here, so a stale preview
 			// cannot hijack this route on the next visit. It is stashed rather than used, because
@@ -410,7 +526,6 @@
 
 		const activeRenderer = createRenderer(canvasEl)
 		renderer = activeRenderer
-		restart(nightIndex.value)
 
 		// The queue and a getter, never the world itself: everything it does to the simulation is a
 		// command drained at a tick boundary (ARCHITECTURE.md section 3).
@@ -456,6 +571,16 @@
 						const banner = buildThiefBanner(world, event.waveIndex)
 						if (banner !== null) {
 							thiefBanner.value = banner
+						}
+						continue
+					}
+					// Recorded here, once per world, and never on a button: Retry or closing the tab
+					// would skip a button, and a second click would pay the night twice. The store
+					// answers `'failed'` rather than rejecting, and the summary reads its `status`.
+					if (event.kind === 'nightEnded' && !recorded) {
+						recorded = true
+						if (records) {
+							void progressStore.recordNightResult(nightResultOf(world))
 						}
 					}
 				}
@@ -509,9 +634,16 @@
 
 		window.addEventListener('resize', onResize)
 		activeLoop.start()
+
+		// The loop runs on an empty board until there is a night to put on it.
+		await begin()
 	})
 
 	onBeforeUnmount(() => {
+		unmounted = true
+		records = false
+		recorded = false
+		devNightId = null
 		window.removeEventListener('resize', onResize)
 		loop?.stop()
 		loop = null
@@ -534,6 +666,7 @@
 		debug = null
 		drawOverlay = null
 		NoisePanel.value = null
+		NightPanel.value = null
 		noiseDev.value = null
 	})
 </script>
@@ -562,5 +695,13 @@
 		max-height: 100%;
 		aspect-ratio: 1152 / 672;
 		pointer-events: none;
+	}
+
+	/* Over the empty board until the progress store has something to build a night from. */
+	.waiting {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
 	}
 </style>

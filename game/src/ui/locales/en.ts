@@ -10,6 +10,7 @@
 import type {
 	EnemyMessages,
 	FoodMessages,
+	InstallationEffectMessages,
 	InstallationMessages,
 	RejectionMessages,
 	TagMessages,
@@ -596,56 +597,120 @@ export const en = {
 	} satisfies FoodMessages,
 	// The installations (analytic-docs/CONTENT.md section 8). The description says what the purchase
 	// *does* in the kitchen and the number is left to the card, which reads it off the def -- a sentence
-	// carrying "+25" is a second copy of a number step 22 is going to move. The eight after step 13A's
-	// three are a first draft; step 20D rewrites them with the cards on screen.
+	// carrying "+25" is a second copy of a number step 22 is going to move. Written the second time in
+	// step 20D, with the cards and the room on screen: what changed in the kitchen, said as a fact.
 	installation: {
 		oilTheHinges: {
 			name: 'Oil the Hinges',
-			description: 'The cupboard doors stop announcing themselves. Everything settles down faster.',
+			description:
+				'A drop on every hinge. The cupboard doors close without comment, and the quiet comes back sooner.',
 		},
 		closeTheKitchenDoor: {
 			name: 'Close the Kitchen Door',
-			description: 'Between the kitchen and the hallway, one closed door. It buys you a lot more racket.',
+			description:
+				'The door to the hallway, shut for once. It takes a good deal more to carry as far as the bedroom.',
 		},
 		buyABroom: {
 			name: 'Buy a Broom',
-			description: 'One sweep takes the pile you clicked and everything lying around it.',
+			description: 'It stands by the back door. One sweep takes a pile and whatever is lying near it.',
 		},
 		sealTheBaseboardCrack: {
 			name: 'Seal the Baseboard Crack',
-			description: 'A bead of caulk along the skirting. Fewer of them squeeze in the way they always have.',
+			description: 'A line of caulk along the skirting board. They still get through, just not as many.',
 		},
 		nightShiftDustpan: {
 			name: 'Night Shift Dustpan',
-			description: 'Your collectors stop carrying crumbs home one at a time. What they pick up arrives sooner.',
+			description: 'Left out on the counter overnight. What your towers pick up gets home sooner.',
 		},
 		fixTheWindowScreen: {
 			name: 'Fix the Window Screen',
 			description:
-				'Patch the hole in the mesh. Whatever flies in has to find another way, and that takes a while.',
+				'The tear in the mesh, patched. Anything with wings has to find another way in, and that takes time.',
 		},
 		pantryShelfLiner: {
 			name: 'Pantry Shelf Liner',
-			description: 'Wipe-clean shelves. Mold still takes hold, but it creeps instead of spreading.',
+			description: 'Wipe-clean shelves in the pantry. Mold still takes hold. It just takes longer about it.',
 		},
 		betterTupperware: {
 			name: 'Better Tupperware',
-			description: 'Snap-lock lids on everything. A raid on the fridge comes away with less, but never nothing.',
+			description:
+				'Snap-lock lids on everything. A raid on the fridge comes away with less, though never with nothing.',
 		},
 		biggerFridge: {
 			name: 'Bigger Fridge',
-			description: 'More shelf space, and more on it every night. More to lose, and more to lose it from.',
+			description: 'More shelves, and more on them every night. More to look after, too.',
 		},
 		emergencySnackStash: {
 			name: 'Emergency Snack Stash',
 			description:
-				'Behind the cereal, for when things get bad. Once a night, a nearly bare fridge gets a top-up.',
+				'Behind the cereal, for a bad night. When the shelves are nearly bare, it goes in the fridge. Once.',
 		},
 		whiteNoiseMachine: {
 			name: 'White-noise Machine',
-			description: 'A steady hush in the bedroom down the hall. Nothing short of a dropped pan gets through it.',
+			description: 'A steady hush in the bedroom down the hall. Whoever is asleep in there sleeps through more.',
 		},
 	} satisfies InstallationMessages,
+	// Every map's name, keyed off `MapDef.id`. The Counter is the only one until step 21.
+	map: {
+		counter: { name: 'The Counter' },
+	},
+	// The first screen, and the load's two states. `load` is shared by every screen that waits on the
+	// progress store before it can draw.
+	title: {
+		name: 'Kitchen Defense',
+		tagline: 'At 2am the bugs come for the food.',
+		enter: 'Into the kitchen',
+	},
+	load: {
+		loading: 'Opening the kitchen…',
+		failed: 'The kitchen would not open.',
+		retry: 'Try again',
+	},
+	// The Kitchen: the same room in daylight, between nights. The effect lines are the only place an
+	// installation's number is printed, read off the def (step 20D, decision 4).
+	kitchen: {
+		sceneLabel: 'The kitchen, the morning after',
+		groceryMoney: 'Grocery money',
+		installations: 'Around the house',
+		owned: 'Done',
+		buy: 'Buy',
+		buying: 'Buying…',
+		notYet: 'Not yet',
+		saveFailed: 'That did not save.',
+		retrySave: 'Try saving again',
+		effect: {
+			noiseCap: '+{n} to the noise cap',
+			noiseDecay: 'Noise fades {n}/s faster',
+			sweep: 'A click sweeps {n} tiles around it',
+			collectTravel: 'Towers collect in {n}s at most',
+			crackSpawns: '{n}% fewer through the first crack',
+			flyerDelay: 'Flying waves pushed back by {n}',
+			spreadRate: 'Mold spreads {n}% slower',
+			steals: 'Each theft takes {n} less, never none',
+			foodBonus: '+{n} food every night',
+			snackStash: '+{items} food once a night, at {at} left',
+		} satisfies InstallationEffectMessages,
+		preview: {
+			title: 'Tonight: night {n}',
+			where: '{map}, {waves} waves',
+			unlocks: 'New on the counter',
+			introduces: 'New in the kitchen',
+			start: 'Wait for 2am',
+			finished: 'The kitchen made it through. Every night, all the way to morning.',
+		},
+		reset: {
+			open: 'Start the campaign over',
+			question: 'Forget every night and everything bought?',
+			confirm: 'Start over',
+			cancel: 'Keep it',
+			saving: 'Starting over…',
+			failed: 'It did not reset.',
+			retry: 'Try again',
+		},
+		sync: {
+			local: 'Saved on this device',
+		},
+	},
 	// The card that goes up when the meter fills. Same idiom as `night.foodLost` and deliberately the
 	// same understatement: somebody came in and turned the light on, which is a thing that happened
 	// rather than a fail state (analytic-docs/DECISIONS.md section 1). It reuses `night.listSeparator`
@@ -691,6 +756,10 @@ export const en = {
 		listSeparator: ', ',
 		retry: 'Try the night again',
 		continue: 'Continue',
+		// The night's result is saved before either button goes anywhere (step 20D, decision 9).
+		saving: 'Saving the night…',
+		saveFailed: 'The night did not save.',
+		retrySave: 'Try saving again',
 		// Night 7 is the last one authored. Step 20 is what turns this into a campaign.
 		continueUnavailable: 'That is as far as the kitchen goes for now.',
 	},

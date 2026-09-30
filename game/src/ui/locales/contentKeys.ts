@@ -11,7 +11,7 @@
 
 import type { ENEMIES } from '@/core/content/enemies.ts'
 import type { FOODS } from '@/core/content/food.ts'
-import type { INSTALLATIONS } from '@/core/content/installations.ts'
+import type { InstallationEffect, INSTALLATIONS } from '@/core/content/installations.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
 import type { PlacementRejection } from '@/core/systems/placement.ts'
 import type { EnemyTag } from '@/core/types.ts'
@@ -56,6 +56,12 @@ export type FoodMessages = Record<(typeof FOODS)[number]['id'], { name: string }
  * than as `installation.secondShelf.name` on a card.
  */
 export type InstallationMessages = Record<(typeof INSTALLATIONS)[number]['id'], Entry>
+
+/**
+ * `kitchen.effect`, over the effect union's `kind`: the card's line under each installation. A new
+ * kind fails the build here as well as in `ui/kitchenView.ts`'s switch.
+ */
+export type InstallationEffectMessages = Record<InstallationEffect['kind'], string>
 
 /**
  * The same trick over a vocabulary rather than a collection: `PlacementRejection` is ten string

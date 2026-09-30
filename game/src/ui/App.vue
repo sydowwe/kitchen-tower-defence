@@ -36,6 +36,25 @@
 		--kd-hit-neutral: #ffe9a8;
 		--kd-hit-strong: #ff9d4f;
 		--kd-radius: 0.5rem;
+
+		/* The Kitchen between nights: the same room in daylight (step 20D). Its own roles rather than
+		   the night's retuned, because both screens exist at once and step 23 retunes them apart. */
+		--kd-day-sky: #dbe9f2;
+		--kd-day-wall: #efe6d6;
+		--kd-day-tile: #e4d8c3;
+		--kd-day-counter: #b98f63;
+		--kd-day-counter-top: #d6b58c;
+		--kd-day-floor: #a88a6c;
+		--kd-day-frame: #8a6e52;
+		/* Text on a bright room: warm dark, never black. */
+		--kd-day-ink: #3b3129;
+		--kd-day-ink-dim: #7a6c5f;
+		--kd-day-card: #fbf7f0;
+		--kd-day-card-edge: #dccdb7;
+		/* The money and anything bought: the lamp's amber, darkened to read on paper. */
+		--kd-day-owned: #a8741c;
+		--kd-day-owned-soft: #f5e2bd;
+		--kd-day-danger: #b0513a;
 	}
 
 	* {

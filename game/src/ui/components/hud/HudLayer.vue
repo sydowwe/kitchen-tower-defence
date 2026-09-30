@@ -55,9 +55,10 @@
 	<NightSummary
 		v-if="snapshot.summary !== null"
 		:summary="snapshot.summary"
-		:canContinue="canContinue"
+		:saveState="saveState"
 		@retry="emit('retry')"
 		@continueNight="emit('continueNight')"
+		@retrySave="emit('retrySave')"
 	/>
 </template>
 
@@ -100,7 +101,7 @@
 		toasts = [],
 		wake = null,
 		thiefBanner = null,
-		canContinue = true,
+		saveState = 'saved',
 	} = defineProps<{
 		snapshot: HudSnapshot
 		selection: Selection
@@ -113,8 +114,8 @@
 		wake?: WakeView | null
 		/** The Mouse's announcement, or null. A prop for `wake`'s reason: it is said once, off an event. */
 		thiefBanner?: ThiefBannerView | null
-		/** False on the last authored night. `GameView.vue` steps through `NIGHTS` and stops. */
-		canContinue?: boolean
+		/** Where the night's result is on its way to the save. Only the summary reads it. */
+		saveState?: 'saving' | 'saved' | 'failed'
 	}>()
 
 	const emit = defineEmits<{
@@ -127,6 +128,7 @@
 		togglePause: []
 		retry: []
 		continueNight: []
+		retrySave: []
 	}>()
 
 	/** The only reactive field of `Selection` the HUD reads. The hover fields are plain on purpose. */

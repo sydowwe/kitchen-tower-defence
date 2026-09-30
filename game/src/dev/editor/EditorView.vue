@@ -644,7 +644,7 @@
 			return
 		}
 		setPreviewMap(json)
-		void router.push('/')
+		void router.push({ name: 'night' })
 	}
 
 	// --- keyboard -------------------------------------------------------------------------------

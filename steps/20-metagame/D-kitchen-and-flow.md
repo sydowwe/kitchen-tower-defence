@@ -71,9 +71,13 @@ then edit this file. Don't leave it lying.
    double it. **A world built with any dev override doesn't record**: an editor preview, a `NightPanel`
    pick, or `devModifiers`. None of them is the campaign's night.
 9. **The summary's buttons wait on that save.** Continue goes to the Kitchen, Retry calls
-   `restart(current)`, and both are disabled while `status === 'saving'`. On `'error'` the summary
+   `restart()`, and both are disabled while `status === 'saving'`. On `'error'` the summary
    shows one line and a "try saving again" button that calls `retry()`. Leaving before the save lands
-   is how a night's money disappears.
+   is how a night's money disappears. *(Reconciled while building: **Retry is shown on a lost night
+   only.** `restart()` builds from progress, and a recorded win has already moved `nightId` on, so
+   "the same night" after a win would be the next one. Replaying a won night instead would contradict
+   `applyNightResult`, where a won night isn't replayed. Continue stays enabled on `'error'`. The
+   unsaved result is the store's `pending`, and the Kitchen shows the same failure with the same retry.)*
 10. **Speed:** `restart` applies `settings.speed`. The speed buttons still call `applySpeed`, which now
     also calls `settings.update({ speed })` for a non-zero speed. C debounces it.
 11. **Reset progress** is a Kitchen button that opens an inline confirmation (not `window.confirm`,
@@ -85,7 +89,9 @@ then edit this file. Don't leave it lying.
     states. Auth and progress both load here first, and in mock mode either can fail.
 14. **Dev failure toggle:** a small `dev/data/DataPanel.vue` on the Kitchen, imported dynamically
     under `import.meta.env.DEV` the way `GameView` imports `NoisePanel`, calling `setMockFailureRate`
-    (0.05 or 1). It ships nothing.
+    (0.05 or 1). It ships nothing. *(Reconciled while building: it's on the title too. The title's
+    load runs before the Kitchen is reachable, so its failure is only seen with
+    `VITE_MOCK_FAILURE_RATE=1`, and its retry needs the toggle there to turn the rate back down.)*
 15. **Author the installation English twice, on purpose.** Rewrite 20A's draft here, with the cards
     and the scene in front of you, in DECISIONS.md §1's voice: what changed in the kitchen, never a
     number, never a joke told to the player. E writes the summary's copy.
@@ -145,13 +151,13 @@ Decision 15, plus the Kitchen, title, preview and save-state strings.
 
 - [ ] Title → Kitchen → night → summary → Kitchen works, and a reload at any point comes back to the
       Kitchen with the balance and installations intact.
-- [ ] Losing a night returns to the Kitchen with the night still next, installations intact and 40%
+- [x] Losing a night returns to the Kitchen with the night still next, installations intact and 40%
       paid.
 - [ ] With `VITE_DATA_MODE=mock`, every screen shows a loading state. With the dev toggle at 100%,
       the title, a purchase, the night-end save and a reset each show an error with a retry that
       works once the toggle is back at 5%.
 - [ ] The kitchen visibly changes as you buy things. *Look at it.*
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green, and the
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green, and the
       production bundle contains no `dev/data`.
 
 ## Hands to 20E
@@ -159,6 +165,7 @@ Decision 15, plus the Kitchen, title, preview and save-state strings.
 ```
 router.ts                  route names 'title' | 'kitchen' | 'night'
 NightSummary.vue           props: summary, saveState: 'saving' | 'saved' | 'failed'; emits retry, continueNight, retrySave
+                           (Retry is rendered on a lost night only -- decision 9)
 ui/kitchenView.ts          buildKitchenView(progress): KitchenView
 ```
 

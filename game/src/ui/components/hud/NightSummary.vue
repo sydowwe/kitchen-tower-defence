@@ -41,10 +41,38 @@
 				<dt class="stub">{{ t('night.groceryMoney', { n: 0 }) }}</dt>
 			</dl>
 
-			<div class="actions">
+			<!-- Saved before either button goes anywhere: leaving mid-save is how a night's money
+				 disappears (step 20D, decision 9). -->
+			<p
+				v-if="saveState === 'saving'"
+				class="save"
+				role="status"
+			>
+				{{ t('night.saving') }}
+			</p>
+			<p
+				v-else-if="saveState === 'failed'"
+				class="save failed"
+				role="alert"
+			>
+				{{ t('night.saveFailed') }}
 				<button
 					type="button"
+					class="action inline"
+					@click="emit('retrySave')"
+				>
+					{{ t('night.retrySave') }}
+				</button>
+			</p>
+
+			<div class="actions">
+				<!-- A lost night only. A won one has already moved the campaign on, and a won night is
+					 not replayed (core/campaign.ts, applyNightResult). -->
+				<button
+					v-if="!summary.won"
+					type="button"
 					class="action"
+					:disabled="saveState === 'saving'"
 					@click="emit('retry')"
 				>
 					{{ t('night.retry') }}
@@ -52,8 +80,7 @@
 				<button
 					type="button"
 					class="action primary"
-					:disabled="!canContinue"
-					:title="canContinue ? undefined : t('night.continueUnavailable')"
+					:disabled="saveState === 'saving'"
 					@click="emit('continueNight')"
 				>
 					{{ t('night.continue') }}
@@ -70,19 +97,19 @@
 	import type { NightSummaryView } from '@/ui/viewModel.ts'
 
 	/**
-	 * `canContinue` is false on the last authored night. Disabled rather than hidden, so the pair of
-	 * buttons does not reflow on the one screen where the player is reading rather than aiming --
-	 * step 20 is what turns it into a campaign that continues somewhere.
+	 * `saveState` is the progress store's, for the night's result: both buttons wait on `'saving'`, and
+	 * `'failed'` offers the store's retry. A night that records nothing (a dev override) is `'saved'`.
 	 */
-	const { summary, canContinue = true } = defineProps<{
+	const { summary, saveState = 'saved' } = defineProps<{
 		summary: NightSummaryView
-		canContinue?: boolean
+		saveState?: 'saving' | 'saved' | 'failed'
 	}>()
 
 	const emit = defineEmits<{
 		retry: []
-		/** Not `continue`: it is a reserved word, and `@continue` would not compile. */
+		/** Not `continue`: it is a reserved word, and `@continue` would not compile. Goes to the Kitchen. */
 		continueNight: []
+		retrySave: []
 	}>()
 
 	const { t } = useI18n()
@@ -166,6 +193,24 @@
 
 	.tally .stub {
 		opacity: 0.55;
+	}
+
+	.save {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		margin: 0;
+		color: var(--kd-text-dim);
+		font-size: 0.8rem;
+	}
+
+	.save.failed {
+		color: var(--kd-danger);
+	}
+
+	.action.inline {
+		flex: none;
+		padding: 0.25rem 0.6rem;
 	}
 
 	.actions {
