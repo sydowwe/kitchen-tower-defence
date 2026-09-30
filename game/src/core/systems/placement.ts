@@ -41,7 +41,7 @@ export type PlacementRejection =
 	| 'occupied'
 	| 'tooExpensive'
 	| 'nightOver'
-	| 'locked'
+	| 'notInLoadout'
 
 export type PlacementResult = { ok: true } | { ok: false; reason: PlacementRejection }
 
@@ -101,18 +101,18 @@ export function towerById(world: World, towerId: EntityId): Tower | null {
  * on a tile the board draws as corrupted.
  *
  * `nightOver` is checked first: while the summary screen is up, a click that lands behind it must
- * not spend crumbs, whatever tile it hit. `locked` comes straight after it and before any tile or
- * price, because a tower tonight does not have is not a matter of where or how much. A non-integer
- * tile is `offBoard` rather than `blocked`, because `flagsAt` answers 0 for one and the reason has to
- * name the real problem.
+ * not spend crumbs, whatever tile it hit. `notInLoadout` comes straight after it and before any tile
+ * or price, because a tower left out of tonight's loadout is not a matter of where or how much -- it
+ * is there for a stale selection and a replayed command log. A non-integer tile is `offBoard` rather
+ * than `blocked`, because `flagsAt` answers 0 for one and the reason has to name the real problem.
  */
 export function canPlaceTower(world: World, def: TowerDef, tile: Vec2): PlacementResult {
 	const night = world.night
 	if (night.phase === 'won' || night.phase === 'lost') {
 		return rejected('nightOver')
 	}
-	if (night.availableTowerIds !== null && !night.availableTowerIds.includes(def.id)) {
-		return rejected('locked')
+	if (night.loadout !== null && !night.loadout.includes(def.id)) {
+		return rejected('notInLoadout')
 	}
 
 	const map = world.map

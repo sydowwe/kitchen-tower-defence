@@ -2,9 +2,9 @@
  * The installations you buy with Grocery Money between nights
  * (analytic-docs/CONTENT.md section 8).
  *
- * **Eleven of the doc's fourteen are here.** The three loadout slots are step 20a's. Each carries one
- * effect, and `resolveModifiers` folds a set of owned ids into the one `WorldModifiers` a world is
- * built with. No system reads an installation id; each reads the field of `world.modifiers` it owns.
+ * All fourteen of the doc's. Each carries one effect, and `resolveModifiers` folds a set of owned ids
+ * into the one `WorldModifiers` a world is built with. No system reads an installation id; each reads
+ * the field of `world.modifiers` it owns.
  *
  * `cost` is Grocery Money, and nothing in this file spends it.
  */
@@ -58,9 +58,21 @@ export const INSTALLATIONS = [
 	installation('biggerFridge', 200, '🧊', { kind: 'foodBonus', items: 4 }),
 	installation('emergencySnackStash', 220, '🍫', { kind: 'snackStash', atOnShelf: 3, items: 3 }),
 	installation('whiteNoiseMachine', 260, '📻', { kind: 'noiseCap', delta: 30 }),
+	installation('clearTheDryingRack', 170, '🍽️', { kind: 'loadoutSlots', slots: 1 }),
+	installation('takeTheToasterOffTheCounter', 240, '🔌', { kind: 'loadoutSlots', slots: 1 }),
+	installation('secondShelf', 320, '🪵', { kind: 'loadoutSlots', slots: 1 }),
 ]
 
 export type InstallationId = (typeof INSTALLATIONS)[number]['id']
+
+/**
+ * How many towers a night may be brought with before any counter space is bought
+ * (analytic-docs/DECISIONS.md section 10).
+ */
+export const LOADOUT_BASE_SLOTS = 5
+
+/** And with all of it. The fold caps here, so owning more slots than there are is still eight. */
+export const LOADOUT_MAX_SLOTS = 8
 
 /**
  * Ticks per second, for the one conversion the fold does. A system dividing by 60 is a system that
@@ -80,6 +92,7 @@ export const NO_MODIFIERS: WorldModifiers = {
 	stealsReduction: 0,
 	foodBonus: 0,
 	snackStash: null,
+	loadoutSlots: LOADOUT_BASE_SLOTS,
 }
 
 /**
@@ -137,13 +150,19 @@ export function resolveModifiers(ids: readonly DefId[]): WorldModifiers {
 				// Only one installation carries a stash, so its own value rather than a fold.
 				modifiers.snackStash = { atOnShelf: effect.atOnShelf, items: effect.items }
 				break
+			case 'loadoutSlots':
+				modifiers.loadoutSlots += effect.slots
+				break
 			default: {
-				// A twelfth kind fails `type-check` here, which is the point of the union.
+				// A new kind fails `type-check` here, which is the point of the union.
 				const unfolded: never = effect
 				throw new Error(`installation '${id}' has an effect the fold does not know: ${String(unfolded)}`)
 			}
 		}
 	}
+
+	// Once, after the loop, rather than inside the case.
+	modifiers.loadoutSlots = Math.min(modifiers.loadoutSlots, LOADOUT_MAX_SLOTS)
 
 	return modifiers
 }

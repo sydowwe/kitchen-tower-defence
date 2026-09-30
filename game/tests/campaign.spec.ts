@@ -3,8 +3,12 @@ import {
 	applyNightResult,
 	buyInstallation,
 	currentNight,
+	loadoutSlots,
 	newProgress,
 	nightResultOf,
+	previousLoadout,
+	setLoadout,
+	tonightsLoadout,
 	unlockedTowerIds,
 	worldOptionsFor,
 } from '@/core/campaign.ts'
@@ -47,6 +51,7 @@ describe('a new campaign', () => {
 			installations: [],
 			nightResults: {},
 			difficulty: 'normal',
+			loadouts: {},
 		})
 		expect(currentNight(progress)?.index).toBe(1)
 		expect(unlockedTowerIds(progress)).toEqual(['saltShaker', 'toasterCrumbTray'])
@@ -151,6 +156,7 @@ describe('purity', () => {
 				groceryMoney: 500,
 				installations: ['oilTheHinges'],
 				nightResults: { night02: { attempts: 1, wins: 1, bestGroceryMoney: 90 } },
+				loadouts: { night02: ['saltShaker', 'stickyTape'], night03: ['mousetrap'] },
 			}),
 		)
 		const snapshot = JSON.parse(JSON.stringify(frozen)) as Progress
@@ -159,17 +165,27 @@ describe('purity', () => {
 		const won = applyNightResult(frozen, result('night03', true, 200))
 		const bought = buyInstallation(frozen, 'buyABroom')
 		const owned = buyInstallation(frozen, 'oilTheHinges')
+		const chosen = setLoadout(frozen, ['saltShaker', 'mousetrap'])
+		const refused = setLoadout(frozen, [])
 
-		for (const next of [lost, won, bought.ok ? bought.progress : null]) {
+		for (const next of [lost, won, bought.ok ? bought.progress : null, chosen.ok ? chosen.progress : null]) {
 			expect(next).not.toBeNull()
 			expect(next).not.toBe(frozen)
 			expect(next?.nightResults).not.toBe(frozen.nightResults)
 			expect(next?.installations).not.toBe(frozen.installations)
 		}
+		expect(chosen.ok && chosen.progress.loadouts).not.toBe(frozen.loadouts)
+		expect(chosen.ok && chosen.progress.loadouts).toEqual({
+			night02: ['saltShaker', 'stickyTape'],
+			night03: ['saltShaker', 'mousetrap'],
+		})
 		expect(owned).toEqual({ ok: false, reason: 'owned' })
+		expect(refused).toEqual({ ok: false, reason: 'empty' })
 		expect(frozen).toEqual(snapshot)
 
 		expect(() => unlockedTowerIds(frozen)).not.toThrow()
+		expect(() => tonightsLoadout(frozen)).not.toThrow()
+		expect(() => previousLoadout(frozen)).not.toThrow()
 		expect(() => worldOptionsFor(frozen, 1)).not.toThrow()
 	})
 })
@@ -191,7 +207,7 @@ describe('nightResultOf', () => {
 })
 
 describe('worldOptionsFor', () => {
-	it('builds tonight’s world with the broom’s sweep and only the unlocked towers', () => {
+	it('builds tonight’s world with the broom’s sweep and tonight’s loadout', () => {
 		const progress = progressAt('night04', { installations: ['buyABroom'], difficulty: 'nightmare' })
 		const world = createWorld(worldOptionsFor(progress, 77))
 
@@ -201,17 +217,138 @@ describe('worldOptionsFor', () => {
 		expect(world.difficulty.id).toBe('nightmare')
 		expect(world.modifiers.sweepRadiusTiles).toBe(1.5)
 		expect(world.modifiers).toEqual(resolveModifiers(['buyABroom']))
-		expect(world.night.availableTowerIds).toEqual(unlockedTowerIds(progress))
-		expect(world.night.availableTowerIds).toEqual([
+		expect(world.night.loadout).toEqual(tonightsLoadout(progress))
+		expect(world.night.loadout).toEqual(['saltShaker', 'toasterCrumbTray', 'stickyTape', 'mousetrap', 'cookieJar'])
+	})
+
+	it('builds with a stored loadout, in the order it was chosen', () => {
+		const progress = progressAt('night04', { loadouts: { night04: ['cookieJar', 'saltShaker'] } })
+
+		expect(createWorld(worldOptionsFor(progress, 1)).night.loadout).toEqual(['cookieJar', 'saltShaker'])
+	})
+
+	it('falls back to the default, rather than throwing, on a stored loadout naming a tower from a later night', () => {
+		// Only a content change moving the Fan's unlock could have stored this.
+		const progress = progressAt('night03', { loadouts: { night03: ['saltShaker', 'fan'] } })
+
+		expect(createWorld(worldOptionsFor(progress, 1)).night.loadout).toEqual(unlockedTowerIds(progress))
+	})
+
+	it('throws for a finished campaign: there is no night to build', () => {
+		expect(() => worldOptionsFor(progressAt(null), 1)).toThrow()
+	})
+})
+
+describe('loadoutSlots', () => {
+	it('is 5 with nothing owned, and one more per counter-space installation', () => {
+		expect(loadoutSlots(newProgress())).toBe(5)
+		expect(loadoutSlots(progressAt('night05', { installations: ['clearTheDryingRack', 'buyABroom'] }))).toBe(6)
+		expect(
+			loadoutSlots(
+				progressAt('night05', {
+					installations: ['clearTheDryingRack', 'takeTheToasterOffTheCounter', 'secondShelf'],
+				}),
+			),
+		).toBe(8)
+	})
+})
+
+describe('tonightsLoadout', () => {
+	it('is every unlocked tower on nights 1 to 4, which fit, and night 4 fills all five slots', () => {
+		const sizes = ['night01', 'night02', 'night03', 'night04'].map(nightId => {
+			const progress = progressAt(nightId)
+			const unlocked = unlockedTowerIds(progress)
+			expect(unlocked.length).toBeLessThanOrEqual(5)
+			expect(tonightsLoadout(progress)).toEqual(unlocked)
+			return unlocked.length
+		})
+
+		expect(sizes).toEqual([2, 3, 4, 5])
+	})
+
+	it('is five of six on night 5, the first cut: the Spray Bottle waits, and nothing was dropped for it', () => {
+		const fresh = progressAt('night05')
+		expect(unlockedTowerIds(fresh)).toHaveLength(6)
+		expect(tonightsLoadout(fresh)).toEqual([
 			'saltShaker',
 			'toasterCrumbTray',
 			'stickyTape',
 			'mousetrap',
 			'cookieJar',
 		])
+
+		// Coming from a full night-4 counter: last night's five, and the new tower is not swapped in.
+		const five = ['cookieJar', 'mousetrap', 'saltShaker', 'stickyTape', 'toasterCrumbTray']
+		const afterNight4 = progressAt('night05', { loadouts: { night04: five } })
+		expect(tonightsLoadout(afterNight4)).toEqual(five)
+		expect(tonightsLoadout(afterNight4)).not.toContain('sprayBottle')
 	})
 
-	it('throws for a finished campaign: there is no night to build', () => {
-		expect(() => worldOptionsFor(progressAt(null), 1)).toThrow()
+	it('adds tonight’s unlock to last night’s when there is room', () => {
+		const withRack = progressAt('night05', {
+			installations: ['clearTheDryingRack'],
+			loadouts: { night04: ['cookieJar', 'mousetrap'] },
+		})
+
+		expect(tonightsLoadout(withRack)).toEqual(['cookieJar', 'mousetrap', 'sprayBottle'])
+	})
+
+	it('preselects the same three, in the same order, on a retry after a loss', () => {
+		const three = ['mousetrap', 'saltShaker', 'stickyTape']
+		const chosen = setLoadout(progressAt('night03'), three)
+		if (!chosen.ok) {
+			throw new Error(`three of night 3's four were refused: ${chosen.reason}`)
+		}
+
+		const lost = applyNightResult(chosen.progress, result('night03', false, 30))
+		expect(lost.nightId).toBe('night03')
+		expect(tonightsLoadout(lost)).toEqual(three)
+
+		const won = applyNightResult(chosen.progress, result('night03', true, 200))
+		expect(won.nightId).toBe('night04')
+		expect(previousLoadout(won)).toEqual(three)
+		expect(tonightsLoadout(won)).toEqual([...three, 'cookieJar'])
+	})
+})
+
+describe('previousLoadout', () => {
+	it('is null on night 1, with nothing stored, and for a stored loadout that no longer fits', () => {
+		expect(previousLoadout(newProgress())).toBeNull()
+		expect(previousLoadout(progressAt('night04'))).toBeNull()
+		expect(previousLoadout(progressAt('night04', { loadouts: { night03: ['saltShaker', 'fan'] } }))).toBeNull()
+	})
+
+	it('reads the night one below tonight’s, never tonight’s own or an older one', () => {
+		const progress = progressAt('night04', {
+			loadouts: { night02: ['stickyTape'], night03: ['mousetrap'], night04: ['cookieJar'] },
+		})
+
+		expect(previousLoadout(progress)).toEqual(['mousetrap'])
+	})
+})
+
+describe('setLoadout', () => {
+	it('stores the loadout for tonight and leaves every other night’s', () => {
+		const set = setLoadout(progressAt('night05', { loadouts: { night04: ['saltShaker'] } }), ['sprayBottle'])
+
+		expect(set.ok && set.progress.loadouts).toEqual({ night04: ['saltShaker'], night05: ['sprayBottle'] })
+	})
+
+	it('refuses six on five slots and takes them on six', () => {
+		const six = ['saltShaker', 'toasterCrumbTray', 'stickyTape', 'mousetrap', 'cookieJar', 'sprayBottle']
+
+		expect(setLoadout(progressAt('night05'), six)).toEqual({ ok: false, reason: 'tooMany' })
+		expect(setLoadout(progressAt('night05', { installations: ['clearTheDryingRack'] }), six).ok).toBe(true)
+	})
+
+	it('refuses a tower from a later night', () => {
+		expect(setLoadout(progressAt('night03'), ['saltShaker', 'cookieJar'])).toEqual({
+			ok: false,
+			reason: 'notUnlocked',
+		})
+	})
+
+	it('throws for a finished campaign: there is no tonight to choose for', () => {
+		expect(() => setLoadout(progressAt(null), ['saltShaker'])).toThrow()
 	})
 })

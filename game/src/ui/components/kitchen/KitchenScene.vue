@@ -47,8 +47,9 @@
 	const { t } = useI18n()
 
 	/**
-	 * Where each installation stands, as a percentage of the scene. A `Record` over every id, so a
-	 * twelfth installation fails `type-check` here until somebody decides where it goes.
+	 * Where each installation stands, as a percentage of the scene. A `Record` over every id, so a new
+	 * installation fails `type-check` here until somebody decides where it goes. The last three are
+	 * drafts that step 20aB places properly.
 	 */
 	const SPOTS: Record<InstallationId, { x: number; y: number }> = {
 		fixTheWindowScreen: { x: 30, y: 27 },
@@ -62,6 +63,9 @@
 		closeTheKitchenDoor: { x: 88, y: 50 },
 		buyABroom: { x: 82, y: 72 },
 		sealTheBaseboardCrack: { x: 22, y: 89 },
+		clearTheDryingRack: { x: 72, y: 63 },
+		takeTheToasterOffTheCounter: { x: 36, y: 50 },
+		secondShelf: { x: 58, y: 40 },
 	}
 </script>
 

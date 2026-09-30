@@ -40,7 +40,10 @@ function storedRecord(store: string): unknown {
 	return raw === undefined ? null : JSON.parse(raw)
 }
 
-function progressRecord(): { revision: number; data: { groceryMoney: number; installations: string[] } } | null {
+function progressRecord(): {
+	revision: number
+	data: { groceryMoney: number; installations: string[]; loadouts: Record<string, string[]> }
+} | null {
 	return storedRecord('progress') as ReturnType<typeof progressRecord>
 }
 
@@ -118,6 +121,7 @@ describe('the progress store', () => {
 		expect(store.status).toBe('saving')
 		expect(await store.recordNightResult({ nightId: 'night01', won: false, groceryMoney: 20 })).toBe('busy')
 		expect(await store.buyInstallation(HINGES)).toBe('busy')
+		expect(await store.chooseLoadout(['saltShaker'])).toBe('busy')
 		expect(await store.resetProgress()).toBe('busy')
 
 		expect(await settle(first)).toBe('ok')
@@ -147,6 +151,59 @@ describe('the progress store', () => {
 		expect(await store.buyInstallation(HINGES)).toBe('tooExpensive')
 		expect(store.status).toBe('idle')
 		expect(progressRecord()?.revision).toBe(1)
+	})
+
+	it('saves a chosen loadout for tonight only once the save resolves', async () => {
+		const store = await loadedWithMoney(0)
+		const before = store.progress
+
+		setMockFailureRate(1)
+		expect(await settle(store.chooseLoadout(['stickyTape', 'saltShaker']))).toBe('failed')
+		expect(store.progress).toBe(before)
+		expect(store.progress?.loadouts).toEqual({})
+
+		setMockFailureRate(0)
+		await settle(store.retry())
+		expect(store.progress?.loadouts).toEqual({ night02: ['stickyTape', 'saltShaker'] })
+		expect(progressRecord()).toMatchObject({
+			revision: 2,
+			data: { loadouts: { night02: ['stickyTape', 'saltShaker'] } },
+		})
+	})
+
+	it('names a loadout it refuses without saving anything', async () => {
+		const store = await loadedWithMoney(0)
+
+		expect(await store.chooseLoadout([])).toBe('empty')
+		expect(await store.chooseLoadout(['saltShaker', 'cookieJar'])).toBe('notUnlocked')
+		expect(store.status).toBe('idle')
+		expect(progressRecord()?.revision).toBe(1)
+	})
+
+	it('carries a failed night save with the loadout chosen after it, and lands both once', async () => {
+		const store = await loadedWithMoney(150)
+
+		setMockFailureRate(1)
+		expect(await settle(store.recordNightResult({ nightId: 'night02', won: false, groceryMoney: 40 }))).toBe(
+			'failed',
+		)
+		// The Retry: tonight's loadout is chosen with the lost night still unsaved.
+		expect(await settle(store.chooseLoadout(['stickyTape']))).toBe('failed')
+		expect(store.progress?.groceryMoney).toBe(150)
+
+		setMockFailureRate(0)
+		await settle(store.retry())
+		expect(store.progress?.groceryMoney).toBe(190)
+		expect(store.progress?.nightResults['night02']?.attempts).toBe(1)
+		expect(store.progress?.loadouts).toEqual({ night02: ['stickyTape'] })
+		expect(progressRecord()).toMatchObject({
+			revision: 2,
+			data: { groceryMoney: 190, loadouts: { night02: ['stickyTape'] } },
+		})
+
+		await settle(store.retry())
+		expect(store.progress?.groceryMoney).toBe(190)
+		expect(progressRecord()?.revision).toBe(2)
 	})
 
 	it('reports a failed load as an error, and retry loads it', async () => {

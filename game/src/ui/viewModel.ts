@@ -265,7 +265,7 @@ export interface ShopEntry {
 	 * lying about the one purchase the player has been waiting for.
 	 */
 	affordable: boolean
-	/** Tonight may place it: `availableTowerIds` is null, or has it. `canPlaceTower`'s `locked` check. */
+	/** Tonight may place it: `loadout` is null, or has it. `canPlaceTower`'s `notInLoadout` check. */
 	unlocked: boolean
 	/** The index of the night that unlocks it, which a locked entry shows in place of its price. */
 	unlockNight: number | null
@@ -750,9 +750,9 @@ export function shopOrder(): TowerDef[] {
 	)
 }
 
-/** `NightState.availableTowerIds`' own reading: null is every tower. */
-export function isUnlocked(availableTowerIds: readonly DefId[] | null, id: DefId): boolean {
-	return availableTowerIds === null || availableTowerIds.includes(id)
+/** `NightState.loadout`'s own reading: null is every tower. */
+export function inLoadout(loadout: readonly DefId[] | null, id: DefId): boolean {
+	return loadout === null || loadout.includes(id)
 }
 
 /** Keys `1`..`9` and then `0`: ten, and the tenth badge reads `0` because that is the key. */
@@ -762,9 +762,9 @@ const HOTKEY_COUNT = 10
  * The towers the number keys arm, in key order: the first ten **unlocked** entries of `shopOrder`.
  * A locked tower takes no key, so the keys do not skip over greyed buttons.
  */
-export function hotkeyTowers(availableTowerIds: readonly DefId[] | null): TowerDef[] {
+export function hotkeyTowers(loadout: readonly DefId[] | null): TowerDef[] {
 	return shopOrder()
-		.filter(def => isUnlocked(availableTowerIds, def.id))
+		.filter(def => inLoadout(loadout, def.id))
 		.slice(0, HOTKEY_COUNT)
 }
 
@@ -774,8 +774,8 @@ function hotkeyLabel(index: number): string {
 }
 
 function buildShop(world: World): ShopEntry[] {
-	const available = world.night.availableTowerIds
-	const keyed = hotkeyTowers(available)
+	const loadout = world.night.loadout
+	const keyed = hotkeyTowers(loadout)
 
 	return shopOrder().map(def => {
 		const keyIndex = keyed.indexOf(def)
@@ -786,7 +786,7 @@ function buildShop(world: World): ShopEntry[] {
 			descriptionKey: def.descriptionKey,
 			cost: def.cost,
 			affordable: world.crumbs >= def.cost,
-			unlocked: isUnlocked(available, def.id),
+			unlocked: inLoadout(loadout, def.id),
 			unlockNight: unlockNightOf(def.id),
 			hotkey: keyIndex === -1 ? null : hotkeyLabel(keyIndex),
 			stats: statsFor(def),

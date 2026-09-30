@@ -12,7 +12,7 @@
  * fails three systems into the first tick.
  */
 
-import { getMapDef, getNightDef } from '@/core/content/index.ts'
+import { getMapDef, getNightDef, getTowerDef } from '@/core/content/index.ts'
 import { resolveDifficulty } from '@/core/content/difficulty.ts'
 import { NO_MODIFIERS } from '@/core/content/installations.ts'
 import { bindRng, createRngState } from '@/core/rng.ts'
@@ -42,8 +42,12 @@ export interface CreateWorldOptions {
 	 * `resolveDifficulty` does, for exactly the same reason.
 	 */
 	modifiers?: WorldModifiers
-	/** The towers this night may place. Absent or null is any tower -- see `NightState.availableTowerIds`. */
-	availableTowerIds?: DefId[] | null
+	/**
+	 * The towers brought tonight. Absent or null is any tower -- see `NightState.loadout`. A list is
+	 * checked for being a list of towers, not for fitting the counter: how many slots a campaign has is
+	 * `core/campaign.ts`'s rule, and a dev panel builds worlds with modifiers that aren't the progress's.
+	 */
+	loadout?: DefId[] | null
 }
 
 /**
@@ -101,17 +105,33 @@ function stockFridge(
 	return items
 }
 
+/** A copy of a non-null loadout, refused when it is empty, names a tower twice, or names no tower. */
+function copyLoadout(loadout: DefId[]): DefId[] {
+	if (loadout.length === 0) {
+		throw new Error('a loadout names no towers: pass null for any tower')
+	}
+	if (new Set(loadout).size !== loadout.length) {
+		throw new Error(`a loadout names a tower twice: ${loadout.join(', ')}`)
+	}
+	for (const id of loadout) {
+		getTowerDef(id)
+	}
+	return [...loadout]
+}
+
 export function createWorld({
 	seed,
 	mapId,
 	nightId,
 	difficulty,
 	modifiers = NO_MODIFIERS,
-	availableTowerIds = null,
+	loadout = null,
 }: CreateWorldOptions): World {
 	const map = getMapDef(mapId)
 	const night = getNightDef(nightId)
 	const tier = resolveDifficulty(difficulty)
+	// A copy, for `modifiers`' reason below.
+	const brought = loadout === null ? null : copyLoadout(loadout)
 
 	// A night is authored for one map. Passing both is what a save record does, so the two
 	// disagreeing means one of them is stale -- and the symptom would otherwise be enemies walking
@@ -176,8 +196,7 @@ export function createWorld({
 			crumbsCollected: 0,
 			enemiesKilled: 0,
 			clearedThroughWaveIndex: -1,
-			// A copy, for `modifiers`' reason below.
-			availableTowerIds: availableTowerIds === null ? null : [...availableTowerIds],
+			loadout: brought,
 			pay: null,
 		},
 		difficulty: tier,

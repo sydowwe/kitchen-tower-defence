@@ -95,6 +95,7 @@ const MAX_TILES = 24
  *   seconds.
  * - A delay of more waves than a night is likely to have is a delay nobody would buy.
  * - Tupperware's −1 runs against a Mouse's 5, and Bigger Fridge's +4 against an 18-item shelf.
+ * - Counter space comes one slot at a time, and the whole range from base to maximum is three.
  */
 const MAX_NOISE_CAP_DELTA = 100
 const MAX_NOISE_DECAY_DELTA = 10
@@ -104,6 +105,7 @@ const MAX_FLYER_DELAY_WAVES = 5
 const MAX_STEALS_REDUCTION = 4
 const MAX_FOOD_BONUS = 20
 const MAX_SNACK_STASH_COUNT = 20
+const MAX_LOADOUT_SLOTS_DELTA = 3
 
 /** `.` buildable, `#` blocked, `~` decor. `T` is deliberately not here -- see the `mapSource` note. */
 const LEGAL_TILE_CHARS = '.#~'
@@ -416,8 +418,8 @@ export function contentSchemas() {
 	// `extends`, and no field naming a system: what the tower *does* is entirely in `behaviours`.
 	//
 	// Absent on purpose: when a tower unlocks. That is authored on the night that unlocks it
-	// (`NightDef.unlocksTowerIds`), the way analytic-docs/CONTENT.md section 6 authors it. Loadout
-	// state is step 20a's.
+	// (`NightDef.unlocksTowerIds`), the way analytic-docs/CONTENT.md section 6 authors it. Nor
+	// whether tonight brought it: that is `NightState.loadout`.
 
 	const tower = z.object({
 		id: defId(),
@@ -764,12 +766,10 @@ export function contentSchemas() {
 			atOnShelf: z.number().int().min(1).max(MAX_SNACK_STASH_COUNT),
 			items: z.number().int().min(1).max(MAX_SNACK_STASH_COUNT),
 		}),
+		z.object({ kind: z.literal('loadoutSlots'), slots: z.number().int().min(1).max(MAX_LOADOUT_SLOTS_DELTA) }),
 	])
 
-	/**
-	 * A metagame purchase (analytic-docs/CONTENT.md section 8). Fourteen are authored there; the three
-	 * loadout slots are step 20a's, and the other eleven are here.
-	 */
+	/** A metagame purchase: one of analytic-docs/CONTENT.md section 8's fourteen. */
 	const installation = z.object({
 		id: defId(),
 		nameKey: i18nKey(),

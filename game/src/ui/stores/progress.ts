@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
-import { applyNightResult, buyInstallation as buy, newProgress } from '@/core/campaign.ts'
+import { applyNightResult, buyInstallation as buy, newProgress, setLoadout } from '@/core/campaign.ts'
 import { toError } from '@/ui/composables/tracked.ts'
 import { useAuth } from '@/ui/composables/useAuth.ts'
 import { useProgress } from '@/ui/composables/useProgress.ts'
 import type { NightResult, Progress } from '@/core/campaign.ts'
+import type { LoadoutProblem } from '@/core/loadout.ts'
 import type { DefId } from '@/core/types.ts'
 
 export type ProgressStatus = 'idle' | 'loading' | 'saving' | 'error'
@@ -95,6 +96,21 @@ export const useProgressStore = defineStore('progress', () => {
 		return commit(bought.progress)
 	}
 
+	/**
+	 * Saves tonight's loadout, as the night starts. On `base()` like every change: a Retry after a
+	 * failed night save reaches this with that night's result still pending, and has to carry it.
+	 */
+	async function chooseLoadout(ids: DefId[]): Promise<'ok' | LoadoutProblem | 'busy' | 'failed'> {
+		if (isBusy()) {
+			return 'busy'
+		}
+		const chosen = setLoadout(base(), ids)
+		if (!chosen.ok) {
+			return chosen.reason
+		}
+		return commit(chosen.progress)
+	}
+
 	async function recordNightResult(result: NightResult): Promise<'ok' | 'busy' | 'failed'> {
 		if (isBusy()) {
 			return 'busy'
@@ -121,5 +137,15 @@ export const useProgressStore = defineStore('progress', () => {
 		}
 	}
 
-	return { progress, status, error, ensureLoaded, retry, buyInstallation, recordNightResult, resetProgress }
+	return {
+		progress,
+		status,
+		error,
+		ensureLoaded,
+		retry,
+		buyInstallation,
+		chooseLoadout,
+		recordNightResult,
+		resetProgress,
+	}
 })

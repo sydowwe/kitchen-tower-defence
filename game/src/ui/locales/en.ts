@@ -257,7 +257,8 @@ export const en = {
 			occupied: 'You have already put something there.',
 			tooExpensive: 'Not enough crumbs yet.',
 			nightOver: 'The night is over.',
-			locked: 'You do not have that one yet.',
+			// A tower you own and left upstairs, not one you lack.
+			notInLoadout: 'You did not set that one out tonight.',
 		} satisfies RejectionMessages,
 	},
 	debug: {
@@ -650,6 +651,19 @@ export const en = {
 			name: 'White-noise Machine',
 			description: 'A steady hush in the bedroom down the hall. Whoever is asleep in there sleeps through more.',
 		},
+		// A draft: step 20aB rewrites these three with the loadout screen's counter on screen.
+		clearTheDryingRack: {
+			name: 'Clear the Drying Rack',
+			description: 'The dishes put away at last. Room on the counter for one more thing tonight.',
+		},
+		takeTheToasterOffTheCounter: {
+			name: 'Take the Toaster Off the Counter',
+			description: 'It lives in the cupboard now. The space it took is yours for the night.',
+		},
+		secondShelf: {
+			name: 'Second Shelf',
+			description: 'Screwed in above the counter. One more thing set out before bed.',
+		},
 	} satisfies InstallationMessages,
 	// Every map's name, keyed off `MapDef.id`. The Counter is the only one until step 21.
 	map: {
@@ -690,6 +704,7 @@ export const en = {
 			steals: 'Each theft takes {n} less, never none',
 			foodBonus: '+{n} food every night',
 			snackStash: '+{items} food once a night, at {at} left',
+			loadoutSlots: '+{n} space on the counter',
 		} satisfies InstallationEffectMessages,
 		preview: {
 			title: 'Tonight: night {n}',

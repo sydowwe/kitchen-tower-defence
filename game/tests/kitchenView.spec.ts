@@ -15,12 +15,12 @@ function progressAt(nightId: string | null, overrides: Partial<Progress> = {}): 
 }
 
 describe('buildKitchenView', () => {
-	it('shows fresh progress as eleven unowned cards, none affordable on an empty jar', () => {
+	it('shows fresh progress as fourteen unowned cards, none affordable on an empty jar', () => {
 		const view = buildKitchenView(newProgress())
 
 		expect(view.groceryMoney).toBe(0)
-		expect(view.cards).toHaveLength(11)
-		expect(view.cards.map(card => card.state)).toEqual(Array(11).fill('unaffordable'))
+		expect(view.cards).toHaveLength(14)
+		expect(view.cards.map(card => card.state)).toEqual(Array(14).fill('unaffordable'))
 		expect(view.owned).toEqual([])
 	})
 
@@ -50,10 +50,11 @@ describe('buildKitchenView', () => {
 		const keys = view.cards.map(card => card.effect.textKey)
 
 		expect(keys.every(key => key.length > 0)).toBe(true)
-		// One key per effect kind: the two noise-cap installations share one, so ten keys for eleven.
+		// One key per effect kind: the two noise-cap installations share one and the three counter-space
+		// ones another, so eleven keys for fourteen.
 		const kinds = new Set(INSTALLATIONS.map(def => def.effect.kind))
 		expect(new Set(keys).size).toBe(kinds.size)
-		expect(kinds.size).toBe(10)
+		expect(kinds.size).toBe(11)
 		for (const card of view.cards) {
 			const def = INSTALLATIONS.find(entry => entry.id === card.id)
 			expect(card.effect.textKey).toBe(`kitchen.effect.${def?.effect.kind}`)
@@ -67,6 +68,7 @@ describe('buildKitchenView', () => {
 		expect(effects.sealTheBaseboardCrack).toEqual({ n: 20 })
 		expect(effects.pantryShelfLiner).toEqual({ n: 40 })
 		expect(effects.emergencySnackStash).toEqual({ items: 3, at: 3 })
+		expect(effects.secondShelf).toEqual({ n: 1 })
 	})
 
 	it('previews night 1: the Counter, six waves, the Salt Shaker and the Crumb Tray, and the Ant', () => {

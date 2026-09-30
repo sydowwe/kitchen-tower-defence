@@ -543,12 +543,13 @@ export interface NightState {
 	 */
 	clearedThroughWaveIndex: number
 	/**
-	 * The towers this night may place, or null for any tower at all. Null is `createWorld`'s default
-	 * and what a spec gets: a list snapshotted from `TOWERS` would refuse every synthetic tower a spec
-	 * registers after building its world. `worldOptionsFor` in `core/campaign.ts` is what passes a
-	 * campaign's unlocked set, and `canPlaceTower` refuses anything else with `locked`.
+	 * The towers brought tonight, in the order they were chosen, or null for any tower at all. Null is
+	 * `createWorld`'s default and what a spec gets: a list snapshotted from `TOWERS` would refuse every
+	 * synthetic tower a spec registers after building its world. `worldOptionsFor` in
+	 * `core/campaign.ts` passes `tonightsLoadout`, and `canPlaceTower` refuses anything else with
+	 * `notInLoadout`. Nothing writes it after `createWorld`.
 	 */
-	availableTowerIds: DefId[] | null
+	loadout: DefId[] | null
 	/**
 	 * What tonight paid, term by term. Null until the night ends; `resolveSystem` writes it once, in
 	 * whichever terminal branch it takes, just before `nightEnded`.
@@ -643,6 +644,13 @@ export interface WorldModifiers {
 	foodBonus: number
 	/** Restocks the shelf once a night, when a take leaves `atOnShelf` or fewer. */
 	snackStash: { atOnShelf: number; items: number } | null
+	/**
+	 * How many towers a loadout may hold, capped at `LOADOUT_MAX_SLOTS`. **No system reads it.** The
+	 * campaign reads it off `resolveModifiers` before any world exists (`loadoutSlots` in
+	 * `core/campaign.ts`). It is here because the fold is the one place an installation becomes a
+	 * number, and because a replay carries what the night was built with.
+	 */
+	loadoutSlots: number
 }
 
 /**

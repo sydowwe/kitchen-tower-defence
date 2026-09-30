@@ -51,9 +51,8 @@ export type FoodMessages = Record<(typeof FOODS)[number]['id'], { name: string }
  * `Entry`, because an installation is bought off a card that has to say what it does -- "+25 to the
  * noise cap" is the whole reason to spend 100 Grocery Money on a door.
  *
- * `INSTALLATIONS` is eleven of analytic-docs/CONTENT.md section 8's fourteen today, so this type
- * grows by itself as step 20a authors the loadout slots: each one lands as a build error here rather
- * than as `installation.secondShelf.name` on a card.
+ * The type grows by itself with `INSTALLATIONS`: a new one lands as a build error here rather than as
+ * `installation.secondShelf.name` on a card.
  */
 export type InstallationMessages = Record<(typeof INSTALLATIONS)[number]['id'], Entry>
 

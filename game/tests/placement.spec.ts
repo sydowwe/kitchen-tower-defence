@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { createCommandQueue } from '@/core/commands.ts'
 import { mousetrap, saltShaker, toasterCrumbTray } from '@/core/content/towers.ts'
-import { TileFlags } from '@/core/map.ts'
+import { canPlace, TileFlags } from '@/core/map.ts'
+import { tick } from '@/core/sim.ts'
 import { commandsSystem } from '@/core/systems/commands.ts'
 import { canPlaceTower, placeTower, refundFor, sellTower, towerAt } from '@/core/systems/placement.ts'
 import { createWorld } from '@/core/world.ts'
 import { createTestWorld } from './fixtures/world.ts'
+import type { Command, CommandKind } from '@/core/commands.ts'
 import type { TowerDef } from '@/core/content/index.ts'
-import type { Tower, World } from '@/core/types.ts'
+import type { Tower, Vec2, World } from '@/core/types.ts'
+import type { CreateWorldOptions } from '@/core/world.ts'
 
 /**
  * Placement and the refund. What a tower *does* once it is standing is step 6B's, so nothing here
@@ -107,50 +111,128 @@ describe('canPlaceTower', () => {
 		}
 	})
 
-	it('refuses a tower the night does not have, and places one it does', () => {
+	it('refuses a tower left out of the loadout, and places one brought', () => {
 		const world = buildableWorld()
-		world.night.availableTowerIds = ['saltShaker']
+		world.night.loadout = ['saltShaker']
 
-		expect(reasonFor(world, mousetrap, 0)).toBe('locked')
+		expect(reasonFor(world, mousetrap, 0)).toBe('notInLoadout')
 		expect(place(world, saltShaker, 0).defId).toBe('saltShaker')
 	})
 
-	it('places anything when the list is null', () => {
+	it('places anything when the loadout is null', () => {
 		const world = buildableWorld()
-		expect(world.night.availableTowerIds).toBeNull()
+		expect(world.night.loadout).toBeNull()
 
 		expect(place(world, mousetrap, 0).defId).toBe('mousetrap')
 		expect(place(world, saltShaker, 4).defId).toBe('saltShaker')
 	})
 
-	it('names `locked` before any tile or price, and `nightOver` before `locked`', () => {
+	it('names `notInLoadout` before any tile or price, and `nightOver` before `notInLoadout`', () => {
 		const world = buildableWorld()
-		world.night.availableTowerIds = ['saltShaker']
+		world.night.loadout = ['saltShaker']
 		world.crumbs = 0
 
 		// A blocked tile and an empty wallet: neither is the reason a Mousetrap is not going there.
-		expect(reasonFor(world, mousetrap, BLOCKED_TILE)).toBe('locked')
+		expect(reasonFor(world, mousetrap, BLOCKED_TILE)).toBe('notInLoadout')
 
 		world.night.phase = 'won'
 		expect(reasonFor(world, mousetrap, BLOCKED_TILE)).toBe('nightOver')
 	})
+})
 
-	it('carries the list from `createWorld` as a copy of the one passed in', () => {
-		const available = ['saltShaker', 'toasterCrumbTray']
-		const world = createWorld({
-			seed: 1,
-			mapId: 'counter',
-			nightId: 'night01',
-			difficulty: 'normal',
-			availableTowerIds: available,
-		})
-		available.push('mousetrap')
+describe('the loadout a world is built with', () => {
+	const OPTIONS: CreateWorldOptions = { seed: 1, mapId: 'counter', nightId: 'night01', difficulty: 'normal' }
 
-		expect(world.night.availableTowerIds).toEqual(['saltShaker', 'toasterCrumbTray'])
-		expect(
-			createWorld({ seed: 1, mapId: 'counter', nightId: 'night01', difficulty: 'normal' }).night
-				.availableTowerIds,
-		).toBeNull()
+	/** The first tile of the Counter an off-track tower may stand on. */
+	function floorTile(world: World): Vec2 {
+		for (let y = 0; y < world.map.heightTiles; y++) {
+			for (let x = 0; x < world.map.widthTiles; x++) {
+				if (canPlace(world.map, { x, y }, 'off_path')) {
+					return { x, y }
+				}
+			}
+		}
+		throw new Error('the Counter has no floor')
+	}
+
+	it('is a copy of the list `createWorld` was passed, and null when none was', () => {
+		const loadout = ['saltShaker', 'toasterCrumbTray']
+		const world = createWorld({ ...OPTIONS, loadout })
+		loadout.push('mousetrap')
+
+		expect(world.night.loadout).toEqual(['saltShaker', 'toasterCrumbTray'])
+		expect(createWorld(OPTIONS).night.loadout).toBeNull()
+	})
+
+	it('is refused by `createWorld` when empty, naming a tower twice, or naming no tower', () => {
+		expect(() => createWorld({ ...OPTIONS, loadout: [] })).toThrow(/no towers/)
+		expect(() => createWorld({ ...OPTIONS, loadout: ['saltShaker', 'saltShaker'] })).toThrow(/twice/)
+		expect(() => createWorld({ ...OPTIONS, loadout: ['saltShaker', 'goldenToaster'] })).toThrow(/goldenToaster/)
+	})
+
+	it('is not checked against a slot count: eight towers build a world with no counter space owned', () => {
+		const eight = [
+			'saltShaker',
+			'toasterCrumbTray',
+			'stickyTape',
+			'mousetrap',
+			'cookieJar',
+			'sprayBottle',
+			'cardboardBox',
+			'iceCubeTray',
+		]
+		const world = createWorld({ ...OPTIONS, loadout: eight })
+
+		expect(world.modifiers.loadoutSlots).toBe(5)
+		expect(world.night.loadout).toHaveLength(8)
+	})
+
+	it('turns away a PlaceTower for a tower left out, ticked: nothing placed, nothing spent', () => {
+		const world = createWorld({ ...OPTIONS, loadout: ['saltShaker'] })
+		const tile = floorTile(world)
+		const wallet = world.crumbs
+		const queue = createCommandQueue()
+
+		queue.enqueue({ kind: 'PlaceTower', defId: 'mousetrap', tile })
+		tick(world, queue)
+
+		expect(world.towers).toEqual([])
+		expect(world.crumbs).toBe(wallet)
+
+		queue.enqueue({ kind: 'PlaceTower', defId: 'saltShaker', tile })
+		tick(world, queue)
+		expect(world.towers.map(tower => tower.defId)).toEqual(['saltShaker'])
+	})
+
+	it('is never written once the night starts, by any command', () => {
+		const given = ['saltShaker', 'toasterCrumbTray']
+		const world = createWorld({ ...OPTIONS, loadout: given })
+		const tile = floorTile(world)
+		const queue = createCommandQueue()
+		queue.enqueue({ kind: 'PlaceTower', defId: 'saltShaker', tile })
+		tick(world, queue)
+		const towerId = world.towers[0]?.id ?? -1
+		const foodId = world.night.food[0]?.id ?? -1
+
+		Object.freeze(world.night.loadout)
+
+		// A mapped type rather than a list, so a ninth command kind fails `type-check` here until it is covered.
+		const every: { [Kind in CommandKind]: Extract<Command, { kind: Kind }> } = {
+			PlaceTower: { kind: 'PlaceTower', defId: 'toasterCrumbTray', tile: { x: tile.x, y: tile.y } },
+			SellTower: { kind: 'SellTower', towerId },
+			UpgradeTower: { kind: 'UpgradeTower', towerId },
+			SetTargetingMode: { kind: 'SetTargetingMode', towerId, mode: 'STRONGEST' },
+			CollectCrumb: { kind: 'CollectCrumb', crumbId: 9999 },
+			CollectFood: { kind: 'CollectFood', foodId },
+			CallWaveEarly: { kind: 'CallWaveEarly' },
+			SetSpeed: { kind: 'SetSpeed', speed: 3 },
+		}
+		for (const command of Object.values(every)) {
+			queue.enqueue(command)
+		}
+
+		expect(() => tick(world, queue)).not.toThrow()
+		expect(world.night.loadout).toEqual(given)
 	})
 })
 

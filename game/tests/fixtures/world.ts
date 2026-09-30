@@ -85,7 +85,7 @@ export function createTestWorld(): World {
 			crumbsCollected: 0,
 			enemiesKilled: 0,
 			clearedThroughWaveIndex: -1,
-			availableTowerIds: null,
+			loadout: null,
 			// Null even though the night is `'won'`: `'test'` is no night, so there is no pay to compute.
 			pay: null,
 		},

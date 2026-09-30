@@ -8,6 +8,7 @@
 export * from '@/core/campaign.ts'
 export * from '@/core/commands.ts'
 export * from '@/core/content/index.ts'
+export * from '@/core/loadout.ts'
 export * from '@/core/map.ts'
 export * from '@/core/path.ts'
 export * from '@/core/rng.ts'

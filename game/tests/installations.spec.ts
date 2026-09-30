@@ -2,7 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { isCollect } from '@/core/content/behaviours.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
 import { ant, beetle, mold } from '@/core/content/enemies.ts'
-import { INSTALLATIONS, NO_MODIFIERS, resolveModifiers } from '@/core/content/installations.ts'
+import {
+	INSTALLATIONS,
+	LOADOUT_BASE_SLOTS,
+	LOADOUT_MAX_SLOTS,
+	NO_MODIFIERS,
+	resolveModifiers,
+} from '@/core/content/installations.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { toasterCrumbTray } from '@/core/content/towers.ts'
 import { createCommandQueue } from '@/core/commands.ts'
@@ -45,7 +51,7 @@ function spawnCounts(world: World): Record<string, number> {
 }
 
 describe('the fold', () => {
-	it('is the eleven of analytic-docs/CONTENT.md section 8 at its prices, in its order', () => {
+	it('is the fourteen of analytic-docs/CONTENT.md section 8 at its prices, in its order', () => {
 		expect(INSTALLATIONS.map(def => def.id)).toEqual([
 			'oilTheHinges',
 			'closeTheKitchenDoor',
@@ -58,8 +64,13 @@ describe('the fold', () => {
 			'biggerFridge',
 			'emergencySnackStash',
 			'whiteNoiseMachine',
+			'clearTheDryingRack',
+			'takeTheToasterOffTheCounter',
+			'secondShelf',
 		])
-		expect(INSTALLATIONS.map(def => def.cost)).toEqual([90, 100, 110, 120, 140, 150, 160, 180, 200, 220, 260])
+		expect(INSTALLATIONS.map(def => def.cost)).toEqual([
+			90, 100, 110, 120, 140, 150, 160, 180, 200, 220, 260, 170, 240, 320,
+		])
 	})
 
 	it('is NO_MODIFIERS for nothing owned, and throws with the id for an unknown one', () => {
@@ -85,7 +96,42 @@ describe('the fold', () => {
 			stealsReduction: 1,
 			foodBonus: 4,
 			snackStash: { atOnShelf: 3, items: 3 },
+			loadoutSlots: 8,
 		})
+	})
+})
+
+describe('counter space', () => {
+	const SLOT_IDS = ['clearTheDryingRack', 'takeTheToasterOffTheCounter', 'secondShelf']
+
+	it('is 5 with nothing owned, and carried onto the world it was built with', () => {
+		expect(LOADOUT_BASE_SLOTS).toBe(5)
+		expect(LOADOUT_MAX_SLOTS).toBe(8)
+		expect(resolveModifiers([]).loadoutSlots).toBe(5)
+		expect(worldWith(['secondShelf']).modifiers.loadoutSlots).toBe(6)
+	})
+
+	it('is 6 with any one, 7 with any two, 8 with all three', () => {
+		for (const id of SLOT_IDS) {
+			expect(resolveModifiers([id]).loadoutSlots).toBe(6)
+		}
+		for (const [a, b] of [
+			['clearTheDryingRack', 'takeTheToasterOffTheCounter'],
+			['clearTheDryingRack', 'secondShelf'],
+			['takeTheToasterOffTheCounter', 'secondShelf'],
+		] as const) {
+			expect(resolveModifiers([a, b]).loadoutSlots).toBe(7)
+		}
+		expect(resolveModifiers(SLOT_IDS).loadoutSlots).toBe(8)
+	})
+
+	it('caps at 8, not 9: four copies of one slot installation', () => {
+		// There is no fourth slot installation to own, so the cap is reached by repeating one.
+		expect(resolveModifiers(Array(4).fill('secondShelf')).loadoutSlots).toBe(8)
+	})
+
+	it('touches no other field', () => {
+		expect({ ...resolveModifiers(SLOT_IDS), loadoutSlots: NO_MODIFIERS.loadoutSlots }).toEqual(NO_MODIFIERS)
 	})
 })
 

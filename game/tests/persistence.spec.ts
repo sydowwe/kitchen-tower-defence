@@ -8,7 +8,7 @@ import { settingsCodec } from '@/data/dto/settings.ts'
 import { createDataLayer, RemoteUnavailableError } from '@/data/index.ts'
 import { createMemoryStorage } from './fixtures/memoryStorage.ts'
 import type { Progress } from '@/core/campaign.ts'
-import type { Codec, ProgressDtoV1 } from '@/data/dto/index.ts'
+import type { Codec, ProgressDtoV1, ProgressDtoV2 } from '@/data/dto/index.ts'
 import type { MemoryStorage } from './fixtures/memoryStorage.ts'
 import type { z } from 'zod'
 
@@ -31,7 +31,17 @@ function sampleProgress(): Progress {
 			night03: { attempts: 2, wins: 1, bestGroceryMoney: 62 },
 		},
 		difficulty: 'nightmare',
+		loadouts: {
+			night03: ['mousetrap', 'saltShaker', 'stickyTape'],
+			night04: ['cookieJar', 'mousetrap', 'saltShaker', 'stickyTape'],
+		},
 	}
+}
+
+/** `sampleProgress` as a v1 build wrote it: everything but the loadouts. */
+function sampleV1Data(): ProgressDtoV1 {
+	const { nightId, groceryMoney, installations, nightResults, difficulty } = progressCodec.toDto(sampleProgress())
+	return { nightId, groceryMoney, installations, nightResults, difficulty }
 }
 
 function storedRecord(storage: MemoryStorage, key: string): { version: number; revision: number; data: unknown } {
@@ -57,7 +67,7 @@ describe('a progress record', () => {
 
 		await store.save(USER, sampleProgress())
 		expect([...storage.entries.keys()]).toEqual([KEY])
-		expect(storedRecord(storage, KEY)).toMatchObject({ version: 1, revision: 1 })
+		expect(storedRecord(storage, KEY)).toMatchObject({ version: 2, revision: 1 })
 		expect(await store.load(USER)).toEqual(sampleProgress())
 
 		await store.save(USER, sampleProgress())
@@ -79,18 +89,56 @@ describe('a progress record', () => {
 		expect(storage.entries.size).toBe(0)
 	})
 
-	it('ships at v1 with an empty migration chain', () => {
-		expect(progressCodec.version).toBe(1)
-		expect(Object.keys(progressCodec.migrations)).toEqual([])
+	it('ships at v2 with exactly the 1→2 migration', () => {
+		expect(progressCodec.version).toBe(2)
+		expect(Object.keys(progressCodec.migrations)).toEqual(['1'])
 		expect(settingsCodec.version).toBe(1)
+	})
+
+	it('drops a loadout’s unknown tower and an unknown night’s entry, and keeps the rest out of :corrupt:', async () => {
+		const data = {
+			...progressCodec.toDto(sampleProgress()),
+			loadouts: {
+				night03: ['mousetrap', 'goldenToaster', 'saltShaker'],
+				night04: ['goldenToaster'],
+				night99: ['saltShaker'],
+			},
+		}
+		const storage = createMemoryStorage({ [KEY]: envelope(2, data) })
+
+		expect((await createLocalProgressStore(storage).load(USER))?.loadouts).toEqual({
+			night03: ['mousetrap', 'saltShaker'],
+		})
+		expect(corruptKeys(storage)).toEqual([])
 	})
 })
 
 describe('the migration chain', () => {
+	it('reads a stored v1 record with no loadouts chosen', async () => {
+		const storage = createMemoryStorage({ [KEY]: envelope(1, sampleV1Data()) })
+
+		expect(await createLocalProgressStore(storage).load(USER)).toEqual({ ...sampleProgress(), loadouts: {} })
+		expect(corruptKeys(storage)).toEqual([])
+	})
+
+	it('writes a migrated v1 record back as v2, one revision on', async () => {
+		const storage = createMemoryStorage({ [KEY]: envelope(1, sampleV1Data()) })
+		const store = createLocalProgressStore(storage)
+
+		const loaded = await store.load(USER)
+		if (loaded === null) {
+			throw new Error('the v1 record did not load')
+		}
+		await store.save(USER, loaded)
+
+		expect(storedRecord(storage, KEY)).toMatchObject({ version: 2, revision: 4, data: { loadouts: {} } })
+	})
+
 	const progressSchemaV0 = progressSchemaV1.omit({ difficulty: true })
-	const codecWithV0: Codec<Progress, ProgressDtoV1> = {
+	const codecWithV0: Codec<Progress, ProgressDtoV2> = {
 		...progressCodec,
 		migrations: {
+			...progressCodec.migrations,
 			0: data => ({ ...progressSchemaV0.parse(data), difficulty: 'normal' }),
 		},
 	}
@@ -101,14 +149,18 @@ describe('the migration chain', () => {
 		nightResults: { night01: { attempts: 2, wins: 1, bestGroceryMoney: 48 } },
 	}
 
-	it('reads a v0 record missing difficulty as a valid v1 Progress', async () => {
+	it('walks a v0 record missing difficulty up the whole chain to a valid v2 Progress', async () => {
 		const storage = createMemoryStorage({ [KEY]: envelope(0, v0Data) })
 
-		expect(await createRecordStore(storage, codecWithV0).load(USER)).toEqual({ ...v0Data, difficulty: 'normal' })
+		expect(await createRecordStore(storage, codecWithV0).load(USER)).toEqual({
+			...v0Data,
+			difficulty: 'normal',
+			loadouts: {},
+		})
 		expect(corruptKeys(storage)).toEqual([])
 	})
 
-	it('writes the migrated record back as v1, one revision on', async () => {
+	it('writes the migrated record back as v2, one revision on', async () => {
 		const storage = createMemoryStorage({ [KEY]: envelope(0, v0Data) })
 		const store = createRecordStore(storage, codecWithV0)
 
@@ -118,7 +170,11 @@ describe('the migration chain', () => {
 		}
 		await store.save(USER, loaded)
 
-		expect(storedRecord(storage, KEY)).toMatchObject({ version: 1, revision: 4, data: { difficulty: 'normal' } })
+		expect(storedRecord(storage, KEY)).toMatchObject({
+			version: 2,
+			revision: 4,
+			data: { difficulty: 'normal', loadouts: {} },
+		})
 	})
 
 	it('treats a v0 record as corrupt when the codec has no v0 migration', async () => {
@@ -130,16 +186,20 @@ describe('the migration chain', () => {
 })
 
 describe('a corrupt record', () => {
+	// At the codec's own version: a v1 envelope around v2 data would go corrupt in the migration's strict
+	// v1 parse, whichever check a case names.
 	const valid = progressCodec.toDto(sampleProgress())
 	const cases: [string, string][] = [
-		['unparseable JSON', '{"version":1,"updatedAt":'],
-		['a record failing its schema', envelope(1, { ...valid, groceryMoney: -5 })],
-		['an unknown installation', envelope(1, { ...valid, installations: ['oilTheHinges', 'goldenToaster'] })],
-		['an installation owned twice', envelope(1, { ...valid, installations: ['buyABroom', 'buyABroom'] })],
-		['an unknown night', envelope(1, { ...valid, nightId: 'night99' })],
-		['an unknown difficulty', envelope(1, { ...valid, difficulty: 'impossible' })],
-		['an extra field from another build', envelope(1, { ...valid, loadouts: [] })],
-		['a version newer than this build', envelope(2, valid)],
+		['unparseable JSON', '{"version":2,"updatedAt":'],
+		['a record failing its schema', envelope(2, { ...valid, groceryMoney: -5 })],
+		['an unknown installation', envelope(2, { ...valid, installations: ['oilTheHinges', 'goldenToaster'] })],
+		['an installation owned twice', envelope(2, { ...valid, installations: ['buyABroom', 'buyABroom'] })],
+		['an unknown night', envelope(2, { ...valid, nightId: 'night99' })],
+		['an unknown difficulty', envelope(2, { ...valid, difficulty: 'impossible' })],
+		['an extra field from another build', envelope(2, { ...valid, seenTutorial: true })],
+		['a v2 record missing its loadouts', envelope(2, sampleV1Data())],
+		['a v1 record already carrying loadouts', envelope(1, valid)],
+		['a version newer than this build', envelope(3, valid)],
 	]
 
 	it.each(cases)('%s loads null, is kept under one :corrupt: key, and the original is removed', async (_, raw) => {

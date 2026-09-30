@@ -66,7 +66,7 @@ export interface KitchenView {
 }
 
 /**
- * The card's line, one `case` per effect kind. A twelfth kind fails `type-check` here, like the fold in
+ * The card's line, one `case` per effect kind. A new kind fails `type-check` here, like the fold in
  * `resolveModifiers`, and never falls through to a default line.
  *
  * The two multipliers are authored as the fraction *left* (0.8) and read by a player as the fraction
@@ -94,6 +94,8 @@ function effectLine(effect: InstallationEffect): StatValueView {
 			return { textKey: 'kitchen.effect.foodBonus', params: { n: effect.items } }
 		case 'snackStash':
 			return { textKey: 'kitchen.effect.snackStash', params: { items: effect.items, at: effect.atOnShelf } }
+		case 'loadoutSlots':
+			return { textKey: 'kitchen.effect.loadoutSlots', params: { n: effect.slots } }
 		default: {
 			const unprinted: never = effect
 			throw new Error(`an installation effect the card cannot print: ${String(unprinted)}`)

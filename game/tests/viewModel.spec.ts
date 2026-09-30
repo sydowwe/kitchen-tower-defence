@@ -990,9 +990,9 @@ describe('the shop order', () => {
 		return NIGHTS.filter(def => def.index <= night).flatMap(def => def.unlocksTowerIds ?? [])
 	}
 
-	function shopWith(availableTowerIds: string[] | null): ReturnType<typeof buildHudSnapshot>['shop'] {
+	function shopWith(loadout: string[] | null): ReturnType<typeof buildHudSnapshot>['shop'] {
 		const world = buildableWorld()
-		world.night.availableTowerIds = availableTowerIds
+		world.night.loadout = loadout
 		return buildHudSnapshot(world, VIEW).shop
 	}
 

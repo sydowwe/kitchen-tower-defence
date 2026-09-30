@@ -327,7 +327,7 @@
 				nightId: id,
 				difficulty: progress.difficulty,
 				modifiers: devModifiers ?? resolveModifiers(progress.installations),
-				availableTowerIds: devNightId === null ? (campaign?.availableTowerIds ?? null) : null,
+				loadout: devNightId === null ? (campaign?.loadout ?? null) : null,
 			},
 		}
 	}

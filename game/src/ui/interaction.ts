@@ -13,7 +13,7 @@
  */
 
 import { effectiveDefOf, TOWERS } from '@/core/content/index.ts'
-import { hotkeyTowers, isUnlocked } from '@/ui/viewModel.ts'
+import { hotkeyTowers, inLoadout } from '@/ui/viewModel.ts'
 import {
 	isAttack,
 	isAura,
@@ -331,13 +331,13 @@ export function createInteraction(
 
 	/**
 	 * Null for a tower tonight may not place, too. A selection left over from before the list changed
-	 * would otherwise draw a ghost and get as far as `canPlaceTower`'s `locked` toast -- correct, and
+	 * would otherwise draw a ghost and get as far as `canPlaceTower`'s `notInLoadout` toast -- correct, and
 	 * not something the shop should let the player reach.
 	 */
 	function armedDef(): TowerDef | null {
 		const defId = selection.selectedDefId.value
 		const world = getWorld()
-		if (defId === null || world === null || !isUnlocked(world.night.availableTowerIds, defId)) {
+		if (defId === null || world === null || !inLoadout(world.night.loadout, defId)) {
 			return null
 		}
 		return TOWERS.find(def => def.id === defId) ?? null
@@ -576,7 +576,7 @@ export function createInteraction(
 		if (world === null || !Number.isInteger(typed)) {
 			return
 		}
-		const def = hotkeyTowers(world.night.availableTowerIds)[typed === 0 ? 9 : typed - 1]
+		const def = hotkeyTowers(world.night.loadout)[typed === 0 ? 9 : typed - 1]
 		if (def === undefined) {
 			return
 		}

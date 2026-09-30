@@ -183,8 +183,10 @@ Gotchas, all in `persistence.spec`:
   a Mousetrap is `'notInLoadout'`, ahead of a blocked tile and an empty wallet, and still behind
   `'nightOver'`. A `PlaceTower` for it, ticked, places nothing and spends nothing.
 - **Immutable once the night starts:** freeze `world.night.loadout`, then enqueue one of every command
-  and tick. Take the commands from a `Record<CommandKind, Command>`, so a ninth kind fails `type-check`
-  in this spec until it's covered. Nothing throws, and the loadout deep-equals what `createWorld` was
+  and tick. Take the commands from a `{ [K in CommandKind]: Extract<Command, { kind: K }> }`, so a ninth
+  kind fails `type-check` in this spec until it's covered. (Built as that mapped type rather than the
+  `Record<CommandKind, Command>` first written here: the record would also accept a `SellTower` under
+  the `PlaceTower` key.) Nothing throws, and the loadout deep-equals what `createWorld` was
   given. `createWorld` copies the list it was passed (the existing spec, renamed) and throws on `[]`,
   a duplicate and an unknown id.
 - **Nights 1–4 fit and night 5 is the first cut:** for fresh progress at each of nights 1–4,
@@ -205,12 +207,12 @@ Gotchas, all in `persistence.spec`:
 
 ## Acceptance
 
-- [ ] `grep -rn availableTowerIds src tests` finds nothing, and neither does `'locked'` as a
+- [x] `grep -rn availableTowerIds src tests` finds nothing, and neither does `'locked'` as a
       `PlacementRejection`.
-- [ ] Nothing outside `core/loadout.ts` and `core/campaign.ts` decides what a legal loadout is.
+- [x] Nothing outside `core/loadout.ts` and `core/campaign.ts` decides what a legal loadout is.
 - [ ] The game still plays from title to summary, and from night 5 on the shop greys the one unlocked
       tower the default left behind. That's expected until B hides it.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 20aB
 

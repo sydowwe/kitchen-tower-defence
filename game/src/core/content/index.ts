@@ -50,8 +50,8 @@ export type {
  * until there is something in the schema's shape to check. `tileEffects` is absent for exactly that
  * reason -- `Record<TileEffectKind, TileEffectDef>` is already exhaustive at the type level.
  *
- * `installations` joined the list in step 13A and holds eleven of analytic-docs/CONTENT.md section
- * 8's fourteen since step 20A. The three loadout slots are step 20a's.
+ * `installations` joined the list in step 13A and holds all of analytic-docs/CONTENT.md section 8's
+ * fourteen.
  *
  * `maps` is absent for a different reason: `core/content/maps/index.ts` validates its own sources,
  * because that check has to run before `loadMap` derives a `MapDef` from them.

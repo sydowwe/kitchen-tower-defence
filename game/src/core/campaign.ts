@@ -9,7 +9,9 @@
  */
 
 import { getInstallationDef, getNightDef, NIGHTS, resolveModifiers } from '@/core/content/index.ts'
+import { checkLoadout } from '@/core/loadout.ts'
 import type { NightDef } from '@/core/content/index.ts'
+import type { LoadoutProblem } from '@/core/loadout.ts'
 import type { DefId, DifficultyId, World } from '@/core/types.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
 
@@ -31,6 +33,13 @@ export interface Progress {
 	installations: DefId[]
 	nightResults: Record<DefId, NightRecord>
 	difficulty: DifficultyId
+	/**
+	 * The last loadout chosen for each night, keyed by night id, in selection order. Written only by
+	 * `setLoadout`, when a night starts, so a reload, a Retry and the balance harness all rebuild
+	 * tonight from progress alone. Read only through `tonightsLoadout` and `previousLoadout`, which
+	 * re-check it: a stored loadout is a preference, not a promise.
+	 */
+	loadouts: Record<DefId, DefId[]>
 }
 
 /** What a finished world reports to the campaign. */
@@ -41,6 +50,8 @@ export interface NightResult {
 }
 
 export type BuyInstallationResult = { ok: true; progress: Progress } | { ok: false; reason: 'owned' | 'tooExpensive' }
+
+export type SetLoadoutResult = { ok: true; progress: Progress } | { ok: false; reason: LoadoutProblem }
 
 function firstNight(): NightDef {
 	const night = NIGHTS[0]
@@ -57,6 +68,7 @@ export function newProgress(): Progress {
 		installations: [],
 		nightResults: {},
 		difficulty: 'normal',
+		loadouts: {},
 	}
 }
 
@@ -141,11 +153,90 @@ export function buyInstallation(progress: Progress, id: DefId): BuyInstallationR
 	}
 }
 
+/** How many towers a loadout may hold, with the counter space the player owns. */
+export function loadoutSlots(progress: Progress): number {
+	return resolveModifiers(progress.installations).loadoutSlots
+}
+
+/** The loadout stored for `nightId`, if tonight could still be played with it. */
+function legalStoredLoadout(progress: Progress, nightId: DefId): DefId[] | null {
+	const stored = progress.loadouts[nightId]
+	if (stored === undefined || checkLoadout(stored, unlockedTowerIds(progress), loadoutSlots(progress)) !== null) {
+		return null
+	}
+	return [...stored]
+}
+
+/**
+ * The loadout chosen for the night before tonight, if it is still a legal one: "last night's". Null
+ * on the first night, on a finished campaign, and when nothing was chosen or it no longer fits.
+ */
+export function previousLoadout(progress: Progress): DefId[] | null {
+	const tonight = currentNight(progress)
+	const before = tonight === null ? undefined : NIGHTS.find(night => night.index === tonight.index - 1)
+	return before === undefined ? null : legalStoredLoadout(progress, before.id)
+}
+
+/**
+ * What tonight is played with unless the player chooses otherwise, and what the loadout screen
+ * preselects: tonight's own stored loadout if it is still legal; else last night's plus tonight's
+ * unlocks **while there is room**; else the first towers unlocked, as many as fit. Never empty.
+ *
+ * A new tower is never swapped in over an old one. The first full counter is the moment the mechanic
+ * teaches itself, and a default that dropped the Salt Shaker to make room would make the player's
+ * first cut for them.
+ */
+export function tonightsLoadout(progress: Progress): DefId[] {
+	const slots = loadoutSlots(progress)
+	const tonight = currentNight(progress)
+	const stored = tonight === null ? null : legalStoredLoadout(progress, tonight.id)
+	if (stored !== null) {
+		return stored
+	}
+
+	const previous = previousLoadout(progress)
+	if (previous !== null && tonight !== null) {
+		const added = (tonight.unlocksTowerIds ?? []).filter(id => !previous.includes(id))
+		// `previous` is legal, so it fits, and the slice only ever cuts tonight's unlocks.
+		return [...previous, ...added].slice(0, slots)
+	}
+
+	return unlockedTowerIds(progress).slice(0, slots)
+}
+
+/**
+ * Stores the loadout chosen for tonight, replacing any earlier choice for it. Refused with the
+ * problem when tonight could not be played with it. Throws on a finished campaign: there is no
+ * tonight to choose for.
+ */
+export function setLoadout(progress: Progress, ids: readonly DefId[]): SetLoadoutResult {
+	const nightId = progress.nightId
+	if (nightId === null) {
+		throw new Error('the campaign is finished; there is no night to choose a loadout for')
+	}
+	const problem = checkLoadout(ids, unlockedTowerIds(progress), loadoutSlots(progress))
+	if (problem !== null) {
+		return { ok: false, reason: problem }
+	}
+
+	return {
+		ok: true,
+		progress: {
+			...progress,
+			installations: [...progress.installations],
+			nightResults: { ...progress.nightResults },
+			// A new object, never a write into the old one: every progress spread from this one shares it.
+			loadouts: { ...progress.loadouts, [nightId]: [...ids] },
+		},
+	}
+}
+
 /**
  * The one translation from progress to a world: tonight's night on its own map, at the campaign's
- * difficulty, with what the player owns folded in and only the towers they have unlocked. The game
- * and the balance harness both build their nights through this, so a save cannot build two
- * different nights.
+ * difficulty, with what the player owns folded in and tonight's loadout. The game and the balance
+ * harness both build their nights through this, so a save cannot build two different nights.
+ *
+ * A night nobody chose a loadout for plays the default the loadout screen would have shown.
  */
 export function worldOptionsFor(progress: Progress, seed: number): CreateWorldOptions {
 	const night = currentNight(progress)
@@ -159,6 +250,6 @@ export function worldOptionsFor(progress: Progress, seed: number): CreateWorldOp
 		nightId: night.id,
 		difficulty: progress.difficulty,
 		modifiers: resolveModifiers(progress.installations),
-		availableTowerIds: unlockedTowerIds(progress),
+		loadout: tonightsLoadout(progress),
 	}
 }
