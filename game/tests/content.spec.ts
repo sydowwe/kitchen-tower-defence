@@ -10,7 +10,7 @@ import {
 	isTileEffect,
 } from '@/core/content/behaviours.ts'
 import { ant, beetle, ENEMIES, fly, fruitFly, mold, moth, mouse, roach } from '@/core/content/enemies.ts'
-import { effectiveDef, unlockNightOf } from '@/core/content/index.ts'
+import { effectiveDef, getMapDef, unlockNightOf } from '@/core/content/index.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHT_MODIFIERS } from '@/core/content/modifiers.ts'
@@ -39,6 +39,10 @@ import {
 	TOWERS,
 	vinegarSpray,
 } from '@/core/content/towers.ts'
+import { canPlace } from '@/core/map.ts'
+import { samplePath } from '@/core/path.ts'
+import { startWave } from '@/core/systems/spawn.ts'
+import { createWorld } from '@/core/world.ts'
 import { en } from '@/ui/locales/en.ts'
 import type {
 	AttackBehaviour,
@@ -46,6 +50,8 @@ import type {
 	ConeAttackBehaviour,
 	IncomeBehaviour,
 } from '@/core/content/behaviours.ts'
+import type { NightDef } from '@/core/content/schema.ts'
+import type { World } from '@/core/types.ts'
 
 /**
  * Two real defs, so this is the first check that the pipeline of steps 2B and 2C actually accepts
@@ -478,19 +484,6 @@ describe('nights 4 to 9', () => {
 		])
 	})
 
-	it('is authored on the Counter, on the lane the Counter actually has', () => {
-		for (const night of NIGHTS) {
-			// Step 21 re-maps 4-7 onto the Sink and the Pantry; `createWorld` throws until it does.
-			expect(night.mapId).toBe('counter')
-			for (const wave of night.waves) {
-				for (const entry of wave.entries) {
-					// An unknown lane is what `startWave` throws on, and it would throw mid-night.
-					expect(entry.pathId).toBe('crack')
-				}
-			}
-		}
-	})
-
 	it('introduces the Beetle on night 5 and nowhere earlier', () => {
 		function enemiesOf(index: number): string[] {
 			const night = NIGHTS.find(entry => entry.index === index)
@@ -560,6 +553,114 @@ describe('nights 4 to 9', () => {
 		}
 
 		expect([...enemiesOf(9)].sort()).toEqual([...enemiesOf(8)].sort())
+	})
+})
+
+describe('the campaign on its maps', () => {
+	/** analytic-docs/CONTENT.md section 6's Map and Modifier columns, night by night. */
+	const SECTION_6: [mapId: string, modifierId: string | undefined][] = [
+		['counter', undefined],
+		['counter', undefined],
+		['counter', undefined],
+		['sink', undefined],
+		['sink', undefined],
+		['sink', 'dishesLeftOut'],
+		['pantry', undefined],
+		['pantry', undefined],
+		['pantry', undefined],
+		['stove', undefined],
+		['stove', 'dampNight'],
+		['stove', undefined],
+		['table', undefined],
+		['table', undefined],
+		['table', 'dinnerParty'],
+		['floor', 'movingDay'],
+		['floor', undefined],
+		['floor', 'heatwave'],
+	]
+
+	/** Every campaign night is played at `GameView.vue`'s seed, so this is the board moving day leaves. */
+	const SEED = 1234
+
+	/** The Vinegar Spray's, the mold's own answer, and the shortest a mold-killing tower reaches. */
+	const MOLD_REACH_TILES = 3
+
+	function worldFor(night: NightDef): World {
+		return createWorld({ seed: SEED, mapId: night.mapId, nightId: night.id, difficulty: 'normal' })
+	}
+
+	it('puts every night on section 6’s map, with section 6’s modifier', () => {
+		expect(NIGHTS.map(night => [night.mapId, night.modifierId])).toEqual(SECTION_6)
+	})
+
+	it('names only lanes its map has, and stands every mold short of its lane’s end', () => {
+		for (const night of NIGHTS) {
+			const paths = getMapDef(night.mapId).paths
+			for (const entry of night.waves.flatMap(wave => wave.entries)) {
+				if (entry.pathId === undefined) {
+					expect(entry.startDistanceTiles, `${night.id} ${entry.enemyDefId}`).toBeUndefined()
+					continue
+				}
+				const path = paths.find(candidate => candidate.id === entry.pathId)
+				expect(path, `${night.id} names '${entry.pathId}'`).toBeDefined()
+				expect(entry.startDistanceTiles ?? 0).toBeLessThan(path?.lengthTiles ?? 0)
+			}
+		}
+	})
+
+	it('starts every wave of every night on its own map, and walks every lane that map has', () => {
+		for (const night of NIGHTS) {
+			const world = worldFor(night)
+			const walked = new Set<string>()
+			night.waves.forEach((_, index) => {
+				expect(() => startWave(world, night, index)).not.toThrow()
+				for (const spawn of world.night.wave?.spawns ?? []) {
+					walked.add(spawn.pathId)
+				}
+			})
+			expect([...walked].sort(), night.id).toEqual(world.map.paths.map(path => path.id).sort())
+		}
+	})
+
+	it('stands every mold in reach of a tile a tower can still be built on, boxes and all', () => {
+		for (const night of NIGHTS) {
+			const world = worldFor(night)
+			for (const entry of night.waves.flatMap(wave => wave.entries)) {
+				if (entry.startDistanceTiles === undefined) {
+					continue
+				}
+				const path = world.map.paths.find(candidate => candidate.id === entry.pathId)
+				expect(path).toBeDefined()
+				if (path === undefined) {
+					continue
+				}
+				const at = samplePath(path, entry.startDistanceTiles)
+				let reachable = 0
+				for (let y = 0; y < world.map.heightTiles; y++) {
+					for (let x = 0; x < world.map.widthTiles; x++) {
+						if (
+							Math.hypot(x - at.x, y - at.y) <= MOLD_REACH_TILES &&
+							canPlace(world.map, { x, y }, 'off_path')
+						) {
+							reachable++
+						}
+					}
+				}
+				expect(reachable, `${night.id}: a mold ${entry.startDistanceTiles} along '${path.id}'`).toBeGreaterThan(
+					0,
+				)
+			}
+		}
+	})
+
+	it('authors night 15 plain: the dinner party doubles it, and the file does not', () => {
+		function meanCountPerWave(index: number): number {
+			const night = NIGHTS.find(entry => entry.index === index)
+			const waves = night?.waves ?? []
+			return waves.flatMap(wave => wave.entries).reduce((sum, entry) => sum + entry.count, 0) / waves.length
+		}
+
+		expect(meanCountPerWave(15)).toBeLessThanOrEqual(meanCountPerWave(14))
 	})
 })
 
@@ -1088,11 +1189,15 @@ describe('the Mouse', () => {
 				}
 				// A Mouse-only wave is five Mice for one lost Cookie Jar.
 				expect(wave.entries.length).toBeGreaterThan(1)
+				const lanes = getMapDef(night.mapId).paths.length
 				for (const entry of wave.entries) {
 					if (entry === mouseEntry) {
 						continue
 					}
-					const lastSpawn = entry.startDelayTicks + (entry.count - 1) * entry.spacingTicks
+					// An entry naming no lane is dealt over every lane at its own spacing, so its last
+					// enemy is the busiest lane's -- `dealRoundRobin` gives lane 0 the remainder.
+					const perLane = entry.pathId === undefined ? Math.ceil(entry.count / lanes) : entry.count
+					const lastSpawn = entry.startDelayTicks + (perLane - 1) * entry.spacingTicks
 					expect(lastSpawn).toBeLessThan(mouseEntry.startDelayTicks)
 				}
 			}

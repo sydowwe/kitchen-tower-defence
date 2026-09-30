@@ -48,6 +48,14 @@ edit this file. Don't leave it lying.
    only where the night means one: a mold (it stands somewhere), a Mouse (one entry, one flight home),
    a wave built to split the defence. Leaving `crack` on every entry sends the whole night down lane 0,
    and the Stove's second lane is scenery.
+   *Amended while building:* keeping each lane's spacing divides the wave's spawn window by the lane
+   count, which breaks the file's own pacing rule (a 630-tick window became ~300 against a 480-tick
+   gap). So a dealt entry's `spacingTicks` is authored ×2 on the Stove and ×3 on the Floor, and the
+   stream's rate and window are what they were on one lane. That is decision 1's "spacing where the
+   pacing rule breaks", caused by lane count, not length. Named lanes were also used for a new enemy's
+   first appearance (night 10's Moths down `vent`, night 17's Silverfish through `doorGap`) and for
+   slug-led runs (slug, roach column and night 16's Weevils on `doorGap`, whose road is the shared
+   stretch). Night 17's Mouse comes from `underTheOven`.
 4. **Every night's note names its two answers**: two loadouts it's written to fall to
    (`DECISIONS.md` §10). Step 22's `optimal` and `blind` policies are measured against them. Night 17's
    are the decision log's "non-physical" and "Lemon plus physical", not the step's "cold". The only cold
@@ -56,6 +64,9 @@ edit this file. Don't leave it lying.
    `modifierId: 'dinnerParty'`. The modifier doubles it at runtime. 15C authored the doubling into the
    file because the modifier didn't exist. Leaving that in and adding the modifier makes a night four
    times its size.
+   *As built:* five mold entries rather than nine, so the doubling makes ten molds against the nine
+   the note above night 11 measured, and the Slug's wave-3 introduction is one entry that arrives as
+   two.
 6. **A mold stands where a tower on its own map can reach it.** On night 16 that's measured against
    `createWorld(…).map` at seed 1234, after the boxes, not the authored map. "A mold nobody can shoot is
    a night that never ends" (the note above night 11), and moving day can box a pocket out.
@@ -92,8 +103,8 @@ two-answers proof is step 22's. This check is the floor.
 Gotchas, all silent until a night is played:
 
 - **The crossing time moved with the map.** Compute `lengthTiles / (speedTilesPerTick × 60)` per enemy
-  per lane. A 45-tile lane keeps an Ant 45 seconds where the Counter kept it 31. A 22-tile Stove lane
-  gives a Fly about 10 seconds in anyone's circle. The file's pacing rule (spawn window ≈ the gap after
+  per lane. A 45-tile lane keeps an Ant 45 seconds where the Counter kept it 31. A 28-tile Stove lane
+  (both of 21A's are 28) gives a Fly about 13 seconds in anyone's circle. The file's pacing rule (spawn window ≈ the gap after
   it) is about the stream. The crossing decides how much of it is on the board at once.
 - **Round-robin sends a 1-count entry down lane 0 only.** `dealRoundRobin(1, 2)` is `[1]`. A lone
   Beetle or a pair of Moths meant to use the second lane has to name it.
@@ -123,15 +134,20 @@ the map it's on now.
 - **Night 15 is plain:** its mean authored count per wave is no higher than night 14's. The modifier
   doubles it, and the file doesn't.
 - The existing night specs stay green as they are, including `kitchenView.spec`'s night 14.
+  *One changed its arithmetic:* the Mouse's "last thing its wave releases" computed a last spawn as
+  `(count − 1) × spacing`, which is wrong for an entry dealt over several lanes. It now counts the
+  busiest lane's share, `ceil(count / lanes)`. The assertion itself is unchanged.
+- *Added while building:* every mold stands within 3 tiles (the Vinegar Spray's range) of a tile
+  `canPlace` accepts on the world's own map at seed 1234, boxes and all (decision 6).
 
 ## Acceptance
 
-- [ ] `mapId: 'counter'` appears on nights 1–3 and nowhere else.
-- [ ] Every night's note says which map it's on, and its two answers.
-- [ ] Nights 6, 11, 15, 16 and 18 each won once headless with a named answer, with the numbers in the
+- [x] `mapId: 'counter'` appears on nights 1–3 and nowhere else.
+- [x] Every night's note says which map it's on, and its two answers.
+- [x] Nights 6, 11, 15, 16 and 18 each won once headless with a named answer, with the numbers in the
       commit.
 - [ ] Played through the dev night picker, nights 10 and 16 visibly use every lane.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

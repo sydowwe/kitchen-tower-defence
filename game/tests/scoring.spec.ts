@@ -22,7 +22,7 @@ import type { DifficultyId, World } from '@/core/types.ts'
  * ticks skipped, won.
  */
 function fixtureNight(difficulty: DifficultyId = 'normal'): World {
-	const world = createWorld({ seed: 1234, mapId: 'counter', nightId: 'night05', difficulty })
+	const world = createWorld({ seed: 1234, mapId: 'sink', nightId: 'night05', difficulty })
 	leaveOnShelf(world, 14)
 	world.night.enemiesKilled = 37
 	world.night.crumbsDropped = 120
