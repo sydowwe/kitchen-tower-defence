@@ -72,8 +72,8 @@ export function cursorsFor(world: World, entry: WaveEntry, count: number): WaveS
 }
 
 /**
- * One cursor for one lane. `startDistanceTiles` is carried only when the entry authors it, so every
- * cursor for an entry that does not is the object it was before the field existed.
+ * One cursor for one lane. `startDistanceTiles` and `hpMult` are carried only when the entry authors
+ * them, so every cursor for an entry that does not is the object it was before the fields existed.
  */
 function cursor(entry: WaveEntry, remaining: number, nextSpawnTick: number, path: Path): WaveSpawn {
 	const spawn: WaveSpawn = {
@@ -93,6 +93,9 @@ function cursor(entry: WaveEntry, remaining: number, nextSpawnTick: number, path
 			)
 		}
 		spawn.startDistanceTiles = entry.startDistanceTiles
+	}
+	if (entry.hpMult !== undefined) {
+		spawn.hpMult = entry.hpMult
 	}
 
 	return spawn
@@ -232,6 +235,8 @@ function burrowWindowFor(world: World, def: EnemyDef, pathId: string): Enemy['bu
  * status system that adds a tag to one of them would be editing the roster.
  *
  * `spawnedInWaveIndex` is -1 for an enemy no wave spawned -- see the field's note in `types.ts`.
+ *
+ * `hpMult` is the wave entry's, on top of the tier's. It defaults to 1 because the hatch has no entry.
  */
 export function spawnEnemyAt(
 	world: World,
@@ -239,10 +244,11 @@ export function spawnEnemyAt(
 	pathId: string,
 	distance: number,
 	spawnedInWaveIndex: number,
+	hpMult = 1,
 ): Enemy {
 	// Unrounded on purpose: rounding quantises the whole difficulty curve at low HP, and nothing
 	// downstream needs an integer.
-	const hp = def.hp * world.difficulty.enemyHpMult
+	const hp = def.hp * world.difficulty.enemyHpMult * hpMult
 
 	const enemy: Enemy = {
 		id: world.nextEntityId++,
@@ -279,7 +285,14 @@ export function spawnEnemyAt(
 
 /** One enemy of a wave cursor, at the start of its lane unless the entry authored somewhere else. */
 function spawnEnemy(world: World, spawn: WaveSpawn, waveIndex: number): void {
-	spawnEnemyAt(world, getEnemyDef(spawn.enemyDefId), spawn.pathId, spawn.startDistanceTiles ?? 0, waveIndex)
+	spawnEnemyAt(
+		world,
+		getEnemyDef(spawn.enemyDefId),
+		spawn.pathId,
+		spawn.startDistanceTiles ?? 0,
+		waveIndex,
+		spawn.hpMult ?? 1,
+	)
 }
 
 /**

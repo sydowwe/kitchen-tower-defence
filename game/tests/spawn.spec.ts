@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
+import { getNightDef, NIGHTS } from '@/core/content/index.ts'
 import type { NightDef } from '@/core/content/schema.ts'
 import { tick } from '@/core/sim.ts'
-import { startWave } from '@/core/systems/index.ts'
+import { spawnSystem, startWave } from '@/core/systems/index.ts'
+import { waveEntryCount } from '@/core/systems/spawn.ts'
 import type { DifficultyId, World } from '@/core/types.ts'
+import { createWorld } from '@/core/world.ts'
+import { deepFreeze } from './fixtures/freeze.ts'
 import { createTestWorld } from './fixtures/world.ts'
 
 /**
@@ -128,6 +132,41 @@ describe('difficulty scalars', () => {
 		expect(world.enemies).toHaveLength(6)
 		expect(world.enemies.every(enemy => enemy.hp === 13.5 && enemy.maxHp === 13.5)).toBe(true)
 		expect(night).toEqual(authored)
+	})
+
+	it('applies at spawn, on top of an entry’s hpMult, and never mutates the night definition', () => {
+		const night: NightDef = {
+			id: 'hpMultSpecNight',
+			index: 1,
+			mapId: 'counter',
+			waves: [
+				{
+					entries: [{ enemyDefId: 'ant', count: 5, spacingTicks: 10, startDelayTicks: 0, hpMult: 2.5 }],
+					countdownTicks: 12 * 60,
+				},
+			],
+		}
+		const fresh = structuredClone(night)
+		deepFreeze(night)
+		;(NIGHTS as NightDef[]).push(night)
+
+		try {
+			const world = createWorld({ seed: 1234, mapId: 'counter', nightId: night.id, difficulty: 'nightmare' })
+			startWave(world, getNightDef(night.id), 0)
+			const spawns = world.night.wave?.spawns ?? []
+			while (spawns.some(spawn => spawn.remaining > 0)) {
+				spawnSystem(world)
+				world.tick++
+			}
+
+			// round(5 * 1.25) = 6, and the Ant's 10 HP * 1.35 * 2.5 = 33.75, unrounded.
+			expect(world.enemies).toHaveLength(waveEntryCount(5, DIFFICULTIES.nightmare, world.modifiers))
+			expect(world.enemies).toHaveLength(6)
+			expect(world.enemies.every(enemy => enemy.hp === 33.75 && enemy.maxHp === 33.75)).toBe(true)
+			expect(night).toEqual(fresh)
+		} finally {
+			NIGHTS.splice(NIGHTS.indexOf(night), 1)
+		}
 	})
 
 	it('rounds a one-enemy entry up on cozy rather than deleting it', () => {

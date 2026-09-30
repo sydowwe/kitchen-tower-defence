@@ -39,11 +39,10 @@ import {
 	TOWERS,
 	vinegarSpray,
 } from '@/core/content/towers.ts'
-import { canPlace } from '@/core/map.ts'
-import { samplePath } from '@/core/path.ts'
 import { startWave } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
 import { en } from '@/ui/locales/en.ts'
+import { compositionBreaks, moldReachableTiles, mouseBreaks } from './fixtures/nightRules.ts'
 import type {
 	AttackBehaviour,
 	CollectBehaviour,
@@ -582,9 +581,6 @@ describe('the campaign on its maps', () => {
 	/** Every campaign night is played at `GameView.vue`'s seed, so this is the board moving day leaves. */
 	const SEED = 1234
 
-	/** The Vinegar Spray's, the mold's own answer, and the shortest a mold-killing tower reaches. */
-	const MOLD_REACH_TILES = 3
-
 	function worldFor(night: NightDef): World {
 		return createWorld({ seed: SEED, mapId: night.mapId, nightId: night.id, difficulty: 'normal' })
 	}
@@ -626,30 +622,22 @@ describe('the campaign on its maps', () => {
 		for (const night of NIGHTS) {
 			const world = worldFor(night)
 			for (const entry of night.waves.flatMap(wave => wave.entries)) {
-				if (entry.startDistanceTiles === undefined) {
-					continue
+				const reachable = moldReachableTiles(world.map, entry)
+				if (reachable !== null) {
+					expect(
+						reachable,
+						`${night.id}: a mold ${entry.startDistanceTiles} along '${entry.pathId}'`,
+					).toBeGreaterThan(0)
 				}
-				const path = world.map.paths.find(candidate => candidate.id === entry.pathId)
-				expect(path).toBeDefined()
-				if (path === undefined) {
-					continue
-				}
-				const at = samplePath(path, entry.startDistanceTiles)
-				let reachable = 0
-				for (let y = 0; y < world.map.heightTiles; y++) {
-					for (let x = 0; x < world.map.widthTiles; x++) {
-						if (
-							Math.hypot(x - at.x, y - at.y) <= MOLD_REACH_TILES &&
-							canPlace(world.map, { x, y }, 'off_path')
-						) {
-							reachable++
-						}
-					}
-				}
-				expect(reachable, `${night.id}: a mold ${entry.startDistanceTiles} along '${path.id}'`).toBeGreaterThan(
-					0,
-				)
 			}
+		}
+	})
+
+	it('stands one mold per entry, and never sends a Silverfish-only wave', () => {
+		for (const night of NIGHTS) {
+			night.waves.forEach((wave, index) => {
+				expect(compositionBreaks(wave), `${night.id} wave ${index}`).toEqual([])
+			})
 		}
 	})
 
@@ -1182,25 +1170,10 @@ describe('the Mouse', () => {
 
 	it('is never the whole of its wave, and is the last thing its wave releases', () => {
 		for (const night of NIGHTS) {
-			for (const wave of night.waves) {
-				const mouseEntry = wave.entries.find(entry => entry.enemyDefId === 'mouse')
-				if (mouseEntry === undefined) {
-					continue
-				}
-				// A Mouse-only wave is five Mice for one lost Cookie Jar.
-				expect(wave.entries.length).toBeGreaterThan(1)
-				const lanes = getMapDef(night.mapId).paths.length
-				for (const entry of wave.entries) {
-					if (entry === mouseEntry) {
-						continue
-					}
-					// An entry naming no lane is dealt over every lane at its own spacing, so its last
-					// enemy is the busiest lane's -- `dealRoundRobin` gives lane 0 the remainder.
-					const perLane = entry.pathId === undefined ? Math.ceil(entry.count / lanes) : entry.count
-					const lastSpawn = entry.startDelayTicks + (perLane - 1) * entry.spacingTicks
-					expect(lastSpawn).toBeLessThan(mouseEntry.startDelayTicks)
-				}
-			}
+			const lanes = getMapDef(night.mapId).paths.length
+			night.waves.forEach((wave, index) => {
+				expect(mouseBreaks(wave, lanes), `${night.id} wave ${index}`).toEqual([])
+			})
 		}
 	})
 })

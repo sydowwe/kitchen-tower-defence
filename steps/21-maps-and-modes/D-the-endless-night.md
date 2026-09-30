@@ -25,7 +25,7 @@ the step's endless test and its difficulty-at-spawn test.**
 | `core/systems/spawn.ts` | `cursorsFor` and `cursor()` carry `startDistanceTiles` only when the entry authors it. `spawnEnemyAt(world, def, pathId, distance, waveIndex)` sets HP to `def.hp × difficulty.enemyHpMult`. It's also the Fruit Fly hatch's constructor (`crumbs.ts`). `waveEntryCount` (21B) is the count |
 | `core/types.ts` (`WaveSpawn`) | `startDistanceTiles?` is the precedent for an optional field copied off the entry |
 | `core/content/schema.ts` (`waveEntry`, `night`) | Count 1–500, spacing and delay ≤ 7200 ticks, `index` 1–100. No HP field anywhere on a night |
-| `core/content/nights.ts` | The rules its notes and `content.spec` enforce. At most one Mouse per wave, one entry of count 1, released after everything else, never alone. One mold per entry, and a mold where a tower can reach it. Never a Silverfish-only wave |
+| `core/content/nights.ts` | The rules its notes set. At most one Mouse per wave, one entry of count 1, released after everything else, never alone. One mold per entry, and a mold where a tower can reach it. Never a Silverfish-only wave. *Corrected while building:* `content.spec` checked only the Mouse's and the mold's reach. One mold per entry and no Silverfish-only wave were in the notes alone. All four now live in `tests/fixtures/nightRules.ts`, and both specs run them |
 | `core/content/maps/index.ts` (21A) | `MAPS`: counter, sink, pantry, stove, table, floor. Lane 0 is `crack` on each |
 | `core/rng.ts` | `createRng(seed)`, `bindRng`, `int`, `pick`, `chance` |
 | `core/map.ts`, `core/path.ts` | `canPlace`, `samplePath` |
@@ -59,6 +59,8 @@ edit this file. Don't leave it lying.
 6. **The pool is every enemy some campaign night sends.** Derive it from `NIGHTS` and don't list it, so
    the Fruit Fly (never scheduled) is out, and an enemy step 24 schedules is in. Weights shift toward
    the higher-HP defs as `n` grows.
+   *As built:* the pool is split by what a def does, not by name. A def with speed 0 is placed like the
+   mold, a def with `thief` is released last like the Mouse, and the rest stream down every lane.
 7. **The campaign's rules hold in endless too.** At most one Mouse per wave: count 1, released after
    every other entry's last spawn, never alone, and not in the first waves. One mold per entry, at a
    distance where a tower on *this* map can reach it (decision 8). Never a Silverfish-only wave, and
@@ -121,6 +123,9 @@ Decisions 2 and 4.
   (Σ count × reward): their ratio at wave 100 is above their ratio at wave 10.
 - **The campaign's rules hold on every generated wave:** the Mouse arithmetic above, one mold per
   entry, and no Silverfish-only wave. Reuse `content.spec`'s checks as helpers rather than copying them.
+  *As built:* the helpers are `tests/fixtures/nightRules.ts` (`mouseBreaks`, `compositionBreaks`,
+  `moldReachableTiles`). `content.spec` now calls them too, and gained the campaign test it lacked:
+  one mold per entry, never a Silverfish-only wave.
 - **Deterministic:** generating twice is deep-equal, and two maps' nights differ.
 - **Resolution:** `getNightDef` resolves every endless id and still throws on an unknown one.
   `findNightDef` returns null. `NIGHTS` has 18 entries.
@@ -131,10 +136,10 @@ Decisions 2 and 4.
 
 ## Acceptance
 
-- [ ] No file under `core/systems/` names endless or imports `endless.ts`.
-- [ ] `createWorld` on an endless night id builds, ticks a thousand times and survives a JSON
+- [x] No file under `core/systems/` names endless or imports `endless.ts`.
+- [x] `createWorld` on an endless night id builds, ticks a thousand times and survives a JSON
       round-trip.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 21E and 21G
 

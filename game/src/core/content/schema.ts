@@ -120,6 +120,13 @@ const MAX_SCATTER_PILES = 50
 const MAX_SCATTER_PILE_VALUE = 100
 const MAX_BOXED_FRACTION = 0.9
 
+/**
+ * The ceiling on a wave entry's `hpMult`. Only the endless nights author one, and their curve reaches
+ * about 7 at its last wave (`core/content/endless.ts`), so 10 leaves the curve room to be re-tuned and
+ * still rejects a 110 that was meant to be an HP.
+ */
+const MAX_WAVE_HP_MULT = 10
+
 /** `.` buildable, `#` blocked, `~` decor. `T` is deliberately not here -- see the `mapSource` note. */
 const LEGAL_TILE_CHARS = '.#~'
 
@@ -688,6 +695,12 @@ export function contentSchemas() {
 		 * past its end is a throw in `cursorsFor` rather than a number this schema could know.
 		 */
 		startDistanceTiles: z.number().min(0).optional(),
+		/**
+		 * What this entry's enemies' HP is multiplied by, on top of the tier's `enemyHpMult`. **Optional**,
+		 * and absent is 1: no campaign night authors one. It is how an endless wave gets tougher, which a
+		 * night could not otherwise say.
+		 */
+		hpMult: z.number().positive().max(MAX_WAVE_HP_MULT).optional(),
 	})
 
 	const wave = z.object({

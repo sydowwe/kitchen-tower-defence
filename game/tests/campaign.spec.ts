@@ -16,6 +16,7 @@ import { getInstallationDef, NIGHTS, resolveModifiers, TOWERS } from '@/core/con
 import { groceryMoneyFor } from '@/core/systems/scoring.ts'
 import { createWorld } from '@/core/world.ts'
 import type { NightResult, Progress } from '@/core/campaign.ts'
+import { deepFreeze } from './fixtures/freeze.ts'
 
 /**
  * The campaign's rules as pure functions: a result or a purchase in, a new progress out, the old one
@@ -28,17 +29,6 @@ function progressAt(nightId: string | null, overrides: Partial<Progress> = {}): 
 
 function result(nightId: string, won: boolean, groceryMoney: number): NightResult {
 	return { nightId, won, groceryMoney }
-}
-
-/** Freezes every object and array reachable from `value`, so a write anywhere throws. */
-function deepFreeze<T>(value: T): T {
-	if (typeof value === 'object' && value !== null) {
-		for (const child of Object.values(value)) {
-			deepFreeze(child)
-		}
-		Object.freeze(value)
-	}
-	return value
 }
 
 describe('a new campaign', () => {

@@ -472,6 +472,8 @@ export interface WaveSpawn {
 	 * that authors none is the same object it always was.
 	 */
 	startDistanceTiles?: number
+	/** Copied off `WaveEntry.hpMult`, and present only when the entry authors one, for the same reason. */
+	hpMult?: number
 }
 
 /** The runtime half of a wave. The composition it was built from lives in `core/content/nights.ts`. */

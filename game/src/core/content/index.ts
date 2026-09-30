@@ -11,6 +11,7 @@
  * URL, and an `undefined` def surfaces three systems away from the id that was wrong.
  */
 
+import { ENDLESS_NIGHTS } from '@/core/content/endless.ts'
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { FOODS } from '@/core/content/food.ts'
 import { INSTALLATIONS } from '@/core/content/installations.ts'
@@ -25,6 +26,7 @@ import type { DefId, MapDef, Tower } from '@/core/types.ts'
 
 export * from '@/core/content/behaviours.ts'
 export * from '@/core/content/difficulty.ts'
+export * from '@/core/content/endless.ts'
 export * from '@/core/content/enemies.ts'
 export * from '@/core/content/food.ts'
 export * from '@/core/content/installations.ts'
@@ -54,7 +56,8 @@ export type {
  * reason -- `Record<TileEffectKind, TileEffectDef>` is already exhaustive at the type level.
  *
  * `installations` joined the list in step 13A and holds all of analytic-docs/CONTENT.md section 8's
- * fourteen. `modifiers` joined in step 21B with section 6's five night modifiers.
+ * fourteen. `modifiers` joined in step 21B with section 6's five night modifiers. The endless nights
+ * joined `nights` in step 21D: generated, so every one of their waves goes through zod here too.
  *
  * `maps` is absent for a different reason: `core/content/maps/index.ts` validates its own sources,
  * because that check has to run before `loadMap` derives a `MapDef` from them.
@@ -64,7 +67,7 @@ validateContentInDev({
 	towers: [...TOWERS, ...POST_V1_TOWERS],
 	enemies: ENEMIES,
 	food: FOODS,
-	nights: NIGHTS,
+	nights: [...NIGHTS, ...ENDLESS_NIGHTS],
 	installations: INSTALLATIONS,
 	modifiers: NIGHT_MODIFIERS,
 })
@@ -93,8 +96,18 @@ export function getMapDef(id: DefId): MapDef {
 	return lookup('map', MAPS, id)
 }
 
+/** A campaign night or an endless one. Nothing that reads the result needs to know which. */
 export function getNightDef(id: DefId): NightDef {
-	return lookup('night', NIGHTS, id)
+	const found = findNightDef(id)
+	if (found === null) {
+		throw new Error(`unknown night id '${id}'`)
+	}
+	return found
+}
+
+/** `getNightDef` for a reader that may be handed a night no array holds, such as a spec's `'test'`. */
+export function findNightDef(id: DefId): NightDef | null {
+	return NIGHTS.find(night => night.id === id) ?? ENDLESS_NIGHTS.find(night => night.id === id) ?? null
 }
 
 export function getInstallationDef(id: DefId): InstallationDef {
