@@ -1,64 +1,142 @@
 # Step 21 — Maps, night modifiers, difficulty tiers, endless
 
-> Paste this entire file as your prompt into a fresh session.
+> This step is seven sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index. It only says what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/CONTENT.md` §6, §9, and the step 4 map editor.
-**Prereq:** step 20.
+**Prereq:** step 20a, both parts. This split was written against `7afe859` (20aB, the fridge sprite,
+and step 23 split into parts). Step 22 was split at the same time, from these part files, and cites
+their decision numbers. Renumber a decision here and you orphan a reference there. Step 23's parts
+A–G don't depend on step 21 and may land before or between its parts. A, F and G say what changes if
+23A or 23B already has.
 
 ## Goal
 
-Turn one map into eighteen distinct nights. Five new maps in the editor you built at step 4, a modifier system so each map plays three different ways, three difficulty tiers, and an endless mode.
+Turn one map into eighteen distinct nights. Five more kitchens, a modifier system that makes each map
+play three ways, the whole campaign wired onto them as data for the first time, three difficulty tiers
+the player climbs, and an endless night that runs until the fridge is empty.
 
-## Build
+## Parts
 
-1. **Five maps** in the editor: **Sink, Pantry, Stove, Table, Floor**. Give each a genuinely different shape rather than a reskin:
-   - **Sink** — a long looping track around a basin, with a wet central region that's unbuildable. Rewards range.
-   - **Pantry** — narrow, corridor-like, very few buildable pockets. Punishes wide towers, rewards cones and auras.
-   - **Stove** — a short, fast track with a large open build area. High pressure, high freedom. Introduces the **second spawn point** (night 10+).
-   - **Table** — wide open, long track, plenty of space. The most conventional, and the right place for the Mouse.
-   - **Floor** — sprawling, two or three entry cracks, longest track in the game. Introduces the **third spawn point** (night 16+).
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](21-maps-and-modes/A-five-maps.md) | The five maps | `sink`, `pantry`, `stove`, `table`, `floor` as JSON, registered and named, and `tests/maps.spec.ts` holding every map to the editor's rules |
+| [B](21-maps-and-modes/B-night-modifiers.md) | Night modifiers, headless | `core/content/modifiers.ts`, `NightDef.modifierId`, the fold into `WorldModifiers` and three new hooks (enemy count, crumb value, damage by type), the scatter and the boxes built by `createWorld`, `NightState.modifierId` |
+| [C](21-maps-and-modes/C-the-campaign-on-its-maps.md) | The campaign on its maps | nights 4–18 re-homed onto `CONTENT.md` §6's maps and lanes with their modifiers, night 15 authored plain, every mold re-placed, `content.spec`'s night assertions |
+| [D](21-maps-and-modes/D-the-endless-night.md) | The endless night, headless | `core/content/endless.ts`, one generated `NightDef` per map resolved by `getNightDef`, `WaveEntry.hpMult`, the difficulty-at-spawn test |
+| [E](21-maps-and-modes/E-tiers-and-endless-in-the-record.md) | Tiers and endless in the record | `Progress.cleared` and `endlessBests`, the tier ladder, `startCampaign`, the endless loadout, result and world options, the record at v3, the store's three new actions |
+| [F](21-maps-and-modes/F-the-night-on-screen.md) | The night on screen | the modifier on the Kitchen, the loadout preview, a night-start banner and the HUD; the map's shape on the preview; the tier on the title screen and in the HUD |
+| [G](21-maps-and-modes/G-endless-on-screen.md) | Endless on screen | the Kitchen's way into a run, the loadout screen for a run, the run's routes, its HUD and its summary, and the endless curve re-tuned by playing it |
 
-   Multi-path maps must **merge into a shared final stretch** before the fridge (`../analytic-docs/DECISIONS.md` §3). Use the editor's convergence readout to confirm it.
+In order. A and B don't depend on each other and could swap. C needs both. D needs A's maps and B's
+`waveEntryCount`. E needs D's night ids. F needs A, B, C and E. G needs D, E and F.
 
-   Once maps differ, the loadout screen's preview (step 20aB) has to show the map's **shape** as well as its name. The track's length and lanes are part of what the player chooses towers against. 20aB shows the name only, since there was one map.
+**Every part carries tests, and no part tests components or `render/`.** The step's six tests are split
+where they're implemented: the two map tests in A, the two modifier tests in B, the endless and
+difficulty-at-spawn tests in D. C carries the campaign's content assertions, E the record's and the
+store's, and F and G view-model specs only.
 
-2. **Night modifiers** (`core/content/modifiers.ts`). A modifier is a named patch applied at night start, and it must be a *general* system — this is your content lever for every future update:
-   - `dishes left out` (night 6) — 15 crumbs pre-scattered along the track at night start. Free money that is also free spawn pressure.
-   - `damp night` (11) — mold spread interval ×1.5.
-   - `after a dinner party` (15) — spawn counts ×2, crumb values ×2. The chaos night.
-   - `moving day` (16) — 30% of buildable tiles are covered by cardboard boxes at night start, chosen deterministically from the seed.
-   - `heatwave` (18) — fire damage ×1.3, cold damage ×0.7.
+**Authored twice on purpose:**
 
-   Each modifier declares which world/enemy/tower fields it patches; none of them may require a system-file edit. Surface the active modifier prominently on the kitchen screen, on the loadout screen's preview (step 20aB, since a heatwave changes which towers are worth bringing), and in a banner at night start — a modifier the player doesn't notice is wasted content.
+- *The modifiers' English.* B drafts it because `contentKeys.ts` fails `type-check` without it. F
+  rewrites it with the banner on screen.
+- *The endless curve.* D writes its constants from arithmetic, and its tests pin properties, never a
+  constant. G re-tunes them after playing runs, which is the first time anyone can.
+- *The maps.* A authors them. C may move a pocket or a waypoint when a night on the map shows it's
+  wrong, and re-runs A's spec when it does.
 
-3. **Difficulty tiers.** The scalars in `../analytic-docs/CONTENT.md` §9, applied at world creation and at spawn time. Global scalars only — no bespoke content per tier. Selected on the title screen, stored per-profile, shown in the HUD. Beating the campaign on one tier unlocks the next.
+All the part files say so.
 
-4. **Endless mode.** Unlocked by completing night 18. One map (player's choice from those beaten), waves generated procedurally from a difficulty curve that keeps rising:
-   - Wave `n` draws from the unlocked enemy pool with weights shifting toward tougher enemies as `n` grows.
-   - Enemy HP and count scale smoothly; income scales more slowly, so the run ends eventually. That's the point.
-   - Score is waves survived; persist a per-map best in the save.
-   - Reuse the night pipeline entirely — endless is a `NightDef` produced by a generator function, not a separate mode with its own code path. If it needs its own path, the night model is too rigid.
-   - **The loadout is chosen once, at run start, through step 20a's loadout screen, and locked for the run.** A run is one world, so `NightState.loadout` already can't change during it. What's new is where the list comes from: an endless run isn't `progress.nightId`, so it needs its own entry in `Progress.loadouts` (or a sibling field) and its own path through `tonightsLoadout`.
+## The seam that can't be split
 
-5. **Wire up nights 1–18 in full** per the `../analytic-docs/CONTENT.md` §6 table: map, wave count, modifier. This is the first time the whole campaign exists as data. Unlocks are already authored (`NightDef.unlocksTowerIds`, step 20B); moving a night to its real map does not touch them.
+**Everything that makes a night itself is resolved inside `createWorld`, from
+`(seed, mapId, nightId, difficulty, modifiers, loadout)`.** That covers the map's lanes, tonight's
+modifier (read off the night def, folded into `world.modifiers`, its crumbs and boxes put on the
+world), and an endless run's waves (a `NightDef` that `getNightDef` resolves like any other). Suppose
+a modifier were applied after the world was built: the crumbs scattered by `GameView`, the boxes
+painted by the renderer. Or suppose endless waves were generated by a system at runtime. Then step
+22's harness and a replay would build a different night from the one the player played, and nothing
+would say so.
 
-   **Loadout constraint (step 20a):** every night must be winnable by **more than one loadout**. A night whose enemy mix admits exactly one valid answer is a lockout, not a puzzle. Design each night so at least two distinct counters exist — night 17's Silverfish, for instance, should fall to either a cold build or a Lemon-plus-physical build. Step 22's `blind` loadout policy is what verifies this.
+## Contradictions this split resolved
 
-## Tests
+Each one is settled in the part that implements it, with its reason there.
 
-- Every authored map passes the editor's validation rules; every path terminates at the fridge.
-- Multi-path maps have a shared final stretch of at least 6 tiles.
-- Each modifier changes exactly the documented fields and nothing else — snapshot the world config before and after.
-- `moving day`'s box placement is deterministic under a fixed seed.
-- Difficulty scalars apply at spawn and never mutate the night definition.
-- An endless run produces valid waves for at least 100 waves without a crash or a degenerate composition (e.g. all-flyers forever).
+1. **"`damp night` — mold spread interval ×1.5."** That's 50% *slower*. `CONTENT.md` §6 says "mold
+   spreads 50% faster", and so does the note on `mold` in `enemies.ts`. It's the rate ×1.5, so the
+   interval goes 720 → 480 (B, decision 2).
+2. **Heatwave: "fire towers +30%"** (`CONTENT.md` §6) beside **"fire damage ×1.3"** (this step). It's
+   damage by type, wherever it's dealt, through the one `applyDamage`. B edits the doc's cell (B,
+   decision 8).
+3. **`DECISIONS.md` §9 says "after a dinner party: crumbs pre-scattered".** `CONTENT.md` §6 gives the
+   scatter to *dishes left out* and double crumbs and spawns to the dinner party. The table wins, and B
+   corrects §9 (B, decision 12).
+4. **"None of them may require a system-file edit"** beside four modifiers whose hooks don't exist.
+   The rule is about a modifier *entry*. B adds the hooks once, the way 20A added the installation
+   hooks. The checkpoint is that a sixth modifier needs none (B, Acceptance).
+5. **Pre-scattered crumbs "can be collected without ever being dropped"** (20B, decision 3) beside
+   `dropCrumb` being the one door that feeds `crumbsDropped`. They go through `dropCrumb` and count as
+   dropped (B, decision 10).
+6. **Night 15 has its dinner party authored into its composition** (15C, 19D). With the modifier
+   doubling it on top, that's four times a night. C authors night 15 plain (C, decision 5).
+7. **Night 17 "should fall to either a cold build or a Lemon-plus-physical build."** `DECISION-LOG.md`
+   (step 16) settled it as "non-physical" or "Lemon plus physical", because the only cold tower lands
+   2.4 a hit on a Silverfish. The log wins (C, decision 4).
+8. **"Stove introduces the second spawn point, Floor the third"**, but no lane count is given for the
+   Table. It gets one lane (A, decision 1).
+9. **The Pantry's "very few buildable pockets"** beside the editor's 25%-buildable floor. It means few
+   pockets, not few tiles: narrow strips hugging the corridor (A, Build).
+10. **"Five maps in the editor"** beside a session that can't drag a waypoint. The JSON is written
+    directly, checked by the editor's own functions, and looked at in the editor (A, decision 7).
+11. **"Enemy HP scales smoothly"** in a mode that must be "a `NightDef` produced by a generator". A
+    `NightDef` has no HP lever at all. `WaveEntry.hpMult` is the widening the step's own rule calls for
+    when the night model is too rigid (D, decision 5).
+12. **"Beating the campaign on one tier unlocks the next"** beside Normal being the default (20B,
+    decision 13) and every balance target being on Normal. Cozy and Normal are open from the start.
+    Nightmare opens on a Normal clear (E, decision 1).
+13. **"Selected on the title screen, stored per-profile"** beside `OPEN-QUESTIONS.md` §2's "chosen at
+    campaign start". A tier belongs to a campaign, so choosing another one starts a new campaign. That
+    keeps only the lifetime record: the tiers cleared and the endless bests (E, decision 3).
+14. **"Player's choice from those beaten"**: by night 18 every map has been beaten. Endless unlocks for
+    life on the first clear, on any map. `OPEN-QUESTIONS.md` §1's endless row (installations?) is
+    answered and moved to Resolved (E, decision 4).
+15. **"A per-map best."** It's per map *within a tier*. A Cozy best is a number a Nightmare run can't
+    approach (E, decision 6).
+16. **The preview's counts are "authored, not scaled"** (20aB, decision 3), which was meant to hold
+    "until step 21's difficulty selector". They become what spawns at this tier with tonight's
+    modifier, through one exported function, so `ui/` copies no rounding (B, decision 6; F,
+    decision 2).
+17. **"Surface the modifier in a banner at night start"** beside 19C's "step 23 owns the general
+    wave-start banner". The night-start modifier banner is 21's, and the wave-start banner stays 23's.
+    They share one slot: 23B's, if it has landed, as 23B decision 6 asks (F, decision 4).
+18. **"The difficulty scalars, applied at world creation and at spawn time."** They already are, since
+    steps 2D and 5. What this step adds is the selector, the ladder and the HUD (E, F).
 
-## Acceptance
+## Step acceptance
 
-- [ ] The six maps genuinely require different builds — a strategy that wins on Table should struggle in the Pantry.
+- [ ] The six maps genuinely require different builds. A strategy that wins on the Table should
+      struggle in the Pantry.
 - [ ] The three nights on each map feel distinct because of their modifier and wave composition.
-- [ ] Nightmare is hard in a way that feels like a different game, not just a bigger HP bar. If it doesn't, the scalars need step 22's data.
+- [ ] Nightmare is hard in a way that feels like a different game, not just a bigger HP bar. If it
+      doesn't, the scalars need step 22's data.
+- [ ] An endless run ends, and you want to start another.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+
+## Consequences for later steps
+
+- **Step 22:** each night's doc comment names the two loadouts it's written to fall to (C). Those are
+  what the `optimal` and `blind` policies measure against. The harness plays a tier by setting
+  `difficulty` on the progress directly. `startCampaign` enforces the player's ladder, and would refuse
+  Nightmare on a fresh record. An endless run builds with `worldOptionsForEndless`, on a progress that
+  has cleared the campaign. The endless curve's constants are D's draft and G's retune, never measured,
+  and the harness is where they get measured.
+- **Step 23:** if 23A and 23B land after this step, 23A gives the five new maps their surfaces, and
+  23B folds F's night-start card into its one banner slot. 23H's emoji subset has to cover the new
+  maps' decor and the modifiers' glyphs, moving day's box glyph included. That glyph lives on the
+  modifier def (B), not on any map.
 
 ## Do not
 
-Add Act III content or new towers. Existing systems, new arrangements.
+Add Act III content, new towers or new enemies. Existing systems, new arrangements. No modifier beyond
+the five in `CONTENT.md` §6, no endless leaderboard (`LeaderboardService` stays unimplemented, post-v1),
+no Codex (step 23), no general wave-start banner (step 23), no tutorial for night 1 (the "tutorial" in
+§6's modifier column is step 23's).
