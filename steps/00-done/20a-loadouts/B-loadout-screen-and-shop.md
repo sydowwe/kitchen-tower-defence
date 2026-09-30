@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §1 (tone) and §10,
-`../../analytic-docs/CONTENT.md` §1 (the *Roles* line only) and §8 (*Loadout slots* only).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §1 (tone) and §10,
+`../../../analytic-docs/CONTENT.md` §1 (the *Roles* line only) and §8 (*Loadout slots* only).
 **Prereq:** step 20aA.
 
 ## Goal

@@ -2,7 +2,7 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §7, `../../analytic-docs/CONTENT.md`
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §7, `../../../analytic-docs/CONTENT.md`
 §8 (the formula, above the installations table) and §6 (the table's *Unlocks tower* column only).
 **Prereq:** step 20A.
 

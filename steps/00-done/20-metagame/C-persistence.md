@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md` (*What goes in a store*, and the libraries table),
-`../../analytic-docs/PERSISTENCE.md` **in full** (the step requires it, and every section is used),
-`../../analytic-docs/ARCHITECTURE.md` §8.
+**Read first:** `../../../CLAUDE.md` (*What goes in a store*, and the libraries table),
+`../../../analytic-docs/PERSISTENCE.md` **in full** (the step requires it, and every section is used),
+`../../../analytic-docs/ARCHITECTURE.md` §8.
 **Prereq:** step 20B.
 
 ## Goal
@@ -71,7 +71,7 @@ then edit this file. Don't leave it lying.
 9. **`LeaderboardService` and `StatsSink` are interfaces plus one no-op adapter**, with no
    composable, since nothing in v1 submits or records. The telemetry payload is `StatsEvent`, **not**
    `GameEvent`: that name is core's, and the two would be auto-imported for each other.
-10. **The store holds the state and the composable holds the I/O.** `CLAUDE.md` and
+10. **The store holds the state and the composable holds the I/O.** `../../../CLAUDE.md` and
     `PERSISTENCE.md` §4 disagreed. `useProgress()` (the composable) is a singleton with `loading`,
     `error`, `load(userId)` and `save(userId, progress)`, and it holds no game state.
     `useProgressStore()` holds `progress` and runs the campaign. **Every store write is pessimistic:**

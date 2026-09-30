@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §7 and §8 (the counterplay
-paragraph), `../../analytic-docs/CONTENT.md` §8 (the *Installations* table only; the formula above it
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §7 and §8 (the counterplay
+paragraph), `../../../analytic-docs/CONTENT.md` §8 (the *Installations* table only; the formula above it
 is B's).
 **Prereq:** step 19, all four parts.
 

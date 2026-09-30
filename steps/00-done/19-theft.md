@@ -16,7 +16,7 @@ An enemy with a *goal state*. Everything so far walks one way until it dies or r
 The Mouse reaches the fridge, stands there for a second and a half, takes five named items, turns
 round and runs. If it gets out, those items are gone for the night. If it dies on the way, they're
 dropped on the floor, and you have to go and get them. It's the most dramatic thing in the game, and
-it's the system Act III's Squirrel, Pigeon and Raccoon inherit (`../analytic-docs/ROADMAP-POST-V1.md`
+it's the system Act III's Squirrel, Pigeon and Raccoon inherit (`../../analytic-docs/ROADMAP-POST-V1.md`
 §1, tier 4), so it's built general: a thief is an enemy def with a `thief` field, and nothing in
 `core/systems/` names the Mouse.
 
@@ -36,12 +36,12 @@ state and events say happened. D can't judge a Mouse it can't see.
 
 **A carries most of the step's tests**, **B carries the dropped-food tests**, and both are headless.
 **C carries a few `viewModel` tests** and nothing over `render/`. **D carries no behaviour tests.**
-It keeps `tests/content.spec.ts` true for night 14, per `../analytic-docs/ARCHITECTURE.md` §7.
+It keeps `tests/content.spec.ts` true for night 14, per `../../analytic-docs/ARCHITECTURE.md` §7.
 
 **Authored twice on purpose:**
 
 - *Death while carrying.* A returns the food straight to the shelf, which is the simple version in
-  `../analytic-docs/DECISIONS.md` §6, so its world is never inconsistent. B replaces that one call
+  `../../analytic-docs/DECISIONS.md` §6, so its world is never inconsistent. B replaces that one call
   with the drop.
 - *Numbers.* A drafts `grabTicks` (90) and `fleeSpeedMult` (1.3) from the step, and D re-tunes them on
   the board.
@@ -78,7 +78,7 @@ Each one is settled in the part that implements it, with the reason there.
    it. The thief gets its own phase instead, because the two flights differ in speed, statuses,
    boxes, targetability and pushback sign. The comments that expected otherwise are rewritten (A,
    decision 2).
-4. **The system slot**: `../analytic-docs/ARCHITECTURE.md` §1 already lists `economy, theft,
+4. **The system slot**: `../../analytic-docs/ARCHITECTURE.md` §1 already lists `economy, theft,
    resolve`, and A keeps that order (A, decision 4).
 5. **Better Tupperware** is step 20's installation, and step 20's own test asserts it. What 19 owes is
    the hook step 20 item 4 says it built: `stealsReduction`, through `CreateWorldOptions` the way 13A
@@ -103,7 +103,7 @@ Each one is settled in the part that implements it, with the reason there.
 - [ ] Letting it escape with five items on night 14 is survivable but clearly costly.
 - [ ] Dropped food is impossible to miss.
 - [ ] Adding the Squirrel later would be one `EnemyDef` with a `thief` field. `grep -rn "'mouse'"
-      src/core/systems` finds nothing (`../CLAUDE.md`, *Content is data, not classes*).
+      src/core/systems` finds nothing (`../../CLAUDE.md`, *Content is data, not classes*).
 - [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## **MILESTONE: Act II — the game is content-complete for v1**

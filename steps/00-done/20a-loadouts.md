@@ -14,7 +14,7 @@ without loadouts in place would have to be redone.
 The player can't bring everything. Before each night they choose a fixed number of towers to set out
 on the counter, and only those appear in the shop. Small as a system, large as a design consequence:
 every night stops being "do I have the counter" and becomes "did I *anticipate* the counter", and the
-night preview stops being decoration (`../analytic-docs/DECISIONS.md` §10).
+night preview stops being decoration (`../../analytic-docs/DECISIONS.md` §10).
 
 ## Parts
 

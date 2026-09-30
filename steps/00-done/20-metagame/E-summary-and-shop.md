@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §1 (tone) and §6 (food: the
-specificity paragraph), `../../analytic-docs/CONTENT.md` §8 (the formula only),
-`../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §1 (tone) and §6 (food: the
+specificity paragraph), `../../../analytic-docs/CONTENT.md` §8 (the formula only),
+`../../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot).
 **Prereq:** step 20D.
 
 ## Goal

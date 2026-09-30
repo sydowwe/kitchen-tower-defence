@@ -2,10 +2,10 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
-reactivity trap) and §6 (the performance budget), `../../analytic-docs/DECISIONS.md` §1 (tone), §2
-(*Art: emoji sprites*) and §6, `../../analytic-docs/CONTENT.md` §7, and the *thief carry* row of
-`../../analytic-docs/OPEN-QUESTIONS.md` §1.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/ARCHITECTURE.md` §5 (the snapshot and the
+reactivity trap) and §6 (the performance budget), `../../../analytic-docs/DECISIONS.md` §1 (tone), §2
+(*Art: emoji sprites*) and §6, `../../../analytic-docs/CONTENT.md` §7, and the *thief carry* row of
+`../../../analytic-docs/OPEN-QUESTIONS.md` §1.
 **Prereq:** steps 19A and 19B.
 
 ## Goal
@@ -39,7 +39,7 @@ symbols over line numbers.
 | `ui/components/hud/NightSummary.vue` | One sentence, `night.foodLost`, with every gone item's name in it |
 | `ui/components/hud/WakeCard.vue` | The precedent for a one-shot card that says itself once and fades |
 | `ui/locales/en.ts` | 19A's **first-draft** Mouse English, which this part rewrites |
-| `steps/23-polish.md` | Now carries the Mouse's "distinct sound" (this split put it there). **No audio here** |
+| `../../23-polish.md` | Now carries the Mouse's "distinct sound" (this split put it there). **No audio here** |
 
 ## Decisions already made
 
@@ -157,7 +157,7 @@ with the same care.
 
 ## Tests
 
-Over `ui/viewModel.ts` only, per `../../analytic-docs/ARCHITECTURE.md` §7. Nothing over `render/`.
+Over `ui/viewModel.ts` only, per `../../../analytic-docs/ARCHITECTURE.md` §7. Nothing over `render/`.
 
 - `buildNightSummary` puts exactly the `'escaped'` items' name keys in `foodEscapedNameKeys`, and
   eaten and floor items elsewhere.

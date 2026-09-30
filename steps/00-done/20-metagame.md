@@ -84,7 +84,7 @@ Each one is settled in the part that implements it, with the reason there.
    decision 7).
 9. **"A v0 save migrates cleanly" beside "only v1 present."** The chain is a parameter of the reader,
    so the spec supplies a synthetic v0 and the shipped chain stays empty (C, decision 6).
-10. **Stores or composables?** `CLAUDE.md` says Pinia holds the metagame state and "a store calls a
+10. **Stores or composables?** `../../CLAUDE.md` says Pinia holds the metagame state and "a store calls a
     composable". `PERSISTENCE.md` §4 gives the composables the state. The store holds the state and
     the composable holds the I/O and its `loading`/`error`. C edits §4 to match (C, decision 10).
 11. **"Loadouts" in the persisted contents.** They're 20a's, and it adds them to the record (C,
@@ -101,7 +101,7 @@ Each one is settled in the part that implements it, with the reason there.
 16. **Shop order and number keys.** `TOWERS` order isn't unlock order, so keys would shift every time
     a tower unlocks mid-list. The shop goes in unlock order and the keys bind to the first ten
     available towers (E, decision 4).
-17. **"40% (say)".** It's exactly 40%, per `../analytic-docs/DECISION-LOG.md`'s table.
+17. **"40% (say)".** It's exactly 40%, per `../../analytic-docs/DECISION-LOG.md`'s table.
 
 ## What this leaves for 20a
 
@@ -123,4 +123,4 @@ towers outside the loadout aren't shown. The progress record (C) gains the last 
 
 Add achievements, statistics screens or a codex (step 23), the difficulty selector, endless mode or
 night modifiers (step 21), loadouts or the three counter-space installations (20a), a settings screen
-(step 23), or the HTTP adapter (post-v1, `../analytic-docs/PERSISTENCE.md` §7).
+(step 23), or the HTTP adapter (post-v1, `../../analytic-docs/PERSISTENCE.md` §7).

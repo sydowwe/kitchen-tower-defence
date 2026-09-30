@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` §6 (the night table, row 14, and
-the lines under it) and §2 (the roster), and `../../analytic-docs/DECISIONS.md` §5 (night structure)
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/CONTENT.md` §6 (the night table, row 14, and
+the lines under it) and §2 (the roster), and `../../../analytic-docs/DECISIONS.md` §5 (night structure)
 and §6 (food).
 **Prereq:** steps 19A, 19B and 19C.
 
@@ -97,7 +97,7 @@ Gotchas that will bite the tuning:
 
 **None new beyond `content.spec.ts`.** Keep it true for night 14 and the night-17 Mouse in the same
 commit. A's, B's and C's suites are the regression net for everything you re-tune.
-`../../analytic-docs/ARCHITECTURE.md` §7: a night that plays badly isn't something a spec catches.
+`../../../analytic-docs/ARCHITECTURE.md` §7: a night that plays badly isn't something a spec catches.
 
 ## Acceptance
 

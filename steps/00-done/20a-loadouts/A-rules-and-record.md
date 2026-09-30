@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §10 (*Slots* and *What this
-changes*), `../../analytic-docs/CONTENT.md` §8 (the installations table's last three rows, and
-*Loadout slots*), `../../analytic-docs/PERSISTENCE.md` §6.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §10 (*Slots* and *What this
+changes*), `../../../analytic-docs/CONTENT.md` §8 (the installations table's last three rows, and
+*Loadout slots*), `../../../analytic-docs/PERSISTENCE.md` §6.
 **Prereq:** step 20, all five parts.
 
 ## Goal

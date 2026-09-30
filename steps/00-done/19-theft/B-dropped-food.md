@@ -2,8 +2,8 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §4 (crumbs: the click and the
-collect radius this copies) and §6, `../../analytic-docs/CONTENT.md` §7.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §4 (crumbs: the click and the
+collect radius this copies) and §6, `../../../analytic-docs/CONTENT.md` §7.
 **Prereq:** step 19A.
 
 ## Goal

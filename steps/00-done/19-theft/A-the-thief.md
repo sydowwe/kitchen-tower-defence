@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §6,
-`../../analytic-docs/CONTENT.md` §2 (the **Mouse** row) and §7, and the system list in
-`../../analytic-docs/ARCHITECTURE.md` §1 (`systems/`).
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §6,
+`../../../analytic-docs/CONTENT.md` §2 (the **Mouse** row) and §7, and the system list in
+`../../../analytic-docs/ARCHITECTURE.md` §1 (`systems/`).
 **Prereq:** step 18, all three parts.
 
 ## Goal
@@ -38,7 +38,7 @@ Step 18 lands in several of these files after this part was written. Trust symbo
 | `core/world.ts` | `CreateWorldOptions.noise` is the 13A pattern for an installation resolved into numbers and folded in at construction. `stockFridge` is the one `FoodItem` constructor |
 | `core/sim.ts` (`SYSTEMS`) | `… noise, economy, resolve, events`. `tests/sim.spec.ts` pins the order literally |
 | `render/layers/fridge.ts` (`drawFridge`), `ui/viewModel.ts` (`foodView`, `buildNightSummary`) | Read `item.lost`. Mechanical, per decision 5 |
-| `steps/20-metagame.md` item 4 | Names the modifier `stealsReduction`, and says steps 7, 13, 15 and **19** already read their modifiers from hooks |
+| `../20-metagame.md` item 4 | Names the modifier `stealsReduction`, and says steps 7, 13, 15 and **19** already read their modifiers from hooks |
 
 **Specs that will break, by design:**
 

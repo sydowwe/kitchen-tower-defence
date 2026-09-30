@@ -2,9 +2,9 @@
 
 > Paste this entire file as your prompt into a fresh session.
 
-**Read first:** `../../CLAUDE.md`, `../../analytic-docs/DECISIONS.md` §1 (tone) and §7,
-`../../analytic-docs/CONTENT.md` §8 (the *Installations* table) and §6 (the night table, for the
-preview), `../../analytic-docs/PERSISTENCE.md` §2 (*Rule 2*) and §4.
+**Read first:** `../../../CLAUDE.md`, `../../../analytic-docs/DECISIONS.md` §1 (tone) and §7,
+`../../../analytic-docs/CONTENT.md` §8 (the *Installations* table) and §6 (the night table, for the
+preview), `../../../analytic-docs/PERSISTENCE.md` §2 (*Rule 2*) and §4.
 **Prereq:** step 20C.
 
 ## Goal
