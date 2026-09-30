@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
 import { mouse, weevil } from '@/core/content/enemies.ts'
+import { getNightDef } from '@/core/content/index.ts'
 import { INSTALLATIONS, NO_MODIFIERS, resolveModifiers } from '@/core/content/installations.ts'
+import { NIGHT_MODIFIERS } from '@/core/content/modifiers.ts'
+import { NIGHTS } from '@/core/content/nights.ts'
 import { tick } from '@/core/sim.ts'
 import { dropCarried, takeFood } from '@/core/systems/fridge.ts'
 import { pushEnemy } from '@/core/systems/pushback.ts'
 import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
+import type { NightDef } from '@/core/content/schema.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
 import type { World } from '@/core/types.ts'
 
@@ -88,6 +92,22 @@ describe('createWorld', () => {
 		expect(roundTrip(world)).toEqual(world)
 		expect(roundTrip(world).night.food[0]?.droppedAt).toEqual({ x: 3.5, y: 0.25 })
 		expect(roundTrip(world).night.food[0]?.heldBy).toBeNull()
+	})
+
+	it('survives a JSON round-trip with each night modifier', () => {
+		// On a synthetic Counter night, because no authored night names a modifier yet (step 21C).
+		const base = getNightDef('night01')
+		for (const def of NIGHT_MODIFIERS) {
+			const night: NightDef = { ...base, id: 'worldSpecModifierNight', modifierId: def.id }
+			;(NIGHTS as NightDef[]).push(night)
+			try {
+				const world = createWorld(options({ nightId: night.id }))
+				expect(world.night.modifierId).toBe(def.id)
+				expect(roundTrip(world), def.id).toEqual(world)
+			} finally {
+				;(NIGHTS as NightDef[]).pop()
+			}
+		}
 	})
 
 	it('starts at tick 0 with empty entity arrays and an index consistent with them', () => {

@@ -93,6 +93,22 @@ export const NO_MODIFIERS: WorldModifiers = {
 	foodBonus: 0,
 	snackStash: null,
 	loadoutSlots: LOADOUT_BASE_SLOTS,
+	enemyCountMult: 1,
+	crumbValueMult: 1,
+	damageTypeMult: { physical: 1, fire: 1, cold: 1, chemical: 1, electric: 1 },
+}
+
+/**
+ * A copy no other `WorldModifiers` shares a nested object with. `{ ...modifiers }` alone is shallow,
+ * and a fold that then wrote `damageTypeMult.fire` would be writing `NO_MODIFIERS`' record -- fire at
+ * x1.3 in every world built after the first heatwave, in a harness that builds thousands.
+ */
+export function copyModifiers(modifiers: WorldModifiers): WorldModifiers {
+	return {
+		...modifiers,
+		snackStash: modifiers.snackStash === null ? null : { ...modifiers.snackStash },
+		damageTypeMult: { ...modifiers.damageTypeMult },
+	}
 }
 
 /**
@@ -100,13 +116,14 @@ export const NO_MODIFIERS: WorldModifiers = {
  *
  * **The fold rule is per kind** (step 20A, decision 4). Deltas and counts sum, so the second cap
  * installation is a purchase and not a duplicate. The broom takes the widest radius and the dustpan
- * the shortest flight. Multipliers multiply, so step 21's night modifiers can land in the same object.
+ * the shortest flight. Multipliers multiply, so a night modifier lands in the same object:
+ * `applyNightModifier` in `core/content/modifiers.ts` folds tonight's over this one.
  *
  * An unknown id throws with the id in the message, like every other lookup in `core/content/`: the ids
  * arrive from a save record, and a silently ignored one is a cap 25 lower than the player paid for.
  */
 export function resolveModifiers(ids: readonly DefId[]): WorldModifiers {
-	const modifiers: WorldModifiers = { ...NO_MODIFIERS }
+	const modifiers = copyModifiers(NO_MODIFIERS)
 
 	for (const id of ids) {
 		const def = INSTALLATIONS.find(entry => entry.id === id)

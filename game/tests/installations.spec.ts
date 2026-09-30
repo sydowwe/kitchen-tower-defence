@@ -97,6 +97,10 @@ describe('the fold', () => {
 			foodBonus: 4,
 			snackStash: { atOnShelf: 3, items: 3 },
 			loadoutSlots: 8,
+			// The night modifier's three, which no installation writes.
+			enemyCountMult: 1,
+			crumbValueMult: 1,
+			damageTypeMult: { physical: 1, fire: 1, cold: 1, chemical: 1, electric: 1 },
 		})
 	})
 })

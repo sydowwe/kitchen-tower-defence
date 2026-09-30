@@ -29,10 +29,12 @@ import type { DefId, Enemy, World } from '@/core/types.ts'
  *
  * The difficulty multiplier is applied **at the drop** and not at the credit, so a pile's `value` is
  * the number the player is shown and merging sums numbers that are already final. `max(1)` stops
- * nightmare's 0.85 rounding a 1-crumb reward away to nothing.
+ * nightmare's 0.85 rounding a 1-crumb reward away to nothing. Tonight's `crumbValueMult` goes inside
+ * the same rounding.
  */
 function crumbValueFor(world: World, defId: DefId): number {
-	return Math.max(1, Math.round(getEnemyDef(defId).reward * world.difficulty.crumbIncomeMult))
+	const mult = world.difficulty.crumbIncomeMult * world.modifiers.crumbValueMult
+	return Math.max(1, Math.round(getEnemyDef(defId).reward * mult))
 }
 
 /** A thief leaves the map with what it carried, by either flight. */

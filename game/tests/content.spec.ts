@@ -13,6 +13,7 @@ import { ant, beetle, ENEMIES, fly, fruitFly, mold, moth, mouse, roach } from '@
 import { effectiveDef, unlockNightOf } from '@/core/content/index.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
+import { NIGHT_MODIFIERS } from '@/core/content/modifiers.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { validateContent } from '@/core/content/schema.ts'
@@ -85,7 +86,13 @@ describe('the authored content', () => {
 		// `MAP_SOURCES`, not `MAPS`: what is authored and validated is the JSON, and `MAPS` is what
 		// `loadMap` derives from it.
 		expect(() =>
-			validateContent({ towers: TOWERS, enemies: ENEMIES, maps: MAP_SOURCES, nights: NIGHTS }),
+			validateContent({
+				towers: TOWERS,
+				enemies: ENEMIES,
+				maps: MAP_SOURCES,
+				nights: NIGHTS,
+				modifiers: NIGHT_MODIFIERS,
+			}),
 		).not.toThrow()
 	})
 

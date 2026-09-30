@@ -191,7 +191,7 @@ With a fixed track, `FIRST` and `LAST` are max/min over `distance` — but on mu
 | 15 | Table | 13 | Baking Soda | Slug | **after a dinner party** — double crumbs, double spawns |
 | 16 | Floor | 13 | Honey Pot | — | **moving day** — boxes consume 30% of build tiles |
 | 17 | Floor | 14 | Lemon | Silverfish | — |
-| 18 | Floor | 14 | Fan | — | **heatwave** — fire towers +30%, cold towers −30% |
+| 18 | Floor | 14 | Fan | — | **heatwave** — fire damage +30%, cold damage −30% |
 
 Second spawn point appears from night 10; third from night 16. Author multi-lane tracks so they merge before the fridge.
 

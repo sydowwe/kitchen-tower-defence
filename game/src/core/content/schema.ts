@@ -107,6 +107,19 @@ const MAX_FOOD_BONUS = 20
 const MAX_SNACK_STASH_COUNT = 20
 const MAX_LOADOUT_SLOTS_DELTA = 3
 
+/**
+ * The ceilings on a night modifier's numbers (analytic-docs/CONTENT.md section 6), bounded the same way:
+ *
+ * - A multiplier is `(0, 4]`. The doc's are 0.7 to 2, and "+30%" pasted as `30` fails.
+ * - Dishes left out is 15 piles of 5. A pile past 100 is a night's whole economy on one tile, and past
+ *   50 piles is no longer a scatter.
+ * - Moving day boxes 0.3 of the build tiles. Past 0.9 leaves a map that cannot be defended.
+ */
+const MAX_MODIFIER_MULT = 4
+const MAX_SCATTER_PILES = 50
+const MAX_SCATTER_PILE_VALUE = 100
+const MAX_BOXED_FRACTION = 0.9
+
 /** `.` buildable, `#` blocked, `~` decor. `T` is deliberately not here -- see the `mapSource` note. */
 const LEGAL_TILE_CHARS = '.#~'
 
@@ -700,6 +713,11 @@ export function contentSchemas() {
 		 * Optional, so a synthetic night in a spec needs none.
 		 */
 		unlocksTowerIds: z.array(defId()).optional(),
+		/**
+		 * Section 6's *Modifier* column: the `NIGHT_MODIFIERS` entry `createWorld` builds this night
+		 * with. Optional, and most nights carry none.
+		 */
+		modifierId: defId().optional(),
 	})
 
 	// --- statuses -----------------------------------------------------------------------------
@@ -781,6 +799,42 @@ export function contentSchemas() {
 		effect: installationEffect,
 	})
 
+	// --- night modifiers ----------------------------------------------------------------------
+
+	/**
+	 * What a night modifier does, discriminated by `kind`. Two halves, and `core/content/modifiers.ts`
+	 * says which world fields each kind writes:
+	 *
+	 * - **numbers**, folded into `world.modifiers` by `applyNightModifier`: `spreadRate`, `enemyCount`,
+	 *   `crumbValue`, `damageType`. A multiplier, and unlike an installation's it may be above 1.
+	 * - **things**, built onto the board by `createWorld`: `scatterCrumbs` and `boxes`.
+	 *
+	 * The box glyph is on the effect, not a constant in `core/world.ts`, so anything that walks the
+	 * content for its glyphs finds it.
+	 */
+	const nightModifierEffect = z.discriminatedUnion('kind', [
+		z.object({
+			kind: z.literal('scatterCrumbs'),
+			piles: z.number().int().min(1).max(MAX_SCATTER_PILES),
+			value: z.number().int().min(1).max(MAX_SCATTER_PILE_VALUE),
+		}),
+		z.object({ kind: z.literal('spreadRate'), mult: z.number().positive().max(MAX_MODIFIER_MULT) }),
+		z.object({ kind: z.literal('enemyCount'), mult: z.number().positive().max(MAX_MODIFIER_MULT) }),
+		z.object({ kind: z.literal('crumbValue'), mult: z.number().positive().max(MAX_MODIFIER_MULT) }),
+		z.object({ kind: z.literal('boxes'), fraction: z.number().positive().max(MAX_BOXED_FRACTION), glyph: glyph() }),
+		z.object({ kind: z.literal('damageType'), damageType, mult: z.number().positive().max(MAX_MODIFIER_MULT) }),
+	])
+
+	/** One of analytic-docs/CONTENT.md section 6's named nights. A list of effects: some have two. */
+	const nightModifier = z.object({
+		id: defId(),
+		nameKey: i18nKey(),
+		descriptionKey: i18nKey(),
+		/** What the night's banner draws. Never a tower's or an enemy's: see `checkNightModifiers`. */
+		glyph: glyph(),
+		effects: z.array(nightModifierEffect).min(1),
+	})
+
 	return {
 		damageType,
 		enemyTag,
@@ -798,6 +852,7 @@ export function contentSchemas() {
 		night,
 		status,
 		installation,
+		nightModifier,
 	}
 }
 
@@ -819,6 +874,7 @@ export type NightDef = z.infer<ContentSchemas['night']>
 export type WaveEntry = NightDef['waves'][number]['entries'][number]
 export type StatusDef = z.infer<ContentSchemas['status']>
 export type InstallationDef = z.infer<ContentSchemas['installation']>
+export type NightModifierDef = z.infer<ContentSchemas['nightModifier']>
 
 // --- validation ---------------------------------------------------------------------------------
 
@@ -831,6 +887,7 @@ export interface RawContent {
 	nights?: readonly unknown[]
 	statuses?: readonly unknown[]
 	installations?: readonly unknown[]
+	modifiers?: readonly unknown[]
 }
 
 /** What comes out: the same content, typed, once every entry and every collection has passed. */
@@ -842,6 +899,7 @@ export interface Content {
 	nights: NightDef[]
 	statuses: StatusDef[]
 	installations: InstallationDef[]
+	modifiers: NightModifierDef[]
 }
 
 export class ContentValidationError extends Error {
@@ -976,6 +1034,40 @@ function checkNightUnlocks(nights: readonly NightDef[], towers: readonly TowerDe
 }
 
 /**
+ * Every night's modifier exists, and no modifier glyph -- the banner's or a box's -- is a tower's or an
+ * enemy's. Sprites are found by glyph (`render/sprites.ts`), so a box drawn as 📦 on a build tile is
+ * a Cardboard Box the player thinks they own. (The crumb bands are `render/`'s and out of reach here.)
+ */
+function checkNightModifiers(
+	nights: readonly NightDef[],
+	modifiers: readonly NightModifierDef[],
+	towers: readonly TowerDef[],
+	enemies: readonly EnemyDef[],
+	problems: string[],
+): void {
+	const modifierIds = new Set(modifiers.map(modifier => modifier.id))
+	for (const night of nights) {
+		if (night.modifierId !== undefined && !modifierIds.has(night.modifierId)) {
+			problems.push(`night '${night.id}': modifierId: no modifier '${night.modifierId}'`)
+		}
+	}
+
+	const entityGlyphs = new Set([...towers, ...enemies].map(def => def.glyph))
+	for (const modifier of modifiers) {
+		if (entityGlyphs.has(modifier.glyph)) {
+			problems.push(`modifier '${modifier.id}': glyph: '${modifier.glyph}' is a tower's or an enemy's`)
+		}
+		modifier.effects.forEach((effect, index) => {
+			if (effect.kind === 'boxes' && entityGlyphs.has(effect.glyph)) {
+				problems.push(
+					`modifier '${modifier.id}': effects.${index}.glyph: '${effect.glyph}' is a tower's or an enemy's`,
+				)
+			}
+		})
+	}
+}
+
+/**
  * Validates every collection and throws once, with **every** problem it found. Failing on the
  * first would mean fourteen restarts to fix fourteen typos.
  */
@@ -991,11 +1083,13 @@ export function validateContent(raw: RawContent): Content {
 		nights: validateCollection('night', schemas.night, raw.nights, problems),
 		statuses: validateCollection('status', schemas.status, raw.statuses, problems),
 		installations: validateCollection('installation', schemas.installation, raw.installations, problems),
+		modifiers: validateCollection('modifier', schemas.nightModifier, raw.modifiers, problems),
 	}
 
 	checkUpgradeTiers(content.towers, problems)
 	checkPushbackRiders(content.towers, problems)
 	checkNightUnlocks(content.nights, content.towers, problems)
+	checkNightModifiers(content.nights, content.modifiers, content.towers, content.enemies, problems)
 
 	if (problems.length > 0) {
 		throw new ContentValidationError(problems)

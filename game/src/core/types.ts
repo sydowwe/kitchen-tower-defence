@@ -551,6 +551,12 @@ export interface NightState {
 	 */
 	loadout: DefId[] | null
 	/**
+	 * The night modifier tonight was built with, or null. Off the night def, never an option: see
+	 * `createWorld`. **No system reads it** -- what the modifier did is already in `world.modifiers`,
+	 * `map` and `crumbPiles`. It is here for the screens that name tonight.
+	 */
+	modifierId: DefId | null
+	/**
 	 * What tonight paid, term by term. Null until the night ends; `resolveSystem` writes it once, in
 	 * whichever terminal branch it takes, just before `nightEnded`.
 	 *
@@ -615,7 +621,8 @@ export interface NoiseState {
 
 /**
  * What the player's owned installations are worth, resolved into the numbers each system reads --
- * `resolveModifiers` in `core/content/installations.ts` folds a set of ids into one of these.
+ * `resolveModifiers` in `core/content/installations.ts` folds a set of ids into one of these. Tonight's
+ * night modifier is folded over that by `applyNightModifier` in `core/content/modifiers.ts`.
  *
  * **Numbers, not ids**, for `Difficulty`'s reason: the world carries what it was built with, so a
  * replay of tonight is not at the mercy of a balance patch that re-prices an installation next
@@ -651,6 +658,20 @@ export interface WorldModifiers {
 	 * number, and because a replay carries what the night was built with.
 	 */
 	loadoutSlots: number
+	/**
+	 * The three below are the night modifier's alone; no installation writes them.
+	 *
+	 * On an entry's count, beside the tier's, rounded once over the product (`waveEntryCount`).
+	 */
+	enemyCountMult: number
+	/** On a kill's crumb drop, beside the tier's, inside its one rounding. Not on tower income. */
+	crumbValueMult: number
+	/**
+	 * On every damage of that type before the tag matrix, in `applyDamage`: hits, splash, auras, DoT and
+	 * heat tiles alike. **The one nested object here** -- whoever copies a `WorldModifiers` copies this
+	 * record too (`copyModifiers`), or one world's heatwave is every later world's.
+	 */
+	damageTypeMult: Record<DamageType, number>
 }
 
 /**
@@ -692,7 +713,8 @@ export type GameEvent =
 	 * multipliers -- because that is what 6C's damage numbers show and what a balance report adds
 	 * up. `at` is tile coordinates like everything else in `core/`.
 	 *
-	 * `multiplier` is `amount / base`, `Marked` included: what the matrix actually did to this hit.
+	 * `multiplier` is `amount / base`, `Marked` and tonight's `damageTypeMult` included: what the matrix
+	 * and the night actually did to this hit.
 	 * Carried rather than recomputed because the event names no damage type and the enemy may be dead
 	 * by the time a reader gets to it. `effectivenessOf` is the one thing that turns it into a colour.
 	 */

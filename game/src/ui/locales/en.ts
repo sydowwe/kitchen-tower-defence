@@ -13,6 +13,7 @@ import type {
 	InstallationEffectMessages,
 	InstallationMessages,
 	LoadoutProblemMessages,
+	NightModifierMessages,
 	RejectionMessages,
 	RoleMessages,
 	TagMessages,
@@ -667,6 +668,30 @@ export const en = {
 				'Screwed to the wall above the counter, just within reach, with room on it for something else.',
 		},
 	} satisfies InstallationMessages,
+	// The night modifiers (analytic-docs/CONTENT.md section 6). Drafts: step 21F rewrites them with the
+	// banner on screen.
+	modifier: {
+		dishesLeftOut: {
+			name: 'Dishes Left Out',
+			description: 'Nobody cleared up after dinner. There are crumbs all over the floor before anything arrives.',
+		},
+		dampNight: {
+			name: 'A Damp Night',
+			description: 'The air is heavy and the walls are sweating. Mold spreads faster tonight.',
+		},
+		dinnerParty: {
+			name: 'After a Dinner Party',
+			description: 'Leftovers everywhere. Twice as many of them come, and each one leaves twice the crumbs.',
+		},
+		movingDay: {
+			name: 'Moving Day',
+			description: 'Half-packed bags stand wherever there was room. You can only build where they are not.',
+		},
+		heatwave: {
+			name: 'Heatwave',
+			description: 'The kitchen will not cool down. Fire burns hotter tonight, and cold does less.',
+		},
+	} satisfies NightModifierMessages,
 	// Every map's name, keyed off `MapDef.id`.
 	map: {
 		counter: { name: 'The Counter' },

@@ -15,6 +15,7 @@ import { ENEMIES } from '@/core/content/enemies.ts'
 import { FOODS } from '@/core/content/food.ts'
 import { INSTALLATIONS } from '@/core/content/installations.ts'
 import { MAPS } from '@/core/content/maps/index.ts'
+import { NIGHT_MODIFIERS } from '@/core/content/modifiers.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContentInDev } from '@/core/content/schema.ts'
 import { POST_V1_TOWERS, TOWERS } from '@/core/content/towers.ts'
@@ -28,6 +29,7 @@ export * from '@/core/content/enemies.ts'
 export * from '@/core/content/food.ts'
 export * from '@/core/content/installations.ts'
 export * from '@/core/content/matrix.ts'
+export * from '@/core/content/modifiers.ts'
 export * from '@/core/content/nights.ts'
 export * from '@/core/content/statuses.ts'
 export * from '@/core/content/tileEffects.ts'
@@ -40,6 +42,7 @@ export type {
 	InstallationDef,
 	MapSource,
 	NightDef,
+	NightModifierDef,
 	TowerDef,
 	TowerRole,
 } from '@/core/content/schema.ts'
@@ -51,7 +54,7 @@ export type {
  * reason -- `Record<TileEffectKind, TileEffectDef>` is already exhaustive at the type level.
  *
  * `installations` joined the list in step 13A and holds all of analytic-docs/CONTENT.md section 8's
- * fourteen.
+ * fourteen. `modifiers` joined in step 21B with section 6's five night modifiers.
  *
  * `maps` is absent for a different reason: `core/content/maps/index.ts` validates its own sources,
  * because that check has to run before `loadMap` derives a `MapDef` from them.
@@ -63,6 +66,7 @@ validateContentInDev({
 	food: FOODS,
 	nights: NIGHTS,
 	installations: INSTALLATIONS,
+	modifiers: NIGHT_MODIFIERS,
 })
 
 function lookup<T extends { id: DefId }>(kind: string, entries: readonly T[], id: DefId): T {

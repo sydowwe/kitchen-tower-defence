@@ -32,8 +32,11 @@ import type {
 import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/types.ts'
 
 /**
- * `base` damage of `damageType` onto `enemy`, through the tag matrix, and the resolved amount back.
- * **No event.**
+ * `base` damage of `damageType` onto `enemy`, through tonight's `damageTypeMult` and then the tag
+ * matrix, and the resolved amount back. **No event.**
+ *
+ * Every damage in the game comes through here, so a heatwave warms a burn tick, an aura and a heat tile
+ * as well as a shot.
  *
  * This half exists for damage over time. Burn is 5/60 = 0.083 per tick, and
  * `render/layers/effects.ts` rounds the amount to key its glyph cache: every burning enemy would
@@ -44,7 +47,7 @@ import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/typ
  * held open for exactly this.
  */
 export function applyDamage(world: World, enemy: Enemy, base: number, damageType: DamageType): number {
-	const amount = resolveDamage(base, damageType, enemy)
+	const amount = resolveDamage(base * world.modifiers.damageTypeMult[damageType], damageType, enemy)
 	enemy.hp -= amount
 
 	// **The type test comes first, before anything is computed.** This function runs for every DoT

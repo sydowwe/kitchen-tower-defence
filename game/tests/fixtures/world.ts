@@ -1,4 +1,4 @@
-import { NO_MODIFIERS } from '@/core/content/installations.ts'
+import { copyModifiers, NO_MODIFIERS } from '@/core/content/installations.ts'
 import { TileFlags } from '@/core/map.ts'
 import { createRngState } from '@/core/rng.ts'
 import type { World } from '@/core/types.ts'
@@ -86,6 +86,7 @@ export function createTestWorld(): World {
 			enemiesKilled: 0,
 			clearedThroughWaveIndex: -1,
 			loadout: null,
+			modifierId: null,
 			// Null even though the night is `'won'`: `'test'` is no night, so there is no pay to compute.
 			pay: null,
 		},
@@ -99,7 +100,8 @@ export function createTestWorld(): World {
 			noiseCap: 100,
 			groceryMoneyMult: 1,
 		},
-		modifiers: { ...NO_MODIFIERS },
+		// Deep: a spec writing `damageTypeMult.fire` must not be writing `NO_MODIFIERS`.
+		modifiers: copyModifiers(NO_MODIFIERS),
 
 		events: [],
 	}

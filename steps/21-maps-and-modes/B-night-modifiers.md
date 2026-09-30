@@ -176,10 +176,10 @@ Gotchas:
 
 ## Acceptance
 
-- [ ] Adding a sixth modifier from the existing effect kinds is a new entry in `modifiers.ts` and its
+- [x] Adding a sixth modifier from the existing effect kinds is a new entry in `modifiers.ts` and its
       English, and no other file. If it isn't, the vocabulary is wrong. Fix it now.
-- [ ] No system reads a modifier id. `grep -rn "modifierId" src/core/systems` finds nothing.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] No system reads a modifier id. `grep -rn "modifierId" src/core/systems` finds nothing.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 21C and 21F
 

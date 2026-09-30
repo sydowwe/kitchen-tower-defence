@@ -146,7 +146,7 @@ Live from **night 1** with a generous cap, so that Mousetrap (noise 2, night 3) 
 
 **Modes:** linear 18-night campaign + three difficulty tiers (Cozy / Normal / Nightmare, implemented as global scalars) + an unlockable Endless night.
 
-**Maps:** 6 hand-authored kitchens — Counter, Sink, Pantry, Stove, Table, Floor — each replayed ~3 times across the campaign with different wave compositions and a **night modifier** (after a dinner party: crumbs pre-scattered; moving day: boxes consume build tiles; heatwave: fire towers boosted). Modifiers are a reusable content lever forever after.
+**Maps:** 6 hand-authored kitchens — Counter, Sink, Pantry, Stove, Table, Floor — each replayed ~3 times across the campaign with different wave compositions and a **night modifier** (dishes left out: crumbs pre-scattered; after a dinner party: double crumbs and double spawns; moving day: boxes consume build tiles; heatwave: fire damage boosted). Modifiers are a reusable content lever forever after.
 
 ### Changes made to the original spec for v1
 

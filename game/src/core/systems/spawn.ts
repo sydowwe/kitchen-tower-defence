@@ -14,7 +14,7 @@ import { getEnemyDef, getNightDef } from '@/core/content/index.ts'
 import { bindRng } from '@/core/rng.ts'
 import { isFlyer } from '@/core/systems/targeting.ts'
 import type { EnemyDef, NightDef, WaveEntry } from '@/core/content/schema.ts'
-import type { Enemy, Path, WaveSpawn, World } from '@/core/types.ts'
+import type { Difficulty, Enemy, Path, WaveSpawn, World, WorldModifiers } from '@/core/types.ts'
 
 /**
  * How many of `count` each lane gets, dealt round-robin: 5 over 2 paths is 3 and 2.
@@ -141,14 +141,29 @@ function comesThroughCrack(entry: WaveEntry): boolean {
 }
 
 /**
+ * How many enemies an authored `count` sends: the tier's multiplier and tonight's night modifier's,
+ * **rounded once over the product**. Rounded rather than floored, because cozy's 0.85 would otherwise
+ * delete a one-enemy entry outright, and the `max(1)` is the belt to that brace.
+ *
+ * Exported for the next-night preview, which calls it with the tier and tonight's fold rather than
+ * copying the rounding into `ui/`.
+ */
+export function waveEntryCount(
+	count: number,
+	difficulty: Pick<Difficulty, 'enemyCountMult'>,
+	modifiers: Pick<WorldModifiers, 'enemyCountMult'>,
+): number {
+	return Math.max(1, Math.round(count * difficulty.enemyCountMult * modifiers.enemyCountMult))
+}
+
+/**
  * Builds `world.night.wave` from `waveComposition` and moves the night into `'wave'`.
  *
  * The night is passed in rather than looked up from `world.night.nightId`, so a test -- and the
  * balance harness -- can drive a synthetic night without registering it in `NIGHTS`.
  *
- * **Difficulty is applied here, to copies.** `count` is rounded rather than floored: cozy's 0.85
- * would otherwise delete a one-enemy entry outright, and the `max(1)` is the belt to that brace.
- * HP is scaled at spawn instead (see `spawnEnemy`) and left unrounded.
+ * **Difficulty is applied here, to copies**, through `waveEntryCount`. HP is scaled at spawn instead
+ * (see `spawnEnemy`) and left unrounded.
  *
  * **`crackSpawnMult` comes after the difficulty, per cursor**, and only on the map's first lane -- the
  * crack Seal the Baseboard Crack seals. The same `max(1, round(...))`, for the same reason.
@@ -159,7 +174,7 @@ export function startWave(world: World, night: NightDef, waveIndex: number): voi
 	const spawns: WaveSpawn[] = []
 
 	for (const entry of composition) {
-		const count = Math.max(1, Math.round(entry.count * world.difficulty.enemyCountMult))
+		const count = waveEntryCount(entry.count, world.difficulty, world.modifiers)
 		try {
 			const cursors = cursorsFor(world, entry, count)
 			if (crack !== undefined && comesThroughCrack(entry)) {

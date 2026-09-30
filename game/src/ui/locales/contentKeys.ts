@@ -12,6 +12,7 @@
 import type { ENEMIES } from '@/core/content/enemies.ts'
 import type { FOODS } from '@/core/content/food.ts'
 import type { InstallationEffect, INSTALLATIONS } from '@/core/content/installations.ts'
+import type { NIGHT_MODIFIERS } from '@/core/content/modifiers.ts'
 import type { TowerRole } from '@/core/content/schema.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
 import type { LoadoutProblem } from '@/core/loadout.ts'
@@ -63,6 +64,12 @@ export type InstallationMessages = Record<(typeof INSTALLATIONS)[number]['id'], 
  * kind fails the build here as well as in `ui/kitchenView.ts`'s switch.
  */
 export type InstallationEffectMessages = Record<InstallationEffect['kind'], string>
+
+/**
+ * `Entry` per night modifier, over `NIGHT_MODIFIERS`' ids: the night's banner names it and says what it
+ * does. A sixth modifier without its English fails the build here.
+ */
+export type NightModifierMessages = Record<(typeof NIGHT_MODIFIERS)[number]['id'], Entry>
 
 /**
  * The same trick over a vocabulary rather than a collection: `PlacementRejection` is ten string
