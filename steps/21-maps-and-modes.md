@@ -20,6 +20,8 @@ Turn one map into eighteen distinct nights. Five new maps in the editor you buil
 
    Multi-path maps must **merge into a shared final stretch** before the fridge (`../analytic-docs/DECISIONS.md` §3). Use the editor's convergence readout to confirm it.
 
+   Once maps differ, the loadout screen's preview (step 20aB) has to show the map's **shape** as well as its name. The track's length and lanes are part of what the player chooses towers against. 20aB shows the name only, since there was one map.
+
 2. **Night modifiers** (`core/content/modifiers.ts`). A modifier is a named patch applied at night start, and it must be a *general* system — this is your content lever for every future update:
    - `dishes left out` (night 6) — 15 crumbs pre-scattered along the track at night start. Free money that is also free spawn pressure.
    - `damp night` (11) — mold spread interval ×1.5.
@@ -27,7 +29,7 @@ Turn one map into eighteen distinct nights. Five new maps in the editor you buil
    - `moving day` (16) — 30% of buildable tiles are covered by cardboard boxes at night start, chosen deterministically from the seed.
    - `heatwave` (18) — fire damage ×1.3, cold damage ×0.7.
 
-   Each modifier declares which world/enemy/tower fields it patches; none of them may require a system-file edit. Surface the active modifier prominently on the kitchen screen and in a banner at night start — a modifier the player doesn't notice is wasted content.
+   Each modifier declares which world/enemy/tower fields it patches; none of them may require a system-file edit. Surface the active modifier prominently on the kitchen screen, on the loadout screen's preview (step 20aB, since a heatwave changes which towers are worth bringing), and in a banner at night start — a modifier the player doesn't notice is wasted content.
 
 3. **Difficulty tiers.** The scalars in `../analytic-docs/CONTENT.md` §9, applied at world creation and at spawn time. Global scalars only — no bespoke content per tier. Selected on the title screen, stored per-profile, shown in the HUD. Beating the campaign on one tier unlocks the next.
 
@@ -36,6 +38,7 @@ Turn one map into eighteen distinct nights. Five new maps in the editor you buil
    - Enemy HP and count scale smoothly; income scales more slowly, so the run ends eventually. That's the point.
    - Score is waves survived; persist a per-map best in the save.
    - Reuse the night pipeline entirely — endless is a `NightDef` produced by a generator function, not a separate mode with its own code path. If it needs its own path, the night model is too rigid.
+   - **The loadout is chosen once, at run start, through step 20a's loadout screen, and locked for the run.** A run is one world, so `NightState.loadout` already can't change during it. What's new is where the list comes from: an endless run isn't `progress.nightId`, so it needs its own entry in `Progress.loadouts` (or a sibling field) and its own path through `tonightsLoadout`.
 
 5. **Wire up nights 1–18 in full** per the `../analytic-docs/CONTENT.md` §6 table: map, wave count, modifier. This is the first time the whole campaign exists as data. Unlocks are already authored (`NightDef.unlocksTowerIds`, step 20B); moving a night to its real map does not touch them.
 

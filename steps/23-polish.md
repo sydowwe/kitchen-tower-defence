@@ -35,7 +35,7 @@ Small, cheap, and it's most of what makes a TD feel good:
 
 - **Night 1 as a scripted tutorial**: contextual prompts one at a time — place a Salt Shaker, collect a crumb, call the next wave early, watch a leak happen. No modal walls of text, no forced clicks beyond the first.
 - **Contextual first-time hints** on each new mechanic: the first crumb to start rotting, the first flyer, the first time noise passes 50%, the first mold tile, the Mouse's approach.
-- **Codex screen** (from the kitchen): every discovered tower and enemy with full stats, tags, and the damage matrix rendered as a readable grid. Undiscovered entries stay silhouetted. This is where a player who wants to understand the counter system goes.
+- **Codex screen** (from the kitchen **and from the loadout screen**, `../analytic-docs/DECISIONS.md` §10): every discovered tower and enemy with full stats, tags, and the damage matrix rendered as a readable grid. Undiscovered entries stay silhouetted. This is where a player who wants to understand the counter system goes. Step 20aB left no placeholder link, so add it here. The loadout-in-progress lives in the session store (`loadoutDraft`), so a round trip to the codex loses nothing.
 - **Settings**: audio volumes, screen shake toggle, damage numbers toggle, colourblind-safe palette variant, key rebinding, reset progress.
 
 ## D. Copy and shipping

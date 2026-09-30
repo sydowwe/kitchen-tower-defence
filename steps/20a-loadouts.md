@@ -1,59 +1,114 @@
 # Step 20a — Loadouts
 
-> Paste this entire file as your prompt into a fresh session.
-> **Runs between steps 20 and 21.** It needs the Kitchen screen from step 20, and steps 21 and 22 both depend on it — authoring and balancing nights without loadouts in place would have to be redone.
+> This step is two sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> between them. Do not paste this index. It only says what the parts are and how they fit.
 
-**Read first:** `CLAUDE.md`, `../analytic-docs/DECISIONS.md` §10, `../analytic-docs/CONTENT.md` §8 (installations, loadout slots).
-**Prereq:** step 20.
+**Prereq:** step 20, all five parts. This split was written against `bcd303a` (20E), with the sprite
+work (`render/sprites.ts`, `ui/components/EntityGlyph.vue`, D21 in `DECISION-LOG.md`) uncommitted in
+the tree. Neither part depends on it; B says what to do if it has landed.
+**Runs between steps 20 and 21.** Steps 21 and 22 both depend on it: authoring and balancing nights
+without loadouts in place would have to be redone.
 
 ## Goal
 
-The player can't bring everything. Before each night they choose a fixed number of towers to set out on the counter, and only those appear in the shop.
+The player can't bring everything. Before each night they choose a fixed number of towers to set out
+on the counter, and only those appear in the shop. Small as a system, large as a design consequence:
+every night stops being "do I have the counter" and becomes "did I *anticipate* the counter", and the
+night preview stops being decoration (`../analytic-docs/DECISIONS.md` §10).
 
-Small system, large design consequence: it converts every night from "do I have the counter" into "did I *anticipate* the counter", and it makes the codex and the night preview load-bearing rather than decorative.
+## Parts
 
-## Build
+| Part | Session | Builds |
+| --- | --- | --- |
+| [A](20a-loadouts/A-rules-and-record.md) | The rules, the night and the record, headless | the three counter-space installations and `WorldModifiers.loadoutSlots`, `NightState.loadout` (renamed from `availableTowerIds`) and the `notInLoadout` refusal, `core/loadout.ts`, `Progress.loadouts` with `setLoadout` / `tonightsLoadout` / `previousLoadout`, the progress record at v2 with its first real migration, and the store's `chooseLoadout` |
+| [B](20a-loadouts/B-loadout-screen-and-shop.md) | The loadout screen, and the shop that follows it | the `'loadout'` route and screen (the counter, the roster by role, stats on hover, the "last night's" preset, the full enemy composition with tags), Start and Retry routed through it, the draft in the session store, the in-night shop showing only the loadout, the installation copy rewritten |
 
-1. **The model.** `NightState.loadout: TowerId[]`, fixed at night start and immutable for the duration. Slot count comes from `WorldModifiers.loadoutSlots` — base **5**, plus 1 for each of the three counter-space installations, max **8**.
+Strictly in order. B draws the rules A writes and saves through the store method A adds.
 
-2. **Shop filtering.** `TowerShop` shows only towers in the loadout. Do not grey out the others — hide them entirely. The shop should feel like *your* shop for tonight, not a reminder of what you left upstairs.
+**A carries the step's headless tests** (installations, `loadout.spec`, campaign, placement,
+persistence). **B carries view-model tests only**, over `ui/loadoutView.ts`, `ui/kitchenView.ts` and
+`ui/viewModel.ts`'s shop, and none over components.
 
-3. **The loadout screen**, on the Kitchen hub, immediately before "Start night N". Fiction: what you set out on the counter before bed.
-   - Every unlocked tower, filterable by role, with full stats on hover.
-   - Slots shown as physical counter space — an empty counter filling up as you choose. Selecting past capacity swaps rather than refusing.
-   - **The night preview sits beside it and is the point of the screen.** Show the map, the wave count, the modifier, and **the full enemy composition of the coming night** — not just what's new. Tags visible on each enemy, since tags are what the player is choosing against.
-   - A link straight into the Codex (step 23) from here, so the damage matrix is one click away while choosing.
-   - Remember the last loadout used per night and preselect it, so a retry doesn't mean rebuilding from scratch. Also offer "last night's loadout" as a one-click preset.
+The step's first test is split along the same line: A asserts that a `PlaceTower` outside the loadout
+is refused with a typed reason, and B asserts that the shop contains exactly the loadout. They read the
+same field and share no code, so nothing is lost by splitting them.
 
-4. **Retry flow.** Losing a night returns to the loadout screen with the previous loadout preselected and fully editable. Rebuilding the loadout *is* the intended second attempt — it's how the player learns the matrix.
+**Authored twice on purpose:** the three new installations' English and their spots in the Kitchen
+scene. A drafts both because `contentKeys.ts` and `KitchenScene.vue`'s `SPOTS` record fail `type-check`
+without them. B rewrites them with the loadout screen's blocked slots on screen, since that's where
+these three installations finally mean something.
 
-5. **Installations.** Add the three from `../analytic-docs/CONTENT.md` §8: Clear the Drying Rack (170), Take the Toaster Off the Counter (240), Second Shelf (320). They fold into `WorldModifiers` like every other installation.
+## The seam that can't be split
 
-6. **Endless mode** uses the same loadout flow, chosen once at run start and locked for the run.
+**A world is a function of progress and a seed, and nothing else.** The loadout a night is played with
+is saved onto `Progress` before the night starts, and `worldOptionsFor` reads it through
+`tonightsLoadout`, the same function the screen preselects with. If the chosen loadout travelled to
+`GameView` through the session store or a route param instead, a reload mid-night, a Retry and step
+22's harness would each build tonight from a different source. The first time they disagreed, a player
+would find a tower missing from the shop that they know they chose.
 
-7. **Validation.** A loadout below capacity is legal — bringing 3 of 6 is the player's business. An empty loadout is not; require at least one.
+## Contradictions this split resolved
 
-## Tests
+Each one is settled in the part that implements it, with its reason there.
 
-- The shop contains exactly the loadout's towers and no others; a `PlaceTower` command naming a tower outside the loadout is rejected with a typed reason.
-- Slot count is base 5 and rises by exactly 1 per counter-space installation, capped at 8.
-- Selecting a 6th tower with 5 slots swaps out the oldest selection rather than failing.
-- Loadout is immutable once the night starts — assert no command can mutate it.
-- Losing and retrying preselects the previous loadout.
-- Nights 1–5 present fewer unlocked towers than slots, so the screen is trivially satisfiable and teaches itself.
+1. **"Nights 1–5 present fewer unlocked towers than slots."** Night 1 unlocks two towers, so night 5
+   has six. Nights 1–4 fit, and night 4 fills all five exactly. Night 5 is the first cut at base slots.
+   The test asserts that. `CONTENT.md` §8's *Loadout slots* table had the same off-by-one and was
+   corrected in this split's commit (A, Tests).
+2. **`NightState.loadout: TowerId[]`, required.** 20B's reason for `null` still holds: specs push
+   synthetic towers after building their world. So it's `loadout: DefId[] | null`, renamed from
+   `availableTowerIds`, and the campaign always passes a list (A, decision 1).
+3. **"Rejected with a typed reason."** `'locked'` exists, but its English says "You do not have that
+   one yet", which is wrong for a tower you own and left upstairs. It becomes `'notInLoadout'` (A,
+   decision 3).
+4. **Where the chosen loadout lives.** 20C reserved the session store for the "loadout-in-progress".
+   The draft goes there. The *chosen* loadout is saved on `Progress` when the night starts, per the
+   seam above (A, decision 7; B, decision 4).
+5. **"A v2 or an optional field, its call"** (20C, decision 7). A v2, with the chain's first real
+   migration (A, decision 11).
+6. **"Selecting past capacity swaps"** beside **"preselect"**. A swap is what a click does. The
+   default never swaps a new tower in, so the first full counter is the player's own cut (A,
+   decision 8).
+7. **Retry.** 20D's Retry calls `restart()` straight away. DECISIONS.md §10 says a retry reopens the
+   loadout screen. A campaign night's Retry now routes there, and a dev override's still restarts (B,
+   decision 5).
+8. **The shop's greyed locked entries** (20E, decision 4) are replaced by hiding. 20E's "same key on
+   night 3 and night 9" no longer holds. Keys follow the loadout, in shop order (B, decision 7).
+9. **"A link straight into the Codex (step 23)."** There is no Codex, and no dead link gets added. The
+   draft is kept in a store so step 23's round trip loses nothing. Step 23's Codex line was edited in
+   this split's commit to own the link.
+10. **"Endless mode uses the same loadout flow."** Endless is step 21's. Step 21's item 4 was edited in
+    this split's commit to say it's chosen through this screen once per run.
+11. **"Show the map, the wave count, the modifier."** One map, and no modifiers until step 21. The
+    preview names the map and counts the waves. Step 21's items 1 and 2 were edited to put the map's
+    shape and the modifier on this screen's preview (B, decision 3).
+12. **"Filterable by role."** `TowerDef.role` exists and has no English. B adds `loadout.role.*`,
+    typed over `TowerRole` in `contentKeys.ts` (B, decision 8).
 
-## Acceptance
+## Step acceptance
 
 - [ ] Around night 8, leaving a tower behind starts to feel like a real cost.
-- [ ] The night preview gives you enough information to choose well — if you're guessing, the preview is under-informative, not the mechanic.
-- [ ] Losing a night and winning it with a different loadout is a satisfying second attempt, not a chore.
+- [ ] The night preview gives you enough information to choose well. If you're guessing, the preview
+      is under-informative, not the mechanic.
+- [ ] Losing a night and winning it with a different loadout is a satisfying second attempt, not a
+      chore.
+- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Consequences for later steps
 
-- **Step 21 (night authoring):** every night must be winnable by **more than one loadout**. A night with exactly one valid answer is a lockout, not a puzzle. Design each night's enemy mix so at least two counters exist.
-- **Step 22 (balance harness):** every policy must now select a loadout before each night. Add a `loadoutPolicy` — at minimum `optimal` (picks the best available counters given full knowledge of the night) and `blind` (picks generically strong towers, ignoring the preview). **The gap between those two win rates is your measure of whether loadouts are a fair puzzle or a memorisation tax.** If `blind` can't clear Act I, the preview isn't informative enough or slots are too tight.
-- **Step 23 (codex):** the codex is now a core screen, not a nice-to-have, and must be reachable from the loadout screen.
+- **Step 21 (night authoring):** every night must be winnable by **more than one loadout**. A night
+  with exactly one valid answer is a lockout, not a puzzle. Design each night's enemy mix so at least
+  two counters exist.
+- **Step 22 (balance harness):** every policy selects a loadout before each night, through
+  `setLoadout` and then `worldOptionsFor`. Add a `loadoutPolicy`, at minimum `optimal` (the best
+  counters given full knowledge of the night) and `blind` (generically strong towers, ignoring the
+  preview). **The gap between those two win rates is the measure of whether loadouts are a fair puzzle
+  or a memorisation tax.** If `blind` can't clear Act I, the preview isn't informative enough or the
+  slots are too tight. `core/loadout.ts` is Progress-free so a policy can build lists with it.
+- **Step 23 (codex):** the codex is now a core screen and must be reachable from the loadout screen.
 
 ## Do not
 
-Add loadout presets/saved builds beyond "last used" and "last night's", per-tower loadout costs, or any restriction on selling and rebuying within a night. Loadouts constrain what you *bring*, never what you do once the night starts.
+Add loadout presets or saved builds beyond "last used" and "last night's", per-tower loadout costs,
+or any restriction on selling and rebuying within a night. Loadouts constrain what you *bring*, never
+what you do once the night starts.

@@ -249,8 +249,8 @@ Base **5**, maximum **8** with all three counter-space installations. See [DECIS
 
 | Nights | Towers unlocked | Slots (base) | Bites? |
 |---|---|---|---|
-| 1–5 | 2–5 | 5 | No — fewer towers than slots |
-| 6–8 | 6–9 | 5 | Barely — first real cuts |
+| 1–4 | 2–5 | 5 | No — never more towers than slots (night 4 fills all five) |
+| 5–8 | 6–9 | 5 | Barely — first real cuts (night 5 is one over) |
 | 9–13 | 10–14 | 5–6 | Yes |
 | 14–18 | 15–19 | 6–8 | Yes, sharply |
 

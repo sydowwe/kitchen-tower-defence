@@ -29,7 +29,7 @@ This is the step the entire architecture was built for. `core/` has no DOM depen
 
    Coverage scoring for placement needs to be shared with the real game's future "recommended tile" hint, so put it in `core/`, not in the harness.
 
-   **Every policy must also select a loadout** (step 20a). Add a `loadoutPolicy` dimension: `optimal` picks the best counters given full knowledge of the night's composition; `blind` picks generically strong towers, ignoring the preview. **The gap between those two win rates measures whether loadouts are a fair puzzle or a memorisation tax** — if `blind` cannot clear Act I, either the night preview isn't informative enough or slots are too tight.
+   **Every policy must also select a loadout** (step 20a): build the list with `core/loadout.ts`, store it with `setLoadout`, then `worldOptionsFor` — the same path the game takes, so the harness cannot play a night with a loadout the game would refuse. A policy that selects nothing plays `tonightsLoadout`, the screen's default. Add a `loadoutPolicy` dimension: `optimal` picks the best counters given full knowledge of the night's composition; `blind` picks generically strong towers, ignoring the preview. **The gap between those two win rates measures whether loadouts are a fair puzzle or a memorisation tax** — if `blind` cannot clear Act I, either the night preview isn't informative enough or slots are too tight.
 
 3. **Metrics per night**, to CSV: night, map, difficulty, policy, seed, won, waves survived, food remaining, crumbs earned / spent / wasted-at-sunrise, crumbs dropped vs collected, towers built, peak noise, wake count, Grocery Money, and **`towersAffordablePerNight`** — the headline number.
 
