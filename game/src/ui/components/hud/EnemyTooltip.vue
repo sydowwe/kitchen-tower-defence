@@ -4,7 +4,7 @@
 		:style="placement"
 	>
 		<header>
-			<span class="glyph">{{ tooltip.glyph }}</span>
+			<span class="glyph"><EntityGlyph :glyph="tooltip.glyph" /></span>
 			<span class="name">{{ t(tooltip.nameKey) }}</span>
 			<span class="hp">{{ t('hud.enemyTooltip.hp', { hp: tooltip.hp, max: tooltip.maxHp }) }}</span>
 		</header>
@@ -49,6 +49,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
 	import type { DamageType, EnemyTooltipView } from '@/ui/viewModel.ts'
 
 	/**

@@ -49,6 +49,7 @@ Eight reference documents plus 23 step files. Each step file in `../steps` is a 
 | [DECISION-LOG.md](DECISION-LOG.md) | Every fork that was put to a choice, what won, and **what was rejected and why** | Before proposing a design change — it was probably already weighed |
 | [TECH-EVALUATION.md](TECH-EVALUATION.md) | Stack alternatives considered and rejected, with reasoning | Before proposing a stack change |
 | [ROADMAP-POST-V1.md](ROADMAP-POST-V1.md) | Acts III & IV in full — all stats, the engineering-cost tiers, bosses, suggested drop order | After v1 ships, or when checking that a v1 decision doesn't block later content |
+| [SPRITES.md](SPRITES.md) | What each tower and enemy should look like, as prompts for AI sprite generation, plus the renderer's constraints on them | Before generating any art |
 | [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) | What's genuinely undecided, what was assumed silently, and the balance/technical risks | Whenever something feels underspecified — check here before inventing an answer |
 
 **Keep these current.** If you change a design decision mid-build, update `DECISIONS.md` and add a row to `DECISION-LOG.md`. If you resolve something in `OPEN-QUESTIONS.md`, move it into `DECISIONS.md` and delete the row. The step prompts reference these files by name, so a stale doc quietly poisons every later prompt.

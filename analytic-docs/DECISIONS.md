@@ -32,6 +32,8 @@ Tone is **sincere-cozy with dry humour**, not jokey. Objects have no faces, no g
 
 All entities are emoji. Towers 🧂🕯️🍯🧻, enemies 🐜🪳🪰🦟🐌, food 🍕🧀🍎, crumbs 🍞.
 
+**Towers and enemies are moving to drawn sprites, one at a time** (DECISION-LOG D21). A tower or enemy with a 128px PNG in `game/src/assets/sprites/` draws as that sprite, with a light halo added by the glyph cache, on the board and in the HUD alike; everything else — food, crumbs, installations — stays emoji. What the sprites look like is [SPRITES.md](SPRITES.md).
+
 Two non-obvious requirements:
 
 - **Pre-render every glyph.** Never call `ctx.fillText` per entity per frame. Rasterise each glyph once into a small offscreen canvas keyed by `emoji + size + dpr`, then `drawImage` from that cache. You end up blitting cached bitmaps exactly like a sprite atlas.

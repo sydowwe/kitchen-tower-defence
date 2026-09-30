@@ -1,7 +1,7 @@
 <template>
 	<section class="inspector">
 		<header class="head">
-			<span class="glyph">{{ inspector.glyph }}</span>
+			<span class="glyph"><EntityGlyph :glyph="inspector.glyph" /></span>
 			<span class="naming">
 				<b>{{ t(inspector.nameKey) }}</b>
 				<i>{{ t('hud.tier', { n: inspector.tier }) }}</i>
@@ -66,6 +66,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
 	import StatCard from '@/ui/components/hud/StatCard.vue'
 	import TargetingControl from '@/ui/components/hud/TargetingControl.vue'
 	import UpgradeSlot from '@/ui/components/hud/UpgradeSlot.vue'

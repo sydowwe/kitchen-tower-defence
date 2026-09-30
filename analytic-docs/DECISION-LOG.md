@@ -38,6 +38,8 @@ Acts III & IV preserved in [ROADMAP-POST-V1.md](ROADMAP-POST-V1.md) with archite
 
 Rejected: colored rectangles (unreadable at a dozen tower types); pixel art from the start (art becomes a blocker on every new tower); AI-generated sprite sheets (style drift, animation frames unsolved).
 
+**Partly superseded by D21:** emoji remain the fallback, and drawn sprites replace them one entity at a time.
+
 ---
 
 ## Round 2 — Core mechanics
@@ -206,6 +208,21 @@ kitchen-defense/
 **Docs sit at the root, not in `docs/`,** because they're the artifact shared by both projects and by every step prompt. All paths in `ARCHITECTURE.md` §1 are relative to `game/`.
 
 **Cost of this decision: one line in step 1.** It is also cheaply reversible in either direction — splitting later is a `git filter-repo`, merging later is a subtree add. Low stakes, which is itself an argument for the lower-friction option now.
+
+### D21 · Drawn sprites over emoji, one entity at a time
+**Chosen: AI-generated single-frame sprites for towers and enemies, loaded by file name and drawn through the glyph cache. An entity with no sprite stays an emoji.**
+
+D4's two objections, revisited:
+- **Animation frames** — no longer a problem. Every motion the board shows (bob, hop, bite, stagger, mirroring, status tints, afterimages) is drawn in code over one static bitmap, so a sprite is one frame.
+- **Style drift** — managed rather than solved: one shared style block, the first accepted sprite fed back as the style reference, and a side-by-side check at 48px ([SPRITES.md](SPRITES.md)).
+
+| Rejected | Why |
+|---|---|
+| **Shipping the SVG masters** | Each browser rasterises SVG-in-canvas its own way (Safari least reliably), and the masters lean on clip paths and layered strokes. A 128px PNG is exactly the pixels that were reviewed, and covers the largest on-screen size (~122 device px at 3×). |
+| **A halo baked into each sprite** | The sprite's navy outline all but disappears on the buildable floor. A halo drawn by the cache is uniform across the set, tunable in one constant, and free per frame; baked in, every sprite has to get it right and changing it means regenerating the set. |
+| **Keying sprites by entity id** | Every layer already hands the cache a glyph. Keying by glyph means the tower, its placement ghost, shove afterimages and thief trails all pick the sprite up with no change to a single layer. |
+
+`core/` is untouched: defs keep their `glyph`, which is also the fallback while a sprite loads. The HUD shows the same sprites as `<img>`s (shop, inspector, enemy tooltip, night preview), with the halo done as CSS drop shadows in the same colour. Code: `render/sprites.ts`, `rasteriseSprite` in `render/glyphCache.ts`, `ui/components/EntityGlyph.vue`.
 
 ---
 

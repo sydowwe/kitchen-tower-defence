@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <clipPath id="cPillar"><path d="M 360 480 L 360 770 C 360 792 420 806 500 806 C 580 806 640 792 640 770 L 640 480 Z"/></clipPath>
+  <clipPath id="cFlame"><path d="M 506 474 C 444 474 432 404 458 354 C 480 310 506 276 516 214 C 540 282 582 322 576 394 C 572 444 550 474 506 474 Z"/></clipPath>
+  <clipPath id="cDishSide"><path d="M 250 800 L 258 826 C 274 864 384 890 500 890 C 616 890 726 864 742 826 L 750 800 Z"/></clipPath>
+  <clipPath id="cCollar"><path d="M 344 762 L 344 800 C 344 822 414 836 500 836 C 586 836 656 822 656 800 L 656 762 Z"/></clipPath>
+  <clipPath id="cRing"><path d="M 724 760 A 66 60 0 1 0 856 760 A 66 60 0 1 0 724 760 Z"/></clipPath>
+</defs>
+<g transform="translate(-148.70461814259215 -147.50985391448626) scale(1.1947642281059532)" stroke-linejoin="round" stroke-linecap="round">
+  <g fill="#1c1f3f" stroke="#1c1f3f" stroke-width="51.82612480636544">
+    <path d="M 250 800 L 258 826 C 274 864 384 890 500 890 C 616 890 726 864 742 826 L 750 800 Z"/><path d="M 250 800 A 250 62 0 1 0 750 800 A 250 62 0 1 0 250 800 Z"/><path d="M 724 760 A 66 60 0 1 0 856 760 A 66 60 0 1 0 724 760 Z"/><path d="M 720 790 L 752 770 L 770 800 L 736 818 Z"/>
+    <path d="M 360 480 L 360 770 C 360 792 420 806 500 806 C 580 806 640 792 640 770 L 640 480 Z"/><path d="M 360 480 A 140 34 0 1 0 640 480 A 140 34 0 1 0 360 480 Z"/><path d="M 612 478 C 636 478 664 490 666 524 L 668 608 C 670 646 630 650 628 616 L 626 540 C 624 512 616 500 612 478 Z"/><path d="M 506 474 C 444 474 432 404 458 354 C 480 310 506 276 516 214 C 540 282 582 322 576 394 C 572 444 550 474 506 474 Z"/>
+  </g>
+
+  <!-- ===== brass chamberstick: ring handle, dish, socket ===== -->
+  <path d="M 724 760 A 66 60 0 1 0 856 760 A 66 60 0 1 0 724 760 Z" fill="#d6a23f"/>
+  <g clip-path="url(#cRing)">
+    <path d="M 740 776 A 66 60 0 1 0 872 776 A 66 60 0 1 0 740 776 Z" fill="#9b6a24"/>
+    <path d="M 720 748 A 60 54 0 1 0 840 748 A 60 54 0 1 0 720 748 Z" fill="#d6a23f"/>
+    <path d="M 736 740 C 744 722 762 710 782 706" fill="none" stroke="#ffe08a" stroke-width="10.043822636892529"/>
+  </g>
+  <path d="M 724 760 A 66 60 0 1 0 856 760 A 66 60 0 1 0 724 760 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+  <path d="M 764 760 A 30 28 0 1 0 824 760 A 30 28 0 1 0 764 760 Z" fill="#1c1f3f"/>
+  <path d="M 720 790 L 752 770 L 770 800 L 736 818 Z" fill="#9b6a24" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+
+  <path d="M 250 800 L 258 826 C 274 864 384 890 500 890 C 616 890 726 864 742 826 L 750 800 Z" fill="#9b6a24"/>
+  <g clip-path="url(#cDishSide)">
+    <path d="M 240 790 L 380 790 C 330 830 300 860 290 900 L 240 900 Z" fill="#d6a23f"/>
+    <path d="M 380 870 C 440 884 560 884 620 870" fill="none" stroke="#ffe08a" stroke-width="7.5328669776693955"/>
+  </g>
+  <path d="M 250 800 L 258 826 C 274 864 384 890 500 890 C 616 890 726 864 742 826 L 750 800 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+  <path d="M 250 800 A 250 62 0 1 0 750 800 A 250 62 0 1 0 250 800 Z" fill="#d6a23f"/>
+  <path d="M 286 806 A 214 46 0 1 0 714 806 A 214 46 0 1 0 286 806 Z" fill="#b98530"/>
+  <path d="M 292 790 C 320 760 400 744 470 740" fill="none" stroke="#ffe08a" stroke-width="10.043822636892529"/>
+  <path d="M 262 812 C 256 800 262 786 280 776" fill="none" stroke="#ffc77a" stroke-width="10.043822636892529"/>
+  <path d="M 250 800 A 250 62 0 1 0 750 800 A 250 62 0 1 0 250 800 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+
+  <path d="M 344 762 L 344 800 C 344 822 414 836 500 836 C 586 836 656 822 656 800 L 656 762 Z" fill="#d6a23f"/>
+  <g clip-path="url(#cCollar)">
+    <path d="M 580 740 C 604 770 604 810 590 850 L 680 850 L 680 740 Z" fill="#9b6a24"/>
+    <path d="M 340 740 L 366 740 L 366 850 L 340 850 Z" fill="#ffc77a"/>
+    <rect x="386" y="770" width="16" height="50" fill="#ffe08a"/>
+  </g>
+  <path d="M 344 762 L 344 800 C 344 822 414 836 500 836 C 586 836 656 822 656 800 L 656 762 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+  <path d="M 344 762 A 156 36 0 1 0 656 762 A 156 36 0 1 0 344 762 Z" fill="#b98530" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+
+  <!-- ===== cream pillar, lit from the flame at the top ===== -->
+  <path d="M 360 480 L 360 770 C 360 792 420 806 500 806 C 580 806 640 792 640 770 L 640 480 Z" fill="#f3e3c1"/>
+  <g clip-path="url(#cPillar)">
+    <path d="M 340 460 L 660 460 L 660 540 C 580 556 420 556 340 540 Z" fill="#fff4dc"/>
+    <path d="M 560 460 C 600 560 604 700 580 820 L 680 820 L 680 460 Z" fill="#252968" opacity="0.2"/>
+    <path d="M 340 470 L 382 470 C 374 580 372 700 376 820 L 340 820 Z" fill="#ffc77a"/>
+    <path d="M 340 740 C 420 766 580 766 660 740 L 660 820 L 340 820 Z" fill="#252968" opacity="0.12"/>
+    <path d="M 533.0 484 L 533.0 584.84 A 18.6 18.6 0 1 0 563.0 584.84 L 563.0 484 Z" fill="#fbefd4"/><path d="M 573.0 484 L 573.0 637.352 A 21.08 21.08 0 1 0 607.0 637.352 L 607.0 484 Z" fill="#fbefd4"/>
+    <path d="M 533.0 484 L 533.0 584.84 A 18.6 18.6 0 1 0 563.0 584.84 L 563.0 484 Z" fill="none" stroke="#d9c49b" stroke-width="7.5328669776693955"/><path d="M 573.0 484 L 573.0 637.352 A 21.08 21.08 0 1 0 607.0 637.352 L 607.0 484 Z" fill="none" stroke="#d9c49b" stroke-width="7.5328669776693955"/>
+  </g>
+  <path d="M 360 480 L 360 770 C 360 792 420 806 500 806 C 580 806 640 792 640 770 L 640 480 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+  <path d="M 612 478 C 636 478 664 490 666 524 L 668 608 C 670 646 630 650 628 616 L 626 540 C 624 512 616 500 612 478 Z" fill="#fbefd4"/>
+  <path d="M 650 520 L 652 610" stroke="#d9c49b" stroke-width="7.5328669776693955"/>
+  <path d="M 612 478 C 636 478 664 490 666 524 L 668 608 C 670 646 630 650 628 616 L 626 540 C 624 512 616 500 612 478 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+  <!-- melted top with a glossy pool -->
+  <path d="M 360 480 A 140 34 0 1 0 640 480 A 140 34 0 1 0 360 480 Z" fill="#fff4dc"/>
+  <path d="M 400 486 A 104 22 0 1 0 608 486 A 104 22 0 1 0 400 486 Z" fill="#fff8e6" stroke="#d9c49b" stroke-width="7.5328669776693955"/>
+  <path d="M 440 482 C 456 474 480 470 500 470" fill="none" stroke="#ffffff" stroke-width="7.5328669776693955"/>
+  <path d="M 360 480 A 140 34 0 1 0 640 480 A 140 34 0 1 0 360 480 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+
+  <!-- ===== wick + teardrop flame with a blue base ===== -->
+  <path d="M 502 482 C 500 466 504 452 508 440" fill="none" stroke="#3b2b28" stroke-width="10.043822636892529"/>
+  <path d="M 506 474 C 444 474 432 404 458 354 C 480 310 506 276 516 214 C 540 282 582 322 576 394 C 572 444 550 474 506 474 Z" fill="#ffb338"/>
+  <g clip-path="url(#cFlame)">
+    <path d="M 506 462 C 462 462 456 408 474 368 C 490 332 508 300 516 256 C 534 304 564 336 560 392 C 556 436 540 462 506 462 Z" fill="#ffd865"/>
+    <path d="M 508 452 C 480 452 478 414 490 388 C 500 366 510 346 514 318 C 526 350 540 372 538 404 C 536 432 526 452 508 452 Z" fill="#fff6cf"/>
+    <path d="M 462 470 A 44 30 0 1 0 550 470 A 44 30 0 1 0 462 470 Z" fill="#4f9dff"/>
+    <path d="M 480 462 A 20 12 0 1 0 520 462 A 20 12 0 1 0 480 462 Z" fill="#9cc8ff"/>
+  </g>
+  <path d="M 506 474 C 444 474 432 404 458 354 C 480 310 506 276 516 214 C 540 282 582 322 576 394 C 572 444 550 474 506 474 Z" fill="none" stroke="#1c1f3f" stroke-width="16.73970439482088"/>
+</g></svg>

@@ -21,6 +21,7 @@ import type { AuraBehaviour } from '@/core/content/behaviours.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { Tower, Vec2, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
+import { stateGlyph } from '@/render/sprites.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
 import {
 	AURA_DAMAGE_CLEAR,
@@ -344,6 +345,10 @@ function drawCracks(ctx: CanvasRenderingContext2D, center: Vec2, tilePx: number,
  * The squash is a `ctx.scale` about the box's own centre, wrapped in `save`/`restore` -- without the
  * restore every tower drawn after it is squashed too, and the symptom is the whole counter going flat
  * the moment one box gets low.
+ *
+ * **A `damaged` sprite replaces the drawn cracks** from the first threshold on. The cracks are
+ * placed for the emoji's outline and land on nothing in particular over drawn art, which carries its
+ * own bite marks; the squash still marks the last state.
  */
 function drawBox(
 	ctx: CanvasRenderingContext2D,
@@ -360,9 +365,14 @@ function drawBox(
 		return
 	}
 
+	const damaged = stateGlyph(glyph, 'damaged')
+	const cracks = damaged === glyph
+
 	if (fraction > BOX_COLLAPSING_AT) {
-		blitGlyph(ctx, dpr, glyph, size, center.x, center.y)
-		drawCracks(ctx, center, tilePx, 2)
+		blitGlyph(ctx, dpr, damaged, size, center.x, center.y)
+		if (cracks) {
+			drawCracks(ctx, center, tilePx, 2)
+		}
 		return
 	}
 
@@ -370,8 +380,10 @@ function drawBox(
 	ctx.translate(center.x, center.y)
 	ctx.scale(BOX_COLLAPSE_SCALE_X, BOX_COLLAPSE_SCALE_Y)
 	ctx.translate(-center.x, -center.y)
-	blitGlyph(ctx, dpr, glyph, size, center.x, center.y)
-	drawCracks(ctx, center, tilePx, BOX_CRACKS.length)
+	blitGlyph(ctx, dpr, damaged, size, center.x, center.y)
+	if (cracks) {
+		drawCracks(ctx, center, tilePx, BOX_CRACKS.length)
+	}
 	ctx.restore()
 }
 
@@ -651,7 +663,7 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 			// cannot be tinted, and an alpha left set fades the projectiles, the theft animation and
 			// the whole overlay drawn after this layer (step 10C, decision 2).
 			ctx.globalAlpha = REARM_GLYPH_ALPHA
-			blitGlyph(ctx, dpr, def.glyph, tilePx * TOWER_SCALE, center.x, center.y)
+			blitGlyph(ctx, dpr, stateGlyph(def.glyph, 'sprung'), tilePx * TOWER_SCALE, center.x, center.y)
 			ctx.globalAlpha = 1
 		} else if (isBarricade(def)) {
 			drawBox(ctx, dpr, def.glyph, center, tilePx, tower.hp / tower.maxHp)

@@ -367,3 +367,12 @@ export const GHOST_NOISE = '#f5c66b'
 /** The panel the fridge's remaining items sit on, so a row of glyphs reads as a shelf and not as litter. */
 export const SHELF_BACKDROP = 'rgba(12, 16, 28, 0.55)'
 export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'
+
+/**
+ * The thin light edge around every sprite. A sprite's own outline is dark navy and all but vanishes
+ * on `TILE_BUILDABLE`; this is what separates it from the floor (analytic-docs/SPRITES.md). Warm, so
+ * it reads as lamp light catching the edge rather than as a sticker border.
+ *
+ * Duplicated in `ui/App.vue` as `--kd-sprite-halo`, for the HUD's sprites. Change one and change the other.
+ */
+export const SPRITE_HALO = 'rgba(246, 228, 196, 0.8)'

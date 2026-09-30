@@ -15,6 +15,7 @@ import {
 	drawWake,
 } from '@/render/layers/index.ts'
 import { BACKGROUND } from '@/render/palette.ts'
+import { loadSprites } from '@/render/sprites.ts'
 import type { OverlayView } from '@/render/layers/index.ts'
 import type { MapDef, World } from '@/core/types.ts'
 
@@ -192,6 +193,8 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 	}
 
 	resize()
+	// Not awaited: until a sprite has decoded, its glyph draws as the emoji (see `getGlyph`).
+	void loadSprites()
 
 	return {
 		ctx,

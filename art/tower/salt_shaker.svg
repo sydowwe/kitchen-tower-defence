@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <clipPath id="cBody"><path d="M 350 396 C 332 420 322 442 322 476 L 312 842 C 311 868 330 880 360 888 C 420 902 604 902 664 888 C 694 880 713 868 712 842 L 702 476 C 702 442 692 420 674 396 Z"/></clipPath>
+  <clipPath id="cCav"><path d="M 374 400 C 360 424 352 446 352 480 L 344 792 C 344 806 420 830 512 830 C 604 830 680 806 680 792 L 672 480 C 672 446 664 424 650 400 Z"/></clipPath>
+  <clipPath id="cDome"><path d="M 330 306 C 330 196 410 118 512 118 C 614 118 694 196 694 306 C 694 324 606 344 512 344 C 418 344 330 324 330 306 Z"/></clipPath>
+  <clipPath id="cCollar"><path d="M 334 300 L 334 394 C 334 414 420 432 512 432 C 604 432 690 414 690 394 L 690 300 Z"/></clipPath>
+</defs>
+<g transform="translate(-58.99690707263028 14.745333149561247) scale(1.02421217516964)">
+<g transform="rotate(10 712 862)" stroke-linejoin="round" stroke-linecap="round">
+
+  <!-- silhouette: carries the bold outer outline -->
+  <g fill="#1c1f3f" stroke="#1c1f3f" stroke-width="60.456223330624056">
+    <path d="M 350 396 C 332 420 322 442 322 476 L 312 842 C 311 868 330 880 360 888 C 420 902 604 902 664 888 C 694 880 713 868 712 842 L 702 476 C 702 442 692 420 674 396 Z"/><path d="M 334 300 L 334 394 C 334 414 420 432 512 432 C 604 432 690 414 690 394 L 690 300 Z"/><path d="M 330 306 C 330 196 410 118 512 118 C 614 118 694 196 694 306 C 694 324 606 344 512 344 C 418 344 330 324 330 306 Z"/>
+  </g>
+
+  <!-- ===== BODY: frosted glass ===== -->
+  <path d="M 350 396 C 332 420 322 442 322 476 L 312 842 C 311 868 330 880 360 888 C 420 902 604 902 664 888 C 694 880 713 868 712 842 L 702 476 C 702 442 692 420 674 396 Z" fill="#cfe8f3"/>
+  <g clip-path="url(#cBody)">
+    <!-- thick glass base -->
+    <path d="M 300 780 L 730 780 L 730 920 L 300 920 Z" fill="#b8dcea"/>
+    <!-- cavity: empty frosted glass above the salt -->
+    <path d="M 374 400 C 360 424 352 446 352 480 L 344 792 C 344 806 420 830 512 830 C 604 830 680 806 680 792 L 672 480 C 672 446 664 424 650 400 Z" fill="#96bfda"/>
+    <g clip-path="url(#cCav)">
+      <!-- salt, surface kept level with the world while the shaker tilts -->
+      <g transform="rotate(-10 512 512)">
+        <rect x="250" y="512" width="520" height="420" fill="#eff2f2"/>
+        <ellipse cx="512" cy="512" rx="172" ry="30" fill="#ffffff"/>
+        <path d="M 360 516 C 420 542 604 542 664 516" fill="none" stroke="#cdd5e6" stroke-width="8.787241763172101"/>
+      </g>
+      <circle cx="420" cy="610" r="7" fill="#cdd5e6"/>
+<circle cx="470" cy="680" r="6" fill="#cdd5e6"/>
+<circle cx="560" cy="640" r="7" fill="#cdd5e6"/>
+<circle cx="610" cy="720" r="6" fill="#cdd5e6"/>
+<circle cx="398" cy="740" r="6" fill="#cdd5e6"/>
+<circle cx="520" cy="760" r="7" fill="#cdd5e6"/>
+<circle cx="455" cy="575" r="5" fill="#cdd5e6"/>
+<circle cx="590" cy="590" r="5" fill="#cdd5e6"/>
+    </g>
+    <path d="M 374 400 C 360 424 352 446 352 480 L 344 792 C 344 806 420 830 512 830 C 604 830 680 806 680 792 L 672 480 C 672 446 664 424 650 400 Z" fill="none" stroke="#7d9cba" stroke-width="8.787241763172101"/>
+    <!-- occlusion under the cap -->
+    <path d="M 300 380 L 730 380 L 730 400 C 690 432 604 452 512 452 C 420 452 334 432 300 400 Z" fill="#252968" opacity="0.28"/>
+    <!-- cel shadow, right side -->
+    <path d="M 612 380 C 646 520 652 720 606 930 L 760 930 L 760 380 Z" fill="#252968" opacity="0.22"/>
+    <!-- warm rim light, left edge -->
+    <path d="M 290 400 L 362 400 C 344 470 336 640 336 900 L 290 900 Z" fill="#ffc77a"/>
+    <!-- glass glints -->
+    <rect x="384" y="462" width="24" height="300" rx="12" fill="#ffffff" opacity="0.55"/>
+    <rect x="384" y="778" width="24" height="26" rx="12" fill="#ffffff" opacity="0.55"/>
+    <path d="M 372 884 C 440 896 584 896 652 884" fill="none" stroke="#ffffff" stroke-width="8.787241763172101" opacity="0.6"/>
+  </g>
+  <path d="M 350 396 C 332 420 322 442 322 476 L 312 842 C 311 868 330 880 360 888 C 420 902 604 902 664 888 C 694 880 713 868 712 842 L 702 476 C 702 442 692 420 674 396 Z" fill="none" stroke="#1c1f3f" stroke-width="19.527203918160225"/>
+
+  <!-- ===== COLLAR: chrome threaded band ===== -->
+  <path d="M 334 300 L 334 394 C 334 414 420 432 512 432 C 604 432 690 414 690 394 L 690 300 Z" fill="#b1bbd2"/>
+  <g clip-path="url(#cCollar)">
+    <path d="M 614 280 C 628 340 628 400 612 450 L 720 450 L 720 280 Z" fill="#252968" opacity="0.3"/>
+    <path d="M 320 280 L 362 280 C 356 330 356 380 362 440 L 320 440 Z" fill="#ffc77a"/>
+    <rect x="384" y="280" width="22" height="170" fill="#fff5e0"/>
+  </g>
+  <path d="M 334 336 C 334 354 420 372 512 372 C 604 372 690 354 690 336" fill="none" stroke="#1c1f3f" stroke-width="8.787241763172101"/>
+  <path d="M 334 366 C 334 384 420 402 512 402 C 604 402 690 384 690 366" fill="none" stroke="#1c1f3f" stroke-width="8.787241763172101"/>
+  <path d="M 334 300 L 334 394 C 334 414 420 432 512 432 C 604 432 690 414 690 394 L 690 300 Z" fill="none" stroke="#1c1f3f" stroke-width="19.527203918160225"/>
+
+  <!-- ===== DOME: chrome cap ===== -->
+  <path d="M 330 306 C 330 196 410 118 512 118 C 614 118 694 196 694 306 C 694 324 606 344 512 344 C 418 344 330 324 330 306 Z" fill="#bfc8dc"/>
+  <g clip-path="url(#cDome)">
+    <!-- horizon reflection band -->
+    <path d="M 310 262 C 400 300 624 300 714 262 L 714 360 L 310 360 Z" fill="#7a84a8"/>
+    <!-- cel shadow -->
+    <path d="M 600 100 C 650 170 664 250 640 360 L 720 360 L 720 100 Z" fill="#252968" opacity="0.3"/>
+    <!-- warm rim crescent, upper-left -->
+    <path d="M 300 320 L 300 100 L 520 100 L 520 118 C 444 132 384 190 374 262 C 370 290 372 306 378 330 Z" fill="#ffc77a"/>
+    <!-- lip highlight -->
+    <path d="M 340 318 C 360 334 440 346 512 346" fill="none" stroke="#fff5e0" stroke-width="8.787241763172101"/>
+    <!-- specular -->
+    <ellipse cx="430" cy="178" rx="30" ry="15" transform="rotate(-38 430 178)" fill="#fff5e0"/>
+    <circle cx="392" cy="222" r="8" fill="#fff5e0"/>
+  </g>
+  <ellipse cx="512" cy="190" rx="21" ry="14" transform="rotate(0 512 190)" fill="#1c1f3f"/>
+<ellipse cx="512" cy="246" rx="24" ry="17" transform="rotate(0 512 246)" fill="#1c1f3f"/>
+<ellipse cx="606" cy="214" rx="21" ry="14" transform="rotate(-18 606 214)" fill="#1c1f3f"/>
+<ellipse cx="418" cy="214" rx="21" ry="14" transform="rotate(18 418 214)" fill="#1c1f3f"/>
+<ellipse cx="455" cy="160" rx="17" ry="10" transform="rotate(12 455 160)" fill="#1c1f3f"/>
+<ellipse cx="569" cy="160" rx="17" ry="10" transform="rotate(-12 569 160)" fill="#1c1f3f"/>
+  <path d="M 330 306 C 330 196 410 118 512 118 C 614 118 694 196 694 306 C 694 324 606 344 512 344 C 418 344 330 324 330 306 Z" fill="none" stroke="#1c1f3f" stroke-width="19.527203918160225"/>
+</g></g></svg>

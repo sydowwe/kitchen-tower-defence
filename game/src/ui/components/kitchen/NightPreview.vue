@@ -16,7 +16,7 @@
 						v-for="entry in preview.unlocks"
 						:key="entry.id"
 					>
-						<span aria-hidden="true">{{ entry.glyph }}</span>
+						<span aria-hidden="true"><EntityGlyph :glyph="entry.glyph" /></span>
 						{{ t(entry.nameKey) }}
 					</li>
 				</ul>
@@ -32,7 +32,7 @@
 						v-for="entry in preview.introduces"
 						:key="entry.id"
 					>
-						<span aria-hidden="true">{{ entry.glyph }}</span>
+						<span aria-hidden="true"><EntityGlyph :glyph="entry.glyph" /></span>
 						{{ t(entry.nameKey) }}
 					</li>
 				</ul>
@@ -59,6 +59,7 @@
 
 <script setup lang="ts">
 	import { useI18n } from 'vue-i18n'
+	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
 	import type { NightPreviewView } from '@/ui/kitchenView.ts'
 
 	/** What tomorrow night brings, and the way into it. A finished campaign has neither. */

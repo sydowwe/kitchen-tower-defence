@@ -15,6 +15,7 @@ export {
 	glyphCacheSize,
 	type GlyphRequest,
 } from '@/render/glyphCache.ts'
+export { spriteUrl } from '@/render/sprites.ts'
 export {
 	drawTerrain,
 	drawTrack,

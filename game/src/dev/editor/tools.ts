@@ -30,27 +30,11 @@ export const TOOL_HINTS: Record<EditorTool, string> = {
  * A 2am kitchen worth of scenery. Glyphs only: a decor *glyph* is drawn on top of the floor and
  * changes nothing about placement, while the `~` brush is what makes a tile unbuildable (step 4B,
  * section 5).
+ *
+ * **No tower's glyph.** Every tower draws as its sprite and the sprite is found by glyph
+ * (`render/sprites.ts`), so a decor 🧂 would be a Salt Shaker standing on the floor that is not one.
  */
-export const DECOR_PALETTE = [
-	'🧽',
-	'🍶',
-	'🪴',
-	'🧴',
-	'🧂',
-	'🍞',
-	'🥫',
-	'🫙',
-	'🧄',
-	'🧅',
-	'🍋',
-	'☕',
-	'🍽️',
-	'🥄',
-	'🪣',
-	'🧹',
-	'🕯️',
-	'🧻',
-] as const
+export const DECOR_PALETTE = ['🧽', '🍶', '🪴', '🍞', '🥫', '🧄', '🧅', '☕', '🍽️', '🥄', '🪣', '🧹'] as const
 
 /** Candidate fridges, so the glyph is a click rather than a paste. */
 export const FRIDGE_GLYPHS = ['🗄️', '🧊', '🚪'] as const

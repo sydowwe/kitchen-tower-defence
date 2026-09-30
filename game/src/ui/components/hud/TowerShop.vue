@@ -17,7 +17,7 @@
 				>
 					<!-- An empty badge still holds its line, so a locked button is the same height. -->
 					<span class="key">{{ entry.hotkey ?? '' }}</span>
-					<span class="glyph">{{ entry.glyph }}</span>
+					<span class="glyph"><EntityGlyph :glyph="entry.glyph" /></span>
 					<span class="cost">
 						<template v-if="entry.unlocked">🍞 {{ entry.cost }}</template>
 						<template v-else-if="entry.unlockNight !== null">
@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 	import { useI18n } from 'vue-i18n'
+	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
 	import StatCard from '@/ui/components/hud/StatCard.vue'
 	import type { DefId, ShopEntry } from '@/ui/viewModel.ts'
 

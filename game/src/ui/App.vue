@@ -35,6 +35,9 @@
 		--kd-hit-weak: #9a978c;
 		--kd-hit-neutral: #ffe9a8;
 		--kd-hit-strong: #ff9d4f;
+		/* The light edge around a tower or enemy sprite: render/palette.ts's `SPRITE_HALO`, for the
+		   HUD's copies of the same sprites. Change one and change the other. */
+		--kd-sprite-halo: rgba(246, 228, 196, 0.8);
 		--kd-radius: 0.5rem;
 
 		/* The Kitchen between nights: the same room in daylight (step 20D). Its own roles rather than
