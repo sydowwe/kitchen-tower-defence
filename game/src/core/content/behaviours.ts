@@ -267,7 +267,7 @@ export function income(params: IncomeParams): IncomeBehaviour {
 export interface CollectBehaviour {
 	kind: 'collect'
 	radiusTiles: number
-	/** How long one pile takes to arrive. The Night Shift Dustpan installation shortens this. */
+	/** How long one pile takes to arrive. Read through `collectTravelTicksFor`, which the Night Shift Dustpan caps. */
 	travelTicks: number
 }
 

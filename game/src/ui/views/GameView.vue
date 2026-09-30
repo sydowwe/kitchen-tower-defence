@@ -38,7 +38,7 @@
 				:is="NoisePanel"
 				v-if="NoisePanel !== null && noiseDev !== null"
 				:readout="noiseDev"
-				@restart="onDevNoise"
+				@restart="onDevModifiers"
 				@wakeNow="onDevWakeNow"
 			/>
 		</div>
@@ -84,7 +84,7 @@
 		TowerInspectorView,
 		WakeView,
 	} from '@/ui/viewModel.ts'
-	import type { DefId, EntityId, GameEvent, MapDef, TargetingMode, World } from '@/core/types.ts'
+	import type { DefId, EntityId, GameEvent, MapDef, TargetingMode, World, WorldModifiers } from '@/core/types.ts'
 	import type { DebugController } from '@/dev/debug/state.ts'
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
 
@@ -161,12 +161,12 @@
 	 * Dev only: the noise panel, dynamically imported below so none of it reaches production, plus the
 	 * readout it draws and the installation modifiers it restarts the night with.
 	 *
-	 * `devNoise` is `undefined` for the whole of a production build -- nothing ever assigns it there --
-	 * so `createWorld` sees exactly the options it saw before this panel existed.
+	 * `devModifiers` is `undefined` for the whole of a production build -- nothing ever assigns it there
+	 * -- so `createWorld` sees exactly the options it saw before this panel existed.
 	 */
 	const NoisePanel = shallowRef<Component | null>(null)
 	const noiseDev = shallowRef<{ level: number; cap: number; decayPerSecond: number; wakeCount: number } | null>(null)
-	let devNoise: CreateWorldOptions['noise']
+	let devModifiers: CreateWorldOptions['modifiers']
 
 	/**
 	 * The map the debug controller works against: **the world's clone**, not the authored def. It
@@ -267,7 +267,7 @@
 			mapId: MAP_ID,
 			nightId: night.id,
 			difficulty: 'normal',
-			noise: devNoise,
+			modifiers: devModifiers,
 		})
 		// A world cannot be built from an unregistered map, so the editor's preview is assigned on
 		// afterwards. A preview whose paths were renamed has no 'crack', and `startWave` throws with
@@ -356,11 +356,11 @@
 
 	/**
 	 * Dev only. A different set of installations is a differently-built world, so it rebuilds the night
-	 * rather than writing to `world.noise` -- the cap and the decay a night was built with are part of
-	 * what `(seed, mapId, nightId, commandLog)` has to reproduce.
+	 * rather than writing to `world.modifiers` -- what a night was built with is part of what
+	 * `(seed, mapId, nightId, commandLog)` has to reproduce.
 	 */
-	function onDevNoise(noise: { capDelta: number; decayPerSecondDelta: number }): void {
-		devNoise = noise
+	function onDevModifiers(modifiers: WorldModifiers): void {
+		devModifiers = modifiers
 		restart(nightIndex.value)
 	}
 

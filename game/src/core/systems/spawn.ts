@@ -12,6 +12,7 @@
 
 import { getEnemyDef, getNightDef } from '@/core/content/index.ts'
 import { bindRng } from '@/core/rng.ts'
+import { isFlyer } from '@/core/systems/targeting.ts'
 import type { EnemyDef, NightDef, WaveEntry } from '@/core/content/schema.ts'
 import type { Enemy, Path, WaveSpawn, World } from '@/core/types.ts'
 
@@ -97,8 +98,50 @@ function cursor(entry: WaveEntry, remaining: number, nextSpawnTick: number, path
 	return spawn
 }
 
+function isFlyerEntry(entry: WaveEntry): boolean {
+	return isFlyer(getEnemyDef(entry.enemyDefId))
+}
+
 /**
- * Builds `world.night.wave` from `night.waves[waveIndex]` and moves the night into `'wave'`.
+ * What wave `waveIndex` actually sends: **the only reader of a night's entries for spawning**, so
+ * `startWave` -- from the countdown and from `CallWaveEarly` alike -- and the Cookie Jar's destroy
+ * penalty cannot disagree about it.
+ *
+ * With `flyerDelayWaves` (Fix the Window Screen), a wave sends its own ground entries plus the flyer
+ * entries of the wave that many before it. A last-wave flyer would arrive after a night that has no
+ * later wave, so it never comes; a wave left with nothing is legal, and spawns out on the tick it
+ * starts. With no delay it is the authored entries in the authored order, so cursor order -- and every
+ * replay recorded before the screen existed -- is unchanged.
+ */
+export function waveComposition(world: World, night: NightDef, waveIndex: number): WaveEntry[] {
+	const own = night.waves[waveIndex]
+	if (own === undefined) {
+		throw new Error(`night '${night.id}' has no wave ${waveIndex}; it has ${night.waves.length}`)
+	}
+
+	const delay = world.modifiers.flyerDelayWaves
+	if (delay === 0) {
+		return [...own.entries]
+	}
+
+	const entries = own.entries.filter(entry => !isFlyerEntry(entry))
+	const shifted = night.waves[waveIndex - delay]
+	if (shifted !== undefined) {
+		entries.push(...shifted.entries.filter(isFlyerEntry))
+	}
+	return entries
+}
+
+/**
+ * Whether an entry's enemies walk in through the baseboard crack: on the ground, from the start of a
+ * lane. A flyer comes in the window, and a Mold with `startDistanceTiles` never came through the crack.
+ */
+function comesThroughCrack(entry: WaveEntry): boolean {
+	return !isFlyerEntry(entry) && (entry.startDistanceTiles ?? 0) === 0
+}
+
+/**
+ * Builds `world.night.wave` from `waveComposition` and moves the night into `'wave'`.
  *
  * The night is passed in rather than looked up from `world.night.nightId`, so a test -- and the
  * balance harness -- can drive a synthetic night without registering it in `NIGHTS`.
@@ -106,19 +149,27 @@ function cursor(entry: WaveEntry, remaining: number, nextSpawnTick: number, path
  * **Difficulty is applied here, to copies.** `count` is rounded rather than floored: cozy's 0.85
  * would otherwise delete a one-enemy entry outright, and the `max(1)` is the belt to that brace.
  * HP is scaled at spawn instead (see `spawnEnemy`) and left unrounded.
+ *
+ * **`crackSpawnMult` comes after the difficulty, per cursor**, and only on the map's first lane -- the
+ * crack Seal the Baseboard Crack seals. The same `max(1, round(...))`, for the same reason.
  */
 export function startWave(world: World, night: NightDef, waveIndex: number): void {
-	const composition = night.waves[waveIndex]
-	if (composition === undefined) {
-		throw new Error(`night '${night.id}' has no wave ${waveIndex}; it has ${night.waves.length}`)
-	}
-
+	const composition = waveComposition(world, night, waveIndex)
+	const crack = world.map.paths[0]
 	const spawns: WaveSpawn[] = []
 
-	for (const entry of composition.entries) {
+	for (const entry of composition) {
 		const count = Math.max(1, Math.round(entry.count * world.difficulty.enemyCountMult))
 		try {
-			spawns.push(...cursorsFor(world, entry, count))
+			const cursors = cursorsFor(world, entry, count)
+			if (crack !== undefined && comesThroughCrack(entry)) {
+				for (const cursor of cursors) {
+					if (cursor.pathId === crack.id) {
+						cursor.remaining = Math.max(1, Math.round(cursor.remaining * world.modifiers.crackSpawnMult))
+					}
+				}
+			}
+			spawns.push(...cursors)
 		} catch (error) {
 			// `cursorsFor` knows the entry and the map but not which night authored it, and a bad
 			// lane is an authoring mistake that has to name the night to be fixable.
@@ -264,10 +315,9 @@ export function spawnDestroyPenalty(world: World, crumbs: number): void {
 		return
 	}
 
-	const composition = getNightDef(world.night.nightId).waves[world.night.waveIndex]
-	if (composition === undefined) {
-		return
-	}
+	// Through `waveComposition`, so a jar destroyed in the wave the screen shifted flyers into buys
+	// flyers too. Its cursors are not cut by `crackSpawnMult`: they are bought against a budget.
+	const composition = waveComposition(world, getNightDef(world.night.nightId), world.night.waveIndex)
 
 	const bought = new Map<number, number>()
 	let budget = crumbs
@@ -275,7 +325,7 @@ export function spawnDestroyPenalty(world: World, crumbs: number): void {
 
 	while (boughtAnything) {
 		boughtAnything = false
-		composition.entries.forEach((entry, index) => {
+		composition.forEach((entry, index) => {
 			const price = getEnemyDef(entry.enemyDefId).reward
 			// A free enemy would buy an infinite burst; the roster has none, and this is the guard
 			// rather than the discovery.
@@ -288,7 +338,7 @@ export function spawnDestroyPenalty(world: World, crumbs: number): void {
 		})
 	}
 
-	composition.entries.forEach((entry, index) => {
+	composition.forEach((entry, index) => {
 		const count = bought.get(index)
 		if (count === undefined) {
 			return

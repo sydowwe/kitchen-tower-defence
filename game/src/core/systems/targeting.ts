@@ -20,7 +20,7 @@ import { bindRng } from '@/core/rng.ts'
 import { chargeAllowsFiring, holdsSourceStatusFrom } from '@/core/systems/charges.ts'
 import { enemyPosition, queryEnemiesInRange } from '@/core/systems/spatial.ts'
 import { isGrabbing, isThiefFleeing } from '@/core/systems/theft.ts'
-import type { Enemy, Tower, World } from '@/core/types.ts'
+import type { Enemy, EnemyTag, Tower, World } from '@/core/types.ts'
 
 /**
  * The one predicate for "may this attack pick that enemy". Step 11's flyers and step 16's burrowing
@@ -46,9 +46,12 @@ export function isTargetable(enemy: Enemy, targets: TargetClass): boolean {
 /**
  * Whether this enemy is off the floor, by its tags. The renderer's `flying` reads this, because a
  * Weevil's mound is not a flyer. Systems asking what the floor does to an enemy ask `isOnFloor`.
+ *
+ * Takes `{ tags }` rather than an `Enemy`, so a def and an enemy go through the one predicate --
+ * `core/systems/spawn.ts` asks it of a wave entry's def before anything has spawned.
  */
-export function isFlyer(enemy: Enemy): boolean {
-	return enemy.tags.includes('air')
+export function isFlyer(entity: { readonly tags: readonly EnemyTag[] }): boolean {
+	return entity.tags.includes('air')
 }
 
 /**

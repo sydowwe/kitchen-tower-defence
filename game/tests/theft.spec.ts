@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { isCollect, isPushback, toApplications } from '@/core/content/behaviours.ts'
 import { ant, beetle, ENEMIES, mold, mouse } from '@/core/content/enemies.ts'
+import { resolveModifiers } from '@/core/content/installations.ts'
 import { applyStatuses } from '@/core/content/statuses.ts'
 import { validateContent } from '@/core/content/schema.ts'
 import { cardboardBox, mintPot, saltShaker, toasterCrumbTray, TOWERS } from '@/core/content/towers.ts'
@@ -464,16 +465,15 @@ describe('FIRST', () => {
 	})
 })
 
-describe('the stealsReduction hook', () => {
+describe('Better Tupperware', () => {
 	it('takes one off every thief and walker alike through the one take, never below 1, and 0 stays 0', () => {
 		const world = createWorld({
 			seed: 1234,
 			mapId: 'counter',
 			nightId: 'night01',
 			difficulty: 'normal',
-			food: { stealsReduction: 1 },
+			modifiers: resolveModifiers(['betterTupperware']),
 		})
-		expect(world.night.stealsReduction).toBe(1)
 		const lane = world.map.paths[0]?.id ?? ''
 
 		// `resolve`'s leak and `theft`'s grab both call `takeFood`, so this is both doors at once.
@@ -481,17 +481,18 @@ describe('the stealsReduction hook', () => {
 		const bruiser = spawnEnemyAt(world, beetle, lane, 0, 0)
 		const thief = spawnEnemyAt(world, mouse, lane, 0, 0)
 
+		// An Ant steals 1 and the floor is 1, so the Tupperware does nothing for it.
 		expect(takeFood(world, walker)).toHaveLength(1)
-		expect(takeFood(world, bruiser)).toHaveLength(beetle.steals - 1)
-		expect(takeFood(world, thief)).toHaveLength(mouse.steals - 1)
+		expect(takeFood(world, bruiser)).toHaveLength(1)
+		expect(takeFood(world, thief)).toHaveLength(4)
 		expect(stealsFor(world, mold)).toBe(0)
 		expect(stealsFor(world, ant)).toBe(1)
 	})
 
-	it('is 0 on a world built without it', () => {
+	it('takes nothing off on a world built without it', () => {
 		const world = createWorld({ seed: 1234, mapId: 'counter', nightId: 'night01', difficulty: 'normal' })
-		expect(world.night.stealsReduction).toBe(0)
-		expect(stealsFor(world, mouse)).toBe(mouse.steals)
+		expect(stealsFor(world, mouse)).toBe(5)
+		expect(stealsFor(world, beetle)).toBe(2)
 	})
 })
 

@@ -78,12 +78,34 @@ function callWaveEarly(world: World): void {
  * `claimedByTowerId` is **deliberately not checked**. Clicking a pile already in flight cancels the
  * claim and pays instantly, which is the behaviour the mechanic wants and falls out of not asking.
  * `collectCrumb` removes it, so the tower's delivery finds nothing to deliver.
+ *
+ * **With a sweep radius, one click takes every pile within it of the clicked one** -- claimed or not,
+ * for the same reason -- one `collectCrumb` each, in array order. In `core/` rather than as a wider
+ * click in `ui/`, so a replay and the balance harness see the broom too.
  */
 function collect(world: World, crumbId: EntityId): void {
-	const crumb = crumbById(world, crumbId)
-	if (crumb !== null) {
+	const clicked = crumbById(world, crumbId)
+	if (clicked === null) {
+		return
+	}
+
+	const radius = world.modifiers.sweepRadiusTiles
+	if (radius <= 0) {
 		// `null` rather than a tower id is what tells a click from a delivery in the event.
-		collectCrumb(world, crumb, null)
+		collectCrumb(world, clicked, null)
+		return
+	}
+
+	const at = { x: clicked.position.x, y: clicked.position.y }
+	// A copy, because `collectCrumb` splices; each pile is looked up again before it is paid.
+	for (const pile of [...world.crumbPiles]) {
+		if (Math.hypot(pile.position.x - at.x, pile.position.y - at.y) > radius) {
+			continue
+		}
+		const live = crumbById(world, pile.id)
+		if (live !== null) {
+			collectCrumb(world, live, null)
+		}
 	}
 }
 

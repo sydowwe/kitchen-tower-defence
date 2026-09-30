@@ -1,3 +1,4 @@
+import { NO_MODIFIERS } from '@/core/content/installations.ts'
 import { TileFlags } from '@/core/map.ts'
 import { createRngState } from '@/core/rng.ts'
 import type { World } from '@/core/types.ts'
@@ -77,7 +78,7 @@ export function createTestWorld(): World {
 					lostTo: null,
 				},
 			],
-			stealsReduction: 0,
+			snackStashUsed: false,
 			ticksSkippedTotal: 0,
 			crumbsDropped: 0,
 			crumbsCollected: 0,
@@ -94,6 +95,7 @@ export function createTestWorld(): World {
 			noiseCap: 100,
 			groceryMoneyMult: 1,
 		},
+		modifiers: { ...NO_MODIFIERS },
 
 		events: [],
 	}

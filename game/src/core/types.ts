@@ -506,10 +506,10 @@ export interface NightState {
 	 */
 	food: FoodItem[]
 	/**
-	 * Taken off every enemy's `steals` at the fridge, never below 1 for one that steals at all -- see
-	 * `stealsFor`. Folded in from `CreateWorldOptions.food` at construction and never written again.
+	 * Whether the Emergency Snack Stash has restocked the shelf tonight. It fires once per night, and
+	 * the night-end summary reads this to say so.
 	 */
-	stealsReduction: number
+	snackStashUsed: boolean
 	/**
 	 * Ticks of countdown the player skipped by calling waves early, summed over the night. Step 20's
 	 * grocery award reads it and divides by 60 once, at the point it needs seconds.
@@ -561,6 +561,39 @@ export interface NoiseState {
 	 * say a sentence with (step 13A, decision 2).
 	 */
 	wakeCount: number
+}
+
+/**
+ * What the player's owned installations are worth, resolved into the numbers each system reads --
+ * `resolveModifiers` in `core/content/installations.ts` folds a set of ids into one of these.
+ *
+ * **Numbers, not ids**, for `Difficulty`'s reason: the world carries what it was built with, so a
+ * replay of tonight is not at the mercy of a balance patch that re-prices an installation next
+ * month. And **all ticks**: the fold did the one per-second conversion, and no system divides by 60.
+ *
+ * `NO_MODIFIERS` is the identity for every field -- what a world with nothing owned carries.
+ */
+export interface WorldModifiers {
+	/** Added to the tier's noise cap. */
+	noiseCapDelta: number
+	/** Added to the base noise decay. */
+	noiseDecayPerTickDelta: number
+	/** A click collects every pile this close to the clicked one. 0 collects the clicked pile alone. */
+	sweepRadiusTiles: number
+	/** A collector's flight is capped at this, never raised to it. Null: no cap. */
+	collectTravelTicksMax: number | null
+	/** On the cursors of ground entries walking in through the first path's start. */
+	crackSpawnMult: number
+	/** A wave's flyer entries arrive this many waves later. */
+	flyerDelayWaves: number
+	/** On a `spread` writer's rate, so its interval is divided by this. */
+	spreadRateMult: number
+	/** Taken off every enemy's `steals` at the fridge, never below 1 for one that steals at all. */
+	stealsReduction: number
+	/** Added to the shelf after the difficulty tier's rounding. */
+	foodBonus: number
+	/** Restocks the shelf once a night, when a take leaves `atOnShelf` or fewer. */
+	snackStash: { atOnShelf: number; items: number } | null
 }
 
 /**
@@ -745,6 +778,8 @@ export interface World {
 	map: MapDef
 	night: NightState
 	difficulty: Difficulty
+	/** Set once in `createWorld` and never written again. See `WorldModifiers`. */
+	modifiers: WorldModifiers
 
 	/** One tick's worth, not a log. See `GameEvent`. */
 	events: GameEvent[]

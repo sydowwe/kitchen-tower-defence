@@ -118,6 +118,17 @@ export function spreadSystem(world: World): void {
 
 		// `+=`, never `world.tick + interval` -- see `Enemy.nextTileWriteTick`. A pulse with nowhere to
 		// go still spends its turn, so a fully-grown patch does not re-scan the board every tick.
-		enemy.nextTileWriteTick += writer.intervalTicks
+		enemy.nextTileWriteTick += intervalFor(world, writer)
 	}
+}
+
+/**
+ * Ticks until this writer's next pulse. A `spread` writer's rate is scaled by
+ * `world.modifiers.spreadRateMult`, so its interval is divided by it: 0.6 turns 720 into 1200. A
+ * `trail` is where the enemy walks, not a growth rate, and is left alone.
+ */
+function intervalFor(world: World, writer: TileWriter): number {
+	return writer.mode === 'spread'
+		? Math.round(writer.intervalTicks / world.modifiers.spreadRateMult)
+		: writer.intervalTicks
 }

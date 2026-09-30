@@ -21,7 +21,7 @@
 
 import { isCollect } from '@/core/content/behaviours.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
-import { isRotting } from '@/core/systems/crumbs.ts'
+import { collectTravelTicksFor, isRotting } from '@/core/systems/crumbs.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import type { Crumb, EntityId, Vec2, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
@@ -90,11 +90,14 @@ export function crumbPosition(world: World, crumb: Crumb): Vec2 {
 	}
 
 	const behaviour = effectiveDefOf(tower).behaviours.find(isCollect)
-	if (behaviour === undefined || behaviour.travelTicks <= 0) {
+	// The flight `core/` actually set, the dustpan's cap included -- the def's would start a capped
+	// flight partway along and jump on the first frame.
+	const travelTicks = behaviour === undefined ? 0 : collectTravelTicksFor(world, behaviour)
+	if (travelTicks <= 0) {
 		return crumb.position
 	}
 
-	const travelled = 1 - crumb.travelTicksRemaining / behaviour.travelTicks
+	const travelled = 1 - crumb.travelTicksRemaining / travelTicks
 	const t = Math.min(Math.max(travelled, 0), 1)
 
 	return {

@@ -593,9 +593,10 @@ export const en = {
 		chicken: { name: 'Chicken' },
 		butter: { name: 'Butter' },
 	} satisfies FoodMessages,
-	// The three noise installations (analytic-docs/CONTENT.md section 8). The description says what
-	// the purchase *does* in the kitchen and the number is left to the panel, which reads it off the
-	// def -- a sentence carrying "+25" is a second copy of a number step 22 is going to move.
+	// The installations (analytic-docs/CONTENT.md section 8). The description says what the purchase
+	// *does* in the kitchen and the number is left to the card, which reads it off the def -- a sentence
+	// carrying "+25" is a second copy of a number step 22 is going to move. The eight after step 13A's
+	// three are a first draft; step 20D rewrites them with the cards on screen.
 	installation: {
 		oilTheHinges: {
 			name: 'Oil the Hinges',
@@ -604,6 +605,40 @@ export const en = {
 		closeTheKitchenDoor: {
 			name: 'Close the Kitchen Door',
 			description: 'Between the kitchen and the hallway, one closed door. It buys you a lot more racket.',
+		},
+		buyABroom: {
+			name: 'Buy a Broom',
+			description: 'One sweep takes the pile you clicked and everything lying around it.',
+		},
+		sealTheBaseboardCrack: {
+			name: 'Seal the Baseboard Crack',
+			description: 'A bead of caulk along the skirting. Fewer of them squeeze in the way they always have.',
+		},
+		nightShiftDustpan: {
+			name: 'Night Shift Dustpan',
+			description: 'Your collectors stop carrying crumbs home one at a time. What they pick up arrives sooner.',
+		},
+		fixTheWindowScreen: {
+			name: 'Fix the Window Screen',
+			description:
+				'Patch the hole in the mesh. Whatever flies in has to find another way, and that takes a while.',
+		},
+		pantryShelfLiner: {
+			name: 'Pantry Shelf Liner',
+			description: 'Wipe-clean shelves. Mold still takes hold, but it creeps instead of spreading.',
+		},
+		betterTupperware: {
+			name: 'Better Tupperware',
+			description: 'Snap-lock lids on everything. A raid on the fridge comes away with less, but never nothing.',
+		},
+		biggerFridge: {
+			name: 'Bigger Fridge',
+			description: 'More shelf space, and more on it every night. More to lose, and more to lose it from.',
+		},
+		emergencySnackStash: {
+			name: 'Emergency Snack Stash',
+			description:
+				'Behind the cereal, for when things get bad. Once a night, a nearly bare fridge gets a top-up.',
 		},
 		whiteNoiseMachine: {
 			name: 'White-noise Machine',

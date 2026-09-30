@@ -16,6 +16,7 @@
  */
 
 import { isCollect } from '@/core/content/behaviours.ts'
+import type { CollectBehaviour } from '@/core/content/behaviours.ts'
 import { effectiveDefOf, getEnemyDef } from '@/core/content/index.ts'
 import { nearestPath } from '@/core/path.ts'
 import { earnCrumbs } from '@/core/systems/economy.ts'
@@ -196,6 +197,19 @@ export function forfeitCrumbPiles(world: World): number {
 }
 
 /**
+ * How long a pile claimed by this `collect` takes to arrive: the behaviour's own flight, capped by
+ * `world.modifiers.collectTravelTicksMax`. **A cap, never an override** -- the Crumb Tray's tier-3
+ * instant collection stays instant.
+ *
+ * Exported because `crumbPosition` in `render/layers/crumbs.ts` interpolates against it. Reading the
+ * def's `travelTicks` there instead starts a capped flight halfway along.
+ */
+export function collectTravelTicksFor(world: World, behaviour: CollectBehaviour): number {
+	const max = world.modifiers.collectTravelTicksMax
+	return max === null ? behaviour.travelTicks : Math.min(behaviour.travelTicks, max)
+}
+
+/**
  * Hands every unclaimed pile in radius to the first tower in `world.towers` order that can reach it.
  * Array order rather than nearest-tower, so two towers with overlapping radii resolve the same way
  * on a replay.
@@ -221,7 +235,7 @@ function claimCrumbs(world: World): void {
 				}
 
 				crumb.claimedByTowerId = tower.id
-				crumb.travelTicksRemaining = behaviour.travelTicks
+				crumb.travelTicksRemaining = collectTravelTicksFor(world, behaviour)
 			}
 		}
 	}

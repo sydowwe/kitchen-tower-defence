@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
 import { mouse, weevil } from '@/core/content/enemies.ts'
+import { INSTALLATIONS, NO_MODIFIERS, resolveModifiers } from '@/core/content/installations.ts'
 import { tick } from '@/core/sim.ts'
 import { dropCarried, takeFood } from '@/core/systems/fridge.ts'
 import { pushEnemy } from '@/core/systems/pushback.ts'
@@ -40,6 +41,12 @@ describe('createWorld', () => {
 		// `toEqual` above would happily accept as equal to the array it came from.
 		expect(Array.isArray(roundTrip(world).map.flags)).toBe(true)
 		expect(roundTrip(world).map.flags).toEqual(world.map.flags)
+
+		// And with every installation owned: `collectTravelTicksMax` and `snackStash` are the fields
+		// that are not plain numbers, and an `Infinity` standing in for "no cap" would come back `null`.
+		const owned = createWorld(options({ modifiers: resolveModifiers(INSTALLATIONS.map(def => def.id)) }))
+		expect(roundTrip(owned)).toEqual(owned)
+		expect(roundTrip(createWorld(options())).modifiers).toEqual(NO_MODIFIERS)
 		// The two step 13A added. `toEqual` above covers them already; they are named because a field
 		// that is 0 on a fresh world survives a round-trip whether or not it is *there*, so this is
 		// what catches one that stopped being written at construction.

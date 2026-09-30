@@ -9,10 +9,28 @@
  * any of them -- they import this, and the cycle surfaces as an `undefined` at module load.
  */
 
-import { getEnemyDef } from '@/core/content/index.ts'
+import { FOODS, getEnemyDef } from '@/core/content/index.ts'
+import { bindRng } from '@/core/rng.ts'
 import { enemyById } from '@/core/systems/spatial.ts'
 import type { EnemyDef } from '@/core/content/schema.ts'
+import type { Rng } from '@/core/rng.ts'
 import type { Enemy, EntityId, FoodItem, Vec2, World } from '@/core/types.ts'
+
+/**
+ * One fresh item on the shelf, drawn from `FOODS`. The one constructor for a `FoodItem`: `createWorld`
+ * stocks the night with it and the snack stash restocks with it.
+ */
+export function drawFoodItem(rng: Rng, id: EntityId): FoodItem {
+	const def = rng.pick(FOODS)
+	return {
+		id,
+		defId: def.id,
+		nameKey: def.nameKey,
+		heldBy: null,
+		droppedAt: null,
+		lostTo: null,
+	}
+}
 
 /** Sitting on the shelf: not carried, not on the floor, not gone. Only these can be taken. */
 export function isOnShelf(item: FoodItem): boolean {
@@ -36,11 +54,35 @@ export function isGone(item: FoodItem): boolean {
 }
 
 /**
- * How many items this enemy takes at the fridge, after the night's `stealsReduction`. Never below 1
- * for an enemy that steals at all -- and 0 stays 0, or the Mold would be handed an item.
+ * How many items this enemy takes at the fridge, after `world.modifiers.stealsReduction`. Never below
+ * 1 for an enemy that steals at all -- and 0 stays 0, or the Mold would be handed an item.
  */
 export function stealsFor(world: World, def: EnemyDef): number {
-	return def.steals === 0 ? 0 : Math.max(1, def.steals - world.night.stealsReduction)
+	return def.steals === 0 ? 0 : Math.max(1, def.steals - world.modifiers.stealsReduction)
+}
+
+/**
+ * The snack stash: once a night, a take that leaves the shelf at `atOnShelf` or fewer puts `items`
+ * fresh ones on it. "Or fewer", because a Beetle's take can jump the count from 4 to 2.
+ *
+ * Checked at the end of `takeFood` because that is the only place the shelf shrinks. New items take
+ * ids from `world.nextEntityId` and go on the end, so the shelf's order -- which `takeFood` takes
+ * from the front of -- is unchanged for everything already on it.
+ */
+function openSnackStash(world: World): void {
+	const stash = world.modifiers.snackStash
+	if (stash === null || world.night.snackStashUsed) {
+		return
+	}
+	if (world.night.food.filter(isOnShelf).length > stash.atOnShelf) {
+		return
+	}
+
+	world.night.snackStashUsed = true
+	const rng = bindRng(world.rng)
+	for (let index = 0; index < stash.items; index++) {
+		world.night.food.push(drawFoodItem(rng, world.nextEntityId++))
+	}
 }
 
 function foodItem(world: World, id: EntityId): FoodItem | null {
@@ -80,6 +122,8 @@ export function takeFood(world: World, enemy: Enemy): EntityId[] {
 		}
 		taken.push(item.id)
 	}
+
+	openSnackStash(world)
 
 	return taken
 }

@@ -128,7 +128,9 @@ becomes `devModifiers`. It stays dev-only.
   (`commands.ts`). Both paths go through `waveComposition`, so neither skips the screen. A wave left
   empty by the shift (only flyers, nothing shifted in) is legal: it's spawned out on the tick it
   starts, clears, and counts down. Check that holds for the **last** wave too. The night must still
-  be won.
+  be won. *(Built: it is won. An empty last wave emits no `waveCleared`, and neither does any night's
+  last wave. `resolve` ends the night on the tick the board empties, before `wave` runs again. So the
+  empty-wave clear is asserted on a middle wave.)*
 - `spread.ts`: decision 9.
 - `fridge.ts`: decisions 3 and 11. `fridge.ts` stays the only writer of food state (19's seam).
 
@@ -169,12 +171,12 @@ the system.
 
 ## Acceptance
 
-- [ ] No installation id appears anywhere in `core/systems/`. Systems read `world.modifiers`.
-- [ ] `NightState.stealsReduction` and `resolveNoiseModifiers` are gone, and nothing outside
+- [x] No installation id appears anywhere in `core/systems/`. Systems read `world.modifiers`.
+- [x] `NightState.stealsReduction` and `resolveNoiseModifiers` are gone, and nothing outside
       `installations.ts` divides by 60 for an installation.
 - [ ] With the dev panel, the broom visibly takes a whole kill-zone pile in one click, and a dustpan
       flight doesn't jump.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 20B
 

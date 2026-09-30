@@ -31,7 +31,7 @@
 				type="checkbox"
 				:value="def.id"
 			/>
-			{{ t(def.nameKey) }}
+			{{ def.glyph }} {{ t(def.nameKey) }}
 		</label>
 
 		<!-- Said out loud, because a night that silently restarts mid-play reads as a crash. -->
@@ -50,12 +50,13 @@
 <script setup lang="ts">
 	import { ref, watch } from 'vue'
 	import { useI18n } from 'vue-i18n'
-	import { INSTALLATIONS, resolveNoiseModifiers } from '@/core/content/index.ts'
-	import type { DefId } from '@/core/types.ts'
+	import { INSTALLATIONS, resolveModifiers } from '@/core/content/index.ts'
+	import type { DefId, WorldModifiers } from '@/core/types.ts'
 
 	/**
-	 * The instrument the rest of step 13B was tuned against: a live reading of `world.noise`, the three
-	 * installations as checkboxes, and a button that fills the meter now.
+	 * The instrument the rest of step 13B was tuned against: a live reading of `world.noise`, every
+	 * installation as a checkbox, and a button that fills the meter now. Since step 20A the checkboxes
+	 * are the way to try any installation before there is a screen that sells them.
 	 *
 	 * **Dev only, and it ships nothing.** `GameView.vue` imports it dynamically inside an
 	 * `import.meta.env.DEV` branch, the same way it imports the debug controller and the editor's
@@ -76,11 +77,11 @@
 
 	const emit = defineEmits<{
 		/**
-		 * Already resolved through `resolveNoiseModifiers`, so `GameView.vue` hands the pair straight to
+		 * Already resolved through `resolveModifiers`, so `GameView.vue` hands it straight to
 		 * `createWorld` and never imports the fold. Keeping that import in here is also what keeps it out
 		 * of the production bundle.
 		 */
-		restart: [noise: { capDelta: number; decayPerSecondDelta: number }]
+		restart: [modifiers: WorldModifiers]
 		wakeNow: []
 	}>()
 
@@ -89,13 +90,13 @@
 	const owned = ref<DefId[]>([])
 
 	/**
-	 * A tick rebuilds the night. It deliberately does **not** write to `world.noise` mid-night: the cap
+	 * A tick rebuilds the night. It deliberately does **not** write to `world.modifiers` mid-night: what
 	 * a night was built with is part of what `(seed, mapId, nightId, commandLog)` has to reproduce, and
 	 * a dev tool reaching inside that guarantee is how a bug report stops being reproducible.
 	 *
 	 * Checkbox `v-model` replaces the array rather than mutating it, so no `deep` is needed here.
 	 */
-	watch(owned, next => emit('restart', resolveNoiseModifiers(next)))
+	watch(owned, next => emit('restart', resolveModifiers(next)))
 </script>
 
 <style scoped>

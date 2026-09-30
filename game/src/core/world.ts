@@ -12,22 +12,16 @@
  * fails three systems into the first tick.
  */
 
-import { FOODS, getMapDef, getNightDef } from '@/core/content/index.ts'
+import { getMapDef, getNightDef } from '@/core/content/index.ts'
 import { resolveDifficulty } from '@/core/content/difficulty.ts'
+import { NO_MODIFIERS } from '@/core/content/installations.ts'
 import { bindRng, createRngState } from '@/core/rng.ts'
+import { drawFoodItem } from '@/core/systems/fridge.ts'
 import type { Rng } from '@/core/rng.ts'
-import type { DefId, DifficultyId, EntityId, FoodItem, MapDef, World } from '@/core/types.ts'
+import type { DefId, DifficultyId, EntityId, FoodItem, MapDef, World, WorldModifiers } from '@/core/types.ts'
 
 /** The doc's 1.5/sec (analytic-docs/DECISIONS.md section 8), as the per-tick rate the world holds. */
 const NOISE_DECAY_PER_TICK = 1.5 / 60
-
-/**
- * Ticks per second, for the one conversion this file does: an installation authors its decay bonus
- * per second (analytic-docs/CONTENT.md section 8 says "+0.5/sec") and `core/` holds ticks. It
- * happens **here and nowhere else** -- a system dividing by 60 is a system that will one day divide
- * twice (step 13A, decision 15).
- */
-const TICKS_PER_SECOND = 60
 
 /** `18 + floor(nightIndex / 3)` items, scaled by difficulty (analytic-docs/CONTENT.md section 7). */
 const BASE_FOOD_ITEMS = 18
@@ -39,21 +33,15 @@ export interface CreateWorldOptions {
 	nightId: DefId
 	difficulty: DifficultyId
 	/**
-	 * What the player's owned noise installations are worth, already **resolved into a pair of
-	 * numbers** rather than passed as a list of ids -- `resolveNoiseModifiers` in
-	 * `core/content/installations.ts` is what turns one into the other.
+	 * What the player's owned installations are worth, already **resolved into numbers** rather than
+	 * passed as a list of ids -- `resolveModifiers` in `core/content/installations.ts` is what turns
+	 * one into the other. Absent is `NO_MODIFIERS`.
 	 *
-	 * Folded onto the difficulty tier once, at construction, and never read again: the world carries
-	 * the numbers it was built with, so a replay of tonight is not at the mercy of a balance patch
-	 * that re-prices White-noise Machine next month. Exactly what `resolveDifficulty` does, for
-	 * exactly the same reason.
+	 * Carried on the world as `world.modifiers`, and never re-resolved: a replay of tonight is not at
+	 * the mercy of a balance patch that re-prices White-noise Machine next month. Exactly what
+	 * `resolveDifficulty` does, for exactly the same reason.
 	 */
-	noise?: { capDelta?: number; decayPerSecondDelta?: number }
-	/**
-	 * What the player's owned food installations are worth, resolved into numbers the same way and
-	 * for the same reason as `noise` above. Folded into `NightState.stealsReduction`.
-	 */
-	food?: { stealsReduction?: number }
+	modifiers?: WorldModifiers
 }
 
 /**
@@ -92,26 +80,26 @@ function cloneMapDef(map: MapDef): MapDef {
  * what makes a night its own -- and going through the seeded generator is what keeps that
  * reproducible. The draw advances the world's rng state, so two seeds open onto different fridges.
  */
-function stockFridge(rng: Rng, nightIndex: number, foodItemsMult: number, firstItemId: EntityId): FoodItem[] {
-	const count = Math.round((BASE_FOOD_ITEMS + Math.floor(nightIndex / NIGHTS_PER_EXTRA_ITEM)) * foodItemsMult)
+function stockFridge(
+	rng: Rng,
+	nightIndex: number,
+	foodItemsMult: number,
+	foodBonus: number,
+	firstItemId: EntityId,
+): FoodItem[] {
+	// The bonus after the tier's rounding: "+4 every night" is four, on any tier.
+	const scaled = Math.round((BASE_FOOD_ITEMS + Math.floor(nightIndex / NIGHTS_PER_EXTRA_ITEM)) * foodItemsMult)
+	const count = scaled + foodBonus
 	const items: FoodItem[] = []
 
 	for (let index = 0; index < count; index++) {
-		const def = rng.pick(FOODS)
-		items.push({
-			id: firstItemId + index,
-			defId: def.id,
-			nameKey: def.nameKey,
-			heldBy: null,
-			droppedAt: null,
-			lostTo: null,
-		})
+		items.push(drawFoodItem(rng, firstItemId + index))
 	}
 
 	return items
 }
 
-export function createWorld({ seed, mapId, nightId, difficulty, noise, food: foodOptions }: CreateWorldOptions): World {
+export function createWorld({ seed, mapId, nightId, difficulty, modifiers = NO_MODIFIERS }: CreateWorldOptions): World {
 	const map = getMapDef(mapId)
 	const night = getNightDef(nightId)
 	const tier = resolveDifficulty(difficulty)
@@ -132,7 +120,7 @@ export function createWorld({ seed, mapId, nightId, difficulty, noise, food: foo
 	}
 
 	const rng = createRngState(seed)
-	const food = stockFridge(bindRng(rng), night.index, tier.foodItemsMult, 1)
+	const food = stockFridge(bindRng(rng), night.index, tier.foodItemsMult, modifiers.foodBonus, 1)
 
 	return {
 		tick: 0,
@@ -157,10 +145,10 @@ export function createWorld({ seed, mapId, nightId, difficulty, noise, food: foo
 		groceryMoney: 0,
 		noise: {
 			level: 0,
-			// Both deltas are additive on top of the tier, which is what makes owning two cap
-			// installations worth their sum rather than the larger of them.
-			cap: tier.noiseCap + (noise?.capDelta ?? 0),
-			decayPerTick: NOISE_DECAY_PER_TICK + (noise?.decayPerSecondDelta ?? 0) / TICKS_PER_SECOND,
+			// Folded into the meter here rather than read off `modifiers` by `noiseSystem`: cap and decay
+			// are meter state the tier feeds too.
+			cap: tier.noiseCap + modifiers.noiseCapDelta,
+			decayPerTick: NOISE_DECAY_PER_TICK + modifiers.noiseDecayPerTickDelta,
 			wakeCount: 0,
 		},
 
@@ -173,7 +161,7 @@ export function createWorld({ seed, mapId, nightId, difficulty, noise, food: foo
 			countdownTicks: firstWave.countdownTicks,
 			wave: null,
 			food,
-			stealsReduction: foodOptions?.stealsReduction ?? 0,
+			snackStashUsed: false,
 			ticksSkippedTotal: 0,
 			crumbsDropped: 0,
 			crumbsCollected: 0,
@@ -181,6 +169,8 @@ export function createWorld({ seed, mapId, nightId, difficulty, noise, food: foo
 			clearedThroughWaveIndex: -1,
 		},
 		difficulty: tier,
+		// A copy, so no two worlds share the object -- the harness builds thousands in one process.
+		modifiers: { ...modifiers, snackStash: modifiers.snackStash === null ? null : { ...modifiers.snackStash } },
 
 		events: [],
 	}

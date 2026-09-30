@@ -49,8 +49,10 @@ import type { Selection } from '@/ui/selection.ts'
  * How far outside a pile's drawn edge still counts as clicking it, in logical pixels.
  *
  * A speck is 0.28 of a 48px tile, so its drawn radius is under 7px and an exact hit test makes the
- * most-repeated interaction in the game feel like a precision task. Named, because step 20's
- * Buy-a-Broom widens exactly this.
+ * most-repeated interaction in the game feel like a precision task.
+ *
+ * This only decides *which* pile a click names. Buy a Broom does not widen it: the sweep happens in
+ * `core/`, around the named pile, so a replay sees it (`collect` in `core/systems/commands.ts`).
  */
 const CRUMB_CLICK_FORGIVENESS_PX = 8
 

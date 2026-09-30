@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createCommandQueue } from '@/core/commands.ts'
 import { DIFFICULTIES } from '@/core/content/difficulty.ts'
 import { TileFlags } from '@/core/map.ts'
-import { INSTALLATIONS, getTowerDef, resolveNoiseModifiers } from '@/core/content/index.ts'
+import { getTowerDef, NO_MODIFIERS, resolveModifiers } from '@/core/content/index.ts'
 import { tick } from '@/core/sim.ts'
 import { dropCrumb } from '@/core/systems/crumbs.ts'
 import { earnCrumbs } from '@/core/systems/economy.ts'
@@ -550,34 +550,27 @@ describe('a night that has been woken', () => {
 })
 
 describe('the noise installations', () => {
-	it('folds a resolved pair onto the difficulty tier, additively, at construction', () => {
-		const world = createWorld(options({ noise: { capDelta: 55, decayPerSecondDelta: 0.5 } }))
+	it('folds both cap installations and the hinges onto the difficulty tier, additively, at construction', () => {
+		const modifiers = resolveModifiers(['closeTheKitchenDoor', 'whiteNoiseMachine', 'oilTheHinges'])
 
+		// +25 and +30 summed, not the larger of them: the second is a purchase, not a duplicate.
+		expect(modifiers.noiseCapDelta).toBe(55)
+		// Authored per second, and the fold is the one conversion into ticks.
+		expect(modifiers.noiseDecayPerTickDelta).toBeCloseTo(0.5 / 60, 10)
+
+		const world = createWorld(options({ modifiers }))
 		expect(world.noise.cap).toBe(DIFFICULTIES.normal.noiseCap + 55)
 		expect(world.noise.decayPerTick).toBeCloseTo(2 / 60, 10)
 	})
 
-	it('resolves the three defs into that pair, summed', () => {
-		const resolved = resolveNoiseModifiers(['closeTheKitchenDoor', 'whiteNoiseMachine', 'oilTheHinges'])
-
-		// **Against the defs, not against literals copied out of the doc** -- otherwise this is a
-		// second transcription of CONTENT.md section 8 rather than a test of the fold.
-		const expectedCap = INSTALLATIONS.reduce((sum, def) => sum + (def.noiseCapDelta ?? 0), 0)
-		const expectedDecay = INSTALLATIONS.reduce((sum, def) => sum + (def.noiseDecayPerSecondDelta ?? 0), 0)
-
-		expect(resolved).toEqual({ capDelta: expectedCap, decayPerSecondDelta: expectedDecay })
-
-		const world = createWorld(options({ noise: resolved }))
-		expect(world.noise.cap).toBe(DIFFICULTIES.normal.noiseCap + expectedCap)
-		expect(world.noise.decayPerTick).toBeCloseTo((1.5 + expectedDecay) / 60, 10)
-	})
-
 	it('is nothing at all when nothing is owned', () => {
-		expect(resolveNoiseModifiers([])).toEqual({ capDelta: 0, decayPerSecondDelta: 0 })
-		expect(createWorld(options()).noise.cap).toBe(DIFFICULTIES.normal.noiseCap)
+		expect(resolveModifiers([])).toEqual(NO_MODIFIERS)
+		const world = createWorld(options())
+		expect(world.noise.cap).toBe(DIFFICULTIES.normal.noiseCap)
+		expect(world.noise.decayPerTick).toBeCloseTo(1.5 / 60, 10)
 	})
 
 	it('throws with the id in the message for one that does not exist', () => {
-		expect(() => resolveNoiseModifiers(['nosuchinstallation'])).toThrow(/nosuchinstallation/)
+		expect(() => resolveModifiers(['nosuchinstallation'])).toThrow(/nosuchinstallation/)
 	})
 })

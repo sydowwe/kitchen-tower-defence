@@ -82,14 +82,28 @@ const MAX_PROJECTILES_PER_SHOT = 8
 const MAX_TILES = 24
 
 /**
- * The two ceilings on what a noise installation may be worth, bounded the way every other number in
- * this file is. The difficulty caps are 80 to 130 and the doc's largest delta is +30, so a cap delta
- * is **tens** and a hundreds-sized one is a cap pasted in place of a delta. The base decay is
- * 1.5/sec and the doc's only bonus is +0.5, so a per-second delta in double figures is one that has
- * already made the meter unfillable -- which is the same thing `MAX_COOLDOWN_TICKS` catches.
+ * The ceilings on what an installation may be worth, one per effect kind, bounded the way every other
+ * number in this file is: each sits far above the doc's value and below the same value pasted in the
+ * wrong unit.
+ *
+ * - The difficulty caps are 80 to 130 and the doc's largest delta is +30, so a cap delta is **tens**
+ *   and a hundreds-sized one is a cap pasted in place of a delta.
+ * - The base decay is 1.5/sec and the doc's only bonus is +0.5, so a per-second delta in double
+ *   figures has already made the meter unfillable.
+ * - The broom is 1.5 tiles. Five is most of a kill zone; 72 is the same broom in pixels.
+ * - The dustpan is 0.7 **seconds**. The base flight is 1.5, so anything past 10 is 42 ticks pasted as
+ *   seconds.
+ * - A delay of more waves than a night is likely to have is a delay nobody would buy.
+ * - Tupperware's −1 runs against a Mouse's 5, and Bigger Fridge's +4 against an 18-item shelf.
  */
 const MAX_NOISE_CAP_DELTA = 100
 const MAX_NOISE_DECAY_DELTA = 10
+const MAX_SWEEP_RADIUS_TILES = 5
+const MAX_COLLECT_TRAVEL_SECONDS = 10
+const MAX_FLYER_DELAY_WAVES = 5
+const MAX_STEALS_REDUCTION = 4
+const MAX_FOOD_BONUS = 20
+const MAX_SNACK_STASH_COUNT = 20
 
 /** `.` buildable, `#` blocked, `~` decor. `T` is deliberately not here -- see the `mapSource` note. */
 const LEGAL_TILE_CHARS = '.#~'
@@ -713,31 +727,51 @@ export function contentSchemas() {
 	// --- installations ------------------------------------------------------------------------
 
 	/**
-	 * A metagame purchase (analytic-docs/CONTENT.md section 8). Fourteen of them are authored there;
-	 * step 13A authors the **three noise ones**, and the other eleven touch eleven different systems
-	 * and are step 20's.
+	 * What one installation does: **exactly one effect**, discriminated by `kind` (step 20A, decision
+	 * 1). The fold rule differs by kind -- sum, product, max, min -- and so does the line a card prints,
+	 * so both are an exhaustive `switch` and a new kind fails `type-check` in each.
 	 *
-	 * **Two optional fields and not a generic `effect` union** (step 13A, decision 14). Step 20 has
-	 * fourteen effects across as many systems and will pick that shape when it can see all fourteen;
-	 * guessing it now from a sample of three is how you get a union the step it was built for has to
-	 * rewrite.
+	 * Authored in **the doc's units** (analytic-docs/CONTENT.md section 8): the decay per second, the
+	 * dustpan in seconds, the crack and the liner as the fraction left. `resolveModifiers` in
+	 * `core/content/installations.ts` is the one conversion into the ticks `WorldModifiers` holds.
+	 *
+	 * A multiplier is `(0, 1]`: every installation helps, and "20% fewer" pasted as `20` or `80` fails.
+	 */
+	const installationEffect = z.discriminatedUnion('kind', [
+		z.object({ kind: z.literal('noiseCap'), delta: z.number().positive().max(MAX_NOISE_CAP_DELTA) }),
+		/** The bound is what rejects a per-*tick* value pasted here, the way `MAX_COOLDOWN_TICKS` does a millisecond one. */
+		z.object({ kind: z.literal('noiseDecay'), perSecondDelta: z.number().positive().max(MAX_NOISE_DECAY_DELTA) }),
+		z.object({ kind: z.literal('sweep'), radiusTiles: z.number().positive().max(MAX_SWEEP_RADIUS_TILES) }),
+		z.object({
+			kind: z.literal('collectTravel'),
+			maxSeconds: z.number().min(0).max(MAX_COLLECT_TRAVEL_SECONDS),
+		}),
+		z.object({ kind: z.literal('crackSpawns'), mult: z.number().positive().max(1) }),
+		z.object({ kind: z.literal('flyerDelay'), waves: z.number().int().min(1).max(MAX_FLYER_DELAY_WAVES) }),
+		z.object({ kind: z.literal('spreadRate'), mult: z.number().positive().max(1) }),
+		z.object({ kind: z.literal('steals'), reduction: z.number().int().min(1).max(MAX_STEALS_REDUCTION) }),
+		z.object({ kind: z.literal('foodBonus'), items: z.number().int().min(1).max(MAX_FOOD_BONUS) }),
+		z.object({
+			kind: z.literal('snackStash'),
+			/** Fires when the shelf is down to this many or fewer. */
+			atOnShelf: z.number().int().min(1).max(MAX_SNACK_STASH_COUNT),
+			items: z.number().int().min(1).max(MAX_SNACK_STASH_COUNT),
+		}),
+	])
+
+	/**
+	 * A metagame purchase (analytic-docs/CONTENT.md section 8). Fourteen are authored there; the three
+	 * loadout slots are step 20a's, and the other eleven are here.
 	 */
 	const installation = z.object({
 		id: defId(),
 		nameKey: i18nKey(),
 		descriptionKey: i18nKey(),
+		/** What the card and the Kitchen scene draw. */
+		glyph: glyph(),
 		/** Grocery Money, not crumbs. The two currencies never convert. */
 		cost: z.number().int().min(1).max(10_000),
-		/**
-		 * Added to `world.noise.cap` at construction. The doc's two are +25 and +30.
-		 */
-		noiseCapDelta: z.number().min(0).max(MAX_NOISE_CAP_DELTA).optional(),
-		/**
-		 * **Per second**, the way analytic-docs/CONTENT.md section 8 writes it ("+0.5/sec"), converted
-		 * once in `core/world.ts` beside the base rate. The bound is what rejects a per-*tick* value
-		 * pasted here -- the same job `MAX_COOLDOWN_TICKS` does for a millisecond one.
-		 */
-		noiseDecayPerSecondDelta: z.number().min(0).max(MAX_NOISE_DECAY_DELTA).optional(),
+		effect: installationEffect,
 	})
 
 	return {
