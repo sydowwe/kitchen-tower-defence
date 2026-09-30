@@ -20,6 +20,7 @@ import {
 	buildNightSummary,
 	buildThiefBanner,
 	buildTowerInspector,
+	hotkeyTowers,
 } from '@/ui/viewModel.ts'
 import { createTestWorld } from './fixtures/world.ts'
 import type { NightDef } from '@/core/content/index.ts'
@@ -906,6 +907,153 @@ describe('the summary', () => {
 		expect(summary.foodEscapedNameKeys).toEqual(['food.apple.name', 'food.cake.name'])
 		expect(summary.foodLostNameKeys).toEqual(['food.cheese.name', 'food.milk.name'])
 		expect(summary.foodRemaining).toBe(1)
+	})
+
+	it('reads peak noise off peakLevel and cap unrounded, and the wake count off the meter', () => {
+		const world = createTestWorld()
+		world.noise.peakLevel = 83.6
+		world.noise.cap = 100
+		world.noise.wakeCount = 2
+
+		const summary = buildNightSummary(world)
+		expect(summary.peakNoise).toEqual({ level: 83.6, cap: 100 })
+		expect(summary.wakeCount).toBe(2)
+		expect(summary.snackStashUsed).toBe(false)
+	})
+})
+
+describe("the summary's Grocery Money", () => {
+	/** Night 1 played to `nightEnded`: every enemy zeroed each tick wins it, and left alone the Ants empty the fridge. */
+	function playOut(killAll: boolean): World {
+		const world = createWorld({ seed: 4242, mapId: 'counter', nightId: 'night01', difficulty: 'normal' })
+		const queue = createCommandQueue()
+		for (let index = 0; index < 20_000; index++) {
+			if (killAll) {
+				for (const enemy of world.enemies) {
+					enemy.hp = 0
+				}
+			}
+			tick(world, queue)
+			if (world.events.some(event => event.kind === 'nightEnded')) {
+				return world
+			}
+		}
+		throw new Error('the night never ended')
+	}
+
+	it('is night.pay field for field on a win, as a copy, and its six lines add up to the subtotal', () => {
+		const world = playOut(true)
+		const grocery = buildHudSnapshot(world, VIEW).summary?.grocery
+		if (grocery === null || grocery === undefined) {
+			throw new Error('a won night has no pay on its summary')
+		}
+
+		expect(world.night.phase).toBe('won')
+		expect(grocery).toEqual(world.night.pay)
+		expect(grocery).not.toBe(world.night.pay)
+		expect(grocery.lossMult).toBe(1)
+		// Night 1 is index 1, so the base line is 25 + 5.
+		expect(grocery.base).toBe(30)
+		const lines = [
+			grocery.base,
+			grocery.foodSaved,
+			grocery.kills,
+			grocery.cleanliness,
+			grocery.noWake,
+			grocery.earlyCall,
+		]
+		expect(lines.reduce((sum, n) => sum + n, 0)).toBe(grocery.subtotal)
+	})
+
+	it('carries the 40% on a lost night', () => {
+		const world = playOut(false)
+		const grocery = buildNightSummary(world).grocery
+
+		expect(world.night.phase).toBe('lost')
+		expect(grocery?.lossMult).toBe(0.4)
+		expect(grocery?.foodSaved).toBe(0)
+		expect(grocery?.total).toBe(Math.round((grocery?.subtotal ?? 0) * 0.4))
+	})
+
+	it("is null on the fixture's won night with no pay, and the snapshot still builds", () => {
+		const world = createTestWorld()
+
+		expect(world.night.phase).toBe('won')
+		expect(world.night.pay).toBeNull()
+		expect(buildHudSnapshot(world, VIEW).summary?.grocery).toBeNull()
+	})
+})
+
+describe('the shop order', () => {
+	/** Every tower unlocked by nights 1..`night`, the way `unlockedTowerIds` builds a campaign's list. */
+	function unlockedThrough(night: number): string[] {
+		return NIGHTS.filter(def => def.index <= night).flatMap(def => def.unlocksTowerIds ?? [])
+	}
+
+	function shopWith(availableTowerIds: string[] | null): ReturnType<typeof buildHudSnapshot>['shop'] {
+		const world = buildableWorld()
+		world.night.availableTowerIds = availableTowerIds
+		return buildHudSnapshot(world, VIEW).shop
+	}
+
+	it('runs in unlock order: the two night-1 towers first, the Fan last, the Cookie Jar after the Mousetrap', () => {
+		const ids = shopWith(null).map(entry => entry.id)
+
+		expect(ids).toHaveLength(19)
+		expect(ids.slice(0, 2)).toEqual(['saltShaker', 'toasterCrumbTray'])
+		expect(ids[18]).toBe('fan')
+		expect(ids.indexOf('cookieJar')).toBeGreaterThan(ids.indexOf('mousetrap'))
+		// In `TOWERS` the Cookie Jar is third and the Mousetrap seventh: this is the sort, not the array.
+		expect(TOWERS.findIndex(def => def.id === 'cookieJar')).toBeLessThan(
+			TOWERS.findIndex(def => def.id === 'mousetrap'),
+		)
+	})
+
+	it("unlocks exactly night 3's four, badges them 1 to 4, and gives every locked one its night", () => {
+		const shop = shopWith(unlockedThrough(3))
+		const unlocked = shop.filter(entry => entry.unlocked)
+		const locked = shop.filter(entry => !entry.unlocked)
+
+		expect(unlocked.map(entry => entry.id)).toEqual(['saltShaker', 'toasterCrumbTray', 'stickyTape', 'mousetrap'])
+		expect(unlocked.map(entry => entry.hotkey)).toEqual(['1', '2', '3', '4'])
+		expect(locked).toHaveLength(15)
+		for (const entry of locked) {
+			expect(entry.hotkey).toBeNull()
+			expect(entry.unlockNight).toBeGreaterThan(3)
+		}
+		expect(locked.find(entry => entry.id === 'cookieJar')?.unlockNight).toBe(4)
+	})
+
+	it('unlocks all nineteen for null, and keys the first ten 1..9 then 0', () => {
+		const shop = shopWith(null)
+
+		expect(shop.every(entry => entry.unlocked)).toBe(true)
+		expect(shop.map(entry => entry.hotkey)).toEqual([
+			'1',
+			'2',
+			'3',
+			'4',
+			'5',
+			'6',
+			'7',
+			'8',
+			'9',
+			'0',
+			...Array.from({ length: 9 }, () => null),
+		])
+	})
+
+	it('arms the same tower with the same key on night 3 and on night 9', () => {
+		const night3 = hotkeyTowers(unlockedThrough(3)).map(def => def.id)
+		const night9 = hotkeyTowers(unlockedThrough(9)).map(def => def.id)
+
+		expect(night3).toHaveLength(4)
+		expect(night9.slice(0, 4)).toEqual(night3)
+		// And the key the badge prints is the index the keydown handler reads.
+		const shop = shopWith(unlockedThrough(9))
+		for (const [index, id] of night9.entries()) {
+			expect(shop.find(entry => entry.id === id)?.hotkey).toBe(String((index + 1) % 10))
+		}
 	})
 })
 

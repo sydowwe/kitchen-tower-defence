@@ -6,40 +6,58 @@
 	-->
 	<div class="backdrop">
 		<section class="summary">
-			<h2>{{ t(summary.won ? 'night.wonTitle' : 'night.lostTitle') }}</h2>
-			<p class="subtitle">{{ t(summary.won ? 'night.wonSubtitle' : 'night.lostSubtitle') }}</p>
+			<!-- The part that grows scrolls; the save line and the buttons below it never leave the panel,
+				 whatever the window's height (step 20E, the scroll gotcha). -->
+			<div class="body">
+				<h2>{{ t(summary.won ? 'night.wonTitle' : 'night.lostTitle') }}</h2>
+				<p class="subtitle">{{ t(summary.won ? 'night.wonSubtitle' : 'night.lostSubtitle') }}</p>
 
-			<!-- The emotional payload (DECISIONS.md section 6): a sentence with the names in it. Not a
-				 table row, and never collapsed into a count. What a thief got away with goes first and on
-				 its own line: carried off is a different loss from eaten. -->
-			<p
-				v-if="escapedSentence !== null"
-				class="lost"
-			>
-				{{ escapedSentence }}
-			</p>
-			<p
-				v-if="lostSentence !== null"
-				class="lost"
-			>
-				{{ lostSentence }}
-			</p>
+				<!-- The emotional payload (DECISIONS.md section 6): a sentence with the names in it. Not a
+					 table row, and never collapsed into a count. What a thief got away with goes first and
+					 on its own line: carried off is a different loss from eaten. -->
+				<p
+					v-if="escapedSentence !== null"
+					class="lost"
+				>
+					{{ escapedSentence }}
+				</p>
+				<p
+					v-if="lostSentence !== null"
+					class="lost"
+				>
+					{{ lostSentence }}
+				</p>
 
-			<dl class="tally">
-				<dt>{{ t('night.wavesSurvived', { survived: summary.wavesSurvived, total: summary.waveCount }) }}</dt>
-				<dt>{{ t('night.foodRemaining', { n: summary.foodRemaining }) }}</dt>
-				<dt>{{ t('night.enemiesKilled', { n: summary.enemiesKilled }) }}</dt>
-				<dt>
-					{{
-						t('night.crumbsCollected', {
-							collected: summary.crumbsCollected,
-							dropped: summary.crumbsDropped,
-						})
-					}}
-				</dt>
-				<!-- Step 20 pays the night out and writes the breakdown behind this line. -->
-				<dt class="stub">{{ t('night.groceryMoney', { n: 0 }) }}</dt>
-			</dl>
+				<ul class="story">
+					<li>
+						{{ t('night.wavesSurvived', { survived: summary.wavesSurvived, total: summary.waveCount }) }}
+					</li>
+					<li>{{ noiseSentence }}</li>
+					<li v-if="summary.snackStashUsed">{{ t('night.snackStash') }}</li>
+				</ul>
+
+				<GroceryBreakdown
+					v-if="summary.grocery !== null"
+					:grocery="summary.grocery"
+					:crumbsDropped="summary.crumbsDropped"
+				/>
+				<!-- No pay behind it -- a spec's world, or a dev night -- so the raw counts instead. -->
+				<ul
+					v-else
+					class="story"
+				>
+					<li>{{ t('night.foodRemaining', { n: summary.foodRemaining }) }}</li>
+					<li>{{ t('night.enemiesKilled', { n: summary.enemiesKilled }) }}</li>
+					<li>
+						{{
+							t('night.crumbsCollected', {
+								collected: summary.crumbsCollected,
+								dropped: summary.crumbsDropped,
+							})
+						}}
+					</li>
+				</ul>
+			</div>
 
 			<!-- Saved before either button goes anywhere: leaving mid-save is how a night's money
 				 disappears (step 20D, decision 9). -->
@@ -93,6 +111,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import GroceryBreakdown from '@/ui/components/hud/GroceryBreakdown.vue'
 	import { joinNames } from '@/ui/joinNames.ts'
 	import type { NightSummaryView } from '@/ui/viewModel.ts'
 
@@ -135,26 +154,51 @@
 		}
 		return summary.foodEscapedNameKeys.length === 0 ? t('night.foodNothingLost') : null
 	})
+
+	/** "Peaked at 84 of 100", and whether that woke anyone -- a night that did not is worth 50. */
+	const noiseSentence = computed(() => {
+		const params = { level: Math.round(summary.peakNoise.level), cap: summary.peakNoise.cap, n: summary.wakeCount }
+		if (summary.wakeCount === 0) {
+			return t('night.noiseQuiet', params)
+		}
+		return t(summary.wakeCount === 1 ? 'night.noiseWokeOnce' : 'night.noiseWokeTimes', params)
+	})
 </script>
 
 <style scoped>
+	/* Flex rather than grid centring: a flex item's percentage `max-height` resolves against this box,
+	   which is the board's height, where a grid item's resolves against an auto row and caps nothing. */
 	.backdrop {
 		position: absolute;
 		inset: 0;
-		display: grid;
-		place-items: center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem;
 		background: rgba(16, 19, 31, 0.72);
 		pointer-events: auto;
 	}
 
 	.summary {
-		display: grid;
+		display: flex;
+		flex-direction: column;
 		gap: 0.6rem;
 		width: min(26rem, 80%);
+		max-height: 100%;
 		padding: 1.4rem 1.6rem;
 		border: 1px solid var(--kd-panel-edge);
 		border-radius: 0.75rem;
 		background: var(--kd-panel-raise);
+	}
+
+	.body {
+		display: grid;
+		gap: 0.6rem;
+		min-height: 0;
+		overflow-y: auto;
+		/* Room for the scrollbar, so it does not sit on the amounts. */
+		padding-right: 0.3rem;
+		margin-right: -0.3rem;
 	}
 
 	h2 {
@@ -178,21 +222,15 @@
 		line-height: 1.5;
 	}
 
-	.tally {
+	.story {
 		display: grid;
 		gap: 0.2rem;
 		margin: 0;
+		padding: 0;
+		list-style: none;
 		color: var(--kd-text-dim);
 		font-size: 0.8rem;
 		font-variant-numeric: tabular-nums;
-	}
-
-	.tally dt {
-		margin: 0;
-	}
-
-	.tally .stub {
-		opacity: 0.55;
 	}
 
 	.save {
@@ -215,6 +253,7 @@
 
 	.actions {
 		display: flex;
+		flex: none;
 		gap: 0.5rem;
 		margin-top: 0.4rem;
 	}

@@ -4,7 +4,6 @@
 		:wave="snapshot.wave"
 		:crumbs="snapshot.crumbs"
 		:crumbsOnBoard="snapshot.crumbsOnBoard"
-		:groceryMoney="snapshot.groceryMoney"
 		:food="snapshot.food"
 		:noise="snapshot.noise"
 		:upcomingThief="snapshot.upcomingThief"

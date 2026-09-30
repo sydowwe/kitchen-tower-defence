@@ -13,6 +13,7 @@
  */
 
 import { effectiveDefOf, TOWERS } from '@/core/content/index.ts'
+import { hotkeyTowers, isUnlocked } from '@/ui/viewModel.ts'
 import {
 	isAttack,
 	isAura,
@@ -328,9 +329,18 @@ export function createInteraction(
 		}
 	}
 
+	/**
+	 * Null for a tower tonight may not place, too. A selection left over from before the list changed
+	 * would otherwise draw a ghost and get as far as `canPlaceTower`'s `locked` toast -- correct, and
+	 * not something the shop should let the player reach.
+	 */
 	function armedDef(): TowerDef | null {
 		const defId = selection.selectedDefId.value
-		return defId === null ? null : (TOWERS.find(def => def.id === defId) ?? null)
+		const world = getWorld()
+		if (defId === null || world === null || !isUnlocked(world.night.availableTowerIds, defId)) {
+			return null
+		}
+		return TOWERS.find(def => def.id === defId) ?? null
 	}
 
 	function tileFor(grid: Vec2, world: World): Vec2 | null {
@@ -342,6 +352,24 @@ export function createInteraction(
 	function crumbUnder(world: World): boolean {
 		const point = selection.hoverPoint
 		return point !== null && pickCrumb(world, point, tilePxFor(world), CRUMB_CLICK_FORGIVENESS_PX) !== null
+	}
+
+	/**
+	 * The broom's reach round the pile a click would take, or null. Only when a click *would* take a
+	 * pile -- nothing armed, no dropped food on top of it -- because the ring promises what the click
+	 * does, and the click order in `onPointerDown` is what it does.
+	 *
+	 * Round the pile's floor `position`, which is what `collect` in `core/` measures from, and never
+	 * `crumbPosition`, which is where it is *drawn* and slides toward a collecting tower.
+	 */
+	function sweepFor(world: World, def: TowerDef | null): OverlayView['sweep'] {
+		const radiusTiles = world.modifiers.sweepRadiusTiles
+		const point = selection.hoverPoint
+		if (radiusTiles <= 0 || def !== null || point === null || foodUnder(world)) {
+			return null
+		}
+		const crumb = pickCrumb(world, point, tilePxFor(world), CRUMB_CLICK_FORGIVENESS_PX)
+		return crumb === null ? null : { at: { x: crumb.position.x, y: crumb.position.y }, radiusTiles }
 	}
 
 	function foodUnder(world: World): boolean {
@@ -537,20 +565,18 @@ export function createInteraction(
 			return
 		}
 
-		// 1-9 into the first nine of the roster and **0 into the tenth**, in `TOWERS` order -- the order
-		// the shop panel renders and the number it prints on each button. The same key again disarms, so
-		// there is a way out that is not Escape.
+		// 1-9 into the first nine **unlocked** towers and **0 into the tenth**, in `hotkeyTowers` order --
+		// the list `buildShop` prints each button's badge off. The same key again disarms, so there is a
+		// way out that is not Escape.
 		//
 		// `0` is the tenth rather than nothing because the badge on that button has to name a key that
-		// works: `Number('0') - 1` is -1, so a roster of ten shipped a button reading `10` and no way to
-		// press it (step 11C, decision 10). An eleventh tower gets no key at all until step 20 says what
-		// the shop looks like at that size, and `TowerShop.vue` prints no badge on one.
-		const typed = Number(event.key)
-		const index = !Number.isInteger(typed) ? -1 : typed === 0 ? 9 : typed - 1
-		if (index < 0 || index >= TOWERS.length) {
+		// works (step 11C, decision 10). Past ten unlocked, a tower has no key and no badge.
+		const world = getWorld()
+		const typed = event.key.length === 1 ? Number(event.key) : NaN
+		if (world === null || !Number.isInteger(typed)) {
 			return
 		}
-		const def = TOWERS[index]
+		const def = hotkeyTowers(world.night.availableTowerIds)[typed === 0 ? 9 : typed - 1]
 		if (def === undefined) {
 			return
 		}
@@ -589,6 +615,7 @@ export function createInteraction(
 							// and never learns what a cooldown is (step 13B, decision on the ghost).
 							noisePerSecond: projectedNoisePerSecond(def),
 						},
+			sweep: sweepFor(world, def),
 		}
 	}
 

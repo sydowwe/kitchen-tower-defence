@@ -32,7 +32,15 @@ import {
 import { effectivenessOf, resolveDamage } from '@/core/content/matrix.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
-import { NIGHTS, TOWERS, effectiveDef, effectiveDefOf, getEnemyDef, getTowerDef } from '@/core/content/index.ts'
+import {
+	NIGHTS,
+	TOWERS,
+	effectiveDef,
+	effectiveDefOf,
+	getEnemyDef,
+	getTowerDef,
+	unlockNightOf,
+} from '@/core/content/index.ts'
 import { upgradeCost } from '@/core/content/upgrades.ts'
 import { earlyCallBonus } from '@/core/systems/commands.ts'
 import { isRotting } from '@/core/systems/crumbs.ts'
@@ -49,6 +57,7 @@ import type {
 	DefId,
 	EntityId,
 	GameEvent,
+	GroceryMoneyBreakdown,
 	NightPhase,
 	StatusKind,
 	TargetingMode,
@@ -67,7 +76,15 @@ import type { Speed } from '@/loop.ts'
  */
 export type { TargetClass } from '@/core/content/behaviours.ts'
 export type { Effectiveness } from '@/core/content/matrix.ts'
-export type { DamageType, DefId, EntityId, NightPhase, StatusKind, TargetingMode } from '@/core/types.ts'
+export type {
+	DamageType,
+	DefId,
+	EntityId,
+	GroceryMoneyBreakdown,
+	NightPhase,
+	StatusKind,
+	TargetingMode,
+} from '@/core/types.ts'
 export type { Speed } from '@/loop.ts'
 
 /** `core/` durations are tick counts; a card shows rates per second. The one conversion factor. */
@@ -248,11 +265,15 @@ export interface ShopEntry {
 	 * lying about the one purchase the player has been waiting for.
 	 */
 	affordable: boolean
-	/**
-	 * True for all three towers today. The field exists so step 20's unlock progression is a data
-	 * change and not a component change -- it is not dead, it is early.
-	 */
+	/** Tonight may place it: `availableTowerIds` is null, or has it. `canPlaceTower`'s `locked` check. */
 	unlocked: boolean
+	/** The index of the night that unlocks it, which a locked entry shows in place of its price. */
+	unlockNight: number | null
+	/**
+	 * The key that arms it -- `'1'`..`'9'`, then `'0'` -- or null. Off `hotkeyTowers`, the same list the
+	 * keydown handler indexes, so the badge cannot name a key that arms a different tower.
+	 */
+	hotkey: string | null
 	stats: TowerStatsView
 }
 
@@ -335,6 +356,16 @@ export interface NightSummaryView {
 	enemiesKilled: number
 	crumbsCollected: number
 	crumbsDropped: number
+	/**
+	 * `night.pay`, copied field by field, or null while it is. **Never recomputed here**: a second
+	 * formula is a total that disagrees with the balance the Kitchen shows (step 20E, decision 1).
+	 */
+	grocery: GroceryMoneyBreakdown | null
+	/** `noise.peakLevel` against `noise.cap`, unrounded; the summary rounds it where it prints it. */
+	peakNoise: { level: number; cap: number }
+	wakeCount: number
+	/** The Emergency Snack Stash fired tonight. The summary is the only place the player learns it did. */
+	snackStashUsed: boolean
 }
 
 /**
@@ -500,7 +531,6 @@ export interface HudSnapshot {
 	 * it, because nothing in `ui/` can see the split otherwise (step 13A, decision 5).
 	 */
 	unbankedCrumbs: number
-	groceryMoney: number
 	/**
 	 * Piles **and** value, because neither substitutes for the other: forty specks and one fat pile
 	 * are the same count and nothing like the same wallet.
@@ -700,18 +730,68 @@ function statsFor(def: TowerDef): TowerStatsView {
 	return stats
 }
 
-/** `TOWERS` in array order -- the same order the number keys bind to. No sorting, no grouping. */
+/**
+ * The roster in the order it arrives: by `unlockNightOf`, ties by `TOWERS` position, and a tower no
+ * night unlocks at the end. **The one order** -- `buildShop`, the number keys and the badges all follow
+ * it, because three orders is how a badge reads 4 on the tower key 5 arms (step 20E, decision 5).
+ *
+ * Unlock order and not `TOWERS` order so that tonight's new tower lands *after* everything the player
+ * already has, and a key learned on night 3 still arms the same tower on night 9.
+ *
+ * Not memoised: nineteen entries, and the specs push synthetic towers and nights onto both lists.
+ */
+export function shopOrder(): TowerDef[] {
+	const night = new Map(TOWERS.map(def => [def.id, unlockNightOf(def.id) ?? Infinity]))
+	const position = new Map(TOWERS.map((def, index) => [def.id, index]))
+	return [...TOWERS].sort(
+		(a, b) =>
+			(night.get(a.id) ?? Infinity) - (night.get(b.id) ?? Infinity) ||
+			(position.get(a.id) ?? 0) - (position.get(b.id) ?? 0),
+	)
+}
+
+/** `NightState.availableTowerIds`' own reading: null is every tower. */
+export function isUnlocked(availableTowerIds: readonly DefId[] | null, id: DefId): boolean {
+	return availableTowerIds === null || availableTowerIds.includes(id)
+}
+
+/** Keys `1`..`9` and then `0`: ten, and the tenth badge reads `0` because that is the key. */
+const HOTKEY_COUNT = 10
+
+/**
+ * The towers the number keys arm, in key order: the first ten **unlocked** entries of `shopOrder`.
+ * A locked tower takes no key, so the keys do not skip over greyed buttons.
+ */
+export function hotkeyTowers(availableTowerIds: readonly DefId[] | null): TowerDef[] {
+	return shopOrder()
+		.filter(def => isUnlocked(availableTowerIds, def.id))
+		.slice(0, HOTKEY_COUNT)
+}
+
+/** The key for position `index` of `hotkeyTowers`: `'1'`..`'9'`, then `'0'` for the tenth. */
+function hotkeyLabel(index: number): string {
+	return String((index + 1) % HOTKEY_COUNT)
+}
+
 function buildShop(world: World): ShopEntry[] {
-	return TOWERS.map(def => ({
-		id: def.id,
-		glyph: def.glyph,
-		nameKey: def.nameKey,
-		descriptionKey: def.descriptionKey,
-		cost: def.cost,
-		affordable: world.crumbs >= def.cost,
-		unlocked: true,
-		stats: statsFor(def),
-	}))
+	const available = world.night.availableTowerIds
+	const keyed = hotkeyTowers(available)
+
+	return shopOrder().map(def => {
+		const keyIndex = keyed.indexOf(def)
+		return {
+			id: def.id,
+			glyph: def.glyph,
+			nameKey: def.nameKey,
+			descriptionKey: def.descriptionKey,
+			cost: def.cost,
+			affordable: world.crumbs >= def.cost,
+			unlocked: isUnlocked(available, def.id),
+			unlockNight: unlockNightOf(def.id),
+			hotkey: keyIndex === -1 ? null : hotkeyLabel(keyIndex),
+			stats: statsFor(def),
+		}
+	})
 }
 
 /** One walk of `world.crumbPiles` for all three numbers. */
@@ -951,7 +1031,33 @@ export function buildEnemyTooltip(world: World, enemyId: EntityId): EnemyTooltip
 	}
 }
 
-/** The night-end screen. Read whatever the phase, and shown only in `'won'` and `'lost'`. */
+/** Field by field, so a nested field added to the breakdown later is a type error here, not a live reference. */
+function copyPay(pay: GroceryMoneyBreakdown): GroceryMoneyBreakdown {
+	return {
+		base: pay.base,
+		foodSaved: pay.foodSaved,
+		kills: pay.kills,
+		cleanliness: pay.cleanliness,
+		noWake: pay.noWake,
+		earlyCall: pay.earlyCall,
+		subtotal: pay.subtotal,
+		difficultyMult: pay.difficultyMult,
+		lossMult: pay.lossMult,
+		total: pay.total,
+		itemsRemaining: pay.itemsRemaining,
+		enemiesKilled: pay.enemiesKilled,
+		cleanlinessRatio: pay.cleanlinessRatio,
+		secondsSkipped: pay.secondsSkipped,
+		woke: pay.woke,
+	}
+}
+
+/**
+ * The night-end screen. Read whatever the phase, and shown only in `'won'` and `'lost'`.
+ *
+ * Touches no content: the spec fixture's night is `'test'`, which is no night, and it is `'won'` with
+ * `pay: null` -- so every snapshot built from it builds a summary.
+ */
 export function buildNightSummary(world: World): NightSummaryView {
 	const night = world.night
 	const won = night.phase === 'won'
@@ -968,6 +1074,10 @@ export function buildNightSummary(world: World): NightSummaryView {
 		enemiesKilled: night.enemiesKilled,
 		crumbsCollected: night.crumbsCollected,
 		crumbsDropped: night.crumbsDropped,
+		grocery: night.pay === null ? null : copyPay(night.pay),
+		peakNoise: { level: world.noise.peakLevel, cap: world.noise.cap },
+		wakeCount: world.noise.wakeCount,
+		snackStashUsed: night.snackStashUsed,
 	}
 }
 
@@ -997,7 +1107,6 @@ export function buildHudSnapshot(
 		phase: night.phase,
 		crumbs: world.crumbs,
 		unbankedCrumbs: world.unbankedCrumbs,
-		groceryMoney: night.pay?.total ?? 0,
 		crumbsOnBoard: crumbsOnBoard(world),
 		// Passed in like `loudShots`, and for the same reason: it is read off events, not the world.
 		food: foodView(world, view.lastLost ?? null),

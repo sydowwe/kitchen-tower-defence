@@ -14,13 +14,6 @@
 				<b>{{ crumbs }}</b>
 				<i v-if="crumbsOnBoard.value > 0">+{{ crumbsOnBoard.value }}</i>
 			</span>
-			<span
-				class="reading"
-				:title="t('hud.groceryMoney')"
-			>
-				<span class="glyph">💵</span>
-				<b>{{ groceryMoney }}</b>
-			</span>
 
 			<span
 				class="reading noise"
@@ -121,17 +114,19 @@
 	 * Clock, wave, wallet, noise and food, in one floating panel rather than a full-width bar: the
 	 * board is the brightest thing on screen and chrome floats at its edges (DECISIONS.md section 1).
 	 *
+	 * No Grocery Money here. Tonight's pay is the summary's and the balance is the Kitchen's; a chip
+	 * reading 0 for twelve waves teaches that the currency never moves (step 20E, decision 6).
+	 *
 	 * There is exactly one shelf of food glyphs and it is the canvas one -- `render/layers/fridge.ts`
 	 * has drawn it since step 5C and `effects.ts` animates a theft out of its slot. This bar shows the
 	 * count and **the name of what just went**, which is the half the canvas cannot say.
 	 */
 
-	const { clock, wave, crumbs, crumbsOnBoard, groceryMoney, food, noise, upcomingThief } = defineProps<{
+	const { clock, wave, crumbs, crumbsOnBoard, food, noise, upcomingThief } = defineProps<{
 		clock: HudSnapshot['clock']
 		wave: HudSnapshot['wave']
 		crumbs: number
 		crumbsOnBoard: HudSnapshot['crumbsOnBoard']
-		groceryMoney: number
 		food: HudSnapshot['food']
 		noise: HudSnapshot['noise']
 		upcomingThief: HudSnapshot['upcomingThief']

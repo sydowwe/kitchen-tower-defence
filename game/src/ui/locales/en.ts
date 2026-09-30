@@ -58,7 +58,6 @@ export const en = {
 		foodAtRiskTitle: 'Off the shelf, but not gone yet. Stop the thief, or fetch it off the floor.',
 		// Up for the whole wave before, and its countdown. It names the thing and trusts the player.
 		thiefWarning: 'Next wave, a {thief} comes for the fridge.',
-		groceryMoney: 'Grocery money',
 		noiseLevel: '{level} of {cap}',
 		// The word at the cap end of the meter past 70%. A floorboard, not a siren -- somebody upstairs
 		// is close to turning over, and DECISIONS.md section 1 does not do alarms.
@@ -88,6 +87,8 @@ export const en = {
 
 		shop: 'On the counter',
 		locked: 'Locked',
+		// Where a locked tower's price would be: the night it arrives, and nothing about how to get there.
+		unlocksOnNight: 'Night {n}',
 		cost: '{n} crumbs',
 		onFloor: 'On the floor',
 		floorPiles: '{piles} piles · {value} crumbs',
@@ -748,11 +749,39 @@ export const en = {
 		foodEscaped: 'Carried off: {items}',
 		foodLost: 'Lost: {items}',
 		foodNothingLost: 'Nothing was taken.',
+		// The plain tally, for a summary with no pay behind it -- a dev night, or a spec's world.
 		foodRemaining: 'Still in the fridge: {n}',
 		enemiesKilled: 'Dealt with: {n}',
 		crumbsCollected: 'Swept up {collected} crumbs of {dropped} dropped',
-		// A stub until step 20 pays the night out and writes the breakdown behind it.
-		groceryMoney: 'Grocery money earned: {n}',
+		// How loud it got, and whether that was too loud, as one sentence (step 20E, decision 3).
+		noiseQuiet: 'The noise peaked at {level} of {cap}, and nobody woke.',
+		noiseWokeOnce: 'The noise peaked at {level} of {cap}, and someone came down once.',
+		noiseWokeTimes: 'The noise peaked at {level} of {cap}, and someone came down {n} times.',
+		snackStash: 'The emergency snacks went on the shelf when it ran low.',
+		// The money, line by line. Each line names what the player did, not the formula behind it.
+		pay: {
+			heading: 'Grocery money',
+			base: 'Keeping watch',
+			foodSaved: '{n} things still in the fridge',
+			foodSavedOne: 'One thing still in the fridge',
+			foodSavedNone: 'Nothing left in the fridge',
+			kills: 'Dealt with {n}',
+			cleanliness: 'Swept up {percent}% of the crumbs',
+			cleanlinessNothingDropped: 'Nothing was left on the floor',
+			noWake: 'Nobody woke up',
+			// Worth nothing, and still a line: a missing one teaches nothing.
+			woke: 'Somebody woke up',
+			earlyCall: 'Called waves {n}s early',
+			earlyCallNone: 'Let every countdown run',
+			subtotal: 'Subtotal',
+			difficulty: 'At this difficulty',
+			// Said as what it still pays, never as what it docked.
+			loss: 'Even a lost night pays',
+			total: 'Earned tonight',
+			amount: '+{n}',
+			times: '×{n}',
+			percent: '{n}%',
+		},
 		listSeparator: ', ',
 		retry: 'Try the night again',
 		continue: 'Continue',
@@ -760,8 +789,6 @@ export const en = {
 		saving: 'Saving the night…',
 		saveFailed: 'The night did not save.',
 		retrySave: 'Try saving again',
-		// Night 7 is the last one authored. Step 20 is what turns this into a campaign.
-		continueUnavailable: 'That is as far as the kitchen goes for now.',
 	},
 }
 

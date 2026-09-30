@@ -72,6 +72,11 @@ export interface OverlayGhost {
 export interface OverlayView {
 	selected: OverlaySelected | null
 	ghost: OverlayGhost | null
+	/**
+	 * The broom's reach, round the hovered pile. `at` is the pile's floor position in waypoint space,
+	 * which is a tower's `tile` space, so it goes to `drawRangeCircle` unconverted.
+	 */
+	sweep: { at: Vec2; radiusTiles: number } | null
 }
 
 /** One switch over the union, shared by the selection and the ghost so the two cannot disagree. */
@@ -111,6 +116,10 @@ export function drawOverlay(
 		} else {
 			drawReach(ctx, tilePx, selected.tile, selected.reach, 'neutral')
 		}
+	}
+
+	if (view.sweep !== null) {
+		drawRangeCircle(ctx, tilePx, view.sweep.at, view.sweep.radiusTiles, 'neutral')
 	}
 
 	const ghost = view.ghost

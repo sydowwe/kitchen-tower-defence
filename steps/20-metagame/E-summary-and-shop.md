@@ -60,7 +60,10 @@ then edit this file. Don't leave it lying.
    loadout.
 5. **One order, exported:** `shopOrder()` in `viewModel.ts` is what `buildShop`, the keydown binding
    and `TowerShop`'s badges all follow. Three orders are how a badge ends up reading 4 on the tower
-   key 5 arms.
+   key 5 arms. *As built:* `hotkeyTowers(availableTowerIds)` (the first ten unlocked of `shopOrder`)
+   is the list the keydown handler indexes, and `buildShop` stamps each entry's badge off it as
+   `ShopEntry.hotkey`. `TowerShop`'s positional `keyFor(index)` is gone, so the component counts
+   nothing.
 6. **The TopBar's Grocery Money chip goes.** Tonight's pay is the summary's, and the balance is the
    Kitchen's. A chip reading 0 for twelve waves teaches the player the currency doesn't move. Delete
    `HudSnapshot.groceryMoney` with it.
@@ -124,9 +127,9 @@ Extend `tests/viewModel.spec.ts`:
       improve.
 - [ ] A lost night's summary still lists what was lost by name, and the 40% line reads as an
       encouragement rather than a fine.
-- [ ] Number keys arm the same tower on night 3 and on night 9.
+- [x] Number keys arm the same tower on night 3 and on night 9.
 - [ ] With the broom owned, hovering a pile shows the sweep, and clicking takes everything inside it.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 
