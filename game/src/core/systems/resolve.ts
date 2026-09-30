@@ -18,6 +18,7 @@ import { getEnemyDef } from '@/core/content/index.ts'
 import { totalLength } from '@/core/path.ts'
 import { dropCrumb } from '@/core/systems/crumbs.ts'
 import { dropCarried, escapeWith, forfeitDroppedFood, isGone, takeFood } from '@/core/systems/fridge.ts'
+import { groceryMoneyFor } from '@/core/systems/scoring.ts'
 import { enemyPosition } from '@/core/systems/spatial.ts'
 import { isThiefFleeing } from '@/core/systems/theft.ts'
 import { hasFinishedSpawning } from '@/core/systems/wave.ts'
@@ -116,6 +117,9 @@ export function resolveSystem(world: World): void {
 	// the floor is not gone, so it holds this off the way carried food does.
 	if (night.food.every(isGone)) {
 		night.phase = 'lost'
+		// After the phase, which sets the loss rate, and before `nightEnded`, so a reader of the event
+		// finds the pay already there.
+		night.pay = groceryMoneyFor(world)
 		world.events.push({ kind: 'nightEnded', won: false })
 		return
 	}
@@ -127,6 +131,8 @@ export function resolveSystem(world: World): void {
 		night.phase = 'won'
 		// Before `nightEnded`, so the summary built off this tick already counts it lost.
 		forfeitDroppedFood(world)
+		// After the forfeit, so food left on the floor is not paid for as saved.
+		night.pay = groceryMoneyFor(world)
 		world.events.push({ kind: 'nightEnded', won: true })
 	}
 }

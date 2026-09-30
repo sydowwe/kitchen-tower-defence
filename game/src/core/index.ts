@@ -5,6 +5,7 @@
  * Importing this barrel loads `core/content/`, which validates every def in dev at module load.
  */
 
+export * from '@/core/campaign.ts'
 export * from '@/core/commands.ts'
 export * from '@/core/content/index.ts'
 export * from '@/core/map.ts'

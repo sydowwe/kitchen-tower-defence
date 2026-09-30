@@ -13,6 +13,8 @@ import type { World } from '@/core/types.ts'
  * - **the night is already over.** Its `nightId` is synthetic, so a wave system that tried to start
  *   wave 0 would throw looking the night up. Terminal phases run nothing (step 5B), which is what
  *   keeps this a skeleton for tick-mechanics tests. A world that drives a night is `night.spec.ts`.
+ *   A spec that makes this one live and plays it to an end sets a real `nightId`: `resolveSystem`
+ *   scores the night it ends, and scoring looks the night up.
  * - **the lane is long.** An enemy past the end of its path is eaten at the fridge and removed, so
  *   a one-tile track would delete every enemy a spawn or movement spec put on it.
  */
@@ -34,8 +36,7 @@ export function createTestWorld(): World {
 
 		crumbs: 200,
 		unbankedCrumbs: 0,
-		groceryMoney: 0,
-		noise: { level: 0, cap: 100, decayPerTick: 1.5 / 60, wakeCount: 0 },
+		noise: { level: 0, cap: 100, decayPerTick: 1.5 / 60, wakeCount: 0, peakLevel: 0 },
 
 		map: {
 			id: 'test',
@@ -84,6 +85,9 @@ export function createTestWorld(): World {
 			crumbsCollected: 0,
 			enemiesKilled: 0,
 			clearedThroughWaveIndex: -1,
+			availableTowerIds: null,
+			// Null even though the night is `'won'`: `'test'` is no night, so there is no pay to compute.
+			pay: null,
 		},
 		difficulty: {
 			id: 'normal',

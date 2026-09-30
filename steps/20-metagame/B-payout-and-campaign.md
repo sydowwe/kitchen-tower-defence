@@ -55,6 +55,9 @@ then edit this file. Don't leave it lying.
    step 22's harness all read the one computation. The summary doesn't redo a night lookup at 15 Hz.
    And the fixture world, already `'won'` with a `nightId` of `'test'`, gets `pay: null` instead of
    making every `buildHudSnapshot` spec throw inside `getNightDef('test')`.
+   *As built:* one more spec file met this. `theft.spec`'s `makeWorld` makes the fixture live and three
+   of its specs play the night to an end, so `resolve` scored `'test'` and threw. That helper now sets
+   `nightId: 'night01'`, and the fixture's doc comment says why. The fixture itself stays `'test'`.
 7. **`NoiseState.peakLevel`, written in `noiseSystem` after the clamp and before the wake's
    `level = 0`.** A reader outside the tick never sees the cap on a wake tick, because the level is
    already 0 by then. The summary is its reader, which is what 13A said it lacked. Step 22's
@@ -102,7 +105,9 @@ inputs E prints beside them: `itemsRemaining`, `enemiesKilled`, `cleanlinessRati
 
 Gotcha: **`Math.round` after a float multiply can land on the wrong side of .5.** `275 × 0.7` is
 `192.49999999999997`. Don't "fix" it with an epsilon nobody will remember. Pick test fixtures whose
-products aren't on a half, and say why in the spec.
+products aren't on a half, and say why in the spec. The one exception is the nightmare total below.
+`275 × 1.5` is `412.5`, a half, but 1.5 and 412.5 are both exact in binary, so it is a true half
+and rounds up to 413 everywhere. No cozy total is asserted.
 
 ### 2. Peak noise
 
@@ -111,7 +116,8 @@ Decision 7, `NoiseState.peakLevel`, 0 in `createWorld` and in the fixture.
 ### 3. Unlocks: `schema.ts`, `nights.ts`, `index.ts`, `placement.ts`
 
 Decisions 8–10. The eighteen nights' `unlocksTowerIds` from §6, with night 14's Fly Paper included.
-Rewrite the notes above `night09` and `night13`. Add a `'locked'` member to `PlacementRejection` and
+Rewrite the notes above `night09`, `night13` and `night14`. Night 14's also said its unlock was
+"step 20's". The notes above nights 12 and 16 name their unlocks without deferring them, so they stay. Add a `'locked'` member to `PlacementRejection` and
 its English in `en.ts` in the `hud.reject` idiom. `contentKeys.ts` will insist.
 
 ### 4. `core/campaign.ts`
@@ -156,11 +162,11 @@ fixture world's `nightId` is `'test'`, and `getNightDef('test')` throws.
 
 ## Acceptance
 
-- [ ] `groceryMoneyFor` is the only function in `src/` that computes Grocery Money. Only `resolve`
+- [x] `groceryMoneyFor` is the only function in `src/` that computes Grocery Money. Only `resolve`
       calls it, everything else reads `night.pay`, and nothing else multiplies by a difficulty's
       `groceryMoneyMult`.
-- [ ] Nothing in `core/campaign.ts` mutates an argument.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] Nothing in `core/campaign.ts` mutates an argument.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 20C
 
@@ -178,7 +184,7 @@ core/campaign.ts         interface Progress { nightId: DefId | null; groceryMone
                                                       | { ok: false; reason: 'owned' | 'tooExpensive' }
                          worldOptionsFor(progress, seed): CreateWorldOptions
 core/systems/scoring.ts  groceryMoneyFor(world): GroceryMoneyBreakdown;  GROCERY_LOSS_RATE
-core/content/index.ts    unlockNightOf(towerId): number | null
+core/content/index.ts    unlockNightOf(towerId): number | null;  getInstallationDef(id)   // throws on an unknown id
 core/types.ts            NoiseState.peakLevel;  NightState.availableTowerIds: DefId[] | null
                          NightState.pay: GroceryMoneyBreakdown | null     // World.groceryMoney is gone
 ```

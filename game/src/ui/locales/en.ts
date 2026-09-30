@@ -255,6 +255,7 @@ export const en = {
 			occupied: 'You have already put something there.',
 			tooExpensive: 'Not enough crumbs yet.',
 			nightOver: 'The night is over.',
+			locked: 'You do not have that one yet.',
 		} satisfies RejectionMessages,
 	},
 	debug: {

@@ -997,7 +997,7 @@ export function buildHudSnapshot(
 		phase: night.phase,
 		crumbs: world.crumbs,
 		unbankedCrumbs: world.unbankedCrumbs,
-		groceryMoney: world.groceryMoney,
+		groceryMoney: night.pay?.total ?? 0,
 		crumbsOnBoard: crumbsOnBoard(world),
 		// Passed in like `loudShots`, and for the same reason: it is read off events, not the world.
 		food: foodView(world, view.lastLost ?? null),

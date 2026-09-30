@@ -42,6 +42,8 @@ export interface CreateWorldOptions {
 	 * `resolveDifficulty` does, for exactly the same reason.
 	 */
 	modifiers?: WorldModifiers
+	/** The towers this night may place. Absent or null is any tower -- see `NightState.availableTowerIds`. */
+	availableTowerIds?: DefId[] | null
 }
 
 /**
@@ -99,7 +101,14 @@ function stockFridge(
 	return items
 }
 
-export function createWorld({ seed, mapId, nightId, difficulty, modifiers = NO_MODIFIERS }: CreateWorldOptions): World {
+export function createWorld({
+	seed,
+	mapId,
+	nightId,
+	difficulty,
+	modifiers = NO_MODIFIERS,
+	availableTowerIds = null,
+}: CreateWorldOptions): World {
 	const map = getMapDef(mapId)
 	const night = getNightDef(nightId)
 	const tier = resolveDifficulty(difficulty)
@@ -142,7 +151,6 @@ export function createWorld({ seed, mapId, nightId, difficulty, modifiers = NO_M
 		// 0, and deliberately **not** `startingCrumbs`: what the night hands you is capital, and a
 		// wake on tick 1 must not take it.
 		unbankedCrumbs: 0,
-		groceryMoney: 0,
 		noise: {
 			level: 0,
 			// Folded into the meter here rather than read off `modifiers` by `noiseSystem`: cap and decay
@@ -150,6 +158,7 @@ export function createWorld({ seed, mapId, nightId, difficulty, modifiers = NO_M
 			cap: tier.noiseCap + modifiers.noiseCapDelta,
 			decayPerTick: NOISE_DECAY_PER_TICK + modifiers.noiseDecayPerTickDelta,
 			wakeCount: 0,
+			peakLevel: 0,
 		},
 
 		map: cloneMapDef(map),
@@ -167,6 +176,9 @@ export function createWorld({ seed, mapId, nightId, difficulty, modifiers = NO_M
 			crumbsCollected: 0,
 			enemiesKilled: 0,
 			clearedThroughWaveIndex: -1,
+			// A copy, for `modifiers`' reason below.
+			availableTowerIds: availableTowerIds === null ? null : [...availableTowerIds],
+			pay: null,
 		},
 		difficulty: tier,
 		// A copy, so no two worlds share the object -- the harness builds thousands in one process.

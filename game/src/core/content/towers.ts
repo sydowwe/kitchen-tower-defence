@@ -1183,7 +1183,8 @@ export const mintPot: TowerDefOf<'mintPot'> = {
 }
 
 /**
- * Authored and validated, never sold. Step 20 owns unlock state and is where one of these would move
- * into the shop; until then a spec registers it into `TOWERS` for as long as it needs it.
+ * Authored and validated, never sold. The Mint Pot unlocks on night 21, past v1's eighteen, so no
+ * night here names it and it stays out of `TOWERS`; a spec registers it there for as long as it needs
+ * it.
  */
 export const POST_V1_TOWERS = [mintPot]

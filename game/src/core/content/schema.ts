@@ -415,8 +415,9 @@ export function contentSchemas() {
 	// A tower is its numbers plus a list of behaviour descriptors. There is no `class`, no
 	// `extends`, and no field naming a system: what the tower *does* is entirely in `behaviours`.
 	//
-	// Absent on purpose -- the step that adds the mechanic extends this schema: loadout and
-	// unlock state (step 20).
+	// Absent on purpose: when a tower unlocks. That is authored on the night that unlocks it
+	// (`NightDef.unlocksTowerIds`), the way analytic-docs/CONTENT.md section 6 authors it. Loadout
+	// state is step 20a's.
 
 	const tower = z.object({
 		id: defId(),
@@ -691,6 +692,12 @@ export function contentSchemas() {
 		index: z.number().int().min(1).max(100),
 		mapId: defId(),
 		waves: z.array(wave).min(1),
+		/**
+		 * The towers this night adds to the shop, section 6's *Unlocks tower* column. A campaign's
+		 * unlocked set is the union over every night up to the current one, derived and never saved.
+		 * Optional, so a synthetic night in a spec needs none.
+		 */
+		unlocksTowerIds: z.array(defId()).optional(),
 	})
 
 	// --- statuses -----------------------------------------------------------------------------
@@ -945,6 +952,30 @@ function checkPushbackRiders(towers: readonly TowerDef[], problems: string[]): v
 }
 
 /**
+ * Every night's unlock names a tower that exists, and no tower unlocks twice -- the second would
+ * be dead content, and which night the shop gets it from would depend on which one a reader found
+ * first.
+ */
+function checkNightUnlocks(nights: readonly NightDef[], towers: readonly TowerDef[], problems: string[]): void {
+	const towerIds = new Set(towers.map(tower => tower.id))
+	const unlockedBy = new Map<string, string>()
+
+	for (const night of nights) {
+		for (const towerId of night.unlocksTowerIds ?? []) {
+			if (!towerIds.has(towerId)) {
+				problems.push(`night '${night.id}': unlocksTowerIds: no tower '${towerId}'`)
+			}
+			const first = unlockedBy.get(towerId)
+			if (first === undefined) {
+				unlockedBy.set(towerId, night.id)
+			} else {
+				problems.push(`night '${night.id}': unlocksTowerIds: '${towerId}' is already unlocked by '${first}'`)
+			}
+		}
+	}
+}
+
+/**
  * Validates every collection and throws once, with **every** problem it found. Failing on the
  * first would mean fourteen restarts to fix fourteen typos.
  */
@@ -964,6 +995,7 @@ export function validateContent(raw: RawContent): Content {
 
 	checkUpgradeTiers(content.towers, problems)
 	checkPushbackRiders(content.towers, problems)
+	checkNightUnlocks(content.nights, content.towers, problems)
 
 	if (problems.length > 0) {
 		throw new ContentValidationError(problems)

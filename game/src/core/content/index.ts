@@ -19,7 +19,7 @@ import { NIGHTS } from '@/core/content/nights.ts'
 import { validateContentInDev } from '@/core/content/schema.ts'
 import { POST_V1_TOWERS, TOWERS } from '@/core/content/towers.ts'
 import { foldUpgrades } from '@/core/content/upgrades.ts'
-import type { EnemyDef, FoodDef, NightDef, TowerDef } from '@/core/content/schema.ts'
+import type { EnemyDef, FoodDef, InstallationDef, NightDef, TowerDef } from '@/core/content/schema.ts'
 import type { DefId, MapDef, Tower } from '@/core/types.ts'
 
 export * from '@/core/content/behaviours.ts'
@@ -91,6 +91,18 @@ export function getMapDef(id: DefId): MapDef {
 
 export function getNightDef(id: DefId): NightDef {
 	return lookup('night', NIGHTS, id)
+}
+
+export function getInstallationDef(id: DefId): InstallationDef {
+	return lookup('installation', INSTALLATIONS, id)
+}
+
+/**
+ * The index of the night that unlocks this tower, or null for one no night unlocks -- a post-v1
+ * tower, or a synthetic one in a spec. Null rather than a throw: "never" is an answer here.
+ */
+export function unlockNightOf(towerId: DefId): number | null {
+	return NIGHTS.find(night => night.unlocksTowerIds?.includes(towerId) === true)?.index ?? null
 }
 
 /**

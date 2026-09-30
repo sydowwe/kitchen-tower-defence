@@ -150,6 +150,8 @@ export function noiseSystem(world: World): void {
 	}
 
 	noise.level = Math.min(noise.cap, Math.max(0, noise.level - noise.decayPerTick))
+	// Here, between the clamp and the wake: on a wake tick this is the only line that sees the cap.
+	noise.peakLevel = Math.max(noise.peakLevel, noise.level)
 
 	if (noise.level >= noise.cap) {
 		wake(world)

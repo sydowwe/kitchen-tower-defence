@@ -36,6 +36,7 @@ export const night01: NightDef = {
 	id: 'night01',
 	index: 1,
 	mapId: 'counter',
+	unlocksTowerIds: ['saltShaker', 'toasterCrumbTray'],
 	waves: [
 		{
 			entries: [{ enemyDefId: 'ant', count: 5, spacingTicks: 75, startDelayTicks: 0, pathId: 'crack' }],
@@ -76,6 +77,7 @@ export const night02: NightDef = {
 	id: 'night02',
 	index: 2,
 	mapId: 'counter',
+	unlocksTowerIds: ['stickyTape'],
 	waves: [
 		{
 			entries: [{ enemyDefId: 'ant', count: 7, spacingTicks: 66, startDelayTicks: 0, pathId: 'crack' }],
@@ -124,6 +126,7 @@ export const night03: NightDef = {
 	id: 'night03',
 	index: 3,
 	mapId: 'counter',
+	unlocksTowerIds: ['mousetrap'],
 	waves: [
 		{
 			entries: [{ enemyDefId: 'ant', count: 9, spacingTicks: 60, startDelayTicks: 0, pathId: 'crack' }],
@@ -197,6 +200,7 @@ export const night04: NightDef = {
 	id: 'night04',
 	index: 4,
 	mapId: 'counter',
+	unlocksTowerIds: ['cookieJar'],
 	waves: [
 		{
 			entries: [{ enemyDefId: 'ant', count: 10, spacingTicks: 58, startDelayTicks: 0, pathId: 'crack' }],
@@ -263,6 +267,7 @@ export const night05: NightDef = {
 	id: 'night05',
 	index: 5,
 	mapId: 'counter',
+	unlocksTowerIds: ['sprayBottle'],
 	waves: [
 		{
 			entries: [{ enemyDefId: 'ant', count: 11, spacingTicks: 56, startDelayTicks: 0, pathId: 'crack' }],
@@ -339,6 +344,7 @@ export const night06: NightDef = {
 	id: 'night06',
 	index: 6,
 	mapId: 'counter',
+	unlocksTowerIds: ['cardboardBox'],
 	waves: [
 		{
 			entries: [
@@ -419,6 +425,7 @@ export const night07: NightDef = {
 	id: 'night07',
 	index: 7,
 	mapId: 'counter',
+	unlocksTowerIds: ['iceCubeTray'],
 	waves: [
 		{
 			entries: [
@@ -528,6 +535,7 @@ export const night08: NightDef = {
 	id: 'night08',
 	index: 8,
 	mapId: 'counter',
+	unlocksTowerIds: ['toaster'],
 	waves: [
 		{
 			entries: [
@@ -619,8 +627,8 @@ export const night08: NightDef = {
 }
 
 /**
- * **Night 9 introduces nothing.** Section 6 gives it the Nightlight unlock and no new enemy, and
- * unlocks are step 20's -- so it is night 8 with more of everything, which is the honest content for
+ * **Night 9 introduces no enemy.** Its one new thing is the Nightlight, a tower with nothing to reveal
+ * until the Moth -- so the waves are night 8 with more of everything, which is the honest content for
  * a night whose job is to let the fly pressure settle before the Moth arrives on night 10.
  *
  * Flies are in every wave from the first one here, including a second pure-fly wave: what was a
@@ -631,6 +639,7 @@ export const night09: NightDef = {
 	id: 'night09',
 	index: 9,
 	mapId: 'counter',
+	unlocksTowerIds: ['nightlight'],
 	waves: [
 		{
 			entries: [
@@ -741,6 +750,7 @@ export const night10: NightDef = {
 	id: 'night10',
 	index: 10,
 	mapId: 'counter',
+	unlocksTowerIds: ['candle'],
 	waves: [
 		{
 			entries: [
@@ -890,6 +900,7 @@ export const night11: NightDef = {
 	id: 'night11',
 	index: 11,
 	mapId: 'counter',
+	unlocksTowerIds: ['vinegarSpray'],
 	waves: [
 		{
 			entries: [
@@ -1111,6 +1122,7 @@ export const night12: NightDef = {
 	id: 'night12',
 	index: 12,
 	mapId: 'counter',
+	unlocksTowerIds: ['gasStoveBurner'],
 	waves: [
 		{
 			entries: [
@@ -1320,8 +1332,8 @@ export const night12: NightDef = {
 }
 
 /**
- * Night 13: the Weevil. Section 6 gives it the Bay Leaf unlock too, which is step 20's -- the tower
- * already exists, and this night is what makes it a decision.
+ * Night 13: the Weevil, and the Bay Leaf unlocks beside it -- this night is what makes that tower a
+ * decision.
  *
  * Two of them in wave 3, released after the wave's last Ant and five seconds apart, so each is watched
  * going under and coming back up on its own. After that they are folded into the ground column in
@@ -1337,6 +1349,7 @@ export const night13: NightDef = {
 	id: 'night13',
 	index: 13,
 	mapId: 'counter',
+	unlocksTowerIds: ['bayLeaf'],
 	waves: [
 		{
 			entries: [
@@ -1467,8 +1480,8 @@ export const night13: NightDef = {
 }
 
 /**
- * Night 14: the Mouse, the Act II mini-boss. Section 6 gives it the Fly Paper unlock too, which is step
- * 20's. It introduces nothing else, so apart from the Mouse it is night 13 with more of everything.
+ * Night 14: the Mouse, the Act II mini-boss, and the Fly Paper unlock. It introduces no other enemy, so
+ * apart from the Mouse it is night 13 with more of everything.
  *
  * **Two Mice, in waves 7 and 12, one entry each** -- nightmare's `enemyCountMult` rounds a 2 to a 3. The
  * wave in front of each is what carries the `thiefWarning`, so neither is early: wave 6 is the night's
@@ -1491,6 +1504,7 @@ export const night14: NightDef = {
 	id: 'night14',
 	index: 14,
 	mapId: 'counter',
+	unlocksTowerIds: ['flyPaper'],
 	waves: [
 		{
 			entries: [
@@ -1648,6 +1662,7 @@ export const night15: NightDef = {
 	id: 'night15',
 	index: 15,
 	mapId: 'counter',
+	unlocksTowerIds: ['bakingSoda'],
 	waves: [
 		{
 			entries: [
@@ -1879,6 +1894,7 @@ export const night16: NightDef = {
 	id: 'night16',
 	index: 16,
 	mapId: 'counter',
+	unlocksTowerIds: ['honeyPot'],
 	waves: [
 		{
 			entries: [
@@ -2118,6 +2134,7 @@ export const night17: NightDef = {
 	id: 'night17',
 	index: 17,
 	mapId: 'counter',
+	unlocksTowerIds: ['lemon'],
 	waves: [
 		{
 			entries: [
@@ -2331,6 +2348,7 @@ export const night18: NightDef = {
 	id: 'night18',
 	index: 18,
 	mapId: 'counter',
+	unlocksTowerIds: ['fan'],
 	waves: [
 		{
 			entries: [

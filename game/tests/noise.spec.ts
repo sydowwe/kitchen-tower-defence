@@ -230,6 +230,30 @@ describe('the wake', () => {
 		expect(world.noise.wakeCount).toBe(1)
 	})
 
+	it('records the cap as the peak on a wake tick, though the level is already back at 0', () => {
+		const world = noisyWorld()
+		world.noise.level = 90
+		fired(world, 1000)
+		noiseSystem(world)
+
+		expect(world.noise.wakeCount).toBe(1)
+		expect(world.noise.level).toBe(0)
+		// The clamped value, not the 1090 the shots summed to.
+		expect(world.noise.peakLevel).toBe(world.noise.cap)
+		expect(world.noise.peakLevel).toBe(100)
+	})
+
+	it('keeps the highest level of the night as the peak while the meter decays', () => {
+		const world = noisyWorld()
+		fired(world, 40)
+		noiseSystem(world)
+		world.events.length = 0
+		noiseSystem(world)
+
+		expect(world.noise.peakLevel).toBeCloseTo(40 - 1.5 / 60, 10)
+		expect(world.noise.level).toBeCloseTo(40 - 2 * (1.5 / 60), 10)
+	})
+
 	it('clamps the level to the cap rather than letting it overshoot', () => {
 		const world = noisyWorld()
 		world.noise.level = 90

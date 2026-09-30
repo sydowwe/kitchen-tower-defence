@@ -30,6 +30,7 @@ export { FLEE_SPEED_MULT, movementSystem, stepTiles } from '@/core/systems/movem
 export { noiseFraction, noiseSystem, projectedNoisePerSecond } from '@/core/systems/noise.ts'
 export { projectilesSystem } from '@/core/systems/projectiles.ts'
 export { resolveSystem } from '@/core/systems/resolve.ts'
+export { GROCERY_LOSS_RATE, groceryMoneyFor } from '@/core/systems/scoring.ts'
 export { spawnSystem, startWave } from '@/core/systems/spawn.ts'
 export { spreadSystem } from '@/core/systems/spread.ts'
 export { statusSystem } from '@/core/systems/status.ts'

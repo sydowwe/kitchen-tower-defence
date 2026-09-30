@@ -10,7 +10,7 @@ import {
 	isTileEffect,
 } from '@/core/content/behaviours.ts'
 import { ant, beetle, ENEMIES, fly, fruitFly, mold, moth, mouse, roach } from '@/core/content/enemies.ts'
-import { effectiveDef } from '@/core/content/index.ts'
+import { effectiveDef, unlockNightOf } from '@/core/content/index.ts'
 import { MAP_SOURCES } from '@/core/content/maps/index.ts'
 import { resolveDamage } from '@/core/content/matrix.ts'
 import { NIGHTS } from '@/core/content/nights.ts'
@@ -100,6 +100,75 @@ describe('the authored content', () => {
 			expect(en.enemy[enemy.id].name.length).toBeGreaterThan(0)
 			expect(en.enemy[enemy.id].description.length).toBeGreaterThan(0)
 		}
+	})
+})
+
+describe('tower unlocks', () => {
+	/** analytic-docs/CONTENT.md section 6's *Unlocks tower* column, transcribed by hand from the doc. */
+	const SECTION_6: Record<number, string[]> = {
+		1: ['saltShaker', 'toasterCrumbTray'],
+		2: ['stickyTape'],
+		3: ['mousetrap'],
+		4: ['cookieJar'],
+		5: ['sprayBottle'],
+		6: ['cardboardBox'],
+		7: ['iceCubeTray'],
+		8: ['toaster'],
+		9: ['nightlight'],
+		10: ['candle'],
+		11: ['vinegarSpray'],
+		12: ['gasStoveBurner'],
+		13: ['bayLeaf'],
+		14: ['flyPaper'],
+		15: ['bakingSoda'],
+		16: ['honeyPot'],
+		17: ['lemon'],
+		18: ['fan'],
+	}
+
+	it('is section 6’s table, night by night', () => {
+		const authored: Record<number, string[]> = {}
+		for (const night of NIGHTS) {
+			authored[night.index] = night.unlocksTowerIds ?? []
+		}
+
+		expect(authored).toEqual(SECTION_6)
+	})
+
+	it('unlocks every tower in the roster exactly once, and no post-v1 tower at all', () => {
+		const unlocked = NIGHTS.flatMap(night => night.unlocksTowerIds ?? [])
+
+		expect(unlocked).toHaveLength(19)
+		expect([...unlocked].sort()).toEqual(TOWERS.map((def): string => def.id).sort())
+		for (const def of POST_V1_TOWERS) {
+			expect(unlocked).not.toContain(def.id)
+			expect(unlockNightOf(def.id)).toBeNull()
+		}
+	})
+
+	it('answers which night unlocks a tower', () => {
+		expect(unlockNightOf('saltShaker')).toBe(1)
+		expect(unlockNightOf('toasterCrumbTray')).toBe(1)
+		expect(unlockNightOf('cookieJar')).toBe(4)
+		expect(unlockNightOf('flyPaper')).toBe(14)
+		expect(unlockNightOf('fan')).toBe(18)
+	})
+
+	it('rejects an unlock naming a tower that does not exist, and one named twice', () => {
+		const [first, second] = NIGHTS
+		if (first === undefined || second === undefined) {
+			throw new Error('expected two nights')
+		}
+
+		expect(() =>
+			validateContent({ towers: TOWERS, nights: [{ ...first, unlocksTowerIds: ['saltShakr'] }] }),
+		).toThrow(/night 'night01': unlocksTowerIds: no tower 'saltShakr'/)
+		expect(() =>
+			validateContent({
+				towers: TOWERS,
+				nights: [first, { ...second, unlocksTowerIds: ['saltShaker'] }],
+			}),
+		).toThrow(/night 'night02': unlocksTowerIds: 'saltShaker' is already unlocked by 'night01'/)
 	})
 })
 

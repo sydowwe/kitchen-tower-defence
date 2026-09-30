@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { saltShaker, toasterCrumbTray } from '@/core/content/towers.ts'
+import { mousetrap, saltShaker, toasterCrumbTray } from '@/core/content/towers.ts'
 import { TileFlags } from '@/core/map.ts'
 import { commandsSystem } from '@/core/systems/commands.ts'
 import { canPlaceTower, placeTower, refundFor, sellTower, towerAt } from '@/core/systems/placement.ts'
+import { createWorld } from '@/core/world.ts'
 import { createTestWorld } from './fixtures/world.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { Tower, World } from '@/core/types.ts'
@@ -104,6 +105,52 @@ describe('canPlaceTower', () => {
 
 			expect(reasonFor(world, saltShaker, 0)).toBe('nightOver')
 		}
+	})
+
+	it('refuses a tower the night does not have, and places one it does', () => {
+		const world = buildableWorld()
+		world.night.availableTowerIds = ['saltShaker']
+
+		expect(reasonFor(world, mousetrap, 0)).toBe('locked')
+		expect(place(world, saltShaker, 0).defId).toBe('saltShaker')
+	})
+
+	it('places anything when the list is null', () => {
+		const world = buildableWorld()
+		expect(world.night.availableTowerIds).toBeNull()
+
+		expect(place(world, mousetrap, 0).defId).toBe('mousetrap')
+		expect(place(world, saltShaker, 4).defId).toBe('saltShaker')
+	})
+
+	it('names `locked` before any tile or price, and `nightOver` before `locked`', () => {
+		const world = buildableWorld()
+		world.night.availableTowerIds = ['saltShaker']
+		world.crumbs = 0
+
+		// A blocked tile and an empty wallet: neither is the reason a Mousetrap is not going there.
+		expect(reasonFor(world, mousetrap, BLOCKED_TILE)).toBe('locked')
+
+		world.night.phase = 'won'
+		expect(reasonFor(world, mousetrap, BLOCKED_TILE)).toBe('nightOver')
+	})
+
+	it('carries the list from `createWorld` as a copy of the one passed in', () => {
+		const available = ['saltShaker', 'toasterCrumbTray']
+		const world = createWorld({
+			seed: 1,
+			mapId: 'counter',
+			nightId: 'night01',
+			difficulty: 'normal',
+			availableTowerIds: available,
+		})
+		available.push('mousetrap')
+
+		expect(world.night.availableTowerIds).toEqual(['saltShaker', 'toasterCrumbTray'])
+		expect(
+			createWorld({ seed: 1, mapId: 'counter', nightId: 'night01', difficulty: 'normal' }).night
+				.availableTowerIds,
+		).toBeNull()
 	})
 })
 

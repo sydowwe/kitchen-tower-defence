@@ -61,6 +61,9 @@ afterAll(() => {
 function makeWorld(items = 8): World {
 	const world = createTestWorld()
 	world.night.phase = 'wave'
+	// A real night, because some of these end it and `resolveSystem` scores the night it ends --
+	// `groceryMoneyFor` needs its index. The fixture's `'test'` is no night.
+	world.night.nightId = 'night01'
 	world.night.wave = {
 		index: 0,
 		startedAtTick: 0,

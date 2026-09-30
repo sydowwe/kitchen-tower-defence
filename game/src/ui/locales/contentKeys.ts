@@ -58,9 +58,9 @@ export type FoodMessages = Record<(typeof FOODS)[number]['id'], { name: string }
 export type InstallationMessages = Record<(typeof INSTALLATIONS)[number]['id'], Entry>
 
 /**
- * The same trick over a vocabulary rather than a collection: `PlacementRejection` is nine string
- * literals in `core/systems/placement.ts`, and `hud.reject` has to answer all of them. A tenth added
- * later fails the build here instead of a toast rendering `onTrack`.
+ * The same trick over a vocabulary rather than a collection: `PlacementRejection` is ten string
+ * literals in `core/systems/placement.ts`, and `hud.reject` has to answer all of them. An eleventh
+ * added later fails the build here instead of a toast rendering `onTrack`.
  *
  * Step 14A's `fouled` is what that promise caught: adding the ninth member broke `type-check` here
  * until the English for it existed, which is the rule working rather than the rule in the way.

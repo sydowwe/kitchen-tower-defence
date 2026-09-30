@@ -511,8 +511,8 @@ export interface NightState {
 	 */
 	snackStashUsed: boolean
 	/**
-	 * Ticks of countdown the player skipped by calling waves early, summed over the night. Step 20's
-	 * grocery award reads it and divides by 60 once, at the point it needs seconds.
+	 * Ticks of countdown the player skipped by calling waves early, summed over the night.
+	 * `groceryMoneyFor` reads it and divides by 60 once, at the point it needs seconds.
 	 */
 	ticksSkippedTotal: number
 	/**
@@ -522,14 +522,14 @@ export interface NightState {
 	 * floor, and a payout was never on the floor.
 	 *
 	 * analytic-docs/CONTENT.md section 8's `cleanliness = 40 x (crumbsCollected / crumbsDropped)` is
-	 * the consumer, and step 20 is what reads it.
+	 * the consumer, in `groceryMoneyFor`.
 	 */
 	crumbsDropped: number
 	/** The same currency as `crumbsDropped`: summed value, through either collection door. */
 	crumbsCollected: number
 	/**
 	 * Enemies killed tonight, incremented where `resolveSystem` pushes `enemyKilled`. The night-end
-	 * summary shows it and step 20's scoring reads it.
+	 * summary shows it and `groceryMoneyFor` reads it.
 	 *
 	 * A tally kept in the UI off `world.events` would count nothing on a replay, could not be
 	 * asserted in a spec, and would not exist for the balance harness at all.
@@ -542,6 +542,50 @@ export interface NightState {
 	 * every tick for the rest of the night.
 	 */
 	clearedThroughWaveIndex: number
+	/**
+	 * The towers this night may place, or null for any tower at all. Null is `createWorld`'s default
+	 * and what a spec gets: a list snapshotted from `TOWERS` would refuse every synthetic tower a spec
+	 * registers after building its world. `worldOptionsFor` in `core/campaign.ts` is what passes a
+	 * campaign's unlocked set, and `canPlaceTower` refuses anything else with `locked`.
+	 */
+	availableTowerIds: DefId[] | null
+	/**
+	 * What tonight paid, term by term. Null until the night ends; `resolveSystem` writes it once, in
+	 * whichever terminal branch it takes, just before `nightEnded`.
+	 *
+	 * **Stored, never recomputed by a reader.** The summary, `nightResultOf` and the balance harness all
+	 * read this one computation, and `groceryMoneyFor` in `core/systems/scoring.ts` is the only thing
+	 * that makes one.
+	 */
+	pay: GroceryMoneyBreakdown | null
+}
+
+/**
+ * One night's Grocery Money and every number it was made from (analytic-docs/CONTENT.md section 8).
+ * Each term is already a whole dollar, so the terms sum to `subtotal` exactly and a summary that
+ * prints them adds up to the line under them.
+ */
+export interface GroceryMoneyBreakdown {
+	base: number
+	foodSaved: number
+	kills: number
+	cleanliness: number
+	noWake: number
+	earlyCall: number
+	subtotal: number
+	/** The tier's `groceryMoneyMult`, as the world was built with it. */
+	difficultyMult: number
+	/** 1 on a win, `GROCERY_LOSS_RATE` on a loss. */
+	lossMult: number
+	total: number
+
+	/** The inputs, for the summary to print beside the terms they became. */
+	itemsRemaining: number
+	enemiesKilled: number
+	/** 0..1. A floor nothing was dropped on is 1. */
+	cleanlinessRatio: number
+	secondsSkipped: number
+	woke: boolean
 }
 
 /**
@@ -561,6 +605,11 @@ export interface NoiseState {
 	 * say a sentence with (step 13A, decision 2).
 	 */
 	wakeCount: number
+	/**
+	 * The highest `level` has been tonight, written after the clamp and **before** a wake zeroes the
+	 * level -- so on a wake tick it is the cap, which nothing reading `level` after the tick can see.
+	 */
+	peakLevel: number
 }
 
 /**
@@ -771,8 +820,6 @@ export interface World {
 	 * slice of the wallet rather than a per-night ledger like `crumbsDropped`.
 	 */
 	unbankedCrumbs: number
-	/** The metagame currency. Earned at night end from performance, never converted from crumbs. */
-	groceryMoney: number
 	noise: NoiseState
 
 	map: MapDef
