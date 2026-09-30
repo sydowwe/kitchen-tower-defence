@@ -193,8 +193,12 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 	}
 
 	resize()
-	// Not awaited: until a sprite has decoded, its glyph draws as the emoji (see `getGlyph`).
-	void loadSprites()
+	// Not awaited: until a sprite has decoded, its glyph draws as the emoji (see `getGlyph`). The bake
+	// is the one thing drawn once rather than per frame -- the fridge is in it -- so it is dropped when
+	// the sprites land, and the next frame bakes again with them.
+	void loadSprites().then(function rebakeWithSprites() {
+		bakedMap = null
+	})
 
 	return {
 		ctx,

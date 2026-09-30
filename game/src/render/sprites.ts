@@ -1,6 +1,6 @@
 /**
- * Drawn sprites for the towers, enemies and crumb piles that have one. Everything without a file
- * stays an emoji.
+ * Drawn sprites for the towers, enemies and crumb piles that have one, and the fridge. Everything
+ * without a file stays an emoji.
  *
  * **A sprite is found by its file name, not by a table.** `assets/sprites/tower/salt_shaker_128.png`
  * is the tower whose id is `saltShaker`, and `crumb/large_128.png` is the `large` crumb band, so
@@ -25,8 +25,20 @@ interface Sprited {
 	glyph: string
 }
 
+/**
+ * What the fridge's sprite is stored and cached under. The fridge has no glyph of its own -- each map
+ * picks one (`MapDef.fridge.glyph`) -- so its sprite cannot be found by glyph like the rest. This key
+ * is never a real emoji, and `fridgeGlyph` hands it out only once the file has loaded.
+ */
+const FRIDGE_KEY = '#fridge'
+
 /** The folder under `assets/sprites/` -> what its file names are matched against. */
-const ROSTERS: Record<string, readonly Sprited[]> = { tower: TOWERS, enemy: ENEMIES, crumb: CRUMB_BANDS }
+const ROSTERS: Record<string, readonly Sprited[]> = {
+	tower: TOWERS,
+	enemy: ENEMIES,
+	crumb: CRUMB_BANDS,
+	fridge: [{ id: 'fridge', glyph: FRIDGE_KEY }],
+}
 
 /**
  * The states a tower can be drawn in besides its default, each carried by a file-name suffix:
@@ -126,7 +138,7 @@ export function loadSprites(): Promise<void> {
 			const file = describe(path)
 			if (file === null) {
 				if (import.meta.env.DEV) {
-					console.warn(`[render] sprite matches no tower, enemy or crumb band, ignored: ${path}`)
+					console.warn(`[render] sprite matches no tower, enemy, crumb band or fridge, ignored: ${path}`)
 				}
 				continue
 			}
@@ -149,6 +161,14 @@ export function getSprite(glyph: string): HTMLImageElement | undefined {
  */
 export function stateGlyph(glyph: string, state: SpriteState): string {
 	return loadedStates.get(state)?.get(glyph) ?? glyph
+}
+
+/**
+ * What to hand the glyph cache to draw the fridge: its sprite once loaded, whatever map it is on,
+ * otherwise the map's own glyph. With the sprite in place the map's glyph is only that fallback.
+ */
+export function fridgeGlyph(mapGlyph: string): string {
+	return loaded.has(FRIDGE_KEY) ? FRIDGE_KEY : mapGlyph
 }
 
 /** Glyph -> bundled URL of its default sprite. Built on first ask; needs nothing to have loaded. */

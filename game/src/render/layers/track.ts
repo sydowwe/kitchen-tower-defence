@@ -14,6 +14,7 @@
 import type { MapDef, Path } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
 import { TRACK_FILL, TRACK_OUTLINE } from '@/render/palette.ts'
+import { fridgeGlyph } from '@/render/sprites.ts'
 
 /** How far the darker pass sticks out past the fill on each side, in logical pixels. */
 const OUTLINE_PX = 3
@@ -70,7 +71,7 @@ export function drawTrack(ctx: CanvasRenderingContext2D, map: MapDef, tilePx: nu
 	blitGlyph(
 		ctx,
 		dpr,
-		map.fridge.glyph,
+		fridgeGlyph(map.fridge.glyph),
 		tilePx * FRIDGE_SCALE,
 		(map.fridge.tile.x + 0.5) * tilePx,
 		(map.fridge.tile.y + 0.5) * tilePx,

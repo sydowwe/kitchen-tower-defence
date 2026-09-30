@@ -163,6 +163,25 @@ differences *do* show here, unlike towers and enemies.
 | ✓ | Crumb | `medium` | 🍞 | A loose heap of golden-brown crumbs with a few strays around it. |
 | ✓ | Pile | `large` | 🍪 | A chunky heap with a broken cookie wedge on top, **brighter and more golden** than the other two. The one worth clicking, so it has to stand out from across the board. |
 
+## Fridge
+
+The goal every enemy walks to. It stands on one tile at the end of the track, drawn at 0.9 of a tile
+— the same size as a tower. The food it holds is **not** drawn in it: the shelf of remaining items is
+a separate panel the renderer draws beside it, and that shelf is the health bar.
+
+| Done | What | File | Glyph | Description |
+|---|---|---|---|---|
+| ✓ | Fridge | `fridge/fridge` | 🗄️ (map-chosen) | A squat retro kitchen fridge, 3/4 front view: rounded corners, pale cream-mint enamel, chrome lever handle, one door, closed. **Wide rather than tall** — about 4:5, so it fills its tile instead of being a thin sliver after the 85% fit. A hairline of cold white light at the door seal is its one glow, kept inside the outline. It must read as *the thing being defended*: the warmest, most solid object on the board, and not a filing cabinet, which is what 🗄️ looks like. |
+
+One fridge sprite for every map. The map's own fridge glyph (`MapDef.fridge.glyph`, picked in the
+editor) is now only the fallback while the file loads — `fridgeGlyph` in `render/sprites.ts`. The
+fridge is in the terrain bake, so the renderer bakes once more when the sprites have loaded.
+
+**It stays closed.** Opening it to show the food would put eighteen items inside one tile at about
+five pixels each; the shelf beside it is the only readable health bar, and it already shows every
+item. If the door ever opens, it is as a state (`fridge_open`) for the moment something is being
+taken — the one time the player should look at the fridge rather than the shelf.
+
 ## Where sprites appear
 
 On the board, and in the HUD wherever a tower or enemy is shown: the shop, the tower inspector, the
@@ -175,6 +194,5 @@ The map editor's decor palette carries no tower or crumb glyph, so scenery never
 `render/sprites.ts` only matches files to towers, enemies and crumb bands, so these would need a
 small renderer change before a PNG for them does anything:
 
-- **Fridge** (the goal) and the **food items** it holds. The Mouse carries them, so they must read at
-  ~30px.
+- The **food items** on the fridge's shelf. The Mouse carries them, so they must read at ~24px.
 - **Projectiles** — salt grain, ice shard. Small enough that drawn shapes may do instead.
