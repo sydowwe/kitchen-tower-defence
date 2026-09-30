@@ -96,15 +96,15 @@ Eight reference documents plus 23 step files. Each step file in `../steps` is a 
 
 **Phase 3 — Act II content**
 14. [Tile state system](../steps/00-done/14-tile-state.md)
-15. [Mold and slime](../steps/15-mold-and-slime.md)
-16. [Burrowing and armor](../steps/16-burrow-and-armor.md)
-17. [Auras and zone towers](../steps/17-auras-and-zones.md)
-18. [Pushback](../steps/18-pushback.md)
-19. [Food theft and the Mouse](../steps/19-theft.md) — **MILESTONE: Act II**
+15. [Mold and slime](../steps/00-done/15-mold-and-slime.md)
+16. [Burrowing and armor](../steps/00-done/16-burrow-and-armor.md)
+17. [Auras and zone towers](../steps/00-done/17-auras-and-zones.md)
+18. [Pushback](../steps/00-done/18-pushback.md)
+19. [Food theft and the Mouse](../steps/00-done/19-theft.md) — **MILESTONE: Act II**
 
 **Phase 4 — Production**
-20. [Night flow, metagame, save/load](../steps/20-metagame.md)
-20a. [Loadouts](../steps/20a-loadouts.md)
+20. [Night flow, metagame, save/load](../steps/00-done/20-metagame.md)
+20a. [Loadouts](../steps/00-done/20a-loadouts.md)
 21. [Maps, night modifiers, difficulty, endless](../steps/21-maps-and-modes.md)
 22. [Headless balance harness](../steps/22-balance-harness.md)
 23. [Polish pass](../steps/23-polish.md) — **MILESTONE: v1**
