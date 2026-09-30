@@ -12,7 +12,9 @@ import type {
 	FoodMessages,
 	InstallationEffectMessages,
 	InstallationMessages,
+	LoadoutProblemMessages,
 	RejectionMessages,
+	RoleMessages,
 	TagMessages,
 	TowerMessages,
 } from '@/ui/locales/contentKeys.ts'
@@ -86,9 +88,6 @@ export const en = {
 		},
 
 		shop: 'On the counter',
-		locked: 'Locked',
-		// Where a locked tower's price would be: the night it arrives, and nothing about how to get there.
-		unlocksOnNight: 'Night {n}',
 		cost: '{n} crumbs',
 		onFloor: 'On the floor',
 		floorPiles: '{piles} piles · {value} crumbs',
@@ -651,18 +650,21 @@ export const en = {
 			name: 'White-noise Machine',
 			description: 'A steady hush in the bedroom down the hall. Whoever is asleep in there sleeps through more.',
 		},
-		// A draft: step 20aB rewrites these three with the loadout screen's counter on screen.
+		// The three that make room on the counter. Until they are bought they stand in the loadout
+		// screen's last spaces, so each says what is in the way and what goes once it is dealt with.
 		clearTheDryingRack: {
 			name: 'Clear the Drying Rack',
-			description: 'The dishes put away at last. Room on the counter for one more thing tonight.',
+			description:
+				'The plates dried and put away, the rack folded under the sink. Where it stood, there is room.',
 		},
 		takeTheToasterOffTheCounter: {
 			name: 'Take the Toaster Off the Counter',
-			description: 'It lives in the cupboard now. The space it took is yours for the night.',
+			description: 'It lives in the cupboard now and comes out for breakfast. At night its corner is free.',
 		},
 		secondShelf: {
 			name: 'Second Shelf',
-			description: 'Screwed in above the counter. One more thing set out before bed.',
+			description:
+				'Screwed to the wall above the counter, just within reach, with room on it for something else.',
 		},
 	} satisfies InstallationMessages,
 	// Every map's name, keyed off `MapDef.id`. The Counter is the only one until step 21.
@@ -711,7 +713,8 @@ export const en = {
 			where: '{map}, {waves} waves',
 			unlocks: 'New on the counter',
 			introduces: 'New in the kitchen',
-			start: 'Wait for 2am',
+			// To the loadout screen, whose own button is the one that waits for 2am.
+			start: 'Get ready for bed',
 			finished: 'The kitchen made it through. Every night, all the way to morning.',
 		},
 		reset: {
@@ -726,6 +729,50 @@ export const en = {
 		sync: {
 			local: 'Saved on this device',
 		},
+	},
+	// What you set out on the counter before bed (analytic-docs/DECISIONS.md section 10). Never called
+	// a loadout on screen: it is the counter, and the towers not on it are in the cupboard.
+	loadout: {
+		title: 'Before bed',
+		back: 'Back to the kitchen',
+		counter: 'On the counter tonight',
+		room: '{used} of {slots} spaces taken',
+		// A chosen tower's button, on the counter: what clicking it does.
+		takeBack: 'Put the {name} back in the cupboard',
+		emptySpace: 'An empty space',
+		// Said when a full counter makes way, so the swap reads as a swap and not as the tower vanishing.
+		displaced: 'The {name} went back in the cupboard to make room.',
+		lastNight: 'What you had out last night',
+		start: 'Wait for 2am',
+		starting: 'Setting it all out…',
+		cupboard: 'In the cupboard',
+		// Beside a tower that tonight is the first night to have.
+		new: 'New',
+		filterAll: 'Everything',
+		coming: 'Coming tonight',
+		count: '×{n}',
+		fromWave: 'from wave {n}',
+		problem: {
+			empty: 'Nothing is out on the counter yet.',
+			duplicate: 'Something is out twice.',
+			notUnlocked: 'Something out there is not yours yet.',
+			tooMany: 'There is not room on the counter for all of that.',
+		} satisfies LoadoutProblemMessages,
+		// What each tower is for, as the filter and the roster name it. A word or two, the way the tag
+		// list names an enemy: enough to find the right cupboard shelf, not a rulebook.
+		role: {
+			BASIC_DPS: 'Steady',
+			BURST_DPS: 'Heavy hitters',
+			AOE: 'Crowds',
+			DOT: 'Slow burn',
+			SLOW: 'Slowing',
+			CONTROL: 'Holding them up',
+			WALL: 'In the way',
+			ECONOMY: 'Crumbs',
+			DETECTION: 'Light',
+			SUPPRESSION: 'Burrowers',
+			TILE_EFFECT: 'The floor',
+		} satisfies RoleMessages,
 	},
 	// The card that goes up when the meter fills. Same idiom as `night.foodLost` and deliberately the
 	// same understatement: somebody came in and turned the light on, which is a thing that happened

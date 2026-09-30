@@ -22,7 +22,7 @@
 				@callWave="onCallWave"
 				@setSpeed="applySpeed"
 				@togglePause="togglePause"
-				@retry="restart"
+				@retry="retryNight"
 				@continueNight="toKitchen"
 				@retrySave="progressStore.retry"
 			/>
@@ -386,6 +386,19 @@
 			preloadTowerGlyphs(renderer.tilePx)
 			preloadCrumbGlyphs(renderer.tilePx)
 		}
+	}
+
+	/**
+	 * The summary's Retry. A campaign night goes back to the counter with what was brought still on it
+	 * (DECISIONS.md section 10). A dev override rebuilds in place: the loadout screen builds tonight
+	 * from progress, and would silently drop the picked night.
+	 */
+	function retryNight(): void {
+		if (records) {
+			void router.push({ name: 'loadout' })
+			return
+		}
+		restart()
 	}
 
 	/** The summary's Continue. The result was saved before the button was enabled. */

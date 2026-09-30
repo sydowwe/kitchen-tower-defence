@@ -26,7 +26,7 @@
 	 * (analytic-docs/PERSISTENCE.md section 2, *Rule 2*). At 100% every screen's error state and retry
 	 * can be walked through by hand; back at 5%, the retry should land.
 	 *
-	 * **Dev only, and it ships nothing** -- `TitleView.vue` and `KitchenView.vue` import it dynamically inside an
+	 * **Dev only, and it ships nothing** -- `TitleView.vue`, `KitchenView.vue` and `LoadoutView.vue` import it dynamically inside an
 	 * `import.meta.env.DEV` branch, like `dev/noise/NoisePanel.vue`. Literals rather than i18n keys for
 	 * that panel's reason.
 	 */

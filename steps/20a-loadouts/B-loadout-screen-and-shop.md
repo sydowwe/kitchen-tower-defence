@@ -51,9 +51,13 @@ then edit this file. Don't leave it lying.
    path sits under `/kitchen` because it's part of the hub.
 2. **`ui/loadoutView.ts`, pure**, the loadout's `kitchenView.ts`. Components import it and never
    `core/`. It exports:
-   - `buildLoadoutView(progress, selection): LoadoutView`.
-   - `selectionFor(progress, draft)`: the draft if it's for tonight and passes `checkLoadout`,
-     otherwise `tonightsLoadout(progress)`.
+   - `buildLoadoutView(progress, selection): LoadoutView | null`, null on a finished campaign
+     (*built as `| null`, the Kitchen's `preview: null` idiom: the screen replaces to the Kitchen, and a
+     computed that threw on the way would be worse*).
+   - `selectionFor(progress, draft)`: the draft if it's for tonight and passes `checkLoadout` **or is
+     empty**, otherwise `tonightsLoadout(progress)` (*amended while building: the draft is the only place
+     a cleared counter lives, so refusing `'empty'` put the default back the moment the last tower came
+     off, and the Tests' `'empty'` case could never reach the screen*).
    - `toggleTower(progress, selection, id)`: removes the tower if it's chosen, otherwise
      `addToLoadout` at `loadoutSlots(progress)`.
 
@@ -186,12 +190,12 @@ Decisions 8 and 11.
       and putting it there visibly takes the oldest one off.
 - [ ] Losing a night: Retry lands here with what you brought on the counter. Change it, start, and
       the shop in the night is the new loadout.
-- [ ] A reload during the night rebuilds it with the loadout you chose.
+- [x] A reload during the night rebuilds it with the loadout you chose.
 - [ ] With `VITE_DATA_MODE=mock` and the dev toggle at 100%, Start shows the failure, and its retry
       works once the toggle is back at 5%.
 - [ ] The night preview gives you enough to choose with. Try night 17 and pick its counters from the
       preview alone.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 

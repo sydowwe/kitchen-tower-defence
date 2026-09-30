@@ -12,7 +12,9 @@
 import type { ENEMIES } from '@/core/content/enemies.ts'
 import type { FOODS } from '@/core/content/food.ts'
 import type { InstallationEffect, INSTALLATIONS } from '@/core/content/installations.ts'
+import type { TowerRole } from '@/core/content/schema.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
+import type { LoadoutProblem } from '@/core/loadout.ts'
 import type { PlacementRejection } from '@/core/systems/placement.ts'
 import type { EnemyTag } from '@/core/types.ts'
 
@@ -81,3 +83,9 @@ export type RejectionMessages = Record<PlacementRejection, string>
  * so a nineteenth tag fails the build here instead of rendering `hud.tag.newTag` over a bug.
  */
 export type TagMessages = Record<EnemyTag, string>
+
+/** `loadout.role`, over `TowerRole`: the roster's filter and each tower's line. A twelfth role fails here. */
+export type RoleMessages = Record<TowerRole, string>
+
+/** `loadout.problem`, over `LoadoutProblem`: why Start is waiting. */
+export type LoadoutProblemMessages = Record<LoadoutProblem, string>

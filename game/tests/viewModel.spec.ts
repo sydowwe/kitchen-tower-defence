@@ -1009,25 +1009,39 @@ describe('the shop order', () => {
 		)
 	})
 
-	it("unlocks exactly night 3's four, badges them 1 to 4, and gives every locked one its night", () => {
-		const shop = shopWith(unlockedThrough(3))
-		const unlocked = shop.filter(entry => entry.unlocked)
-		const locked = shop.filter(entry => !entry.unlocked)
+	it('holds exactly the loadout, in shop order and not the order it was chosen in, keyed 1 and 2', () => {
+		const shop = shopWith(['mousetrap', 'saltShaker'])
 
-		expect(unlocked.map(entry => entry.id)).toEqual(['saltShaker', 'toasterCrumbTray', 'stickyTape', 'mousetrap'])
-		expect(unlocked.map(entry => entry.hotkey)).toEqual(['1', '2', '3', '4'])
-		expect(locked).toHaveLength(15)
-		for (const entry of locked) {
-			expect(entry.hotkey).toBeNull()
-			expect(entry.unlockNight).toBeGreaterThan(3)
+		expect(shop.map(entry => entry.id)).toEqual(['saltShaker', 'mousetrap'])
+		expect(shop.map(entry => entry.hotkey)).toEqual(['1', '2'])
+		// Nothing left in the cupboard is on the shelf, greyed or otherwise.
+		for (const entry of shop) {
+			expect(entry).not.toHaveProperty('unlocked')
+			expect(entry).not.toHaveProperty('unlockNight')
 		}
-		expect(locked.find(entry => entry.id === 'cookieJar')?.unlockNight).toBe(4)
 	})
 
-	it('unlocks all nineteen for null, and keys the first ten 1..9 then 0', () => {
+	it('keys all eight of a full counter, 1 to 8, in shop order', () => {
+		const loadout = ['fan', 'lemon', 'toaster', 'saltShaker', 'honeyPot', 'candle', 'cookieJar', 'bayLeaf']
+		const shop = shopWith(loadout)
+
+		expect(shop.map(entry => entry.id)).toEqual([
+			'saltShaker',
+			'cookieJar',
+			'toaster',
+			'candle',
+			'bayLeaf',
+			'honeyPot',
+			'lemon',
+			'fan',
+		])
+		expect(shop.map(entry => entry.hotkey)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8'])
+	})
+
+	it('holds all nineteen for null, and keys the first ten 1..9 then 0', () => {
 		const shop = shopWith(null)
 
-		expect(shop.every(entry => entry.unlocked)).toBe(true)
+		expect(shop).toHaveLength(19)
 		expect(shop.map(entry => entry.hotkey)).toEqual([
 			'1',
 			'2',

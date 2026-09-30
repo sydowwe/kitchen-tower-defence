@@ -46,6 +46,19 @@ export interface PreviewEntryView {
 	nameKey: string
 }
 
+/** One kind of enemy in tonight's waves, as the loadout screen lists the whole night. */
+export interface NightEnemyView extends PreviewEntryView {
+	/** Every tag, `hud.tag.<tag>`, in the def's order -- the tooltip's keys. */
+	tagKeys: string[]
+	/**
+	 * The **authored** counts summed over every wave. Not the world's: a world-exact count would copy
+	 * `startWave`'s rounding and two installations' cuts into `ui/` (step 20aB, decision 3).
+	 */
+	count: number
+	/** 1-based, the way the HUD counts waves. */
+	firstWave: number
+}
+
 export interface NightPreviewView {
 	/** The night's 1-based number, as CONTENT.md section 6 counts them. */
 	night: number
@@ -54,6 +67,8 @@ export interface NightPreviewView {
 	unlocks: PreviewEntryView[]
 	/** Every enemy in tonight's waves that no lower-indexed night sends, in order of first appearance. */
 	introduces: PreviewEntryView[]
+	/** Every enemy in tonight's waves, once each, in order of first appearance. Nothing hatched is a wave. */
+	enemies: NightEnemyView[]
 }
 
 export interface KitchenView {
@@ -111,7 +126,34 @@ function enemyIdsOf(night: NightDef): DefId[] {
 	return night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId))
 }
 
-function buildPreview(night: NightDef): NightPreviewView {
+/** One walk of the waves: a `Map` keeps first-appearance order, and the count sums as it goes. */
+function compositionOf(night: NightDef): NightEnemyView[] {
+	const byId = new Map<DefId, NightEnemyView>()
+
+	night.waves.forEach((wave, index) => {
+		for (const entry of wave.entries) {
+			const seen = byId.get(entry.enemyDefId)
+			if (seen !== undefined) {
+				seen.count += entry.count
+				continue
+			}
+			const def = getEnemyDef(entry.enemyDefId)
+			byId.set(entry.enemyDefId, {
+				id: def.id,
+				glyph: def.glyph,
+				nameKey: def.nameKey,
+				tagKeys: def.tags.map(tag => `hud.tag.${tag}`),
+				count: entry.count,
+				firstWave: index + 1,
+			})
+		}
+	})
+
+	return [...byId.values()]
+}
+
+/** The one builder: the Kitchen shows what is new, and `loadoutView.ts` the whole composition. */
+export function buildPreview(night: NightDef): NightPreviewView {
 	const seenBefore = new Set(NIGHTS.filter(other => other.index < night.index).flatMap(enemyIdsOf))
 	const introduced = [...new Set(enemyIdsOf(night))].filter(id => !seenBefore.has(id))
 
@@ -127,6 +169,7 @@ function buildPreview(night: NightDef): NightPreviewView {
 			const def = getEnemyDef(id)
 			return { id, glyph: def.glyph, nameKey: def.nameKey }
 		}),
+		enemies: compositionOf(night),
 	}
 }
 

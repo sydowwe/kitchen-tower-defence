@@ -85,7 +85,9 @@
 
 			<div class="actions">
 				<!-- A lost night only. A won one has already moved the campaign on, and a won night is
-					 not replayed (core/campaign.ts, applyNightResult). -->
+					 not replayed (core/campaign.ts, applyNightResult). On a campaign night it goes to the
+					 loadout screen; enabled on 'failed', because Start there saves on top of the pending
+					 night and shows the store's retry. -->
 				<button
 					v-if="!summary.won"
 					type="button"

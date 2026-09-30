@@ -10,24 +10,14 @@
 				<button
 					type="button"
 					class="tower"
-					:class="{ armed: entry.id === selectedDefId, poor: entry.unlocked && !entry.affordable }"
-					:disabled="!entry.unlocked"
+					:class="{ armed: entry.id === selectedDefId, poor: !entry.affordable }"
 					:title="t(entry.nameKey)"
 					@click="emit('select', entry.id)"
 				>
-					<!-- An empty badge still holds its line, so a locked button is the same height. -->
+					<!-- An empty badge still holds its line, so a button past the tenth key is the same height. -->
 					<span class="key">{{ entry.hotkey ?? '' }}</span>
 					<span class="glyph"><EntityGlyph :glyph="entry.glyph" /></span>
-					<span class="cost">
-						<template v-if="entry.unlocked">🍞 {{ entry.cost }}</template>
-						<template v-else-if="entry.unlockNight !== null">
-							{{ t('hud.unlocksOnNight', { n: entry.unlockNight }) }}
-						</template>
-						<FontAwesomeIcon
-							v-else
-							icon="lock"
-						/>
-					</span>
+					<span class="cost">🍞 {{ entry.cost }}</span>
 				</button>
 
 				<!-- Absolute, above the row, and rendered for every entry: hover is CSS here, so the
@@ -50,14 +40,13 @@
 	import type { DefId, ShopEntry } from '@/ui/viewModel.ts'
 
 	/**
-	 * The counter's worth of towers, in the order they unlock -- `shopOrder` in `viewModel.ts` -- so a
-	 * new tower lands at the end and never moves a key the player has already learned. The badge is
-	 * `entry.hotkey`, off the same list the keydown handler indexes; nothing here counts positions.
+	 * What was set out on the counter tonight, in the order the towers unlock -- `shopOrder` in
+	 * `viewModel.ts` -- so a new tower lands at the end and never moves a key the player has already
+	 * learned. The badge is `entry.hotkey`, off the same list the keydown handler indexes; nothing here
+	 * counts positions. A tower left in the cupboard is not in `entries` at all.
 	 *
 	 * An unaffordable tower **dims but stays live**: the player is saving for it and wants to read it,
 	 * and arming one costs nothing because step 8C's click check refuses the placement with a reason.
-	 * A locked tower is the one that is genuinely disabled, with the night it arrives where its price
-	 * would be.
 	 */
 
 	const { selectedDefId = null } = defineProps<{
@@ -148,11 +137,6 @@
 		opacity: 0.5;
 	}
 
-	.tower:disabled {
-		opacity: 0.35;
-		cursor: default;
-	}
-
 	.key {
 		min-height: 1lh;
 		color: var(--kd-text-dim);
@@ -171,11 +155,6 @@
 
 	.tower.poor .cost {
 		color: var(--kd-danger);
-	}
-
-	.tower:disabled .cost {
-		color: var(--kd-text-dim);
-		white-space: nowrap;
 	}
 
 	.card-slot {

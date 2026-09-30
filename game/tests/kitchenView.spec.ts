@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { newProgress } from '@/core/campaign.ts'
-import { INSTALLATIONS } from '@/core/content/index.ts'
-import { buildKitchenView } from '@/ui/kitchenView.ts'
+import { getEnemyDef, INSTALLATIONS, NIGHTS } from '@/core/content/index.ts'
+import { buildKitchenView, buildPreview } from '@/ui/kitchenView.ts'
 import type { Progress } from '@/core/campaign.ts'
 
 /**
@@ -95,5 +95,42 @@ describe('buildKitchenView', () => {
 
 	it('has no preview once the campaign is finished', () => {
 		expect(buildKitchenView(progressAt(null)).preview).toBeNull()
+	})
+})
+
+describe("the night's composition", () => {
+	it('lists every enemy of every night once, in order of first appearance, summing the authored counts', () => {
+		for (const night of NIGHTS) {
+			const enemies = buildPreview(night).enemies
+			const entries = night.waves.flatMap(wave => wave.entries)
+
+			expect(enemies.map(enemy => enemy.id)).toEqual([...new Set(entries.map(entry => entry.enemyDefId))])
+			const total = entries.reduce((sum, entry) => sum + entry.count, 0)
+			expect(enemies.reduce((sum, enemy) => sum + enemy.count, 0)).toBe(total)
+			for (const enemy of enemies) {
+				expect(enemy.tagKeys).toEqual(getEnemyDef(enemy.id).tags.map(tag => `hud.tag.${tag}`))
+			}
+		}
+	})
+
+	it('lists night 14 in full, with the Mouse from wave 7 and two of it', () => {
+		const enemies = buildKitchenView(progressAt('night14')).preview?.enemies ?? []
+
+		expect(enemies.map(enemy => enemy.id)).toEqual(['ant', 'roach', 'beetle', 'fly', 'weevil', 'moth', 'mouse'])
+		expect(enemies.map(enemy => enemy.firstWave)).toEqual([1, 1, 1, 1, 1, 2, 7])
+
+		const mouse = enemies.find(enemy => enemy.id === 'mouse')
+		expect(mouse?.count).toBe(2)
+		expect(mouse?.tagKeys).toContain('hud.tag.thief')
+		// Every wave but the sixth, which is all wings.
+		expect(enemies.find(enemy => enemy.id === 'ant')?.count).toBe(
+			19 + 20 + 21 + 22 + 23 + 16 + 24 + 25 + 26 + 27 + 29,
+		)
+	})
+
+	it('names night 1 as the Ant alone, from the first wave', () => {
+		const enemies = buildKitchenView(newProgress()).preview?.enemies ?? []
+
+		expect(enemies.map(enemy => [enemy.id, enemy.firstWave])).toEqual([['ant', 1]])
 	})
 })

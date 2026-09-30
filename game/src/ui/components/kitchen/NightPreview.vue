@@ -62,11 +62,14 @@
 	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
 	import type { NightPreviewView } from '@/ui/kitchenView.ts'
 
-	/** What tomorrow night brings, and the way into it. A finished campaign has neither. */
+	/**
+	 * What tomorrow night brings, and the way to the counter before it. Only what is new: the loadout
+	 * screen lists the whole night. A finished campaign has neither.
+	 */
 
 	const { preview, busy = false } = defineProps<{
 		preview: NightPreviewView | null
-		/** A save in flight. The night is built from progress, so it waits for the progress to land. */
+		/** A save in flight. The loadout screen is built from progress, so it waits for the progress to land. */
 		busy?: boolean
 	}>()
 

@@ -144,8 +144,9 @@
 		}
 	}
 
+	/** Not into the night: to the counter, which is where the night is started from. */
 	function startNight(): void {
-		void router.push({ name: 'night' })
+		void router.push({ name: 'loadout' })
 	}
 
 	/** Dev only: the mock failure toggle, dynamically imported so none of it reaches production. */

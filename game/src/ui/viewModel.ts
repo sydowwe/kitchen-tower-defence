@@ -265,13 +265,10 @@ export interface ShopEntry {
 	 * lying about the one purchase the player has been waiting for.
 	 */
 	affordable: boolean
-	/** Tonight may place it: `loadout` is null, or has it. `canPlaceTower`'s `notInLoadout` check. */
-	unlocked: boolean
-	/** The index of the night that unlocks it, which a locked entry shows in place of its price. */
-	unlockNight: number | null
 	/**
 	 * The key that arms it -- `'1'`..`'9'`, then `'0'` -- or null. Off `hotkeyTowers`, the same list the
-	 * keydown handler indexes, so the badge cannot name a key that arms a different tower.
+	 * keydown handler indexes, so the badge cannot name a key that arms a different tower. A loadout is
+	 * at most eight, so null only on a night with no loadout at all.
 	 */
 	hotkey: string | null
 	stats: TowerStatsView
@@ -595,8 +592,10 @@ function appliesOf(applications: readonly StatusApplication[]): TowerStatsView['
  * than at 15Hz, so a live rearm countdown here would sit frozen at whatever it read when the tower
  * was clicked. What the charge machine is doing right now is drawn on the board, by
  * `render/layers/towers.ts` (step 10C, decision 7).
+ *
+ * Exported for the loadout screen's roster, which shows the shop's card before the night exists.
  */
-function statsFor(def: TowerDef): TowerStatsView {
+export function statsFor(def: TowerDef): TowerStatsView {
 	const stats: TowerStatsView = {
 		damage: null,
 		ratePerSecond: null,
@@ -758,10 +757,7 @@ export function inLoadout(loadout: readonly DefId[] | null, id: DefId): boolean 
 /** Keys `1`..`9` and then `0`: ten, and the tenth badge reads `0` because that is the key. */
 const HOTKEY_COUNT = 10
 
-/**
- * The towers the number keys arm, in key order: the first ten **unlocked** entries of `shopOrder`.
- * A locked tower takes no key, so the keys do not skip over greyed buttons.
- */
+/** The towers the number keys arm, in key order: the first ten of `shopOrder` that tonight brought. */
 export function hotkeyTowers(loadout: readonly DefId[] | null): TowerDef[] {
 	return shopOrder()
 		.filter(def => inLoadout(loadout, def.id))
@@ -773,25 +769,30 @@ function hotkeyLabel(index: number): string {
 	return String((index + 1) % HOTKEY_COUNT)
 }
 
+/**
+ * What was set out on the counter, and nothing else: a tower left upstairs is not greyed out, it is
+ * not there. **In `shopOrder`, not the loadout's selection order**, so the badges and the keydown read
+ * the one list (step 20aB, decision 7).
+ */
 function buildShop(world: World): ShopEntry[] {
 	const loadout = world.night.loadout
 	const keyed = hotkeyTowers(loadout)
 
-	return shopOrder().map(def => {
-		const keyIndex = keyed.indexOf(def)
-		return {
-			id: def.id,
-			glyph: def.glyph,
-			nameKey: def.nameKey,
-			descriptionKey: def.descriptionKey,
-			cost: def.cost,
-			affordable: world.crumbs >= def.cost,
-			unlocked: inLoadout(loadout, def.id),
-			unlockNight: unlockNightOf(def.id),
-			hotkey: keyIndex === -1 ? null : hotkeyLabel(keyIndex),
-			stats: statsFor(def),
-		}
-	})
+	return shopOrder()
+		.filter(def => inLoadout(loadout, def.id))
+		.map(def => {
+			const keyIndex = keyed.indexOf(def)
+			return {
+				id: def.id,
+				glyph: def.glyph,
+				nameKey: def.nameKey,
+				descriptionKey: def.descriptionKey,
+				cost: def.cost,
+				affordable: world.crumbs >= def.cost,
+				hotkey: keyIndex === -1 ? null : hotkeyLabel(keyIndex),
+				stats: statsFor(def),
+			}
+		})
 }
 
 /** One walk of `world.crumbPiles` for all three numbers. */

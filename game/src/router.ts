@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 import GameView from '@/ui/views/GameView.vue'
 import KitchenView from '@/ui/views/KitchenView.vue'
+import LoadoutView from '@/ui/views/LoadoutView.vue'
 import TitleView from '@/ui/views/TitleView.vue'
 
 /**
@@ -13,6 +14,8 @@ import TitleView from '@/ui/views/TitleView.vue'
 const routes: RouteRecordRaw[] = [
 	{ path: '/', name: 'title', component: TitleView },
 	{ path: '/kitchen', name: 'kitchen', component: KitchenView },
+	// Its own route, under the hub: Retry lands on it directly, and a reload keeps you there.
+	{ path: '/kitchen/loadout', name: 'loadout', component: LoadoutView },
 	{ path: '/night', name: 'night', component: GameView },
 
 	// The map editor (step 4) is dev-only. Registering it inside an `import.meta.env.DEV` branch

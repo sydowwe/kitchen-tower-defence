@@ -48,8 +48,11 @@
 
 	/**
 	 * Where each installation stands, as a percentage of the scene. A `Record` over every id, so a new
-	 * installation fails `type-check` here until somebody decides where it goes. The last three are
-	 * drafts that step 20aB places properly.
+	 * installation fails `type-check` here until somebody decides where it goes.
+	 *
+	 * The last three are what made room on the counter, and each stands where the room came from: the
+	 * rack at the counter's far end, the socket the toaster used to be plugged into on
+	 * the splashback, and the second shelf on the wall between the first one and the counter.
 	 */
 	const SPOTS: Record<InstallationId, { x: number; y: number }> = {
 		fixTheWindowScreen: { x: 30, y: 27 },
@@ -63,9 +66,9 @@
 		closeTheKitchenDoor: { x: 88, y: 50 },
 		buyABroom: { x: 82, y: 72 },
 		sealTheBaseboardCrack: { x: 22, y: 89 },
-		clearTheDryingRack: { x: 72, y: 63 },
-		takeTheToasterOffTheCounter: { x: 36, y: 50 },
-		secondShelf: { x: 58, y: 40 },
+		clearTheDryingRack: { x: 75, y: 62 },
+		takeTheToasterOffTheCounter: { x: 38, y: 54 },
+		secondShelf: { x: 59, y: 46 },
 	}
 </script>
 
