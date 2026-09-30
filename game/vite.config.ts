@@ -10,8 +10,8 @@ export default defineConfig({
 		},
 	},
 	test: {
-		// Vitest covers core/ only. See analytic-docs/ARCHITECTURE.md section 7:
-		// renderer bugs are visible, so they are not worth testing.
+		// Vitest covers core/ and the persistence seam behind it. See analytic-docs/ARCHITECTURE.md
+		// section 7: renderer bugs are visible, so they are not worth testing.
 		include: ['tests/**/*.spec.ts', 'src/core/**/*.spec.ts'],
 		environment: 'node',
 	},

@@ -86,7 +86,7 @@ interface LeaderboardService {               // endless mode, post-v1
 }
 
 interface StatsSink {                        // telemetry. fire-and-forget, never blocks
-  record(event: GameEvent): void
+  record(event: StatsEvent): void            // not core's GameEvent, a different thing
 }
 ```
 
@@ -100,16 +100,24 @@ Every stored record carries `updatedAt: number` and `revision: number`. Nothing 
 
 UI components import **only** from `ui/composables/`. No component ever imports an adapter, a port, or `localStorage` directly. Enforce it with an ESLint `no-restricted-imports` rule, the same way `core/` purity is enforced.
 
+**The composable holds the I/O; a Pinia store holds the state.** A composable is a module-level singleton that loads and saves and holds no game state. The store beside it in `ui/stores/` holds the state, calls the composable, and is what screens read.
+
 ```ts
-useAuth()        // { user, isAuthenticated, isAnonymous, signIn, signOut, loading, error }
-useProfile()     // { profile, save, loading, error }
-useProgress()    // { progress, unlockedTowers, installations, buyInstallation, recordNightResult, loading, error }
-useSettings()    // { settings, update, loading, error }
-useLeaderboard() // { entries, submit, refresh, loading, error }
+useAuth()        // { user, isAuthenticated, isAnonymous, ensureUser, signIn, signOut, loading, error }
+useProfile()     // { load, save, loading, error }
+useProgress()    // { load, save, loading, error }
+useSettings()    // { load, saveDebounced, flush, loading, error }   -- the 500ms debounce lives here
+useLeaderboard() // { entries, submit, refresh, loading, error }      -- post-v1, not built
 useSync()        // { status: 'local' | 'syncing' | 'synced' | 'offline' | 'error', lastSyncedAt, retry }
+
+useProgressStore()  // { progress, status, error, ensureLoaded, retry, buyInstallation, recordNightResult, resetProgress }
+useSettingsStore()  // { settings, ensureLoaded, update }
+useProfileStore()   // { profile, ensureLoaded }
 ```
 
-Each returns `loading` and `error` refs **from day one**, and each is a singleton per key — call `useProgress()` from three components and get one shared state, not three fetches.
+Each composable returns `loading` and `error` refs **from day one**, and each is a singleton per key — call `useProgress()` from three components and get one shared state, not three fetches.
+
+**Progress writes are pessimistic.** The store runs the `core/campaign.ts` reducer on the current state, saves the result, and assigns it only once the save resolves. A failed save keeps the old progress, holds the unsaved one as pending, and `retry()` sends exactly that — so there is no rollback code, a failed save never shows as progress, and a retry cannot apply a night twice. One save is in flight at a time; a change during one is refused as `'busy'`. **Settings are the one optimistic store**: assigned at once, saved behind the debounce, because a lost speed preference is harmless and a speed button that waits on the network feels broken.
 
 `useSync()` returns `'local'` for the whole of v1 and drives a small status indicator in the corner of the Kitchen screen. It costs an hour now and means the sync UI already exists when sync does.
 

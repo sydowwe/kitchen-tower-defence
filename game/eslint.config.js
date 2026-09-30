@@ -17,6 +17,7 @@ import vuePrettierConfig from '@vue/eslint-config-prettier'
 const DETERMINISM = 'core/ is deterministic: time is world.tick and durations are tick counts.'
 const PURITY = 'core/ is pure TypeScript. No DOM, no browser globals.'
 const LAYERING = 'Dependency direction is one-way: core/ imports nothing from render/, ui/ or data/.'
+const STORAGE = 'Saves go through a composable and a port, never browser storage directly (PERSISTENCE.md section 4).'
 
 /** Enforces the "@/ alias, never a relative path across directories" rule from CLAUDE.md. */
 const noParentRelative = {
@@ -175,7 +176,21 @@ export default defineConfigWithVueTs(
 	// --- ui/ reaches persistence only through composables -------------------------------------
 	{
 		files: ['src/ui/**/*.{ts,vue}'],
-		rules: { 'no-restricted-imports': restrict([axiosBan, iconBan, dataBan]) },
+		rules: {
+			'no-restricted-imports': restrict([axiosBan, iconBan, dataBan]),
+			// Both spellings: no-restricted-globals doesn't see `window.localStorage`. The later ui/
+			// blocks set only no-restricted-imports, so these hold in composables and stores too.
+			'no-restricted-globals': [
+				'error',
+				{ name: 'localStorage', message: STORAGE },
+				{ name: 'sessionStorage', message: STORAGE },
+			],
+			'no-restricted-properties': [
+				'error',
+				{ object: 'window', property: 'localStorage', message: STORAGE },
+				{ object: 'window', property: 'sessionStorage', message: STORAGE },
+			],
+		},
 	},
 	{
 		// The sanctioned exception: composables are the layer that talks to persistence. They go

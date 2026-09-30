@@ -80,6 +80,10 @@ then edit this file. Don't leave it lying.
     `pending`, and have `retry()` re-send exactly that state. No rollback code exists, a failed save
     never shows as progress, and a retry can't award a night twice, because the reducer ran once on an
     unchanged base. One save is in flight at a time, and a commit during one is refused as `'busy'`.
+    *(Settled while building, since the step didn't say:)* a commit made while a failed save is still
+    pending runs its reducer on the **pending** state, not the shown one, and replaces it. Otherwise a
+    purchase after a failed night save would silently drop the night. A retry still re-sends without
+    re-running a reducer.
     Edit `PERSISTENCE.md` §4's composable table to say this split.
 11. **Settings v1 is `{ speed: 1 | 2 | 3 }`**, the last speed chosen, which D restores at night
     start. The DTO refuses 0, because a restored 0 is a night that opens frozen with no pause shown.
@@ -140,18 +144,21 @@ touches the global `localStorage`: Node 22+ ships one that warns or throws witho
   taken **once**. `recordNightResult` during a save in flight is refused.
 - **Lint:** through ESLint's Node API (`new ESLint({ cwd })`, then `lintText(code, { filePath })`), a
   file under `src/ui/components/` importing `@/data/index.ts` errors, and so do `localStorage.getItem`
-  and `window.localStorage.getItem`. The same import under `src/ui/composables/` doesn't error. Give
+  and `window.localStorage.getItem`. The same import under `src/ui/composables/` doesn't error. The
+  config parses through the TypeScript project service, which refuses a `filePath` not on disk, so
+  the spec adds its virtual paths to `parserOptions.projectService.allowDefaultProject` through
+  `overrideConfig`. Only the parse widens, and every rule is still the real config's. Give
   the spec a long timeout: building an `ESLint` with the Vue and TypeScript configs takes seconds,
   and vitest's default 5 s fails it on a cold run.
 
 ## Acceptance
 
-- [ ] `grep -rn localStorage src/ui` finds nothing.
-- [ ] Every port method returns a `Promise`. `PERSISTENCE.md` §4 describes the store and composable
+- [x] `grep -rn localStorage src/ui` finds nothing.
+- [x] Every port method returns a `Promise`. `PERSISTENCE.md` §4 describes the store and composable
       split as built.
-- [ ] Loading a save written by a build with an extra field, or with a hand-edited bad value, starts
+- [x] Loading a save written by a build with an extra field, or with a hand-edited bad value, starts
       fresh and leaves the old record under `:corrupt:`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 20D
 
