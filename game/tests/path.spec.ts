@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getMapDef } from '@/core/content/index.ts'
+import { getMapDef, MAP_SOURCES } from '@/core/content/index.ts'
 import { canPlace, flagsAt, loadMap, TileFlags } from '@/core/map.ts'
 import { nearestOnPath, nearestPath, remainingToFridge, samplePath, totalLength } from '@/core/path.ts'
 import counterJson from '@/core/content/maps/counter.json'
@@ -220,15 +220,18 @@ function trackTilesOf(map: MapDef): string[] {
 describe('loadMap', () => {
 	const counter = counterJson as MapSource
 
-	it('marks the tile of every waypoint of counter.json as TRACK', () => {
-		const map = loadMap(counter)
+	it.each(MAP_SOURCES.map(source => [source.id, source] as const))(
+		'marks the tile of every waypoint of %s as TRACK',
+		(_id, source) => {
+			const map = loadMap(source)
 
-		for (const path of map.paths) {
-			for (const waypoint of path.waypoints) {
-				expect(flagsAt(map, waypoint) & TileFlags.TRACK).toBe(TileFlags.TRACK)
+			for (const path of map.paths) {
+				for (const waypoint of path.waypoints) {
+					expect(flagsAt(map, waypoint) & TileFlags.TRACK).toBe(TileFlags.TRACK)
+				}
 			}
-		}
-	})
+		},
+	)
 
 	it('rasterises the counter as 33 track tiles, none of them blocked', () => {
 		const map = loadMap(counter)

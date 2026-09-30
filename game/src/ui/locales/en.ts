@@ -667,9 +667,14 @@ export const en = {
 				'Screwed to the wall above the counter, just within reach, with room on it for something else.',
 		},
 	} satisfies InstallationMessages,
-	// Every map's name, keyed off `MapDef.id`. The Counter is the only one until step 21.
+	// Every map's name, keyed off `MapDef.id`.
 	map: {
 		counter: { name: 'The Counter' },
+		sink: { name: 'The Sink' },
+		pantry: { name: 'The Pantry' },
+		stove: { name: 'The Stove' },
+		table: { name: 'The Table' },
+		floor: { name: 'The Floor' },
 	},
 	// The first screen, and the load's two states. `load` is shared by every screen that waits on the
 	// progress store before it can draw.

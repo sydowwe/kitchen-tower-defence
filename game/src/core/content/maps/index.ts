@@ -14,9 +14,17 @@ import { validateContentInDev } from '@/core/content/schema.ts'
 import type { MapSource } from '@/core/content/schema.ts'
 import type { MapDef } from '@/core/types.ts'
 import counter from '@/core/content/maps/counter.json'
+import sink from '@/core/content/maps/sink.json'
+import pantry from '@/core/content/maps/pantry.json'
+import stove from '@/core/content/maps/stove.json'
+import table from '@/core/content/maps/table.json'
+import floor from '@/core/content/maps/floor.json'
 
-/** The authored maps, exactly as they sit on disk. Step 4's editor round-trips these. */
-export const MAP_SOURCES = [counter] as MapSource[]
+/**
+ * The authored maps, exactly as they sit on disk. Step 4's editor round-trips these. In campaign
+ * order, which the endless map list reads (step 21A, decision 3).
+ */
+export const MAP_SOURCES = [counter, sink, pantry, stove, table, floor] as MapSource[]
 
 validateContentInDev({ maps: MAP_SOURCES })
 

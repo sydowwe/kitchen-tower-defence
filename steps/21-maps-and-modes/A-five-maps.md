@@ -141,7 +141,7 @@ whichever of `'tile'` and `'wood'` the place is made of.
 - [ ] Sitting and looking at each map, you can point at two or three spots and say "that's where I'd
       put a tower". On the Pantry, those spots are beside the track.
 - [ ] A night played on each through the editor's preview reaches the fridge with no throw.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 21B–21G
 
