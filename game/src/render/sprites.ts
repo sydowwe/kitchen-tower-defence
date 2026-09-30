@@ -1,10 +1,11 @@
 /**
- * Drawn sprites for the towers and enemies that have one. Everything without a file stays an emoji.
+ * Drawn sprites for the towers, enemies and crumb piles that have one. Everything without a file
+ * stays an emoji.
  *
  * **A sprite is found by its file name, not by a table.** `assets/sprites/tower/salt_shaker_128.png`
- * is the tower whose id is `saltShaker`, so adding a sprite is adding the file -- the layout and the
- * naming rule are in analytic-docs/SPRITES.md. A file that matches no id is reported in dev rather
- * than dropped silently.
+ * is the tower whose id is `saltShaker`, and `crumb/large_128.png` is the `large` crumb band, so
+ * adding a sprite is adding the file -- the layout and the naming rule are in
+ * analytic-docs/SPRITES.md. A file that matches no id is reported in dev rather than dropped silently.
  *
  * Looked up by **glyph**, not by id, because the glyph is what every layer already hands the cache:
  * the tower on its tile, the placement ghost, a shoved enemy's afterimages and a thief's trail all
@@ -17,13 +18,15 @@
 
 import { ENEMIES } from '@/core/content/enemies.ts'
 import { TOWERS } from '@/core/content/towers.ts'
+import { CRUMB_BANDS } from '@/render/crumbBands.ts'
 
 interface Sprited {
 	id: string
 	glyph: string
 }
 
-const ROSTERS: Record<string, readonly Sprited[]> = { tower: TOWERS, enemy: ENEMIES }
+/** The folder under `assets/sprites/` -> what its file names are matched against. */
+const ROSTERS: Record<string, readonly Sprited[]> = { tower: TOWERS, enemy: ENEMIES, crumb: CRUMB_BANDS }
 
 /**
  * The states a tower can be drawn in besides its default, each carried by a file-name suffix:
@@ -123,7 +126,7 @@ export function loadSprites(): Promise<void> {
 			const file = describe(path)
 			if (file === null) {
 				if (import.meta.env.DEV) {
-					console.warn(`[render] sprite matches no tower or enemy id, ignored: ${path}`)
+					console.warn(`[render] sprite matches no tower, enemy or crumb band, ignored: ${path}`)
 				}
 				continue
 			}

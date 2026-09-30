@@ -2,13 +2,11 @@
  * Litter on the floor: piles sized by what they are worth, a green cast on the ones going over, and
  * the two queries a click needs.
  *
- * **The size bands live here and nowhere else.** A crumb has no def and `core/` carries no glyph for
- * one -- its `value` is the only truth (step 7A, decision 8) -- so `glyphFor` and `radiusTilesFor`
- * are pure functions of `value` written once, in this file. A `size` field on `Crumb` would be a
- * second truth that has to survive the JSON round-trip and can disagree with the value it came from.
+ * **The size bands are `render/crumbBands.ts`'s** and `glyphFor` and `radiusTilesFor` are pure
+ * functions of `value` over them, written once, in this file.
  *
  * **The hit test lives here too, for the same reason.** The forgiving click radius is *the drawn
- * radius plus a margin*, and the drawn radius is the band table above it; a `pickCrumb` in `dev/`
+ * radius plus a margin*, and the drawn radius is the band table; a `pickCrumb` in `dev/`
  * would be a second copy of that table, drifting the first time a band moves. `render/` reads core
  * state and never writes it, so a pure query is legal here -- `drawRangeCircle` is the precedent for
  * a primitive `dev/` composes (step 7C, decision 3).
@@ -24,36 +22,13 @@ import { effectiveDefOf } from '@/core/content/index.ts'
 import { collectTravelTicksFor, isRotting } from '@/core/systems/crumbs.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import type { Crumb, EntityId, Vec2, World } from '@/core/types.ts'
+import { CRUMB_BANDS, SPECK } from '@/render/crumbBands.ts'
+import type { CrumbBand } from '@/render/crumbBands.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { CRUMB_ROT_CORE, CRUMB_ROT_HALO } from '@/render/palette.ts'
 
-interface CrumbBand {
-	/** The lowest `value` that draws as this band. */
-	minValue: number
-	glyph: string
-	/** Fraction of a tile the glyph is blitted at. An enemy is 0.7: litter is smaller than traffic. */
-	scale: number
-}
-
-/**
- * A speck, a crumb, a pile worth walking over for. Three is enough -- a fourth band is one line
- * here, and nothing else in the codebase has to hear about it.
- *
- * The thresholds are read against what a night actually drops: an Ant is 3 and a Roach is 5, so a
- * single kill is a speck or a crumb and only a merged kill zone reaches the pile (DECISIONS.md
- * section 4, "one fat pile worth clicking, not forty specks").
- */
-const SPECK: CrumbBand = { minValue: 0, glyph: '🍘', scale: 0.28 }
-
-/** Descending, so the first match is the largest band the value reaches. */
-const BANDS: readonly CrumbBand[] = [
-	{ minValue: 15, glyph: '🍪', scale: 0.56 },
-	{ minValue: 5, glyph: '🍞', scale: 0.4 },
-	SPECK,
-]
-
 function bandFor(value: number): CrumbBand {
-	return BANDS.find(band => value >= band.minValue) ?? SPECK
+	return CRUMB_BANDS.find(band => value >= band.minValue) ?? SPECK
 }
 
 /** The glyph a pile of this value is drawn with. */
@@ -247,5 +222,5 @@ export function pickCrumb(world: World, atTiles: Vec2, tilePx: number, forgivene
  * real ones on the first frame.
  */
 export function preloadCrumbGlyphs(tilePx: number): void {
-	preload(BANDS.map(band => ({ emoji: band.glyph, sizePx: tilePx * band.scale })))
+	preload(CRUMB_BANDS.map(band => ({ emoji: band.glyph, sizePx: tilePx * band.scale })))
 }

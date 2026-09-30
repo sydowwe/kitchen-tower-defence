@@ -31,10 +31,11 @@ export const TOOL_HINTS: Record<EditorTool, string> = {
  * changes nothing about placement, while the `~` brush is what makes a tile unbuildable (step 4B,
  * section 5).
  *
- * **No tower's glyph.** Every tower draws as its sprite and the sprite is found by glyph
- * (`render/sprites.ts`), so a decor 🧂 would be a Salt Shaker standing on the floor that is not one.
+ * **No tower's glyph and no crumb band's.** Each draws as its sprite and the sprite is found by glyph
+ * (`render/sprites.ts`), so a decor 🧂 would be a Salt Shaker standing on the floor that is not one,
+ * and a decor 🍞 a crumb pile nobody can pick up.
  */
-export const DECOR_PALETTE = ['🧽', '🍶', '🪴', '🍞', '🥫', '🧄', '🧅', '☕', '🍽️', '🥄', '🪣', '🧹'] as const
+export const DECOR_PALETTE = ['🧽', '🍶', '🪴', '🥫', '🧄', '🧅', '☕', '🍽️', '🥄', '🪣', '🧹'] as const
 
 /** Candidate fridges, so the glyph is a click rather than a paste. */
 export const FRIDGE_GLYPHS = ['🗄️', '🧊', '🚪'] as const

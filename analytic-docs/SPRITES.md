@@ -34,12 +34,13 @@ fallback for everything without one.
 ## Where the files go
 
 ```
-art/{tower,enemy}/<name>.svg                              masters, never bundled
-game/src/assets/sprites/{tower,enemy}/<name>_128.png      what the game imports
+art/{tower,enemy,crumb}/<name>.svg                              masters, never bundled
+game/src/assets/sprites/{tower,enemy,crumb}/<name>_128.png      what the game imports
 ```
 
 `<name>` is the content id from `core/content/towers.ts` / `enemies.ts` in snake_case:
-`toasterCrumbTray` → `toaster_crumb_tray`. Not a shortened name (`box`), not a synonym (`housefly`),
+`toasterCrumbTray` → `toaster_crumb_tray`. For a crumb pile it is the band's `id` in
+`render/crumbBands.ts`: `small`, `medium`, `large`. Not a shortened name (`box`), not a synonym (`housefly`),
 no `_sprite` suffix — a file whose name matches no id is ignored, with a warning in the dev console.
 The 1024 export is not kept; re-export from the SVG if a larger size is ever needed.
 
@@ -150,18 +151,30 @@ is 🐛, the Slug is 🐌, and the Silverfish is 🐟. Draw a moth, a weevil, a 
 | ✓ | Silverfish | `silverfish` | 🐟 | Silverfish: a carrot-shaped body tapering to the tail, silvery-grey overlapping scales with a metallic sheen, long antennae forward, three long bristles off the tail. It is the armoured enemy, so the scales should look plated and hard. Low to the ground, short legs. |
 | ✓ | Mouse | `mouse` | 🐭 | Lean grey-brown house mouse, crouched low mid-sneak, large round ears, long thin tail, alert dark eye, whiskers forward. The thief mini-boss and the largest enemy, so it gets the most detail — but still a real mouse, no expression beyond alert. **Carrying nothing**: the food it steals is drawn by the renderer. |
 
+## Crumb piles
+
+Litter, not creatures: seen from a steep 3/4 above, no facing. Three bands by value; which value lands
+in which band is `render/crumbBands.ts`. Each band draws at its own scale of a tile, so size
+differences *do* show here, unlike towers and enemies.
+
+| Done | Band | File | Glyph | Description |
+|---|---|---|---|---|
+| ✓ | Speck | `small` | 🍘 | Four or five loose dark-toasted crumbs, scattered. The one-kill leftover; drawn at barely a quarter of a tile. |
+| ✓ | Crumb | `medium` | 🍞 | A loose heap of golden-brown crumbs with a few strays around it. |
+| ✓ | Pile | `large` | 🍪 | A chunky heap with a broken cookie wedge on top, **brighter and more golden** than the other two. The one worth clicking, so it has to stand out from across the board. |
+
 ## Where sprites appear
 
 On the board, and in the HUD wherever a tower or enemy is shown: the shop, the tower inspector, the
 enemy tooltip and the night preview (`ui/components/EntityGlyph.vue`, sized to the emoji it replaced).
-The map editor's decor palette carries no tower glyph, so scenery never draws as a tower.
+The HUD's crumb currency (🍞 beside a price) is still the emoji.
+The map editor's decor palette carries no tower or crumb glyph, so scenery never draws as either.
 
-## Not towers or enemies
+## Not yet sprited
 
-`render/sprites.ts` only matches files to towers and enemies, so these would need a small renderer
-change before a PNG for them does anything:
+`render/sprites.ts` only matches files to towers, enemies and crumb bands, so these would need a
+small renderer change before a PNG for them does anything:
 
-- **Crumb piles** in 2–3 sizes. The largest is the one worth clicking and has to stand out.
 - **Fridge** (the goal) and the **food items** it holds. The Mouse carries them, so they must read at
   ~30px.
 - **Projectiles** — salt grain, ice shard. Small enough that drawn shapes may do instead.
