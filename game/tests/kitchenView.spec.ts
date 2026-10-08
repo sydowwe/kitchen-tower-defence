@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { newProgress } from '@/core/campaign.ts'
+import { newProgress, startCampaign } from '@/core/campaign.ts'
 import {
 	applyNightModifier,
 	getEnemyDef,
@@ -7,6 +7,7 @@ import {
 	getNightDef,
 	getNightModifierDef,
 	INSTALLATIONS,
+	MAP_SOURCES,
 	MAPS,
 	NIGHTS,
 	NO_MODIFIERS,
@@ -262,6 +263,43 @@ describe("the title's tiers", () => {
 				progressAt('night02', { nightResults: { night01: { attempts: 1, wins: 1, bestGroceryMoney: 0 } } }),
 			).campaignStarted,
 		).toBe(true)
+	})
+})
+
+describe("the Kitchen's long night", () => {
+	const MAP_IDS = MAP_SOURCES.map(source => source.id)
+
+	it('is not offered before a tier is cleared, with the campaign running or finished', () => {
+		expect(buildKitchenView(newProgress()).endless).toBeNull()
+		expect(buildKitchenView(progressAt('night18')).endless).toBeNull()
+		expect(buildKitchenView(progressAt(null)).endless).toBeNull()
+	})
+
+	it("offers all six maps after a clear, in MAP_SOURCES order, each with its shape and this tier's best", () => {
+		const progress = progressAt(null, { cleared: ['normal'], endlessBests: { normal: { pantry: 23, floor: 0 } } })
+		const endless = buildKitchenView(progress).endless ?? []
+
+		expect(MAP_IDS).toEqual(['counter', 'sink', 'pantry', 'stove', 'table', 'floor'])
+		expect(endless.map(entry => entry.mapId)).toEqual(MAP_IDS)
+		expect(endless.map(entry => entry.best)).toEqual([null, null, 23, null, null, 0])
+		for (const entry of endless) {
+			expect(entry.mapNameKey).toBe(`map.${entry.mapId}.name`)
+			expect(entry.map).toEqual(buildMapShape(entry.mapId))
+		}
+	})
+
+	it("is still offered after starting over on another tier, with that tier's bests, all none yet", () => {
+		const finished = progressAt(null, { cleared: ['normal'], endlessBests: { normal: { pantry: 23 } } })
+		const started = startCampaign(finished, 'nightmare')
+		if (!started.ok) {
+			throw new Error('nightmare did not open on a normal clear')
+		}
+		const view = buildKitchenView(started.progress)
+
+		expect(view.preview?.night).toBe(1)
+		expect(view.endless?.map(entry => entry.mapId)).toEqual(MAP_IDS)
+		expect(view.endless?.map(entry => entry.best)).toEqual([null, null, null, null, null, null])
+		expect(started.progress.endlessBests.normal?.pantry).toBe(23)
 	})
 })
 

@@ -27,7 +27,7 @@
 
 			<section class="bench">
 				<div class="bench-head">
-					<h2>{{ t('loadout.counter') }}</h2>
+					<h2>{{ t(runView === null ? 'loadout.counter' : 'endless.counter') }}</h2>
 					<p class="room-line">{{ t('loadout.room', { used: view.counter.length, slots: view.slots }) }}</p>
 				</div>
 
@@ -52,11 +52,11 @@
 
 				<div class="actions">
 					<button
-						v-if="view.lastNight !== null"
+						v-if="lastNight !== null"
 						type="button"
 						class="preset"
 						:disabled="busy"
-						@click="setOut(view.lastNight.map(tower => tower.id))"
+						@click="setOut(lastNight.map(tower => tower.id))"
 					>
 						{{ t('loadout.lastNight') }}
 						<span
@@ -64,7 +64,7 @@
 							aria-hidden="true"
 						>
 							<EntityGlyph
-								v-for="tower in view.lastNight"
+								v-for="tower in lastNight"
 								:key="tower.id"
 								:glyph="tower.glyph"
 							/>
@@ -102,7 +102,14 @@
 					:roles="view.roles"
 					@toggle="toggle"
 				/>
-				<NightComposition :preview="view.preview" />
+				<RunComposition
+					v-if="runView !== null"
+					:run="runView.run"
+				/>
+				<NightComposition
+					v-else-if="nightView !== null"
+					:preview="nightView.preview"
+				/>
 			</div>
 		</div>
 
@@ -123,16 +130,31 @@
 	import LoadoutCounter from '@/ui/components/loadout/LoadoutCounter.vue'
 	import LoadoutRoster from '@/ui/components/loadout/LoadoutRoster.vue'
 	import NightComposition from '@/ui/components/loadout/NightComposition.vue'
-	import { buildLoadoutView, selectionFor, toggleTower } from '@/ui/loadoutView.ts'
+	import RunComposition from '@/ui/components/loadout/RunComposition.vue'
+	import {
+		buildLoadoutView,
+		buildRunLoadoutView,
+		runSelectionFor,
+		selectionFor,
+		toggleTower,
+	} from '@/ui/loadoutView.ts'
 	import { useProgressStore } from '@/ui/stores/progress.ts'
 	import { useSessionStore } from '@/ui/stores/session.ts'
-	import type { DefId } from '@/ui/loadoutView.ts'
+	import type { CounterView, DefId } from '@/ui/loadoutView.ts'
 
 	/**
 	 * What you set out on the counter before bed: tomorrow night in full, the counter, and the towers
 	 * in the cupboard. Start saves the choice through the progress store and goes into the night; the
 	 * store owns the one `status`, so the button reads it and holds no flag of its own.
+	 *
+	 * With a `mapId` it is a long night's counter instead (the `endlessLoadout` route): every tower the
+	 * campaign unlocks, the map's run in place of tomorrow, and Start into that run.
 	 */
+
+	const { mapId = null } = defineProps<{
+		/** The map of the long night being set out for, off the route. Absent for tonight's night. */
+		mapId?: string
+	}>()
 
 	const { t } = useI18n()
 	const router = useRouter()
@@ -143,13 +165,33 @@
 	 * Computed off the store, never taken once at setup: on the slow adapter this screen mounts before
 	 * the progress arrives, and a selection built from nothing would stay empty.
 	 */
-	const selection = computed(() =>
-		store.progress === null ? null : selectionFor(store.progress, session.loadoutDraft),
+	const selection = computed(() => {
+		const progress = store.progress
+		if (progress === null) {
+			return null
+		}
+		return mapId === null
+			? selectionFor(progress, session.loadoutDraft)
+			: runSelectionFor(progress, mapId, session.loadoutDraft)
+	})
+
+	const nightView = computed(() =>
+		store.progress === null || selection.value === null || mapId !== null
+			? null
+			: buildLoadoutView(store.progress, selection.value),
 	)
 
-	const view = computed(() =>
-		store.progress === null || selection.value === null ? null : buildLoadoutView(store.progress, selection.value),
+	const runView = computed(() =>
+		store.progress === null || selection.value === null || mapId === null
+			? null
+			: buildRunLoadoutView(store.progress, mapId, selection.value),
 	)
+
+	/** The counter and the cupboard, whichever night they are set out for. */
+	const view = computed<CounterView | null>(() => runView.value ?? nightView.value)
+
+	/** Tonight's only: a long night already defaults to the counter night 18 was won with. */
+	const lastNight = computed(() => nightView.value?.lastNight ?? null)
 
 	const saving = computed(() => store.status === 'saving')
 	const busy = computed(() => store.status === 'saving' || store.status === 'loading')
@@ -166,9 +208,10 @@
 		return entry === undefined || entry.chosen ? null : t(entry.nameKey)
 	})
 
+	/** Keyed by the view's own night id: tonight's, or the map's long night, which `runSelectionFor` reads. */
 	function setOut(towerIds: DefId[]): void {
-		const nightId = store.progress?.nightId
-		if (nightId === null || nightId === undefined) {
+		const nightId = view.value?.draftNightId
+		if (nightId === undefined) {
 			return
 		}
 		session.loadoutDraft = { nightId, towerIds }
@@ -190,6 +233,13 @@
 		if (chosen === null) {
 			return
 		}
+		if (mapId !== null) {
+			if ((await store.chooseEndlessLoadout(mapId, chosen)) === 'ok') {
+				session.loadoutDraft = null
+				void router.push({ name: 'endless', params: { mapId } })
+			}
+			return
+		}
 		if ((await store.chooseLoadout(chosen)) === 'ok') {
 			session.loadoutDraft = null
 			void router.push({ name: 'night' })
@@ -200,11 +250,18 @@
 		void router.push({ name: 'kitchen' })
 	}
 
-	/** A finished campaign has no night to set out for. */
+	/**
+	 * Nothing to set out for goes back to the Kitchen: a finished campaign has no tonight, and a long night
+	 * that is locked or on a map with none has no run. **By mode**: a finished campaign is exactly when a
+	 * long night's counter is set out, and must not bounce.
+	 */
 	watch(
-		() => store.progress,
-		progress => {
-			if (progress !== null && progress.nightId === null) {
+		() => [store.progress, mapId] as const,
+		([progress]) => {
+			if (progress === null) {
+				return
+			}
+			if (mapId === null ? progress.nightId === null : runView.value === null) {
 				void router.replace({ name: 'kitchen' })
 			}
 		},

@@ -57,6 +57,9 @@ edit this file. Don't leave it lying.
    pool, each enemy with the wave it first comes in and its tags, and **no counts**: summed over two
    hundred generated waves they run into the thousands and mean nothing. The draft is keyed by
    `endlessNightId(mapId)`. Start calls `chooseEndlessLoadout`, then pushes `'endless'`.
+   *As built:* the toggle is `toggleTower` itself. It reads only `loadoutSlots`, which a run's counter
+   shares with tonight's, so a second one would have been a copy. Both builders share a `CounterView`,
+   and the view carries `draftNightId`, so the screen keys its draft without knowing which night it is.
 4. **The night view's run mode** builds with `worldOptionsForEndless(progress, mapId, SEED)`, and
    records with `recordEndlessResult(endlessResultOf(world))`, never `recordNightResult` (E throws on
    that, on purpose). Retry pushes `'endlessLoadout'` for the map, and Continue goes to the Kitchen. Dev
@@ -74,6 +77,11 @@ edit this file. Don't leave it lying.
    won night 18 comfortably ends somewhere in the 20s to 40s, and the first ten waves feel like an Act I
    night, not a wall. Put where it ended, and why, in the commit. 21D's tests pin properties, so none of
    them should move. If one does, the constant broke a property, not the test.
+
+   **Not done in the session that built this part (reconciled at pre-flight).** A session cannot sit
+   and play a run, and 22A's harness has only the `idle` policy, which places nothing, so no headless
+   run says anything about a good counter. The constants ship as 21D drafted them. The re-tune is an
+   acceptance item below, for whoever plays it; it edits `endless.ts` alone and needs no other change.
 8. **English, in `DECISIONS.md` §1's voice.** The Kitchen's offer, the run's counter, the HUD's wave,
    the summary's lines. It's a long night in the same kitchen, not a "mode".
 
@@ -110,7 +118,7 @@ Gotchas:
 
 ### 3. The curve: `core/content/endless.ts`
 
-Decision 7. The one `core/` file this part edits.
+Decision 7. The one `core/` file this part edits. Left for play: see decision 7's second paragraph.
 
 ### 4. The copy: `en.ts`
 
@@ -140,9 +148,12 @@ Extensions to `loadoutView.spec`, `kitchenView.spec` and `viewModel.spec`.
       Pantry's counter with what you brought.
 - [ ] A reload mid-run rebuilds the run on the same map with the same counter.
 - [ ] A run ends, and you want to start another.
+- [ ] The curve, played (decision 7): runs on two maps at 3× with a counter that won night 18
+      comfortably end in the 20s to 40s, and the first ten waves feel like an Act I night. Move
+      `endless.ts`'s constants until they do.
 - [ ] With `VITE_DATA_MODE=mock` and the dev toggle at 100%, a run's Start and its best both show the
       failure, and their retries work once the toggle is back down.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 

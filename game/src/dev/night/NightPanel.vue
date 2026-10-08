@@ -13,12 +13,21 @@
 			>
 				{{ night.index }}
 			</option>
+			<optgroup label="Endless">
+				<option
+					v-for="night in ENDLESS_NIGHTS"
+					:key="night.id"
+					:value="night.id"
+				>
+					{{ night.mapId }}
+				</option>
+			</optgroup>
 		</select>
 	</label>
 </template>
 
 <script setup lang="ts">
-	import { NIGHTS } from '@/core/content/index.ts'
+	import { ENDLESS_NIGHTS, NIGHTS } from '@/core/content/index.ts'
 
 	/**
 	 * Jump straight to any authored night instead of clicking Continue through every one before it.
@@ -28,7 +37,8 @@
 	 * keys for the same reason that panel gives.
 	 *
 	 * A picked night is an override of the campaign's: `GameView.vue` builds it with every tower
-	 * available and records nothing, so jumping to night 14 costs the save nothing.
+	 * available and records nothing, so jumping to night 14 costs the save nothing. The long nights are
+	 * listed too, by map, played the same way: every tower, and no best recorded.
 	 */
 
 	const { current } = defineProps<{

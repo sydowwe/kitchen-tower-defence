@@ -23,11 +23,20 @@
 
 			<div class="top">
 				<KitchenScene :owned="view.owned" />
-				<NightPreview
-					:preview="view.preview"
-					:busy="busy"
-					@start="startNight"
-				/>
+				<!-- Tomorrow first while there is one; a finished campaign keeps its one line above the offer. -->
+				<div class="nights">
+					<NightPreview
+						:preview="view.preview"
+						:busy="busy"
+						@start="startNight"
+					/>
+					<EndlessOffer
+						v-if="view.endless !== null"
+						:entries="view.endless"
+						:busy="busy"
+						@pick="startRun"
+					/>
+				</div>
 			</div>
 
 			<p
@@ -84,6 +93,7 @@
 	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, type Component } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import { useRouter } from 'vue-router'
+	import EndlessOffer from '@/ui/components/kitchen/EndlessOffer.vue'
 	import InstallationCard from '@/ui/components/kitchen/InstallationCard.vue'
 	import KitchenScene from '@/ui/components/kitchen/KitchenScene.vue'
 	import NightPreview from '@/ui/components/kitchen/NightPreview.vue'
@@ -92,7 +102,7 @@
 	import LoadState from '@/ui/components/LoadState.vue'
 	import { buildKitchenView } from '@/ui/kitchenView.ts'
 	import { useProgressStore } from '@/ui/stores/progress.ts'
-	import type { InstallationId } from '@/ui/kitchenView.ts'
+	import type { DefId, InstallationId } from '@/ui/kitchenView.ts'
 
 	/**
 	 * The game's second place: the room by day, what has been bought for it, the Grocery Money, and
@@ -147,6 +157,11 @@
 	/** Not into the night: to the counter, which is where the night is started from. */
 	function startNight(): void {
 		void router.push({ name: 'loadout' })
+	}
+
+	/** A long night is started the same way: from its map's counter. */
+	function startRun(mapId: DefId): void {
+		void router.push({ name: 'endlessLoadout', params: { mapId } })
 	}
 
 	/** Dev only: the mock failure toggle, dynamically imported so none of it reaches production. */
@@ -218,6 +233,12 @@
 	.top {
 		display: grid;
 		grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr);
+		gap: 1rem;
+	}
+
+	.nights {
+		display: flex;
+		flex-direction: column;
 		gap: 1rem;
 	}
 

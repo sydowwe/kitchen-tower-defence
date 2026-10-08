@@ -34,13 +34,14 @@ import { effectivenessOf, resolveDamage } from '@/core/content/matrix.ts'
 import { STATUS_DEFS } from '@/core/content/statuses.ts'
 import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
 import {
-	NIGHTS,
 	TOWERS,
 	effectiveDef,
 	effectiveDefOf,
+	findNightDef,
 	getEnemyDef,
 	getNightModifierDef,
 	getTowerDef,
+	isEndlessNightId,
 	unlockNightOf,
 } from '@/core/content/index.ts'
 import { upgradeCost } from '@/core/content/upgrades.ts'
@@ -348,7 +349,11 @@ export interface NightSummaryView {
 	won: boolean
 	/** `waveIndex + 1` on a win; `waveIndex` on a loss -- you did not survive the one that emptied the fridge. */
 	wavesSurvived: number
-	waveCount: number
+	/**
+	 * Null in a run, which is counted against its best rather than its length: a long night's two
+	 * hundred waves are a ceiling nobody reaches, not a total. The summary reads null as a run.
+	 */
+	waveCount: number | null
 	/**
 	 * What a thief got out of the kitchen with (`lostTo === 'escaped'`). Its own line, above the rest:
 	 * this is the sequence the Mouse exists for, and folding it into "Lost" would lose that it was
@@ -364,6 +369,7 @@ export interface NightSummaryView {
 	/**
 	 * `night.pay`, copied field by field, or null while it is. **Never recomputed here**: a second
 	 * formula is a total that disagrees with the balance the Kitchen shows (step 20E, decision 1).
+	 * Null in a run whatever `night.pay` says: a run pays nothing, so it prints no money.
 	 */
 	grocery: GroceryMoneyBreakdown | null
 	/** `noise.peakLevel` against `noise.cap`, unrounded; the summary rounds it where it prints it. */
@@ -476,12 +482,13 @@ export function buildLossView(
 /**
  * The first thief def in wave `waveIndex` of this night, or null.
  *
- * `NIGHTS.find` rather than `getNightDef`, which throws: the spec fixtures run on a synthetic night id,
- * and the snapshot is built for those worlds too. One walk of the night list and one of the wave's
- * entries -- never a walk of every night's every wave, which is what this runs at 15Hz for.
+ * `findNightDef` rather than `getNightDef`, which throws: the spec fixtures run on a synthetic night id,
+ * and the snapshot is built for those worlds too. It resolves a long night as well as a campaign one,
+ * so a Mouse in a run is announced a wave ahead like on night 14. One walk of each night list and one
+ * of the wave's entries -- never a walk of every night's every wave, which is what this runs at 15Hz for.
  */
 function thiefInWave(nightId: DefId, waveIndex: number): { nameKey: string } | null {
-	const wave = NIGHTS.find(night => night.id === nightId)?.waves[waveIndex]
+	const wave = findNightDef(nightId)?.waves[waveIndex]
 	if (wave === undefined) {
 		return null
 	}
@@ -557,14 +564,17 @@ export function buildModifierBanner(world: World, worldCount: number): ModifierB
 }
 
 export interface HudSnapshot {
-	/** `{ hour, minute }` from `nightClock`. Formatted in `ui/`, never here and never on the world. */
-	clock: { hour: number; minute: number }
+	/**
+	 * `{ hour, minute }` from `nightClock`. Formatted in `ui/`, never here and never on the world. Null
+	 * in a run: 2am to 6am spread over two hundred waves is a clock that stands still.
+	 */
+	clock: { hour: number; minute: number } | null
 	/** The tier this world was built at. The chip beside the clock. */
 	difficulty: DifficultyId
 	/** Tonight's modifier for the whole night, so a player who missed the card can still find it. */
 	modifier: { glyph: string; nameKey: string } | null
-	/** `index` is 0-based, the way the world holds it. The HUD shows `index + 1`. */
-	wave: { index: number; count: number }
+	/** `index` is 0-based, the way the world holds it. The HUD shows `index + 1`. `count` is null in a run. */
+	wave: { index: number; count: number | null }
 	phase: NightPhase
 	crumbs: number
 	/**
@@ -1106,11 +1116,12 @@ function copyPay(pay: GroceryMoneyBreakdown): GroceryMoneyBreakdown {
 export function buildNightSummary(world: World): NightSummaryView {
 	const night = world.night
 	const won = night.phase === 'won'
+	const run = isEndlessNightId(night.nightId)
 
 	return {
 		won,
 		wavesSurvived: wavesSurvivedOf(world),
-		waveCount: night.waveCount,
+		waveCount: run ? null : night.waveCount,
 		foodEscapedNameKeys: night.food.filter(item => item.lostTo === 'escaped').map(item => item.nameKey),
 		foodLostNameKeys: night.food
 			.filter(item => isGone(item) && item.lostTo !== 'escaped')
@@ -1119,7 +1130,7 @@ export function buildNightSummary(world: World): NightSummaryView {
 		enemiesKilled: night.enemiesKilled,
 		crumbsCollected: night.crumbsCollected,
 		crumbsDropped: night.crumbsDropped,
-		grocery: night.pay === null ? null : copyPay(night.pay),
+		grocery: run || night.pay === null ? null : copyPay(night.pay),
 		peakNoise: { level: world.noise.peakLevel, cap: world.noise.cap },
 		wakeCount: world.noise.wakeCount,
 		snackStashUsed: night.snackStashUsed,
@@ -1147,12 +1158,13 @@ export function buildHudSnapshot(
 	const over = night.phase === 'won' || night.phase === 'lost'
 
 	const modifier = buildModifierView(night.modifierId)
+	const run = isEndlessNightId(night.nightId)
 
 	return {
-		clock: nightClock(night.waveIndex, night.waveCount),
+		clock: run ? null : nightClock(night.waveIndex, night.waveCount),
 		difficulty: world.difficulty.id,
 		modifier: modifier === null ? null : { glyph: modifier.glyph, nameKey: modifier.nameKey },
-		wave: { index: night.waveIndex, count: night.waveCount },
+		wave: { index: night.waveIndex, count: run ? null : night.waveCount },
 		phase: night.phase,
 		crumbs: world.crumbs,
 		unbankedCrumbs: world.unbankedCrumbs,

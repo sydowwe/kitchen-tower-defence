@@ -9,7 +9,7 @@
 			<!-- The part that grows scrolls; the save line and the buttons below it never leave the panel,
 				 whatever the window's height (step 20E, the scroll gotcha). -->
 			<div class="body">
-				<h2>{{ t(summary.won ? 'night.wonTitle' : 'night.lostTitle') }}</h2>
+				<h2>{{ t(summary.won ? (run ? 'endless.wonTitle' : 'night.wonTitle') : 'night.lostTitle') }}</h2>
 				<p class="subtitle">{{ t(summary.won ? 'night.wonSubtitle' : 'night.lostSubtitle') }}</p>
 
 				<!-- The emotional payload (DECISIONS.md section 6): a sentence with the names in it. Not a
@@ -28,8 +28,19 @@
 					{{ lostSentence }}
 				</p>
 
+				<!-- A run is counted against its best, not its length: how far, and whether that was further. -->
+				<template v-if="summary.waveCount === null">
+					<p class="run">{{ wavesSentence }}</p>
+					<p
+						class="best"
+						:class="{ beaten: newBest }"
+					>
+						{{ bestSentence }}
+					</p>
+				</template>
+
 				<ul class="story">
-					<li>
+					<li v-if="summary.waveCount !== null">
 						{{ t('night.wavesSurvived', { survived: summary.wavesSurvived, total: summary.waveCount }) }}
 					</li>
 					<li>{{ noiseSentence }}</li>
@@ -87,15 +98,16 @@
 				<!-- A lost night only. A won one has already moved the campaign on, and a won night is
 					 not replayed (core/campaign.ts, applyNightResult). On a campaign night it goes to the
 					 loadout screen; enabled on 'failed', because Start there saves on top of the pending
-					 night and shows the store's retry. -->
+					 night and shows the store's retry. A run offers it however it ended: there is always
+					 another one. -->
 				<button
-					v-if="!summary.won"
+					v-if="!summary.won || run"
 					type="button"
 					class="action"
 					:disabled="saveState === 'saving'"
 					@click="emit('retry')"
 				>
-					{{ t('night.retry') }}
+					{{ t(run ? 'endless.retry' : 'night.retry') }}
 				</button>
 				<button
 					type="button"
@@ -121,8 +133,14 @@
 	 * `saveState` is the progress store's, for the night's result: both buttons wait on `'saving'`, and
 	 * `'failed'` offers the store's retry. A night that records nothing (a dev override) is `'saved'`.
 	 */
-	const { summary, saveState = 'saved' } = defineProps<{
+	const {
+		summary,
+		previousBest = null,
+		saveState = 'saved',
+	} = defineProps<{
 		summary: NightSummaryView
+		/** In a run: this tier's best on the map from before the run, or null for the first one there. */
+		previousBest?: number | null
 		saveState?: 'saving' | 'saved' | 'failed'
 	}>()
 
@@ -134,6 +152,27 @@
 	}>()
 
 	const { t } = useI18n()
+
+	/** A long night: no total to count against, and no money (`NightSummaryView.waveCount`). */
+	const run = computed(() => summary.waveCount === null)
+
+	const wavesSentence = computed(() => {
+		const n = summary.wavesSurvived
+		if (n === 0) {
+			return t('endless.wavesSurvivedNone')
+		}
+		return n === 1 ? t('endless.wavesSurvivedOne') : t('endless.wavesSurvived', { n })
+	})
+
+	/** Beaten, not equalled. A first run on the map has nothing to beat, and says so instead. */
+	const newBest = computed(() => previousBest !== null && summary.wavesSurvived > previousBest)
+
+	const bestSentence = computed(() => {
+		if (previousBest === null) {
+			return t('endless.firstRun')
+		}
+		return newBest.value ? t('endless.newBest', { n: previousBest }) : t('endless.bestStands', { n: previousBest })
+	})
 
 	function names(keys: string[]): string {
 		return joinNames(
@@ -215,6 +254,22 @@
 		margin: 0;
 		color: var(--kd-text-dim);
 		font-size: 0.85rem;
+	}
+
+	.run {
+		margin: 0.2rem 0 0;
+		color: var(--kd-text);
+		font-size: 1.05rem;
+	}
+
+	.best {
+		margin: 0;
+		color: var(--kd-text-dim);
+		font-size: 0.85rem;
+	}
+
+	.best.beaten {
+		color: var(--kd-owned);
 	}
 
 	.lost {

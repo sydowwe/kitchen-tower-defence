@@ -15,6 +15,7 @@
 				:wake="wake"
 				:thiefBanner="thiefBanner"
 				:modifierBanner="modifierBanner"
+				:previousBest="previousBest"
 				:saveState="saveState"
 				@select="onSelect"
 				@sell="onSell"
@@ -54,7 +55,7 @@
 			/>
 			<component
 				:is="NightPanel"
-				v-if="NightPanel !== null"
+				v-if="NightPanel !== null && mapId === null"
 				:current="nightId"
 				@pick="onDevPickNight"
 			/>
@@ -66,7 +67,16 @@
 	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type Component } from 'vue'
 	import { useRouter } from 'vue-router'
 	import { createLoop, type Loop, type Speed } from '@/loop.ts'
-	import { nightResultOf, worldOptionsFor, type Progress } from '@/core/campaign.ts'
+	import {
+		endlessBest,
+		endlessMapIds,
+		endlessResultOf,
+		endlessUnlocked,
+		nightResultOf,
+		worldOptionsFor,
+		worldOptionsForEndless,
+		type Progress,
+	} from '@/core/campaign.ts'
 	import { getMapDef, getNightDef, NIGHTS, resolveModifiers } from '@/core/content/index.ts'
 	import { createCommandQueue } from '@/core/commands.ts'
 	import { tick as stepWorld } from '@/core/sim.ts'
@@ -113,6 +123,14 @@
 	import type { drawDebugOverlay } from '@/dev/debug/overlay.ts'
 
 	/**
+	 * The map of the long night being played, off the `endless` route; absent for tonight's night. A run
+	 * is built from progress like a night is, so a reload rebuilds it from wave 1 on the same counter.
+	 */
+	const { mapId = null } = defineProps<{
+		mapId?: string
+	}>()
+
+	/**
 	 * The one place the canvas, the loop, the world and the HUD meet.
 	 *
 	 * `world` is a plain `let` -- never a `ref`, never a store. Deep reactivity over hundreds of
@@ -152,6 +170,16 @@
 	 * progress would have built.
 	 */
 	let records = false
+	/**
+	 * Whether this world is a long night, so its best is saved. Its own flag rather than `records`: a run
+	 * is no override, and through `records` it would reach `recordNightResult`, which throws on it.
+	 */
+	let recordsRun = false
+	/**
+	 * This tier's best on the run's map **before** this run, read as the world is built. Read after
+	 * `recordEndlessResult` lands it would be this run's own score, and "a new best" would never show.
+	 */
+	const previousBest = shallowRef<number | null>(null)
 	/**
 	 * Set in `tick()` the first time this world's `nightEnded` is seen, and **reset in `restart`**. A flag
 	 * that is never cleared records the first night and silently no retry after it.
@@ -316,13 +344,25 @@
 	 * What to build tonight, and whether its result counts. The campaign's night is
 	 * `worldOptionsFor(progress)` and nothing else; null once the campaign is finished.
 	 *
+	 * A long night is `worldOptionsForEndless` and nothing else either: no dev override applies to it,
+	 * and it is null while endless is locked or on a map with no run.
+	 *
 	 * Every override below is dev only -- nothing assigns `devNightId`, `devModifiers` or `previewMap`
 	 * in a production build -- and each one makes a night that is not the campaign's, so none records.
 	 */
-	function optionsFor(progress: Progress): { options: CreateWorldOptions; records: boolean } | null {
+	function optionsFor(
+		progress: Progress,
+	): { options: CreateWorldOptions; records: boolean; recordsRun: boolean } | null {
+		if (mapId !== null) {
+			if (!endlessUnlocked(progress) || !endlessMapIds().includes(mapId)) {
+				return null
+			}
+			return { options: worldOptionsForEndless(progress, mapId, SEED), records: false, recordsRun: true }
+		}
+
 		const campaign = progress.nightId === null ? null : worldOptionsFor(progress, SEED)
 		if (devNightId === null && devModifiers === undefined && previewMap === null) {
-			return campaign === null ? null : { options: campaign, records: true }
+			return campaign === null ? null : { options: campaign, records: true, recordsRun: false }
 		}
 
 		const id = devNightId ?? campaign?.nightId ?? NIGHTS[0]?.id
@@ -331,6 +371,7 @@
 		}
 		return {
 			records: false,
+			recordsRun: false,
 			options: {
 				seed: SEED,
 				mapId: getNightDef(id).mapId,
@@ -371,6 +412,8 @@
 
 		world = next
 		records = built.records
+		recordsRun = built.recordsRun
+		previousBest.value = mapId === null ? null : endlessBest(progress, mapId)
 		recorded = false
 		nightId.value = next.night.nightId
 		loop?.setSpeed(settingsStore.settings.speed)
@@ -402,10 +445,15 @@
 
 	/**
 	 * The summary's Retry. A campaign night goes back to the counter with what was brought still on it
-	 * (DECISIONS.md section 10). A dev override rebuilds in place: the loadout screen builds tonight
-	 * from progress, and would silently drop the picked night.
+	 * (DECISIONS.md section 10), and a long night to its map's counter the same way. A dev override
+	 * rebuilds in place: the loadout screen builds tonight from progress, and would silently drop the
+	 * picked night.
 	 */
 	function retryNight(): void {
+		if (recordsRun && mapId !== null) {
+			void router.push({ name: 'endlessLoadout', params: { mapId } })
+			return
+		}
 		if (records) {
 			void router.push({ name: 'loadout' })
 			return
@@ -606,6 +654,8 @@
 						recorded = true
 						if (records) {
 							void progressStore.recordNightResult(nightResultOf(world))
+						} else if (recordsRun) {
+							void progressStore.recordEndlessResult(endlessResultOf(world))
 						}
 					}
 				}
@@ -667,6 +717,8 @@
 	onBeforeUnmount(() => {
 		unmounted = true
 		records = false
+		recordsRun = false
+		previousBest.value = null
 		recorded = false
 		devNightId = null
 		window.removeEventListener('resize', onResize)

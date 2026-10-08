@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { newProgress, tonightsLoadout } from '@/core/campaign.ts'
-import { buildLoadoutView, selectionFor, toggleTower } from '@/ui/loadoutView.ts'
+import { endlessLoadout, endlessTowerIds, newProgress, tonightsLoadout } from '@/core/campaign.ts'
+import { getNightDef } from '@/core/content/index.ts'
+import { buildLoadoutView, buildRunLoadoutView, runSelectionFor, selectionFor, toggleTower } from '@/ui/loadoutView.ts'
+import { shopOrder } from '@/ui/viewModel.ts'
 import type { Progress } from '@/core/campaign.ts'
-import type { LoadoutView } from '@/ui/loadoutView.ts'
+import type { LoadoutView, RunLoadoutView } from '@/ui/loadoutView.ts'
 
 /**
  * The loadout screen's view model. What drifts silently here is a counter that disagrees with the
@@ -127,6 +129,90 @@ describe('selectionFor', () => {
 
 	it('reads no draft as the default', () => {
 		expect(selectionFor(progress, null)).toEqual(tonightsLoadout(progress))
+	})
+})
+
+describe("a long night's counter", () => {
+	/** A finished Normal campaign: endless open, nothing bought. */
+	const finished = progressAt(null, { cleared: ['normal'] })
+	const ALL_SPACE = ['clearTheDryingRack', 'takeTheToasterOffTheCounter', 'secondShelf']
+
+	function runViewOf(progress: Progress, mapId = 'pantry', selection?: string[]): RunLoadoutView {
+		const view = buildRunLoadoutView(progress, mapId, selection ?? runSelectionFor(progress, mapId, null))
+		if (view === null) {
+			throw new Error(`no long night on '${mapId}'`)
+		}
+		return view
+	}
+
+	it('rosters every tower a campaign night unlocks, in shop order, none of them new', () => {
+		const view = runViewOf(finished)
+
+		expect(endlessTowerIds()).toHaveLength(19)
+		expect(view.roster).toHaveLength(19)
+		expect(view.roster.map(entry => entry.id)).toEqual(
+			shopOrder()
+				.map(def => def.id)
+				.filter(id => endlessTowerIds().includes(id)),
+		)
+		expect(view.roster.filter(entry => entry.isNew)).toEqual([])
+	})
+
+	it('holds five with nothing owned, and eight with all three counter-space installations', () => {
+		const bare = runViewOf(finished)
+		expect(bare.slots).toBe(5)
+		expect(bare.blocked).toHaveLength(3)
+		expect(bare.counter.map(tower => tower.id)).toEqual(endlessTowerIds().slice(0, 5))
+		expect(bare.problem).toBeNull()
+
+		const roomy = runViewOf({ ...finished, installations: ALL_SPACE })
+		expect(roomy.slots).toBe(8)
+		expect(roomy.blocked).toEqual([])
+		expect(roomy.counter).toHaveLength(8)
+	})
+
+	it("keeps a draft under the map's own night id, and the counter keys its draft the same way", () => {
+		const towerIds = ['lemon', 'fan', 'saltShaker']
+		expect(runSelectionFor(finished, 'pantry', { nightId: 'endlessPantry', towerIds })).toEqual(towerIds)
+		expect(runSelectionFor(finished, 'pantry', { nightId: 'endlessPantry', towerIds: [] })).toEqual([])
+		expect(runViewOf(finished, 'pantry', towerIds).draftNightId).toBe('endlessPantry')
+	})
+
+	it("ignores another map's draft, and tonight's", () => {
+		const fallback = endlessLoadout(finished, 'pantry')
+		const towerIds = ['lemon', 'fan']
+
+		expect(runSelectionFor(finished, 'pantry', { nightId: 'endlessSink', towerIds })).toEqual(fallback)
+		expect(runSelectionFor(finished, 'pantry', { nightId: 'night18', towerIds })).toEqual(fallback)
+	})
+
+	it('names every enemy in the pool once, from the wave it first comes in, and counts none', () => {
+		const night = getNightDef('endlessPantry')
+		const enemies = runViewOf(finished).run.enemies
+		const pool = [...new Set(night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId)))]
+
+		expect(enemies.map(enemy => enemy.id)).toEqual(pool)
+		expect(new Set(enemies.map(enemy => enemy.id)).size).toBe(enemies.length)
+		expect(enemies[0]?.firstWave).toBe(1)
+		for (const enemy of enemies) {
+			expect(enemy).not.toHaveProperty('count')
+			const first = night.waves.findIndex(wave => wave.entries.some(entry => entry.enemyDefId === enemy.id))
+			expect(enemy.firstWave, enemy.id).toBe(first + 1)
+		}
+	})
+
+	it("carries the map and this tier's best", () => {
+		const run = runViewOf({ ...finished, endlessBests: { normal: { pantry: 31 }, cozy: { pantry: 60 } } }).run
+
+		expect(run.mapId).toBe('pantry')
+		expect(run.mapNameKey).toBe('map.pantry.name')
+		expect(run.best).toBe(31)
+		expect(runViewOf(finished, 'sink').run.best).toBeNull()
+	})
+
+	it('has no view while endless is locked, nor for a map with no long night', () => {
+		expect(buildRunLoadoutView(progressAt('night05'), 'pantry', [])).toBeNull()
+		expect(buildRunLoadoutView(finished, 'attic', [])).toBeNull()
 	})
 })
 

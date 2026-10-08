@@ -17,6 +17,10 @@ const routes: RouteRecordRaw[] = [
 	// Its own route, under the hub: Retry lands on it directly, and a reload keeps you there.
 	{ path: '/kitchen/loadout', name: 'loadout', component: LoadoutView },
 	{ path: '/night', name: 'night', component: GameView },
+	// A long night on one map. The map is all either route carries: the loadout is progress's, saved by
+	// Start, so a reload and a Retry both rebuild the run from the save. `props` hands `mapId` to the view.
+	{ path: '/kitchen/endless/:mapId', name: 'endlessLoadout', component: LoadoutView, props: true },
+	{ path: '/endless/:mapId', name: 'endless', component: GameView, props: true },
 
 	// The map editor (step 4) is dev-only. Registering it inside an `import.meta.env.DEV` branch
 	// with a dynamic import means Rollup folds the branch away in a production build and the

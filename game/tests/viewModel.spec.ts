@@ -3,7 +3,7 @@ import { endlessResultOf } from '@/core/campaign.ts'
 import { createCommandQueue } from '@/core/commands.ts'
 import { isAura, isBait, isConeAttack, isPushback, isReveal, isTileEffect } from '@/core/content/behaviours.ts'
 import { ant, beetle, mouse, silverfish, weevil } from '@/core/content/enemies.ts'
-import { NIGHTS, TOWERS, getTowerDef } from '@/core/content/index.ts'
+import { ENDLESS_WAVE_COUNT, NIGHTS, TOWERS, endlessNightId, getNightDef, getTowerDef } from '@/core/content/index.ts'
 import { applyStatus, createStatus } from '@/core/content/statuses.ts'
 import { TILE_EFFECT_DEFS } from '@/core/content/tileEffects.ts'
 import { candle, fan, gasStoveBurner, honeyPot } from '@/core/content/towers.ts'
@@ -718,7 +718,7 @@ describe("the HUD's tier and modifier", () => {
 })
 
 describe('the clock', () => {
-	function clockAt(waveIndex: number, waveCount: number): { hour: number; minute: number } {
+	function clockAt(waveIndex: number, waveCount: number): { hour: number; minute: number } | null {
 		const world = createTestWorld()
 		world.night.waveIndex = waveIndex
 		world.night.waveCount = waveCount
@@ -732,6 +732,20 @@ describe('the clock', () => {
 
 	it('does not divide by zero on a one-wave night', () => {
 		expect(clockAt(0, 1)).toEqual({ hour: 2, minute: 0 })
+	})
+
+	it('stands aside in a long night, which counts waves with no total', () => {
+		const run = createWorld({ ...OPTIONS, mapId: 'sink', nightId: endlessNightId('sink') })
+		run.night.waveIndex = 6
+		const snapshot = buildHudSnapshot(run, VIEW)
+
+		expect(run.night.waveCount).toBe(ENDLESS_WAVE_COUNT)
+		expect(snapshot.clock).toBeNull()
+		expect(snapshot.wave).toEqual({ index: 6, count: null })
+
+		const night = buildHudSnapshot(createWorld(OPTIONS), VIEW)
+		expect(night.clock).toEqual({ hour: 2, minute: 0 })
+		expect(night.wave).toEqual({ index: 0, count: 6 })
 	})
 })
 
@@ -908,6 +922,20 @@ describe('the thief warning', () => {
 		expect(buildThiefBanner(world, 2)).toEqual({ waveIndex: 2, nameKey: 'enemy.mouse.name' })
 		expect(buildThiefBanner(world, 1)).toBeNull()
 	})
+
+	it('warns a wave ahead of a Mouse in a long night, which no campaign night list holds', () => {
+		const night = getNightDef(endlessNightId('sink'))
+		const carries = night.waves.findIndex(wave => wave.entries.some(entry => entry.enemyDefId === 'mouse'))
+		// The generator's first thief wave is the 11th; the sink's first Mouse is somewhere after it.
+		expect(carries).toBeGreaterThanOrEqual(10)
+		expect(night.waves[carries - 1]?.entries.some(entry => entry.enemyDefId === 'mouse')).toBe(false)
+
+		const world = createWorld({ ...OPTIONS, mapId: 'sink', nightId: night.id })
+		world.night.phase = 'countdown'
+		world.night.waveIndex = carries - 1
+		expect(buildHudSnapshot(world, VIEW).upcomingThief).toEqual({ nameKey: 'enemy.mouse.name' })
+		expect(buildThiefBanner(world, carries)).toEqual({ waveIndex: carries, nameKey: 'enemy.mouse.name' })
+	})
 })
 
 describe('crumbs on the board', () => {
@@ -979,9 +1007,11 @@ describe('the summary', () => {
 })
 
 describe("the summary's Grocery Money", () => {
+	const NIGHT_1 = { mapId: 'counter', nightId: 'night01' }
+
 	/** Night 1 played to `nightEnded`: every enemy zeroed each tick wins it, and left alone the Ants empty the fridge. */
-	function playOut(killAll: boolean): World {
-		const world = createWorld({ seed: 4242, mapId: 'counter', nightId: 'night01', difficulty: 'normal' })
+	function playOut(killAll: boolean, night: { mapId: string; nightId: string } = NIGHT_1): World {
+		const world = createWorld({ seed: 4242, ...night, difficulty: 'normal' })
 		const queue = createCommandQueue()
 		for (let index = 0; index < 20_000; index++) {
 			if (killAll) {
@@ -1029,6 +1059,18 @@ describe("the summary's Grocery Money", () => {
 		expect(grocery?.lossMult).toBe(0.4)
 		expect(grocery?.foodSaved).toBe(0)
 		expect(grocery?.total).toBe(Math.round((grocery?.subtotal ?? 0) * 0.4))
+	})
+
+	it('is null on a long night, though the world computed a pay', () => {
+		const world = playOut(false, { mapId: 'pantry', nightId: endlessNightId('pantry') })
+		const summary = buildNightSummary(world)
+
+		expect(world.night.phase).toBe('lost')
+		expect(world.night.pay).not.toBeNull()
+		expect(summary.grocery).toBeNull()
+		expect(summary.waveCount).toBeNull()
+		expect(summary.wavesSurvived).toBe(world.night.waveIndex)
+		expect(summary.wavesSurvived).toBe(endlessResultOf(world).waves)
 	})
 
 	it("is null on the fixture's won night with no pay, and the snapshot still builds", () => {

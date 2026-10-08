@@ -7,7 +7,14 @@
  * Components under `ui/components/kitchen/` import from here and never from `core/`.
  */
 
-import { currentNight, DIFFICULTY_LADDER, tierUnlocked } from '@/core/campaign.ts'
+import {
+	currentNight,
+	DIFFICULTY_LADDER,
+	endlessBest,
+	endlessMapIds,
+	endlessUnlocked,
+	tierUnlocked,
+} from '@/core/campaign.ts'
 import {
 	applyNightModifier,
 	getEnemyDef,
@@ -28,7 +35,7 @@ import type { DefId, Difficulty, DifficultyId, Vec2, WorldModifiers } from '@/co
 import type { ModifierView, StatValueView } from '@/ui/viewModel.ts'
 
 export type { InstallationId } from '@/core/content/index.ts'
-export type { DifficultyId, Vec2 } from '@/core/types.ts'
+export type { DefId, DifficultyId, Vec2 } from '@/core/types.ts'
 export type { ModifierView, StatValueView } from '@/ui/viewModel.ts'
 
 export interface InstallationCardView {
@@ -60,18 +67,22 @@ export interface PreviewEntryView {
 	nameKey: string
 }
 
-/** One kind of enemy in tonight's waves, as the loadout screen lists the whole night. */
-export interface NightEnemyView extends PreviewEntryView {
+/** One kind of enemy a night sends, once, where it first turns up. */
+export interface EnemyEntryView extends PreviewEntryView {
 	/** Every tag, `hud.tag.<tag>`, in the def's order -- the tooltip's keys. */
 	tagKeys: string[]
+	/** 1-based, the way the HUD counts waves. */
+	firstWave: number
+}
+
+/** One kind of enemy in tonight's waves, as the loadout screen lists the whole night. */
+export interface NightEnemyView extends EnemyEntryView {
 	/**
 	 * What will spawn tonight at this tier, summed over every wave: each entry through `waveEntryCount`
 	 * with the tier and the night modifier, the rounding `startWave` uses. The crack's and the window
 	 * screen's cuts are left out, for step 20aB decision 3's reason.
 	 */
 	count: number
-	/** 1-based, the way the HUD counts waves. */
-	firstWave: number
 }
 
 /**
@@ -109,6 +120,15 @@ export interface NightPreviewView {
 	enemies: NightEnemyView[]
 }
 
+/** One map a long night can be played on, as the Kitchen offers it. */
+export interface EndlessEntryView {
+	mapId: DefId
+	mapNameKey: string
+	map: MapShapeView
+	/** The most waves got through on it at the campaign's tier, or null for no run there yet. */
+	best: number | null
+}
+
 export interface KitchenView {
 	groceryMoney: number
 	cards: InstallationCardView[]
@@ -116,6 +136,8 @@ export interface KitchenView {
 	owned: OwnedInstallationView[]
 	/** Null once the campaign is finished: there is no next night to preview or start. */
 	preview: NightPreviewView | null
+	/** Every map's long night, in `endlessMapIds` order. Null until a tier has been cleared. */
+	endless: EndlessEntryView[] | null
 }
 
 /**
@@ -164,6 +186,17 @@ function enemyIdsOf(night: NightDef): DefId[] {
 	return night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId))
 }
 
+function enemyEntry(id: DefId, waveIndex: number): EnemyEntryView {
+	const def = getEnemyDef(id)
+	return {
+		id: def.id,
+		glyph: def.glyph,
+		nameKey: def.nameKey,
+		tagKeys: def.tags.map(tag => `hud.tag.${tag}`),
+		firstWave: waveIndex + 1,
+	}
+}
+
 /**
  * One walk of the waves: a `Map` keeps first-appearance order, and the count sums as it goes. Each
  * entry is rounded on its own before the sum, as each is when its wave starts.
@@ -179,15 +212,25 @@ function compositionOf(night: NightDef, difficulty: Difficulty, modifiers: World
 				seen.count += count
 				continue
 			}
-			const def = getEnemyDef(entry.enemyDefId)
-			byId.set(entry.enemyDefId, {
-				id: def.id,
-				glyph: def.glyph,
-				nameKey: def.nameKey,
-				tagKeys: def.tags.map(tag => `hud.tag.${tag}`),
-				count,
-				firstWave: index + 1,
-			})
+			byId.set(entry.enemyDefId, { ...enemyEntry(entry.enemyDefId, index), count })
+		}
+	})
+
+	return [...byId.values()]
+}
+
+/**
+ * Every enemy a night sends, once each, where it first turns up, and **no counts**: a long night's
+ * two hundred generated waves sum into the thousands and mean nothing to a player choosing towers.
+ */
+export function poolOf(night: NightDef): EnemyEntryView[] {
+	const byId = new Map<DefId, EnemyEntryView>()
+
+	night.waves.forEach((wave, index) => {
+		for (const entry of wave.entries) {
+			if (!byId.has(entry.enemyDefId)) {
+				byId.set(entry.enemyDefId, enemyEntry(entry.enemyDefId, index))
+			}
 		}
 	})
 
@@ -297,6 +340,18 @@ export function buildTierPicker(progress: Progress): TierPickerView {
 	}
 }
 
+function buildEndlessEntries(progress: Progress): EndlessEntryView[] | null {
+	if (!endlessUnlocked(progress)) {
+		return null
+	}
+	return endlessMapIds().map(mapId => ({
+		mapId,
+		mapNameKey: `map.${mapId}.name`,
+		map: buildMapShape(mapId),
+		best: endlessBest(progress, mapId),
+	}))
+}
+
 export function buildKitchenView(progress: Progress): KitchenView {
 	const owned = new Set(progress.installations)
 	const night = currentNight(progress)
@@ -326,5 +381,6 @@ export function buildKitchenView(progress: Progress): KitchenView {
 			nameKey: def.nameKey,
 		})),
 		preview: night === null ? null : buildPreview(night, progress.difficulty),
+		endless: buildEndlessEntries(progress),
 	}
 }

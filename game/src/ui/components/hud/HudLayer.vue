@@ -61,6 +61,7 @@
 	<NightSummary
 		v-if="snapshot.summary !== null"
 		:summary="snapshot.summary"
+		:previousBest="previousBest"
 		:saveState="saveState"
 		@retry="emit('retry')"
 		@continueNight="emit('continueNight')"
@@ -110,6 +111,7 @@
 		wake = null,
 		thiefBanner = null,
 		modifierBanner = null,
+		previousBest = null,
 		saveState = 'saved',
 	} = defineProps<{
 		snapshot: HudSnapshot
@@ -125,6 +127,11 @@
 		thiefBanner?: ThiefBannerView | null
 		/** Tonight's modifier, said as the night opens, or null on a plain night. Built once per world. */
 		modifierBanner?: ModifierBannerView | null
+		/**
+		 * In a run, this tier's best on the map from before it started, or null for none. A prop because it
+		 * is the save's, not the world's -- and read before this run's best lands on it.
+		 */
+		previousBest?: number | null
 		/** Where the night's result is on its way to the save. Only the summary reads it. */
 		saveState?: 'saving' | 'saved' | 'failed'
 	}>()

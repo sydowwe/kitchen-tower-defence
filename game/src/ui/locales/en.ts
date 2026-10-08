@@ -42,6 +42,8 @@ export const en = {
 		food: 'Food',
 		noise: 'Noise',
 		wave: 'Wave {current} / {total}',
+		// A long night's: no total, because nobody reaches it.
+		runWave: 'Wave {current}',
 		callWave: 'Call next wave',
 		sell: 'Sell',
 		upgrade: 'Upgrade',
@@ -922,6 +924,27 @@ export const en = {
 		saving: 'Saving the night…',
 		saveFailed: 'The night did not save.',
 		retrySave: 'Try saving again',
+	},
+	// The long night: the same kitchen, every map, until the fridge is empty. Never called a mode or
+	// "endless" on screen -- it is a night that does not end at six, and the copy says that and no more.
+	// Waves are said as the plain count the HUD shows, with one and none spelled out, like `pay.foodSaved`.
+	endless: {
+		offerTitle: 'A long night',
+		offerLine: 'The same kitchen, for as long as it holds. Pick where.',
+		best: 'Best here: {n} waves',
+		noBest: 'Not tried here yet',
+		title: 'A long night: {map}',
+		line: 'No six o’clock to wait for. It goes on until the fridge is empty.',
+		counter: 'On the counter for the long night',
+		coming: 'Coming in, sooner or later',
+		wonTitle: 'Somehow, it got to morning',
+		wavesSurvived: 'It held for {n} waves.',
+		wavesSurvivedOne: 'It held for one wave.',
+		wavesSurvivedNone: 'It did not get past the first wave.',
+		firstRun: 'The first long night here, at this difficulty.',
+		newBest: 'A new best. The last was {n}.',
+		bestStands: 'The best here is still {n}.',
+		retry: 'Another long night here',
 	},
 }
 

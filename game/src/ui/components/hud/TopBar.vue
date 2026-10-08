@@ -1,14 +1,31 @@
 <template>
 	<div class="top-bar">
 		<div class="panel">
-			<span class="clock">{{ t('hud.clock', { hour: clock.hour, minute: minute }) }}</span>
+			<span
+				v-if="clock !== null"
+				class="clock"
+			>
+				{{ t('hud.clock', { hour: clock.hour, minute: minute }) }}
+			</span>
 			<span
 				class="chip tier"
 				:title="t('hud.tierTitle')"
 			>
 				{{ t(`difficulty.${difficulty}.name`) }}
 			</span>
-			<span class="wave">{{ t('hud.wave', { current: wave.index + 1, total: wave.count }) }}</span>
+			<!-- A run counts waves and nothing else: no "of 200", which nobody reaches, and no clock. -->
+			<span
+				v-if="wave.count === null"
+				class="clock"
+			>
+				{{ t('hud.runWave', { current: wave.index + 1 }) }}
+			</span>
+			<span
+				v-else
+				class="wave"
+			>
+				{{ t('hud.wave', { current: wave.index + 1, total: wave.count }) }}
+			</span>
 			<!-- For the whole night, so a player who missed the opening card can still find out why. -->
 			<span
 				v-if="modifier !== null"
@@ -128,6 +145,7 @@
 	/**
 	 * Clock, tier, wave, tonight's modifier, wallet, noise and food, in one floating panel rather than a full-width bar: the
 	 * board is the brightest thing on screen and chrome floats at its edges (DECISIONS.md section 1).
+	 * In a run there is no clock and the wave stands where it was, uncounted against a total.
 	 *
 	 * No Grocery Money here. Tonight's pay is the summary's and the balance is the Kitchen's; a chip
 	 * reading 0 for twelve waves teaches that the currency never moves (step 20E, decision 6).
@@ -174,7 +192,7 @@
 	const PULSE_AT = 70
 
 	/** `2:5am` is a typo on screen; the clock is the one place a raw number needs padding. */
-	const minute = computed(() => String(clock.minute).padStart(2, '0'))
+	const minute = computed(() => String(clock?.minute ?? 0).padStart(2, '0'))
 
 	const foodFraction = computed(() => (food.total === 0 ? 0 : (food.remaining / food.total) * 100))
 	/** Drawn after the shelf's fill in a dimmer, striped band: gone from the fridge, not yet gone for good. */
