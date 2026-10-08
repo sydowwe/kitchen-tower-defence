@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { newProgress } from '@/core/campaign.ts'
-import { getEnemyDef, INSTALLATIONS, NIGHTS } from '@/core/content/index.ts'
-import { buildKitchenView, buildPreview } from '@/ui/kitchenView.ts'
+import {
+	applyNightModifier,
+	getEnemyDef,
+	getMapDef,
+	getNightDef,
+	getNightModifierDef,
+	INSTALLATIONS,
+	MAPS,
+	NIGHTS,
+	NO_MODIFIERS,
+	resolveDifficulty,
+} from '@/core/content/index.ts'
+import { TileFlags } from '@/core/map.ts'
+import { waveEntryCount } from '@/core/systems/spawn.ts'
+import { buildKitchenView, buildMapShape, buildPreview, buildTierPicker } from '@/ui/kitchenView.ts'
 import type { Progress } from '@/core/campaign.ts'
+import type { NightDef } from '@/core/content/index.ts'
+import type { DifficultyId } from '@/core/types.ts'
 
 /**
  * The Kitchen's view model: the builder only. What drifts silently here is a card that pre-fills as
@@ -99,18 +114,66 @@ describe('buildKitchenView', () => {
 })
 
 describe("the night's composition", () => {
-	it('lists every enemy of every night once, in order of first appearance, summing the authored counts', () => {
+	const NORMAL = resolveDifficulty('normal')
+
+	function authoredTotal(night: NightDef): number {
+		return night.waves.flatMap(wave => wave.entries).reduce((sum, entry) => sum + entry.count, 0)
+	}
+
+	function previewTotal(night: NightDef, tier: DifficultyId): number {
+		return buildPreview(night, tier).enemies.reduce((sum, enemy) => sum + enemy.count, 0)
+	}
+
+	it('lists every enemy of every night once, in order of first appearance, summing waveEntryCount at Normal', () => {
 		for (const night of NIGHTS) {
-			const enemies = buildPreview(night).enemies
+			const enemies = buildPreview(night, 'normal').enemies
 			const entries = night.waves.flatMap(wave => wave.entries)
+			const modifiers =
+				night.modifierId === undefined
+					? NO_MODIFIERS
+					: applyNightModifier(NO_MODIFIERS, getNightModifierDef(night.modifierId))
 
 			expect(enemies.map(enemy => enemy.id)).toEqual([...new Set(entries.map(entry => entry.enemyDefId))])
-			const total = entries.reduce((sum, entry) => sum + entry.count, 0)
+			const total = entries.reduce((sum, entry) => sum + waveEntryCount(entry.count, NORMAL, modifiers), 0)
 			expect(enemies.reduce((sum, enemy) => sum + enemy.count, 0)).toBe(total)
 			for (const enemy of enemies) {
 				expect(enemy.tagKeys).toEqual(getEnemyDef(enemy.id).tags.map(tag => `hud.tag.${tag}`))
 			}
 		}
+	})
+
+	it('comes out at the authored total on every night but 15 at Normal', () => {
+		for (const night of NIGHTS) {
+			if (night.index === 15) {
+				continue
+			}
+			expect(previewTotal(night, 'normal'), night.id).toBe(authoredTotal(night))
+		}
+	})
+
+	it("doubles night 15's dinner party, enemy by enemy", () => {
+		const night = getNightDef('night15')
+		const authored = new Map<string, number>()
+		for (const entry of night.waves.flatMap(wave => wave.entries)) {
+			authored.set(entry.enemyDefId, (authored.get(entry.enemyDefId) ?? 0) + entry.count)
+		}
+
+		const enemies = buildPreview(night, 'normal').enemies
+		expect(enemies.length).toBeGreaterThan(0)
+		for (const enemy of enemies) {
+			expect(enemy.count, enemy.id).toBe(2 * (authored.get(enemy.id) ?? 0))
+		}
+		expect(previewTotal(night, 'normal')).toBe(2 * authoredTotal(night))
+	})
+
+	it('shows night 5 at Nightmare as each entry x1.25, rounded on its own, then summed', () => {
+		const night = getNightDef('night05')
+		const expected = night.waves
+			.flatMap(wave => wave.entries)
+			.reduce((sum, entry) => sum + Math.max(1, Math.round(entry.count * 1.25)), 0)
+
+		expect(previewTotal(night, 'nightmare')).toBe(expected)
+		expect(expected).toBeGreaterThan(authoredTotal(night))
 	})
 
 	it('lists night 14 in full, with the Mouse from wave 7 and two of it', () => {
@@ -132,5 +195,115 @@ describe("the night's composition", () => {
 		const enemies = buildKitchenView(newProgress()).preview?.enemies ?? []
 
 		expect(enemies.map(enemy => [enemy.id, enemy.firstWave])).toEqual([['ant', 1]])
+	})
+})
+
+describe("the preview's modifier", () => {
+	it('carries the modifier of nights 6, 11, 15, 16 and 18 by id, and null on every other night', () => {
+		const modifiers = Object.fromEntries(
+			NIGHTS.map(night => [night.index, buildPreview(night, 'normal').modifier?.id ?? null]),
+		)
+
+		expect(modifiers).toEqual({
+			1: null,
+			2: null,
+			3: null,
+			4: null,
+			5: null,
+			6: 'dishesLeftOut',
+			7: null,
+			8: null,
+			9: null,
+			10: null,
+			11: 'dampNight',
+			12: null,
+			13: null,
+			14: null,
+			15: 'dinnerParty',
+			16: 'movingDay',
+			17: null,
+			18: 'heatwave',
+		})
+	})
+
+	it("names night 18's heatwave with its glyph and both keys, on the Kitchen's preview", () => {
+		expect(buildKitchenView(progressAt('night18')).preview?.modifier).toEqual({
+			id: 'heatwave',
+			glyph: '🌡️',
+			nameKey: 'modifier.heatwave.name',
+			descriptionKey: 'modifier.heatwave.description',
+		})
+	})
+})
+
+describe("the title's tiers", () => {
+	it('offers Cozy and Normal to a new campaign, marks Normal, and says Nightmare opens on Normal', () => {
+		const picker = buildTierPicker(newProgress())
+
+		expect(picker.tiers.map(tier => [tier.id, tier.current, tier.unlocked, tier.opensOnNameKey])).toEqual([
+			['cozy', false, true, null],
+			['normal', true, true, null],
+			['nightmare', false, false, 'difficulty.normal.name'],
+		])
+		expect(picker.campaignStarted).toBe(false)
+	})
+
+	it('opens Nightmare after a Normal clear', () => {
+		const picker = buildTierPicker(progressAt(null, { cleared: ['normal'] }))
+
+		expect(picker.tiers.find(tier => tier.id === 'nightmare')?.unlocked).toBe(true)
+	})
+
+	it('counts a campaign as started once it has a result, money or an installation, and not before', () => {
+		expect(buildTierPicker(progressAt('night01', { groceryMoney: 1 })).campaignStarted).toBe(true)
+		expect(buildTierPicker(progressAt('night01', { installations: ['buyABroom'] })).campaignStarted).toBe(true)
+		expect(
+			buildTierPicker(
+				progressAt('night02', { nightResults: { night01: { attempts: 1, wins: 1, bestGroceryMoney: 0 } } }),
+			).campaignStarted,
+		).toBe(true)
+	})
+})
+
+describe("the map's shape", () => {
+	it('draws the Counter as 336 cells with the 33 track tiles path.spec pins', () => {
+		const shape = buildMapShape('counter')
+		const map = getMapDef('counter')
+
+		expect(shape.widthTiles * shape.heightTiles).toBe(336)
+		expect(shape.cells).toHaveLength(336)
+		expect(shape.cells.filter(cell => cell === 'track')).toHaveLength(33)
+		expect(shape.lanes).toEqual([map.paths[0]?.waypoints])
+	})
+
+	it('keeps a track tile as track, though it is buildable too', () => {
+		const shape = buildMapShape('counter')
+		const map = getMapDef('counter')
+
+		map.flags.forEach((flags, index) => {
+			if ((flags & TileFlags.TRACK) !== 0) {
+				expect(flags & TileFlags.BUILDABLE).toBe(TileFlags.BUILDABLE)
+				expect(shape.cells[index]).toBe('track')
+			}
+		})
+	})
+
+	it('draws the Floor with three lanes', () => {
+		const shape = buildMapShape('floor')
+
+		expect(shape.lanes).toHaveLength(3)
+		expect(shape.lanes).toEqual(getMapDef('floor').paths.map(path => path.waypoints))
+	})
+
+	it("puts every map's fridge on its fridge tile, and copies it", () => {
+		for (const map of MAPS) {
+			const shape = buildMapShape(map.id)
+			expect(shape.fridge, map.id).toEqual(map.fridge.tile)
+			expect(shape.fridge).not.toBe(map.fridge.tile)
+		}
+	})
+
+	it('is on the preview, as the night’s map', () => {
+		expect(buildKitchenView(progressAt('night16')).preview?.map).toEqual(buildMapShape('floor'))
 	})
 })

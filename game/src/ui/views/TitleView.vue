@@ -3,14 +3,24 @@
 		<h1 class="name">{{ t('title.name') }}</h1>
 		<p class="tagline">{{ t('title.tagline') }}</p>
 
-		<button
-			v-if="store.progress !== null"
-			type="button"
-			class="enter"
-			@click="enter"
-		>
-			{{ t('title.enter') }}
-		</button>
+		<template v-if="picker !== null">
+			<button
+				type="button"
+				class="enter"
+				@click="enter"
+			>
+				{{ t('title.enter') }}
+			</button>
+			<TierPicker
+				v-model:asking="asking"
+				:picker="picker"
+				:busy="busy"
+				:saving="store.status === 'saving' && pickedTier !== null"
+				:failed="store.status === 'error' && pickedTier !== null"
+				@start="startTier"
+				@retry="retryTier"
+			/>
+		</template>
 		<LoadState
 			v-else
 			:failed="store.status === 'error'"
@@ -26,22 +36,50 @@
 </template>
 
 <script setup lang="ts">
-	import { onBeforeUnmount, onMounted, shallowRef, type Component } from 'vue'
+	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, type Component } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import { useRouter } from 'vue-router'
 	import LoadState from '@/ui/components/LoadState.vue'
+	import TierPicker from '@/ui/components/title/TierPicker.vue'
+	import { buildTierPicker } from '@/ui/kitchenView.ts'
 	import { useProgressStore } from '@/ui/stores/progress.ts'
 	import { useSettingsStore } from '@/ui/stores/settings.ts'
+	import type { DifficultyId } from '@/ui/kitchenView.ts'
 
 	/**
-	 * The game's name and one way in. Auth and progress load here first, so in mock mode this is the
-	 * first screen that can fail -- and it says so, with a retry, rather than a button that goes nowhere.
+	 * The game's name, one way in, and the tier the campaign is played on. Auth and progress load here
+	 * first, so in mock mode this is the first screen that can fail -- and it says so, with a retry,
+	 * rather than a button that goes nowhere. Starting a new tier can fail too, and says so the same way.
 	 */
 
 	const { t } = useI18n()
 	const router = useRouter()
 	const store = useProgressStore()
 	const settings = useSettingsStore()
+
+	const picker = computed(() => (store.progress === null ? null : buildTierPicker(store.progress)))
+	const busy = computed(() => store.status === 'saving' || store.status === 'loading')
+
+	/**
+	 * The tier the last new campaign was for: which control shows the save, never whether it failed --
+	 * that is the store's `status`. Null until one is picked, so a failed load is not a failed start.
+	 */
+	const pickedTier = ref<DifficultyId | null>(null)
+	const asking = ref<DifficultyId | null>(null)
+
+	async function startTier(tier: DifficultyId): Promise<void> {
+		pickedTier.value = tier
+		if ((await store.startCampaign(tier)) === 'ok') {
+			asking.value = null
+		}
+	}
+
+	async function retryTier(): Promise<void> {
+		await store.retry()
+		if (store.status !== 'error') {
+			asking.value = null
+		}
+	}
 
 	function enter(): void {
 		void router.push({ name: 'kitchen' })

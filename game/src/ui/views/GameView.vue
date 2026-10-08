@@ -14,6 +14,7 @@
 				:toasts="toasts"
 				:wake="wake"
 				:thiefBanner="thiefBanner"
+				:modifierBanner="modifierBanner"
 				:saveState="saveState"
 				@select="onSelect"
 				@sell="onSell"
@@ -93,6 +94,7 @@
 		buildEnemyTooltip,
 		buildHudSnapshot,
 		buildLossView,
+		buildModifierBanner,
 		buildThiefBanner,
 		buildTowerInspector,
 		buildWakeView,
@@ -101,6 +103,7 @@
 		EnemyTooltipView,
 		HudSnapshot,
 		LossView,
+		ModifierBannerView,
 		ThiefBannerView,
 		TowerInspectorView,
 		WakeView,
@@ -199,6 +202,13 @@
 	let lossCount = 0
 	let lastLoss: LossView | null = null
 	const thiefBanner = shallowRef<ThiefBannerView | null>(null)
+
+	/**
+	 * Tonight's modifier, said as the night opens. Built in `restart()`, never `onMounted`: a Retry is
+	 * when the player most needs reminding it is moving day. `worldCount` is the card's key.
+	 */
+	let worldCount = 0
+	const modifierBanner = shallowRef<ModifierBannerView | null>(null)
 
 	/** Dev only: the editor's preview map, stashed until there is a world to hang it on. */
 	let previewMap: MapDef | null = null
@@ -372,6 +382,8 @@
 		lossCount = 0
 		lastLoss = null
 		thiefBanner.value = null
+		worldCount++
+		modifierBanner.value = buildModifierBanner(next, worldCount)
 		resetEffects()
 		// Both selections point at a world that no longer exists.
 		selection.clear()
@@ -672,6 +684,7 @@
 		lossCount = 0
 		lastLoss = null
 		thiefBanner.value = null
+		modifierBanner.value = null
 		resetEffects()
 		interaction?.destroy()
 		interaction = null

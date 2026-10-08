@@ -39,6 +39,7 @@ import {
 	effectiveDef,
 	effectiveDefOf,
 	getEnemyDef,
+	getNightModifierDef,
 	getTowerDef,
 	unlockNightOf,
 } from '@/core/content/index.ts'
@@ -56,6 +57,7 @@ import type { Effectiveness } from '@/core/content/matrix.ts'
 import type {
 	DamageType,
 	DefId,
+	DifficultyId,
 	EntityId,
 	GameEvent,
 	GroceryMoneyBreakdown,
@@ -80,6 +82,7 @@ export type { Effectiveness } from '@/core/content/matrix.ts'
 export type {
 	DamageType,
 	DefId,
+	DifficultyId,
 	EntityId,
 	GroceryMoneyBreakdown,
 	NightPhase,
@@ -294,7 +297,11 @@ export interface TowerInspectorView {
 /** One damage type against the hovered enemy, as it stands this publish. */
 export interface EnemyDamageView {
 	damageType: DamageType
-	/** `resolveDamage(1, ...)`: every tag, armor strip and `Marked` included. Two decimals. */
+	/**
+	 * What `applyDamage` multiplies a hit of 1 by: tonight's `damageTypeMult`, then every tag, armor strip
+	 * and `Marked`. Two decimals. Without the modifier, a heatwave's fire hit would be coloured strong on
+	 * the board while this row says x1.
+	 */
 	multiplier: number
 	/** Off the unrounded multiplier, through the same `effectivenessOf` the damage numbers use. */
 	band: Effectiveness
@@ -517,9 +524,45 @@ export function buildThiefBanner(world: World, waveIndex: number): ThiefBannerVi
 	return thief === null ? null : { waveIndex, nameKey: thief.nameKey }
 }
 
+/** A night modifier as every screen names it: the previews, the night-start card and the HUD's chip. */
+export interface ModifierView {
+	id: DefId
+	glyph: string
+	nameKey: string
+	descriptionKey: string
+}
+
+/** Null for a plain night. Throws on an unknown id, like the lookup it reads. */
+export function buildModifierView(id: DefId | null): ModifierView | null {
+	if (id === null) {
+		return null
+	}
+	const def = getNightModifierDef(id)
+	return { id: def.id, glyph: def.glyph, nameKey: def.nameKey, descriptionKey: def.descriptionKey }
+}
+
+/**
+ * Tonight's modifier, said once as the night opens. `ThiefBannerView`'s idiom: built by `GameView.vue`
+ * in `restart()` and handed to the HUD as a prop, because the snapshot would have to remember it had
+ * said it.
+ */
+export interface ModifierBannerView extends ModifierView {
+	/** Bumped per world. The card keys on it, so a Retry says it again. */
+	worldCount: number
+}
+
+export function buildModifierBanner(world: World, worldCount: number): ModifierBannerView | null {
+	const modifier = buildModifierView(world.night.modifierId)
+	return modifier === null ? null : { ...modifier, worldCount }
+}
+
 export interface HudSnapshot {
 	/** `{ hour, minute }` from `nightClock`. Formatted in `ui/`, never here and never on the world. */
 	clock: { hour: number; minute: number }
+	/** The tier this world was built at. The chip beside the clock. */
+	difficulty: DifficultyId
+	/** Tonight's modifier for the whole night, so a player who missed the card can still find it. */
+	modifier: { glyph: string; nameKey: string } | null
 	/** `index` is 0-based, the way the world holds it. The HUD shows `index + 1`. */
 	wave: { index: number; count: number }
 	phase: NightPhase
@@ -1021,7 +1064,7 @@ export function buildEnemyTooltip(world: World, enemyId: EntityId): EnemyTooltip
 		maxHp: Math.ceil(enemy.maxHp),
 		tagKeys: enemy.tags.map(tag => `hud.tag.${tag}`),
 		damage: DAMAGE_TYPES.map(damageType => {
-			const multiplier = resolveDamage(1, damageType, enemy)
+			const multiplier = resolveDamage(world.modifiers.damageTypeMult[damageType], damageType, enemy)
 			return { damageType, multiplier: round2(multiplier), band: effectivenessOf(multiplier) }
 		}),
 		burrowed: enemy.flags.burrowed,
@@ -1103,8 +1146,12 @@ export function buildHudSnapshot(
 	const night = world.night
 	const over = night.phase === 'won' || night.phase === 'lost'
 
+	const modifier = buildModifierView(night.modifierId)
+
 	return {
 		clock: nightClock(night.waveIndex, night.waveCount),
+		difficulty: world.difficulty.id,
+		modifier: modifier === null ? null : { glyph: modifier.glyph, nameKey: modifier.nameKey },
 		wave: { index: night.waveIndex, count: night.waveCount },
 		phase: night.phase,
 		crumbs: world.crumbs,

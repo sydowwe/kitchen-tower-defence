@@ -2,7 +2,22 @@
 	<div class="top-bar">
 		<div class="panel">
 			<span class="clock">{{ t('hud.clock', { hour: clock.hour, minute: minute }) }}</span>
+			<span
+				class="chip tier"
+				:title="t('hud.tierTitle')"
+			>
+				{{ t(`difficulty.${difficulty}.name`) }}
+			</span>
 			<span class="wave">{{ t('hud.wave', { current: wave.index + 1, total: wave.count }) }}</span>
+			<!-- For the whole night, so a player who missed the opening card can still find out why. -->
+			<span
+				v-if="modifier !== null"
+				class="chip modifier"
+				:title="t('nightModifier.chipTitle')"
+			>
+				<span aria-hidden="true">{{ modifier.glyph }}</span>
+				{{ t(modifier.nameKey) }}
+			</span>
 
 			<span class="divider" />
 
@@ -111,7 +126,7 @@
 	import type { HudSnapshot } from '@/ui/viewModel.ts'
 
 	/**
-	 * Clock, wave, wallet, noise and food, in one floating panel rather than a full-width bar: the
+	 * Clock, tier, wave, tonight's modifier, wallet, noise and food, in one floating panel rather than a full-width bar: the
 	 * board is the brightest thing on screen and chrome floats at its edges (DECISIONS.md section 1).
 	 *
 	 * No Grocery Money here. Tonight's pay is the summary's and the balance is the Kitchen's; a chip
@@ -122,8 +137,10 @@
 	 * count and **the name of what just went**, which is the half the canvas cannot say.
 	 */
 
-	const { clock, wave, crumbs, crumbsOnBoard, food, noise, upcomingThief } = defineProps<{
+	const { clock, difficulty, modifier, wave, crumbs, crumbsOnBoard, food, noise, upcomingThief } = defineProps<{
 		clock: HudSnapshot['clock']
+		difficulty: HudSnapshot['difficulty']
+		modifier: HudSnapshot['modifier']
 		wave: HudSnapshot['wave']
 		crumbs: number
 		crumbsOnBoard: HudSnapshot['crumbsOnBoard']
@@ -217,6 +234,20 @@
 
 	.wave {
 		color: var(--kd-text-dim);
+	}
+
+	/* Labels, not readings: quieter than the clock, and never the brightest thing in the bar. */
+	.chip {
+		padding: 0.1rem 0.5rem;
+		border: 1px solid var(--kd-panel-edge);
+		border-radius: 999px;
+		color: var(--kd-text-dim);
+		font-size: 0.7rem;
+		letter-spacing: 0.03em;
+	}
+
+	.chip.modifier {
+		color: var(--kd-lamp);
 	}
 
 	.divider {

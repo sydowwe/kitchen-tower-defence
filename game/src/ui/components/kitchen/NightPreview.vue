@@ -5,6 +5,14 @@
 			<p class="where">
 				{{ t('kitchen.preview.where', { map: t(preview.mapNameKey), waves: preview.waveCount }) }}
 			</p>
+			<div class="map">
+				<MapShape :shape="preview.map" />
+			</div>
+
+			<ModifierNote
+				v-if="preview.modifier !== null"
+				:modifier="preview.modifier"
+			/>
 
 			<div
 				v-if="preview.unlocks.length > 0"
@@ -60,11 +68,14 @@
 <script setup lang="ts">
 	import { useI18n } from 'vue-i18n'
 	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
+	import MapShape from '@/ui/components/MapShape.vue'
+	import ModifierNote from '@/ui/components/ModifierNote.vue'
 	import type { NightPreviewView } from '@/ui/kitchenView.ts'
 
 	/**
-	 * What tomorrow night brings, and the way to the counter before it. Only what is new: the loadout
-	 * screen lists the whole night. A finished campaign has neither.
+	 * What tomorrow night brings, and the way to the counter before it. Only what is new, the map drawn
+	 * small, and the night's modifier: the loadout screen lists the whole night. A finished campaign has
+	 * neither.
 	 */
 
 	const { preview, busy = false } = defineProps<{
@@ -102,6 +113,10 @@
 		margin: 0;
 		color: var(--kd-day-ink-dim);
 		font-size: 0.85rem;
+	}
+
+	.map {
+		max-width: 12rem;
 	}
 
 	.group h3 {

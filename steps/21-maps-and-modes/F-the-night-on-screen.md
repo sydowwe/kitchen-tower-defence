@@ -61,7 +61,9 @@ edit this file. Don't leave it lying.
    the night starts**, built in `restart()` from `world.night.modifierId`, in `ThiefCard`'s idiom (a
    `shallowRef` prop, keyed so a Retry says it again). If 23B's `WaveBanner` exists, the modifier is its
    wave-1 line on a modifier night, in its slot, not a fourth card. If it doesn't, build a
-   `ModifierCard` at `ThiefCard`'s spot, and 23B folds it into the slot later. **A chip in the
+   `ModifierCard` at `ThiefCard`'s spot, and 23B folds it into the slot later. *(Built: 23B had not
+   landed, so it's `ModifierCard`. `HudLayer` shows it only while there's no thief card, so the thief's
+   replaces it in the spot, the way 23B's slot would.)* **A chip in the
    `TopBar`** for the whole night, so a player who looked away during the banner can still find out why
    the flies are doubled. The general wave-start banner stays step 23's.
 5. **`HudSnapshot` gains `difficulty: DifficultyId` and `modifier: { glyph, nameKey } | null`**, read
@@ -73,6 +75,8 @@ edit this file. Don't leave it lying.
    it ("beat the kitchen on Normal"). Picking another open tier **asks first** when the campaign has
    anything in it (a result, money, an installation), in `ResetProgress`'s confirm idiom, then calls
    the store's `startCampaign`. "Enter" is unchanged. The Kitchen's reset stays the full erase.
+   *(Built: the title reads `buildTierPicker(progress)` in `kitchenView.ts`, because components don't
+   import `core/`. Its `unlocked` is `tierUnlocked`'s answer.)*
 8. **English, in `DECISIONS.md` §1's voice:** rewrite B's five modifier drafts with the banner on
    screen, and add the three tiers (a name, and one line each on what changes in the kitchen, never a
    number), the banner, the chip and the title's question. Type the tier names as
@@ -144,7 +148,7 @@ Extensions to `kitchenView.spec` and `viewModel.spec`.
       anything, and the HUD says it all night.
 - [ ] With `VITE_DATA_MODE=mock` and the dev toggle at 100%, starting a new tier shows the failure, and
       its retry works once the toggle is back down.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 
@@ -152,8 +156,12 @@ Leave every judgement criterion unticked unless you actually sat and looked.
 
 ```
 ui/kitchenView.ts          buildMapShape(mapId: DefId): MapShapeView
-                           buildPreview(night, difficulty): NightPreviewView   // or whatever second argument you chose — say so here
+                           buildPreview(night: NightDef, difficulty: DifficultyId): NightPreviewView
+                           buildTierPicker(progress): TierPickerView
+ui/viewModel.ts            buildModifierView(id: DefId | null): ModifierView | null
+                           buildModifierBanner(world, worldCount): ModifierBannerView | null
 ui/components/MapShape.vue props: { shape: MapShapeView }                     // sized by its container
+ui/components/ModifierNote.vue props: { modifier: ModifierView }              // the previews' modifier block
 ```
 
 ## Do not

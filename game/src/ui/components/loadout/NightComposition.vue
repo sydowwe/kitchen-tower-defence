@@ -4,6 +4,12 @@
 		<p class="where">
 			{{ t('kitchen.preview.where', { map: t(preview.mapNameKey), waves: preview.waveCount }) }}
 		</p>
+		<MapShape :shape="preview.map" />
+
+		<ModifierNote
+			v-if="preview.modifier !== null"
+			:modifier="preview.modifier"
+		/>
 
 		<h3>{{ t('loadout.coming') }}</h3>
 		<ul class="enemies">
@@ -48,12 +54,14 @@
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
+	import MapShape from '@/ui/components/MapShape.vue'
+	import ModifierNote from '@/ui/components/ModifierNote.vue'
 	import type { NightPreviewView } from '@/ui/kitchenView.ts'
 
 	/**
 	 * Everything tonight sends, once each, in the order it first turns up, with every tag the tooltip
-	 * would print. This is what the counter is chosen from (DECISIONS.md section 10), so it is the
-	 * whole night and not only what is new.
+	 * would print, the map's shape and the night's modifier. This is what the counter is chosen from
+	 * (DECISIONS.md section 10), so it is the whole night and not only what is new.
 	 */
 
 	const { preview } = defineProps<{

@@ -1,6 +1,8 @@
 <template>
 	<TopBar
 		:clock="snapshot.clock"
+		:difficulty="snapshot.difficulty"
+		:modifier="snapshot.modifier"
 		:wave="snapshot.wave"
 		:crumbs="snapshot.crumbs"
 		:crumbsOnBoard="snapshot.crumbsOnBoard"
@@ -48,6 +50,11 @@
 		v-if="thiefBanner !== null"
 		:banner="thiefBanner"
 	/>
+	<!-- One card in the slot: the thief's replaces the modifier's rather than landing on top of it. -->
+	<ModifierCard
+		v-else-if="modifierBanner !== null"
+		:banner="modifierBanner"
+	/>
 
 	<ToastStack :toasts="toasts" />
 
@@ -64,6 +71,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import EnemyTooltip from '@/ui/components/hud/EnemyTooltip.vue'
+	import ModifierCard from '@/ui/components/hud/ModifierCard.vue'
 	import NightSummary from '@/ui/components/hud/NightSummary.vue'
 	import ThiefCard from '@/ui/components/hud/ThiefCard.vue'
 	import ToastStack from '@/ui/components/hud/ToastStack.vue'
@@ -77,6 +85,7 @@
 		DefId,
 		EntityId,
 		HudSnapshot,
+		ModifierBannerView,
 		Speed,
 		TargetingMode,
 		ThiefBannerView,
@@ -100,6 +109,7 @@
 		toasts = [],
 		wake = null,
 		thiefBanner = null,
+		modifierBanner = null,
 		saveState = 'saved',
 	} = defineProps<{
 		snapshot: HudSnapshot
@@ -113,6 +123,8 @@
 		wake?: WakeView | null
 		/** The Mouse's announcement, or null. A prop for `wake`'s reason: it is said once, off an event. */
 		thiefBanner?: ThiefBannerView | null
+		/** Tonight's modifier, said as the night opens, or null on a plain night. Built once per world. */
+		modifierBanner?: ModifierBannerView | null
 		/** Where the night's result is on its way to the save. Only the summary reads it. */
 		saveState?: 'saving' | 'saved' | 'failed'
 	}>()

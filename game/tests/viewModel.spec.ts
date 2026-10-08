@@ -18,6 +18,7 @@ import {
 	buildEnemyTooltip,
 	buildHudSnapshot,
 	buildLossView,
+	buildModifierBanner,
 	buildNightSummary,
 	buildThiefBanner,
 	buildTowerInspector,
@@ -668,6 +669,51 @@ describe('the enemy tooltip', () => {
 		expect(tooltip?.at).toEqual({ x: 7.5, y: 0 })
 		expect(tooltip?.widthTiles).toBe(40)
 		expect(tooltip?.heightTiles).toBe(1)
+	})
+
+	it('agrees with the damage numbers under a heatwave: an untagged enemy takes fire x1.3, cold x0.7', () => {
+		const world = createWorld({ ...OPTIONS, mapId: 'floor', nightId: 'night18' })
+		const enemy = spawnEnemyAt(world, ant, 'crack', 3, 0)
+		// No tag with a matrix row, so the only multiplier left is tonight's.
+		enemy.tags = []
+
+		const tooltip = buildEnemyTooltip(world, enemy.id)
+		expect(tooltip?.damage).toEqual([
+			{ damageType: 'physical', multiplier: 1, band: 'neutral' },
+			{ damageType: 'fire', multiplier: 1.3, band: 'strong' },
+			{ damageType: 'cold', multiplier: 0.7, band: 'weak' },
+			{ damageType: 'chemical', multiplier: 1, band: 'neutral' },
+			{ damageType: 'electric', multiplier: 1, band: 'neutral' },
+		])
+	})
+})
+
+describe("the HUD's tier and modifier", () => {
+	it('says the tier the world was built at', () => {
+		expect(buildHudSnapshot(createWorld({ ...OPTIONS, difficulty: 'nightmare' }), VIEW).difficulty).toBe(
+			'nightmare',
+		)
+		expect(buildHudSnapshot(createWorld(OPTIONS), VIEW).difficulty).toBe('normal')
+	})
+
+	it("names a heatwave night's modifier, and null on a plain night", () => {
+		const heatwave = createWorld({ ...OPTIONS, mapId: 'floor', nightId: 'night18' })
+		expect(buildHudSnapshot(heatwave, VIEW).modifier).toEqual({ glyph: '🌡️', nameKey: 'modifier.heatwave.name' })
+
+		expect(buildHudSnapshot(createWorld(OPTIONS), VIEW).modifier).toBeNull()
+	})
+
+	it('builds the night-start card for a modifier night only, keyed by the world', () => {
+		const moving = createWorld({ ...OPTIONS, mapId: 'floor', nightId: 'night16' })
+		expect(buildModifierBanner(moving, 3)).toEqual({
+			id: 'movingDay',
+			glyph: '🚚',
+			nameKey: 'modifier.movingDay.name',
+			descriptionKey: 'modifier.movingDay.description',
+			worldCount: 3,
+		})
+
+		expect(buildModifierBanner(createWorld(OPTIONS), 3)).toBeNull()
 	})
 })
 

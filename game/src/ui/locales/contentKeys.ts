@@ -17,7 +17,7 @@ import type { TowerRole } from '@/core/content/schema.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
 import type { LoadoutProblem } from '@/core/loadout.ts'
 import type { PlacementRejection } from '@/core/systems/placement.ts'
-import type { EnemyTag } from '@/core/types.ts'
+import type { DifficultyId, EnemyTag } from '@/core/types.ts'
 
 /** The two keys every def carries: `<kind>.<id>.name` and `<kind>.<id>.description`. */
 interface Entry {
@@ -90,6 +90,12 @@ export type RejectionMessages = Record<PlacementRejection, string>
  * so a nineteenth tag fails the build here instead of rendering `hud.tag.newTag` over a bug.
  */
 export type TagMessages = Record<EnemyTag, string>
+
+/**
+ * `difficulty`, over `DifficultyId`: the title's tiers and the HUD's chip. A name and one line each on
+ * what changes in the kitchen. A fourth tier without its English fails the build here.
+ */
+export type DifficultyMessages = Record<DifficultyId, Entry>
 
 /** `loadout.role`, over `TowerRole`: the roster's filter and each tower's line. A twelfth role fails here. */
 export type RoleMessages = Record<TowerRole, string>

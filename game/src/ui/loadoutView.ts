@@ -148,7 +148,7 @@ export function buildLoadoutView(progress: Progress, selection: readonly DefId[]
 	const previous = previousLoadout(progress)
 
 	return {
-		preview: buildPreview(night),
+		preview: buildPreview(night, progress.difficulty),
 		slots,
 		counter: selection.map(counterTower),
 		blocked,

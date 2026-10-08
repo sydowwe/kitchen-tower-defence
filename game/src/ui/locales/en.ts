@@ -8,6 +8,7 @@
  */
 
 import type {
+	DifficultyMessages,
 	EnemyMessages,
 	FoodMessages,
 	InstallationEffectMessages,
@@ -97,6 +98,8 @@ export const en = {
 		callWaveBonus: '+{n} crumbs',
 		selected: 'Selected',
 		tier: 'Tier {n}',
+		// The difficulty chip beside the clock. `hud.tier` above is an upgrade's; this is the night's.
+		tierTitle: 'Difficulty',
 		targeting: 'Targeting',
 		// The cycling control's tooltip: what the click does, then the whole order, so the six modes
 		// are still written down somewhere now that they are no longer six chips (12C, decision 3).
@@ -668,30 +671,55 @@ export const en = {
 				'Screwed to the wall above the counter, just within reach, with room on it for something else.',
 		},
 	} satisfies InstallationMessages,
-	// The night modifiers (analytic-docs/CONTENT.md section 6). Drafts: step 21F rewrites them with the
-	// banner on screen.
+	// The night modifiers (analytic-docs/CONTENT.md section 6). One line each, read on the preview before
+	// the counter is chosen and again on the card as the night opens: what is different, and what it
+	// does to the night, said once and plainly. The chip in the top bar carries the name alone.
 	modifier: {
 		dishesLeftOut: {
 			name: 'Dishes Left Out',
-			description: 'Nobody cleared up after dinner. There are crumbs all over the floor before anything arrives.',
+			description: 'Nobody cleared up after dinner. There are crumbs on the floor before anything arrives.',
 		},
 		dampNight: {
 			name: 'A Damp Night',
-			description: 'The air is heavy and the walls are sweating. Mold spreads faster tonight.',
+			description: 'The walls are sweating. Mold spreads faster tonight.',
 		},
 		dinnerParty: {
 			name: 'After a Dinner Party',
-			description: 'Leftovers everywhere. Twice as many of them come, and each one leaves twice the crumbs.',
+			description: 'Leftovers everywhere. Twice as many come, and each leaves twice the crumbs.',
 		},
 		movingDay: {
 			name: 'Moving Day',
-			description: 'Half-packed bags stand wherever there was room. You can only build where they are not.',
+			description: 'Half-packed bags are standing wherever there was room. Nothing goes where they are.',
 		},
 		heatwave: {
 			name: 'Heatwave',
 			description: 'The kitchen will not cool down. Fire burns hotter tonight, and cold does less.',
 		},
 	} satisfies NightModifierMessages,
+	// The words around a modifier: the line over its name on the previews and the card, and the chip's
+	// tooltip. Here rather than under `modifier`, whose shape is one entry per modifier and nothing else.
+	nightModifier: {
+		lead: 'Tonight',
+		chipTitle: 'What is different about tonight',
+	},
+	// The three tiers (analytic-docs/CONTENT.md section 9). What changes in the kitchen, never a number:
+	// the scalars are a balance table, and a player chooses a kind of night.
+	difficulty: {
+		cozy: {
+			name: 'Cozy',
+			description:
+				'Fewer of them, easier to put down. More crumbs, more in the fridge, and everyone sleeps soundly.',
+		},
+		normal: {
+			name: 'Normal',
+			description: 'The nights as they were written.',
+		},
+		nightmare: {
+			name: 'Nightmare',
+			description:
+				'More of them, harder to put down. Fewer crumbs, less in the fridge, and someone sleeps lightly.',
+		},
+	} satisfies DifficultyMessages,
 	// Every map's name, keyed off `MapDef.id`.
 	map: {
 		counter: { name: 'The Counter' },
@@ -707,6 +735,19 @@ export const en = {
 		name: 'Kitchen Defense',
 		tagline: 'At 2am the bugs come for the food.',
 		enter: 'Into the kitchen',
+		// Which tier the campaign is played on. A new tier is a new campaign, and the question says what
+		// that costs before it costs it: the kitchen goes, what has been beaten stays.
+		tier: {
+			question: 'How hard are the nights?',
+			current: 'This campaign',
+			locked: 'Beat the kitchen on {tier} to open this.',
+			ask: 'Start a new campaign on {tier}? The nights, the grocery money and everything bought go. What you have beaten stays.',
+			confirm: 'Start over',
+			cancel: 'Keep this one',
+			saving: 'Starting…',
+			failed: 'It did not take.',
+			retry: 'Try again',
+		},
 	},
 	load: {
 		loading: 'Opening the kitchen…',

@@ -7,15 +7,29 @@
  * Components under `ui/components/kitchen/` import from here and never from `core/`.
  */
 
-import { currentNight } from '@/core/campaign.ts'
-import { getEnemyDef, getTowerDef, INSTALLATIONS, NIGHTS } from '@/core/content/index.ts'
+import { currentNight, DIFFICULTY_LADDER, tierUnlocked } from '@/core/campaign.ts'
+import {
+	applyNightModifier,
+	getEnemyDef,
+	getMapDef,
+	getNightModifierDef,
+	getTowerDef,
+	INSTALLATIONS,
+	NIGHTS,
+	NO_MODIFIERS,
+	resolveDifficulty,
+} from '@/core/content/index.ts'
+import { TileFlags } from '@/core/map.ts'
+import { waveEntryCount } from '@/core/systems/spawn.ts'
+import { buildModifierView } from '@/ui/viewModel.ts'
 import type { Progress } from '@/core/campaign.ts'
 import type { InstallationEffect, InstallationId, NightDef } from '@/core/content/index.ts'
-import type { DefId } from '@/core/types.ts'
-import type { StatValueView } from '@/ui/viewModel.ts'
+import type { DefId, Difficulty, DifficultyId, Vec2, WorldModifiers } from '@/core/types.ts'
+import type { ModifierView, StatValueView } from '@/ui/viewModel.ts'
 
 export type { InstallationId } from '@/core/content/index.ts'
-export type { StatValueView } from '@/ui/viewModel.ts'
+export type { DifficultyId, Vec2 } from '@/core/types.ts'
+export type { ModifierView, StatValueView } from '@/ui/viewModel.ts'
 
 export interface InstallationCardView {
 	id: InstallationId
@@ -51,18 +65,42 @@ export interface NightEnemyView extends PreviewEntryView {
 	/** Every tag, `hud.tag.<tag>`, in the def's order -- the tooltip's keys. */
 	tagKeys: string[]
 	/**
-	 * The **authored** counts summed over every wave. Not the world's: a world-exact count would copy
-	 * `startWave`'s rounding and two installations' cuts into `ui/` (step 20aB, decision 3).
+	 * What will spawn tonight at this tier, summed over every wave: each entry through `waveEntryCount`
+	 * with the tier and the night modifier, the rounding `startWave` uses. The crack's and the window
+	 * screen's cuts are left out, for step 20aB decision 3's reason.
 	 */
 	count: number
 	/** 1-based, the way the HUD counts waves. */
 	firstWave: number
 }
 
+/**
+ * One tile of the authored board, as the preview draws it. A track tile is also buildable, and it is
+ * the track that matters to a player choosing towers against it.
+ */
+export type MapCell = 'buildable' | 'blocked' | 'decor' | 'track'
+
+/**
+ * The map's shape: what the track looks like and where it goes. The authored map, never a world's:
+ * moving day's boxes are placed off the seed when the night starts, and are the night's, not the map's.
+ */
+export interface MapShapeView {
+	widthTiles: number
+	heightTiles: number
+	/** Row-major, `widthTiles * heightTiles` long, like `MapDef.flags`. */
+	cells: MapCell[]
+	/** One per path, in the map's order: its waypoints, tile centres, the spawn first. */
+	lanes: Vec2[][]
+	fridge: Vec2
+}
+
 export interface NightPreviewView {
 	/** The night's 1-based number, as CONTENT.md section 6 counts them. */
 	night: number
 	mapNameKey: string
+	map: MapShapeView
+	/** Tonight's night modifier, or null on a plain night. */
+	modifier: ModifierView | null
 	waveCount: number
 	unlocks: PreviewEntryView[]
 	/** Every enemy in tonight's waves that no lower-indexed night sends, in order of first appearance. */
@@ -126,15 +164,19 @@ function enemyIdsOf(night: NightDef): DefId[] {
 	return night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId))
 }
 
-/** One walk of the waves: a `Map` keeps first-appearance order, and the count sums as it goes. */
-function compositionOf(night: NightDef): NightEnemyView[] {
+/**
+ * One walk of the waves: a `Map` keeps first-appearance order, and the count sums as it goes. Each
+ * entry is rounded on its own before the sum, as each is when its wave starts.
+ */
+function compositionOf(night: NightDef, difficulty: Difficulty, modifiers: WorldModifiers): NightEnemyView[] {
 	const byId = new Map<DefId, NightEnemyView>()
 
 	night.waves.forEach((wave, index) => {
 		for (const entry of wave.entries) {
+			const count = waveEntryCount(entry.count, difficulty, modifiers)
 			const seen = byId.get(entry.enemyDefId)
 			if (seen !== undefined) {
-				seen.count += entry.count
+				seen.count += count
 				continue
 			}
 			const def = getEnemyDef(entry.enemyDefId)
@@ -143,7 +185,7 @@ function compositionOf(night: NightDef): NightEnemyView[] {
 				glyph: def.glyph,
 				nameKey: def.nameKey,
 				tagKeys: def.tags.map(tag => `hud.tag.${tag}`),
-				count: entry.count,
+				count,
 				firstWave: index + 1,
 			})
 		}
@@ -152,14 +194,48 @@ function compositionOf(night: NightDef): NightEnemyView[] {
 	return [...byId.values()]
 }
 
-/** The one builder: the Kitchen shows what is new, and `loadoutView.ts` the whole composition. */
-export function buildPreview(night: NightDef): NightPreviewView {
+/** `TRACK` first: a track tile is `BUILDABLE | TRACK`, and tested the other way round every lane is floor. */
+function cellOf(flags: number): MapCell {
+	if ((flags & TileFlags.TRACK) !== 0) {
+		return 'track'
+	}
+	if ((flags & TileFlags.BLOCKED) !== 0) {
+		return 'blocked'
+	}
+	if ((flags & TileFlags.DECOR) !== 0) {
+		return 'decor'
+	}
+	return (flags & TileFlags.BUILDABLE) !== 0 ? 'buildable' : 'blocked'
+}
+
+/** The authored map as the preview draws it. Every point copied, so nothing holds the def's arrays. */
+export function buildMapShape(mapId: DefId): MapShapeView {
+	const map = getMapDef(mapId)
+
+	return {
+		widthTiles: map.widthTiles,
+		heightTiles: map.heightTiles,
+		cells: map.flags.map(cellOf),
+		lanes: map.paths.map(path => path.waypoints.map(point => ({ x: point.x, y: point.y }))),
+		fridge: { x: map.fridge.tile.x, y: map.fridge.tile.y },
+	}
+}
+
+/**
+ * The one builder: the Kitchen shows what is new, and `loadoutView.ts` the whole composition. The
+ * tier is the campaign's, which the counts are multiplied by.
+ */
+export function buildPreview(night: NightDef, difficulty: DifficultyId): NightPreviewView {
 	const seenBefore = new Set(NIGHTS.filter(other => other.index < night.index).flatMap(enemyIdsOf))
 	const introduced = [...new Set(enemyIdsOf(night))].filter(id => !seenBefore.has(id))
+	const modifierDef = night.modifierId === undefined ? null : getNightModifierDef(night.modifierId)
+	const modifiers = modifierDef === null ? NO_MODIFIERS : applyNightModifier(NO_MODIFIERS, modifierDef)
 
 	return {
 		night: night.index,
 		mapNameKey: `map.${night.mapId}.name`,
+		map: buildMapShape(night.mapId),
+		modifier: buildModifierView(night.modifierId ?? null),
 		waveCount: night.waves.length,
 		unlocks: (night.unlocksTowerIds ?? []).map(function toEntry(id) {
 			const def = getTowerDef(id)
@@ -169,7 +245,55 @@ export function buildPreview(night: NightDef): NightPreviewView {
 			const def = getEnemyDef(id)
 			return { id, glyph: def.glyph, nameKey: def.nameKey }
 		}),
-		enemies: compositionOf(night),
+		enemies: compositionOf(night, resolveDifficulty(difficulty), modifiers),
+	}
+}
+
+/** One rung of the ladder, as the title offers it. */
+export interface TierView {
+	id: DifficultyId
+	nameKey: string
+	descriptionKey: string
+	/** The tier the campaign is on now. */
+	current: boolean
+	/** `tierUnlocked`'s answer. Nothing in `ui/` decides it. */
+	unlocked: boolean
+	/** While locked, the tier whose clear opens it. Null once it is open. */
+	opensOnNameKey: string | null
+}
+
+export interface TierPickerView {
+	/** In `DIFFICULTY_LADDER` order, easiest first. */
+	tiers: TierView[]
+	/**
+	 * The campaign has something to lose: a night played, money in the jar, or something bought. Picking
+	 * another tier asks first only then -- a new campaign on night 1 with nothing in it loses nothing.
+	 */
+	campaignStarted: boolean
+}
+
+function tierNameKey(id: DifficultyId): string {
+	return `difficulty.${id}.name`
+}
+
+export function buildTierPicker(progress: Progress): TierPickerView {
+	return {
+		tiers: DIFFICULTY_LADDER.map(function toTier(id, index): TierView {
+			const unlocked = tierUnlocked(progress, id)
+			const below = DIFFICULTY_LADDER[index - 1]
+			return {
+				id,
+				nameKey: tierNameKey(id),
+				descriptionKey: `difficulty.${id}.description`,
+				current: progress.difficulty === id,
+				unlocked,
+				opensOnNameKey: unlocked || below === undefined ? null : tierNameKey(below),
+			}
+		}),
+		campaignStarted:
+			Object.keys(progress.nightResults).length > 0 ||
+			progress.groceryMoney > 0 ||
+			progress.installations.length > 0,
 	}
 }
 
@@ -201,6 +325,6 @@ export function buildKitchenView(progress: Progress): KitchenView {
 			glyph: def.glyph,
 			nameKey: def.nameKey,
 		})),
-		preview: night === null ? null : buildPreview(night),
+		preview: night === null ? null : buildPreview(night, progress.difficulty),
 	}
 }
