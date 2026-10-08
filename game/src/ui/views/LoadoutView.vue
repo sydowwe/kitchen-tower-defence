@@ -134,6 +134,7 @@
 	import {
 		buildLoadoutView,
 		buildRunLoadoutView,
+		hasRun,
 		runSelectionFor,
 		selectionFor,
 		toggleTower,
@@ -170,9 +171,11 @@
 		if (progress === null) {
 			return null
 		}
-		return mapId === null
-			? selectionFor(progress, session.loadoutDraft)
-			: runSelectionFor(progress, mapId, session.loadoutDraft)
+		if (mapId === null) {
+			return selectionFor(progress, session.loadoutDraft)
+		}
+		// No run on this map: no selection and no view, and the watch below goes back to the Kitchen.
+		return hasRun(progress, mapId) ? runSelectionFor(progress, mapId, session.loadoutDraft) : null
 	})
 
 	const nightView = computed(() =>

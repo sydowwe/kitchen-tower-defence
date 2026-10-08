@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { endlessLoadout, endlessTowerIds, newProgress, tonightsLoadout } from '@/core/campaign.ts'
 import { getNightDef } from '@/core/content/index.ts'
-import { buildLoadoutView, buildRunLoadoutView, runSelectionFor, selectionFor, toggleTower } from '@/ui/loadoutView.ts'
+import {
+	buildLoadoutView,
+	buildRunLoadoutView,
+	hasRun,
+	runSelectionFor,
+	selectionFor,
+	toggleTower,
+} from '@/ui/loadoutView.ts'
 import { shopOrder } from '@/ui/viewModel.ts'
 import type { Progress } from '@/core/campaign.ts'
 import type { LoadoutView, RunLoadoutView } from '@/ui/loadoutView.ts'
@@ -213,6 +220,14 @@ describe("a long night's counter", () => {
 	it('has no view while endless is locked, nor for a map with no long night', () => {
 		expect(buildRunLoadoutView(progressAt('night05'), 'pantry', [])).toBeNull()
 		expect(buildRunLoadoutView(finished, 'attic', [])).toBeNull()
+	})
+
+	it('says there is no run on a hand-typed map before anything throws on it', () => {
+		expect(hasRun(finished, 'pantry')).toBe(true)
+		expect(hasRun(progressAt('night05'), 'pantry')).toBe(false)
+		expect(hasRun(finished, 'attic')).toBe(false)
+		// What the screen would have called without asking: it throws, which is why it asks.
+		expect(() => runSelectionFor(finished, 'attic', null)).toThrow("no endless run on map 'attic'")
 	})
 })
 

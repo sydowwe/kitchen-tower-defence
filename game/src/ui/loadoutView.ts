@@ -155,8 +155,18 @@ export function selectionFor(progress: Progress, draft: LoadoutDraft | null): De
 }
 
 /**
+ * Whether there is a long night to set out for on `mapId`: endless is open, and the map has one. The
+ * screen asks this before anything else, because `endlessLoadout` throws on a map with no run, and a
+ * hand-typed URL is exactly such a map.
+ */
+export function hasRun(progress: Progress, mapId: DefId): boolean {
+	return endlessUnlocked(progress) && endlessMapIds().includes(mapId)
+}
+
+/**
  * `selectionFor` for a long night on `mapId`: a draft kept under the map's endless night id, else
  * `endlessLoadout`. A draft for any other night -- tonight's, or another map's -- is not this one.
+ * Throws on a map with no run, like `endlessLoadout`: ask `hasRun` first.
  */
 export function runSelectionFor(progress: Progress, mapId: DefId, draft: LoadoutDraft | null): DefId[] {
 	return keptDraft(progress, draft, endlessNightId(mapId), endlessTowerIds()) ?? endlessLoadout(progress, mapId)
@@ -236,7 +246,7 @@ export function buildRunLoadoutView(
 	mapId: DefId,
 	selection: readonly DefId[],
 ): RunLoadoutView | null {
-	if (!endlessUnlocked(progress) || !endlessMapIds().includes(mapId)) {
+	if (!hasRun(progress, mapId)) {
 		return null
 	}
 
