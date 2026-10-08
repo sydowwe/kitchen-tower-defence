@@ -29,7 +29,21 @@ import type {
 	StatusApplication,
 	TargetClass,
 } from '@/core/content/behaviours.ts'
-import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/types.ts'
+import type { DamageBook, DamageSource, DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/types.ts'
+
+/**
+ * Books `dealt` to its source. **No allocation**: this runs for every DoT tick of every enemy, and the
+ * keys are a number or a string the caller already held, never one built here.
+ */
+function bookDamage(book: DamageBook, source: DamageSource, dealt: number): void {
+	if (source === null) {
+		book.unattributed += dealt
+	} else if (typeof source === 'number') {
+		book.byTower[source] = (book.byTower[source] ?? 0) + dealt
+	} else {
+		book.byTileEffect[source] = (book.byTileEffect[source] ?? 0) + dealt
+	}
+}
 
 /**
  * `base` damage of `damageType` onto `enemy`, through tonight's `damageTypeMult` and then the tag
@@ -45,10 +59,25 @@ import type { DamageType, Enemy, EntityId, Tower, Vec2, World } from '@/core/typ
  *
  * The world is what the scorch mark below is written into -- the parameter step 9 took unused and
  * held open for exactly this.
+ *
+ * `source` is who the HP goes down to in `night.damage`: the tower for a hit, an aura, reflect or a
+ * DoT a tower applied; the tile effect for floor damage; null for anything else.
  */
-export function applyDamage(world: World, enemy: Enemy, base: number, damageType: DamageType): number {
+export function applyDamage(
+	world: World,
+	enemy: Enemy,
+	base: number,
+	damageType: DamageType,
+	source: DamageSource,
+): number {
 	const amount = resolveDamage(base * world.modifiers.damageTypeMult[damageType], damageType, enemy)
+	// Read before the write: what the enemy actually lost, never the overkill. A Mousetrap's 60 on a
+	// 10-HP Ant is 10, and counting the 60 makes every burst tower look dominant.
+	const dealt = Math.min(amount, Math.max(0, enemy.hp))
 	enemy.hp -= amount
+	if (dealt > 0) {
+		bookDamage(world.night.damage, source, dealt)
+	}
 
 	// **The type test comes first, before anything is computed.** This function runs for every DoT
 	// tick of every enemy, and `enemyPosition` is the hottest function in `core/` -- calling it
@@ -82,7 +111,7 @@ export function dealDamage(
 	damageType: DamageType,
 	sourceTowerId: EntityId,
 ): number {
-	const amount = applyDamage(world, enemy, base, damageType)
+	const amount = applyDamage(world, enemy, base, damageType, sourceTowerId)
 	if (amount === 0) {
 		return amount
 	}

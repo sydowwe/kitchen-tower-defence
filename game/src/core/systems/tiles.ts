@@ -116,7 +116,7 @@ export function tilesSystem(world: World): void {
 			// 32-number cap, exactly as `auraSystem` documents. Through it rather than off `hp`, so a
 			// fungal enemy standing in fire takes the matrix multiplier.
 			if (def.effect === 'damageOverTime' && def.damageType !== null) {
-				applyDamage(world, enemy, effect.magnitude, def.damageType)
+				applyDamage(world, enemy, effect.magnitude, def.damageType, effect.kind)
 			}
 			// No source id: a cell has none (there is nothing to attribute a kill to), and a null one
 			// simply never matches the charge bookkeeping's `status.sourceId === towerId`.

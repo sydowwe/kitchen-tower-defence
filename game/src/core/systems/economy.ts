@@ -26,11 +26,14 @@ import type { World } from '@/core/types.ts'
  * through either door, a tower payout and the early-call bonus are all unbanked. The starting crumbs
  * and a sell refund are the two banked sources -- a refund is returned capital, and a wake that ate
  * it would make selling before one a trap the player cannot see (step 13A, decision 6).
+ *
+ * Unbanked is income, so it is also what `night.crumbsEarned` counts.
  */
 export function earnCrumbs(world: World, amount: number, banked = false): void {
 	world.crumbs += amount
 	if (!banked) {
 		world.unbankedCrumbs += amount
+		world.night.crumbsEarned += amount
 	}
 }
 
@@ -47,6 +50,7 @@ export function earnCrumbs(world: World, amount: number, banked = false): void {
 export function spendCrumbs(world: World, amount: number): void {
 	world.crumbs -= amount
 	world.unbankedCrumbs = Math.max(0, world.unbankedCrumbs - amount)
+	world.night.crumbsSpent += amount
 }
 
 /**

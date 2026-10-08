@@ -57,7 +57,13 @@ export function auraSystem(world: World): void {
 				// times a second per enemy in radius, which is what `render/layers/effects.ts`'s
 				// 32-number cap is there to be protected from. The feedback for an aura is the fill.
 				if (behaviour.damagePerTick > 0) {
-					applyDamage(world, enemy, behaviour.damagePerTick * AURA_INTERVAL_TICKS, behaviour.damageType)
+					applyDamage(
+						world,
+						enemy,
+						behaviour.damagePerTick * AURA_INTERVAL_TICKS,
+						behaviour.damageType,
+						tower.id,
+					)
 				}
 				applyStatuses(enemy, behaviour.applies, tower.id, behaviour.damageType)
 			}

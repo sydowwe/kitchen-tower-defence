@@ -530,6 +530,20 @@ export interface NightState {
 	/** The same currency as `crumbsDropped`: summed value, through either collection door. */
 	crumbsCollected: number
 	/**
+	 * Income tonight: every unbanked `earnCrumbs` -- collection through either door, tower payouts and
+	 * the early-call bonus. Never the starting crumbs, which never pass through it, and never a sell
+	 * refund, which is returned capital. Written only in `earnCrumbs`. The balance harness divides it.
+	 */
+	crumbsEarned: number
+	/** Crumbs spent tonight on placements and upgrades. Written only in `spendCrumbs`. */
+	crumbsSpent: number
+	/**
+	 * Every point of HP `applyDamage` removed tonight, by who removed it. A ledger here for
+	 * `enemiesKilled`'s reason, and because `enemyDamaged` is published by discrete hits alone: poison,
+	 * burn, auras, heat and reflect would be missing from any tally of events.
+	 */
+	damage: DamageBook
+	/**
 	 * Enemies killed tonight, incremented where `resolveSystem` pushes `enemyKilled`. The night-end
 	 * summary shows it and `groceryMoneyFor` reads it.
 	 *
@@ -567,6 +581,27 @@ export interface NightState {
 	 * that makes one.
 	 */
 	pay: GroceryMoneyBreakdown | null
+}
+
+/**
+ * Who removed a point of enemy HP: a tower's entity id, the kind of tile effect it stood in, or null
+ * for nothing that can be named -- a status a tile applied carries no tower. A number or a string the
+ * caller already holds, so booking one allocates nothing.
+ */
+export type DamageSource = EntityId | TileEffectKind | null
+
+/**
+ * Effective damage by source: `min(amount, max(0, hp before))` per call, so overkill is never counted
+ * and the buckets sum to the HP every enemy lost. Written only in `applyDamage`.
+ *
+ * **Keyed by tower id, not def id.** A sold tower's poison still ticks, and the id is all the status
+ * carries; the harness turns ids into defs from the `towerPlaced` events it saw. A nested record, so
+ * whoever builds a `NightState` builds a fresh one.
+ */
+export interface DamageBook {
+	byTower: Record<EntityId, number>
+	byTileEffect: Partial<Record<TileEffectKind, number>>
+	unattributed: number
 }
 
 /**

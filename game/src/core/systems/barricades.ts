@@ -222,7 +222,7 @@ export function barricadesSystem(world: World): void {
 		// layer's 32-number cap and takes the real hit numbers down with it.
 		const reflect = barricadeBehaviourOf(effectiveDefOf(tower))
 		if (reflect !== null && reflect.reflectDamagePerTick > 0) {
-			applyDamage(world, enemy, reflect.reflectDamagePerTick, reflect.reflectDamageType)
+			applyDamage(world, enemy, reflect.reflectDamagePerTick, reflect.reflectDamageType, tower.id)
 		}
 
 		if (tower.hp <= 0) {

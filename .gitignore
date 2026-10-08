@@ -15,6 +15,8 @@ dist-ssr
 dev-dist
 coverage
 *.local
+# The balance harness's raw results. What it teaches goes into analytic-docs/ as numbers.
+game/.balance/
 
 /cypress/videos/
 /cypress/screenshots/

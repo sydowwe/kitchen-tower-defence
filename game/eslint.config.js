@@ -225,6 +225,22 @@ export default defineConfigWithVueTs(
 		rules: { 'no-restricted-imports': restrict([iconBan]) },
 	},
 
+	// --- dev/harness/ would run in a page, except its CLI --------------------------------------
+	{
+		files: ['src/dev/harness/**/*.ts'],
+		ignores: ['src/dev/harness/cli.ts'],
+		rules: {
+			'no-restricted-imports': restrict([
+				axiosBan,
+				iconBan,
+				{
+					group: ['node:*', 'fs', 'fs/*', 'path', 'os', 'url', 'child_process', 'worker_threads'],
+					message: 'Only dev/harness/cli.ts touches Node. The job, runner, row and CSV would run in a page.',
+				},
+			]),
+		},
+	},
+
 	// dev/ is deliberately exempt from determinism: the map editor and the balance harness are
 	// allowed to be impure, and they are not shipped in production builds.
 	{

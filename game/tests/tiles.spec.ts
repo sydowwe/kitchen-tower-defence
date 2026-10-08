@@ -454,7 +454,7 @@ describe('scorch', () => {
 		const world = makeWorld()
 		const enemy = addEnemy(world, { distance: 12.4 })
 
-		applyDamage(world, enemy, 10, 'fire')
+		applyDamage(world, enemy, 10, 'fire', null)
 
 		// 12.4 rounds to 12, which is the tile the enemy is standing on.
 		expect(hasEffect(world, at(12), 'scorch')).toBe(true)
@@ -465,9 +465,9 @@ describe('scorch', () => {
 		const world = makeWorld()
 		const enemy = addEnemy(world, { distance: 12 })
 
-		applyDamage(world, enemy, 10, 'chemical')
-		applyDamage(world, enemy, 10, 'physical')
-		applyDamage(world, enemy, 10, 'cold')
+		applyDamage(world, enemy, 10, 'chemical', null)
+		applyDamage(world, enemy, 10, 'physical', null)
+		applyDamage(world, enemy, 10, 'cold', null)
 
 		expect(world.tiles).toEqual([])
 	})
@@ -477,7 +477,7 @@ describe('scorch', () => {
 		const enemy = addEnemy(world, { distance: 12 })
 
 		for (let index = 0; index < 600; index++) {
-			applyDamage(world, enemy, 1, 'fire')
+			applyDamage(world, enemy, 1, 'fire', null)
 		}
 
 		expect(world.tiles).toHaveLength(1)

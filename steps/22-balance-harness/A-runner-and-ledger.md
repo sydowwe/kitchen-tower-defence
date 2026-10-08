@@ -28,8 +28,8 @@ and D's tuning rest on them.
 | `core/types.ts` (`NightState`) | The per-night ledgers: `crumbsDropped`, `crumbsCollected`, `enemiesKilled`, `ticksSkippedTotal`, `pay`. The note on `enemiesKilled` says why a ledger lives here and not in a tally of events: a tally "would not exist for the balance harness at all" |
 | `core/world.ts` (`createWorld`) | Builds `night` field by field (~line 185) |
 | `tests/fixtures/world.ts` | The night literal. It fails `type-check` until every new `NightState` field has a value, which is the point |
-| `core/content/nights.ts` | All eighteen nights, all on the Counter until step 21 moves them. The note above `night11` says **a mold nobody can shoot is a night that never ends** |
-| `core/content/schema.ts:1016` | `if (import.meta.env.DEV)`, run at load by anything that imports `core/content/` |
+| `core/content/nights.ts` | All eighteen nights, on the five maps since step 21C (Counter, Sink, Pantry, Stove, Table, Floor), four of them with a night modifier. **A mold nobody can shoot is a night that never ends** |
+| `core/content/schema.ts:1123` | `if (import.meta.env.DEV)`, run at load by anything that imports `core/content/` |
 | `src/dev/harness/.gitkeep` | The directory, empty |
 | `eslint.config.js:228` | `dev/` is exempt from the determinism rules (`Date`, `Math.random`, `performance`) |
 | `ui/views/GameView.vue:135` | `SEED = 1234`, fixed, so a retry reopens the same night |
@@ -63,18 +63,23 @@ then edit this file. Don't leave it lying.
    from 13" can't be measured. Campaign mode folds `applyNightResult` over the nights and buys
    installations between them. It's what measures Grocery Money pacing and whether a player reaches 7
    slots by night 14 (`CONTENT.md` §8). **Set `difficulty` on the progress directly, in both modes.**
-   If step 21E has landed, don't go through its `startCampaign(progress, tier)`: that refuses
+   Step 21E has landed; don't go through its `startCampaign(progress, tier)`: that refuses
    Nightmare until Normal is cleared, and the harness plays every tier from night 1.
 5. **A campaign retry is the game's retry.** It uses the same seed, pays the loss's Grocery Money,
    buys installations, and asks the loadout policy again. If a retry would rebuild the same world with
    the same policy (same installations, same loadout), determinism makes it identical. The campaign
-   then stops, and the night's last row is `stuck`. That's the measurement `OPEN-QUESTIONS.md` §1's
+   then stops without playing it, and the loss it would have repeated is relabelled `stuck`, so the
+   night's last row is `stuck`. That's the measurement `OPEN-QUESTIONS.md` §1's
    catch-up question is waiting for. Installations are bought in one fixed priority while affordable:
    the three counter-space ones cheapest first, then the rest in `INSTALLATIONS` order.
 6. **Every job builds its world the game's way.** The loadout policy either returns a list, which goes
    through `setLoadout` (a refusal throws, because it's a policy bug), or null, which leaves
    `tonightsLoadout`. Then `worldOptionsFor(progress, seed)` → `createWorld` → `patch?.(world)` →
    tick. The `patch` hook exists for C's sweep, and this part only ever passes none.
+   *Built:* a null is stored too, as `setLoadout(progress, tonightsLoadout(progress))`. That's what
+   the game's Start button does with an untouched preselection, and without it no campaign would ever
+   store a loadout. `previousLoadout` would then find no "last night's", and campaign `default` would
+   fall back to the oldest towers, the same as night mode, which contradicts the gotcha in Build §2.
 7. **A night that doesn't end is `stalled`, not a hang.** The runner stops at `MAX_NIGHT_TICKS` =
    72,000, twenty game-minutes. The longest defended night measured while splitting was 22,219 ticks.
    A stalled row has blank Grocery Money. **Never call `nightResultOf` on one**, because it throws. In
@@ -146,7 +151,8 @@ The loop, per tick: `policy.decide(world)`, enqueue each command and append `(ti
 log, `tick(world, queue)`, **then read `world.events`**. They're gone at the top of the next tick.
 Reading them once at the end gives `towersBuilt: 1` and an empty tower-id map, with no error.
 
-Row columns (add to them, don't drop any): `night, nightIndex, map, difficulty, policy,
+Row columns (add to them, don't drop any; *built:* `mode` went in first, `night | campaign`, because
+`default` is a different player in the two): `night, nightIndex, map, difficulty, policy,
 loadoutPolicy, loadout` (ids joined with `|`), `installations, seed, attempt, sweepKnob, sweepValue,
 outcome` (`won | lost | stalled | stuck`), `ticks, wavesStarted, wavesCleared, waveCount, foodStart,
 foodRemaining, crumbsStart, crumbsEarned, crumbsSpent, crumbsWastedAtSunrise` (the wallet at the end,
@@ -177,7 +183,8 @@ Gotchas, all in the launcher:
   idles after the run instead of exiting.
 - Close the server in `finally`. Otherwise a throw prints its stack and never gives the prompt back.
 - Lint runs over `scripts/*.mjs` too. If it flags `process` as undefined, give `scripts/**` Node
-  globals in `eslint.config.js`. Never an `eslint-disable`.
+  globals in `eslint.config.js`. Never an `eslint-disable`. *Built:* it doesn't. `no-undef` isn't on
+  for `.mjs` in this config, so no globals block was added.
 
 ### 4. `eslint.config.js`, `.gitignore`, `game/.prettierignore`
 
@@ -213,19 +220,20 @@ the shared patterns through `restrict()`, the way every other scope does. Then d
 - **Stall.** A job whose tick cap is shorter than its night returns `stalled` with blank Grocery Money
   and doesn't throw.
 - **Campaign.** A won night advances and pays. A lost night retries on the same seed. A retry with
-  nothing changed stops as `stuck` after that one identical attempt.
+  nothing changed stops as `stuck` after that one identical attempt. That is, the retry isn't played,
+  and the loss it would have repeated becomes the `stuck` row.
 
 ## Acceptance
 
-- [ ] `npm run balance -- --nights 1-18 --policy idle` writes eighteen rows, every one `lost`, in a few
+- [x] `npm run balance -- --nights 1-18 --policy idle` writes eighteen rows, every one `lost`, in a few
       seconds.
 - [ ] Opened in a spreadsheet, those eighteen rows already tell a story: undefended, night 1 lasts
       ~4,000 ticks and night 18 ~2,100 (measured while splitting). If a column is unreadable without
       its code open, rename it now, before B and C build on it.
-- [ ] Searching `src/dev/harness/` for `node:` finds only `cli.ts`, and `npm run build`'s output
+- [x] Searching `src/dev/harness/` for `node:` finds only `cli.ts`, and `npm run build`'s output
       contains nothing from `dev/harness/`.
-- [ ] Nothing in the row recomputes a number that already has a home in `core/`.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] Nothing in the row recomputes a number that already has a home in `core/`.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 22B and 22C
 
@@ -240,13 +248,21 @@ dev/harness/types.ts  interface NightContext { progress: Progress; loadout: read
                       POLICIES: Record<string, PolicyFactory>
                       LOADOUT_POLICIES: Record<string, LoadoutPolicy>
                       interface Job; interface Row
-dev/harness/run.ts    runJob(job: Job): Row[]
+dev/harness/run.ts    runJob(job: Job): Row[]                  // Job.maxTicks? is the stall cap
                       runNight(progress: Progress, seed: number, policy: PolicyFactory,
-                               loadoutPolicy: LoadoutPolicy, patch?: (world: World) => void)
-                          : { row: Row; log: LoggedCommand[]; world: World; options: CreateWorldOptions }
-                      replayNight(options: CreateWorldOptions, patch, log: LoggedCommand[]): World
+                               loadoutPolicy: LoadoutPolicy, patch?: (world: World) => void,
+                               labels?: NightLabels)        // mode, sweep, attempt, maxTicks
+                          : { row: Row; log: LoggedCommand[]; world: World; options: CreateWorldOptions;
+                              progress: Progress }          // tonight's loadout stored in it
+                      runCampaign(start, seed, policy, loadoutPolicy, lastNightIndex, sweep?, maxTicks?)
+                          : { rows: Row[]; progress: Progress }
+                      replayNight(options: CreateWorldOptions, patch, log: LoggedCommand[], maxTicks?): World
+dev/harness/row.ts    rowOf, createTally, tallyEvents          // the events a row counts, fed every tick
 dev/harness/csv.ts    toCsv(rows: readonly Row[]): string      // sorted, fixed decimals
-core/types.ts         NightState.crumbsEarned, NightState.crumbsSpent, and the damage book
+core/types.ts         NightState.crumbsEarned, NightState.crumbsSpent, NightState.damage: DamageBook
+                      { byTower: Record<EntityId, number>, byTileEffect, unattributed }, and
+                      applyDamage(world, enemy, base, damageType, source: DamageSource)
+tests/fixtures/scriptedPolicy.ts  scripted(script): PolicyFactory   // test-only; place/upgrade/sell/collect/call
 ```
 
 `runNight` creates a fresh policy for every night. A policy's state lives on that object, never in

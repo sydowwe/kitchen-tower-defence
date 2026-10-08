@@ -31,11 +31,13 @@ export function statusSystem(world: World): void {
 			// symptom of dropping the factor is a tower that feels fine on one enemy and useless on
 			// a wave. A DoT status always resolves as *some* damage type -- the applying behaviour's
 			// if it had one, the def's otherwise -- so the fallback below is unreachable in practice.
+			// Booked to the tower that applied it, sold or not; a tile's status has none.
 			applyDamage(
 				world,
 				enemy,
 				status.magnitude * status.stacks,
 				status.damageType ?? def.damageType ?? 'physical',
+				status.sourceId,
 			)
 		}
 

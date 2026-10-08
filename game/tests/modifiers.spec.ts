@@ -292,7 +292,7 @@ describe('after a dinner party', () => {
 
 describe('a heatwave', () => {
 	function hit(world: World, damageType: DamageType): number {
-		return applyDamage(world, untagged(world), 10, damageType)
+		return applyDamage(world, untagged(world), 10, damageType, null)
 	}
 
 	it('deals 13 of 10 fire, 7 of 10 cold, and 10 of 10 physical', () => {
