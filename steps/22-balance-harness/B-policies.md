@@ -24,8 +24,8 @@ scoring goes in `core/`, because step 23's "recommended tile" hint would ask the
 | File | What's there now |
 | --- | --- |
 | `dev/harness/types.ts`, `run.ts` | 22A's `Policy`, `LoadoutPolicy`, the two registries, `runJob`, `runNight`, `replayNight`, the `idle` policy and the `default` loadout policy. `runNight` makes a fresh policy each night, calls `begin` once and `decide` every tick |
-| `ui/viewModel.ts:598` (`statsFor(def)`) | The shop card's numbers: `dps`, `rangeTiles`, `targets`, `damageType`, `crumbsPerSecond`, `heatRadiusTiles`, rounded to 2 dp. It imports only `core/`, and its header forbids `vue`. **The only DPS formula in `src/`.** It counts a hit's damage times its rate, an aura's rate and heat's rate. It doesn't count poison |
-| `ui/kitchenView.ts:156` (`buildPreview(night)`) | The preview the loadout screen shows. `enemies` is `[{ id, count, tagKeys, firstWave }]`, the whole composition at authored counts. Imports only `core/` |
+| `ui/viewModel.ts` (`statsFor(def)`) | The shop card's numbers: `dps`, `rangeTiles`, `targets`, `damageType`, `crumbsPerSecond`, `heatRadiusTiles`, rounded to 2 dp. It imports only `core/`, and its header forbids `vue`. **The only DPS formula in `src/`.** It counts a hit's damage times its rate, an aura's rate and heat's rate. It doesn't count poison |
+| `ui/kitchenView.ts` (`buildPreview(night, difficulty)`) | The preview the loadout screen shows. `enemies` is `[{ id, count, tagKeys, firstWave }]`, the whole composition at **tonight's** counts (step 21F: each entry through `waveEntryCount` at the tier and the night's modifier). Imports only `core/` |
 | `core/content/matrix.ts` (`resolveDamage(base, type, target)`) | Tags multiply. `target` needs `{ tags, statuses }` |
 | `core/systems/targeting.ts` (`isFlyer`) | Air or ground, from the tags |
 | `core/systems/spatial.ts:63` (`queryEnemiesInRange`) | Squared distance from the tower's **tile centre** to the enemy's sampled position, inclusive |
@@ -55,25 +55,40 @@ then edit this file. Don't leave it lying.
    target (`isFlyer` against `targets`). The card's number, not a second DPS formula: ranking by what
    the card says is a human reading the shop, and two DPS formulas drift apart. It undervalues the Spray
    Bottle's poison exactly as a card-reader would.
-3. **Tonight's composition comes from `buildPreview(night).enemies`, never from `night.waves`.** Take
+3. **Tonight's composition comes from `buildPreview(night, difficulty).enemies`, never from `night.waves`.** Take
    ids and counts, and look each id's def up for HP and tags. The gap between `optimal` and `blind` then
    measures what the preview gives a player, not what the file knows, which is the question 20a asked
    of the preview.
-4. **`greedy`** clicks every pile on the board each tick and calls each wave on the tick its countdown
-   starts. Each tick it buys the affordable purchase with the best value per crumb:
+4. **`greedy`** clicks every pile on the board and fetches every dropped food item each tick, and calls
+   each wave on the tick its countdown starts. Each tick it finds the purchase with the best value per
+   crumb, and buys it if the wallet allows. If not, it saves for it:
    - **a new tower** at its best free tile: value × `trackCoverage` there;
-   - **an upgrade**: the value gained, `statsFor(effectiveDef(id, tier + 1))` minus the current tier's,
-     at that tower's coverage, for `upgradeCostFor`;
-   - **an economy tower**: `crumbsPerSecond × ECONOMY_WEIGHT`, placed where its collect radius covers
-     the most track, since piles drop where enemies die.
+   - **an upgrade**: the value gained, value × coverage at tier + 1 minus the same at the current tier
+     (so a tier that widens the range is credited the extra track), for `upgradeCostFor`;
+   - **an economy tower**: `crumbsPerSecond × ECONOMY_WEIGHT × reference / (economy towers standing,
+     itself included)`, placed where its collect radius covers the most track, since piles drop where
+     enemies die. `reference` is the best value per crumb any loadout tower has on tonight's empty board.
 
-   Start `ECONOMY_WEIGHT` wherever greedy's night-1 build opens with two or three Salt Shakers and
-   then a Crumb Tray. Settle it by looking at what greedy builds on nights 1 and 8, **never by its win
-   rate**: a constant tuned to make the targets pass measures itself.
+   `ECONOMY_WEIGHT` is 18. That puts greedy's night 1 at four Salt Shakers, then a saved-for Crumb Tray,
+   then shakers along the lane. It was settled by looking at what greedy builds on nights 1 and 8,
+   **never by its win rate**: a constant tuned to make the targets pass measures itself.
+
+   *Changed in the build, three ways, each because the code proved the written version wrong:*
+   - *"The affordable purchase" became "the best purchase, saved for".* Crumbs arrive a few at a time,
+     so the wallet always crosses the cheapest useful price first. Read literally, greedy never buys
+     anything dearer than a Salt Shaker after the opening: no tray, no Toaster.
+   - *Economy is relative to `reference` and shared between the economy towers standing, where it was
+     a flat `crumbsPerSecond × ECONOMY_WEIGHT`.* A flat number can't produce the target build. On the
+     Counter the four best shaker tiles tie at coverage 8.5, and shaker tiles only get worse as they
+     fill while a flat tray never does: once a tray wins, every purchase after it is a tray. And the
+     Floor's best tile covers 25.4 tiles to the Counter's 8.5, so a weight that buys economy on one map
+     buys none on the other.
+   - *Food fetching was added to greedy and casual.* It costs a command, like a pile. Without it, every
+     thief's drop is lost on a night a person would have clicked it back.
 5. **`noEconomy` is `greedy` with `ECONOMY_WEIGHT` at 0**, and `economy: false`, so its loadout
    brings none. One knob on the same code, so the comparison isolates economy and nothing else.
-6. **`casual`** never calls early. It clicks a pile only when the pile lies inside some tower's range,
-   where its attention is. Whenever it can afford one, it buys the next tower in its loadout in
+6. **`casual`** never calls early. It clicks a pile, or fetches a dropped food item, only when it lies
+   inside some tower's range, where its attention is. Whenever it can afford one, it buys the next tower in its loadout in
    newest-first unlock order, round robin. It places each one at the free legal tile nearest the fridge
    with coverage above 0. **Not "only the newest".** Read literally, night 2's casual buys nothing but
    Sticky Tape, which does 0 damage, and loses every night whose unlock is a specialist. The step's own
@@ -155,15 +170,17 @@ by ids remembered from an event. A remembered id is a pile that has since merged
 
 ## Acceptance
 
-- [ ] `npm run balance -- --campaign --policy greedy --loadout optimal` plays all eighteen nights on
+- [x] `npm run balance -- --nights 1-18 --policy greedy --loadout optimal` plays all eighteen nights on
       one seed in under 30 seconds. Measured while splitting, a board on every lane-side tile runs at
       ~100–125 µs a tick and eighteen such nights took ~30 s, so greedy's board has to stay short of
-      "every tile". Put the time in the commit message.
+      "every tile". Put the time in the commit message. *Was `--campaign`, which can't reach eighteen:
+      greedy loses night 8, the retry rebuilds the same world, and the campaign stops `stuck` (8 rows,
+      6.8 s). Night mode plays all eighteen, at 22.8 s.*
 - [ ] Read as rows (towers built, crumbs earned and spent), greedy's nights 1 and 8 look like a player
       reading the shop: some economy early, DPS along the lane, never a tower with nothing in range.
-- [ ] `random` has run a few hundred nights without a throw. If it found one, the fix is in `core/`,
-      with a spec, in this commit.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `random` has run a few hundred nights without a throw. If it found one, the fix is in `core/`,
+      with a spec, in this commit. *1,080 nights (18 × 20 seeds × three tiers), no throw.*
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Hands to 22C
 
@@ -171,7 +188,7 @@ by ids remembered from an event. A remembered id is a pile that has since merged
 core/coverage.ts           trackCoverage(map: MapDef, tile: Vec2, rangeTiles: number): number
 dev/harness/policies/      'idle' | 'greedy' | 'noEconomy' | 'casual' | 'random'    in POLICIES
 dev/harness/loadouts.ts    'default' | 'optimal' | 'blind'                           in LOADOUT_POLICIES
-                           'fixed=<id>|<id>|…'                                     parsed by cli.ts
+                           'fixed=<id>|<id>|…'          validated by cli.ts, built by loadoutPolicyNamed in run.ts
 ```
 
 ## Do not

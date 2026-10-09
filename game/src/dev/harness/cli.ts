@@ -9,8 +9,9 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { DIFFICULTY_LADDER } from '@/core/campaign.ts'
-import { INSTALLATIONS, NIGHTS } from '@/core/content/index.ts'
+import { INSTALLATIONS, NIGHTS, TOWERS } from '@/core/content/index.ts'
 import { toCsv } from '@/dev/harness/csv.ts'
+import { parseFixed } from '@/dev/harness/loadouts.ts'
 import { runJob } from '@/dev/harness/run.ts'
 import { LOADOUT_POLICIES, POLICIES } from '@/dev/harness/types.ts'
 import type { DefId, DifficultyId } from '@/core/types.ts'
@@ -23,7 +24,8 @@ const HELP = `npm run balance -- [options]
   --runs 1               runs per night (campaign mode: per campaign); run i plays seed + i
   --seed 1234            the first seed. 1234 is the game's own, so run 0 is the night a player gets
   --policy idle          who plays: ${Object.keys(POLICIES).join(', ')}
-  --loadout default      what they bring: ${Object.keys(LOADOUT_POLICIES).join(', ')}
+  --loadout default      what they bring: ${Object.keys(LOADOUT_POLICIES).join(', ')}, or
+                         fixed=saltShaker|lemon|cookieJar for exactly that list every night
   --installations a,b    owned from the start
   --campaign             play night 1 through the last of --nights in order, paying Grocery Money and
                          buying installations between nights, retrying losses on the same seed
@@ -112,6 +114,27 @@ function namesIn(kind: string, value: string, known: Readonly<Record<string, unk
 	return names
 }
 
+/** Registered names, and `fixed=a|b|c` lists of known towers. Whether a list is legal is each night's to say. */
+function loadoutsOf(value: string): string[] {
+	const names = list(value)
+	for (const name of names) {
+		const fixed = parseFixed(name)
+		if (fixed === null) {
+			namesIn('loadout policy', name, LOADOUT_POLICIES)
+			continue
+		}
+		if (fixed.length === 0) {
+			throw new UsageError(`'${name}' names no tower`)
+		}
+		for (const id of fixed) {
+			if (!TOWERS.some(def => def.id === id)) {
+				throw new UsageError(`unknown tower '${id}' (in '${name}')`)
+			}
+		}
+	}
+	return names
+}
+
 function installationsOf(value: string): DefId[] {
 	return list(value).map(token => {
 		if (!INSTALLATIONS.some(def => def.id === token)) {
@@ -167,7 +190,7 @@ function parse(argv: readonly string[]): Options {
 				options.policies = namesIn('policy', value, POLICIES)
 				break
 			case '--loadout':
-				options.loadouts = namesIn('loadout policy', value, LOADOUT_POLICIES)
+				options.loadouts = loadoutsOf(value)
 				break
 			case '--installations':
 				options.installations = installationsOf(value)

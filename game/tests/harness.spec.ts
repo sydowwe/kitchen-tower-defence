@@ -101,7 +101,8 @@ describe('replay', () => {
 			])
 			expect(replayNight(run.options, undefined, run.log)).toEqual(run.world)
 		}
-	})
+		// Four whole nights. Two seconds alone, past vitest's 5s default with the suite running beside it.
+	}, 30_000)
 
 	it('names the tower that did the most damage, by def', () => {
 		const run = runNight(newProgress(), 1234, scripted(), defaultLoadout)

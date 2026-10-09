@@ -20,6 +20,7 @@ import { createCommandQueue } from '@/core/commands.ts'
 import { getNightDef, INSTALLATIONS } from '@/core/content/index.ts'
 import { tick } from '@/core/sim.ts'
 import { createWorld } from '@/core/world.ts'
+import { fixedLoadout, parseFixed } from '@/dev/harness/loadouts.ts'
 import { createTally, rowOf, tallyEvents } from '@/dev/harness/row.ts'
 import { LOADOUT_POLICIES, POLICIES } from '@/dev/harness/types.ts'
 import type { Progress } from '@/core/campaign.ts'
@@ -264,7 +265,12 @@ function policyNamed(name: string): PolicyFactory {
 	return policy
 }
 
-function loadoutPolicyNamed(name: string): LoadoutPolicy {
+/** A registered loadout policy, or a `fixed=a|b|c` list. */
+export function loadoutPolicyNamed(name: string): LoadoutPolicy {
+	const fixed = parseFixed(name)
+	if (fixed !== null) {
+		return fixedLoadout(fixed)
+	}
 	const loadoutPolicy = LOADOUT_POLICIES[name]
 	if (loadoutPolicy === undefined) {
 		throw new Error(`unknown loadout policy '${name}'`)

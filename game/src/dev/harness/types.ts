@@ -6,8 +6,11 @@
  * directory allowed a `node:` import, and the lint config holds the rest to that.
  */
 
-import { defaultLoadout } from '@/dev/harness/loadouts.ts'
+import { blindLoadout, defaultLoadout, optimalLoadout } from '@/dev/harness/loadouts.ts'
+import { casual } from '@/dev/harness/policies/casual.ts'
+import { greedy, noEconomy } from '@/dev/harness/policies/greedy.ts'
 import { idle } from '@/dev/harness/policies/idle.ts'
+import { random } from '@/dev/harness/policies/random.ts'
 import type { Progress } from '@/core/campaign.ts'
 import type { Command } from '@/core/commands.ts'
 import type { DefId, DifficultyId, World } from '@/core/types.ts'
@@ -136,8 +139,15 @@ export interface Row {
 
 export const POLICIES: Readonly<Record<string, PolicyFactory>> = {
 	idle,
+	greedy,
+	noEconomy,
+	casual,
+	random,
 }
 
+/** `fixed=<id>|<id>|...` is not in here: it is a list, parsed by `loadoutPolicyNamed` in `run.ts`. */
 export const LOADOUT_POLICIES: Readonly<Record<string, LoadoutPolicy>> = {
 	default: defaultLoadout,
+	optimal: optimalLoadout,
+	blind: blindLoadout,
 }
