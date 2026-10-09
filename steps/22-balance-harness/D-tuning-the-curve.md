@@ -5,14 +5,13 @@
 **Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` (all of it: you're about to change
 most of its numbers), `../../analytic-docs/DECISIONS.md` §4, §7 and §10,
 `../../analytic-docs/OPEN-QUESTIONS.md` §3.
-**Prereq:** steps 22A, 22B and 22C, **and step 21, all seven parts.** **And a fix to `greedy` that
-doesn't exist yet. See *Blocked* below.**
+**Prereq:** steps 22A, 22B, 22C and **22B2** ([B2-greedy-answers-the-gap.md](B2-greedy-answers-the-gap.md)), **and step 21, all seven parts.**
 
 ## Blocked: `greedy` can't judge difficulty (pre-flight, 2026-10-09, at `a61c1a0`)
 
 The first run of this step stopped after Build §1. The baseline ran, but no number moved. **The
 instrument this step judges difficulty with doesn't discriminate.** Fixing it isn't the policy bug fix
-decision 4 allows. It redesigns 22B's decision 2, and *Do not* rules that out here. Make the fix in its own session before this part runs
+decision 4 allows. It redesigns 22B's decision 2, and *Do not* rules that out here. The fix is [B2](B2-greedy-answers-the-gap.md). Run it before this part runs
 again, then rerun §1, because the baseline below was measured with the old `greedy`.
 
 **`greedy` only ever builds Salt Shakers.** On every night, under `default`, `optimal` and `blind` alike,

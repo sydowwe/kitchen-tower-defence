@@ -1,6 +1,6 @@
 # Step 22 — Headless balance harness
 
-> This step is six sessions. Paste **one part file** into a fresh session, in order, and `/clear`
+> This step is seven sessions. Paste **one part file** into a fresh session, in order, and `/clear`
 > between them. Do not paste this index. It only says what the parts are and how they fit.
 
 **Prereq:** step 20a, both parts, for A, B and C. **Step 21, all seven parts, for D, E and F.** This
@@ -23,11 +23,12 @@ one number that must be right is crumbs earned per wave against tower cost**
 | [A](22-balance-harness/A-runner-and-ledger.md) | The runner, the ledger and the CSV | `NightState.crumbsEarned` / `crumbsSpent` and damage booked by source; `dev/harness/`'s job, runner, row, CSV, campaign fold and `idle` policy; the Vite launcher and `npm run balance` |
 | [B](22-balance-harness/B-policies.md) | The policies | `core/coverage.ts`; `greedy`, `noEconomy`, `casual`, `random`; the `optimal`, `blind` and `fixed` loadout policies; the smoke run |
 | [C](22-balance-harness/C-sweep-and-report.md) | Sweep, parallel jobs, the report | `--sweep` as world patches, `--jobs` across processes, the static HTML report and its flag list |
+| [B2](22-balance-harness/B2-greedy-answers-the-gap.md) | `greedy` answers the gap | Added after D's first pre-flight found `greedy` builds only Salt Shakers: damage worth shared per enemy between the towers standing that can target it, so the loadouts start to differ |
 | [D](22-balance-harness/D-tuning-the-curve.md) | Tuning the income curve | numbers in `core/content/`, `CONTENT.md` rewritten from what was measured, each night's two named answers proven |
 | [E](22-balance-harness/E-the-noise-answer.md) | The noise answer | one noise number or none, and `OPEN-QUESTIONS.md` §3 answered with a measurement |
 | [F](22-balance-harness/F-the-endless-curve.md) | The endless curve, measured | an endless job kind, run lengths per map and tier, a constant moved only where it's broken |
 
-**Order: A → B → C → step 21 → D → E → F.** A, B and C build an instrument and depend on nothing
+**Order: A → B → C → step 21 → B2 → D → E → F.** B2 was added after D's first run stopped at its baseline (D, *Blocked*). A, B and C build an instrument and depend on nothing
 step 21 builds. Built first, they're ready when step 21 wants them: its Nightmare criterion asks for
 this step's data, and its "more than one loadout wins every night" rule is what C's lockout flag and
 B's `fixed` loadouts check. Step 21 needs only 20a too, so the other order also works. The two touch
@@ -38,8 +39,8 @@ D, E and F tune. Tuning eighteen nights that step 21 is about to move onto five 
 modifiers would be thrown away. E comes after D because how loud a board gets depends on how many
 towers the income buys. F comes after D because endless plays on the same economy.
 
-**A, B, C and F carry the tests.** A covers the ledgers, determinism, replay and the wave schedule. B
-covers coverage, policy purity and the smoke run. C covers the sweep's isolation, sharding and the flag
+**A, B, B2, C and F carry the tests.** A covers the ledgers, determinism, replay and the wave schedule. B
+covers coverage, policy purity and the smoke run. B2 covers greedy answering the air on night 8. C covers the sweep's isolation, sharding and the flag
 rules. F covers the endless job. D and E add none: when a pinned number moves, its literal in
 `tests/content.spec.ts` or `tests/noise.spec.ts` moves with it, in the same commit.
 
