@@ -5,7 +5,65 @@
 **Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` (all of it: you're about to change
 most of its numbers), `../../analytic-docs/DECISIONS.md` §4, §7 and §10,
 `../../analytic-docs/OPEN-QUESTIONS.md` §3.
-**Prereq:** steps 22A, 22B and 22C, **and step 21, all seven parts.**
+**Prereq:** steps 22A, 22B and 22C, **and step 21, all seven parts.** **And a fix to `greedy` that
+doesn't exist yet. See *Blocked* below.**
+
+## Blocked: `greedy` can't judge difficulty (pre-flight, 2026-10-09, at `a61c1a0`)
+
+The first run of this step stopped after Build §1. The baseline ran, but no number moved. **The
+instrument this step judges difficulty with doesn't discriminate.** Fixing it isn't the policy bug fix
+decision 4 allows. It redesigns 22B's decision 2, and *Do not* rules that out here. Make the fix in its own session before this part runs
+again, then rerun §1, because the baseline below was measured with the old `greedy`.
+
+**`greedy` only ever builds Salt Shakers.** On every night, under `default`, `optimal` and `blind` alike,
+on Normal and on Nightmare, the Salt Shaker did over 60% of the damage in 20 of 20 runs. In the rows
+read one by one, it did 100%. 22B decision 2 values a tower as card DPS × tonight's matrix mean × coverage
+÷ cost. §1 prices every tower at or below the Shaker's 10 crumbs per DPS, and fliers are a small share
+of a night's count × HP, so a Toaster or a Spray Bottle never outranks another Shaker. The consequences:
+
+- **All three loadout policies give identical rows under `greedy`**, to the crumb. The lockout flag
+  reads 0 only because they lose the same nights together.
+- **`greedy` loses every night from 8 to 18 on Normal**, 0 of 20 each, from the night the Fly arrives.
+  By decision 4, that's the policy, not the night.
+- **Every night trips the dominant flag** (36 of 36). Clearing it with content means pricing other
+  towers under the Shaker's ratio, against decision 2.
+- **The two-answers proof can't be read.** A `fixed=` answer that includes the Shaker is played as
+  Shakers only.
+
+What the fix has to give, without making `greedy` play *well* (the index's *Do not*): **a purchase is
+credited for the threat nothing standing already answers**. For example, its weight is tonight's
+count × HP that no tower on the board can target, so once the ground is held, the fliers lift an
+anti-air tower over a ninth Shaker. It needs a spec: on night 8 under `optimal`, `greedy` places
+something that hits air. And it needs `ECONOMY_WEIGHT`'s night-1 build re-read, not re-tuned.
+
+### The baseline: the "from" for `OPEN-QUESTIONS.md`
+
+Night mode, `idle`/`greedy`/`noEconomy`/`casual` × `default`/`optimal`/`blind`, Normal and Nightmare,
+seeds 1234–1253. Most groups of 20 runs came out identical. The report showed **121 flags: 69 too hard, 16 too easy, 36 dominant, 0 lockout, 0 stalled.**
+
+`towersAffordablePerWave` on Normal, all 20 runs per night identical (target ~1.5 through Act I,
+~0.5 by night 18):
+
+| Night | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `greedy` | 1.11 | 1.49 | 1.66 | 2.49 | 2.73 | 3.64 | 4.05 | 3.05 | 2.65 | 2.86 | 2.60 | 2.16 | 2.68 | 2.33 | 5.36 | 2.91 | 2.28 | 2.12 |
+| `noEconomy` | 0.73 | 1.01 | 1.14 | 0.97 | 1.10 | 1.63 | 1.71 | 1.01 | 0.87 | 0.77 | 0.67 | 0.47 | 0.91 | 0.69 | 2.42 | 0.59 | 0.60 | 0.47 |
+
+Nights 8–18 are lost nights, so each wave there is a short one. Read them as an upper bound.
+
+What this measurement can already see, and which the fixed `greedy` won't change:
+
+- **Economy towers compound.** The Crumb Tray pays back in ~19 s and the Cookie Jar in ~17 s. `casual`
+  buys them in its rotation like anything else. On `default`, it earned 28,000 crumbs on night 4,
+  44,900 on night 5 and 49,800 on night 6, with 17,600, 34,600 and 39,100 of them unspent at sunrise.
+  `greedy` roughly triples `noEconomy`'s income, and its curve never falls toward 0.5.
+- **Grocery Money outruns §8's prices.** Three campaigns per policy and loadout pay 350–540 a night.
+  `greedy`'s owned all three counter-space installations (8 slots) by night 3, against "7 slots by
+  roughly night 14", and all fourteen by night 5. Every campaign stopped `stuck`: `greedy` and
+  `noEconomy` on night 8, `casual` on 3 (`default`) or 6 (`optimal`).
+- **`casual` on `optimal` or `blind` loses nights 7–18 having earned almost nothing.** Newest-first
+  opens with the night's specialist (an Ice Cube Tray, a Candle). It kills little or nothing, so no
+  income ever starts. Whether that's the night or the policy is a question for the rerun.
 
 ## Goal
 
