@@ -138,12 +138,12 @@ from a CSV without re-running anything.
 
 ## Acceptance
 
-- [ ] `npm run balance -- --sweep income=0.6:1.6:0.1 --nights 1-18 --runs 20 --policy greedy,casual
+- [x] `npm run balance -- --sweep income=0.6:1.6:0.1 --nights 1-18 --runs 20 --policy greedy,casual
       --jobs 8 --report` finishes, and the report opens in a browser with a curve you can read.
 - [ ] The report's flag list points at real problems you can feel when you play those nights. Play
       two of them. *(These are the Counter-only nights until step 21. D reads the report again on the
       real maps.)*
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
