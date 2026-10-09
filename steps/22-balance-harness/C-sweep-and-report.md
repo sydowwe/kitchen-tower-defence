@@ -62,10 +62,18 @@ then edit this file. Don't leave it lying.
    `toCsv`, which already sorts. Child processes rather than worker threads, because each needs its own
    Vite module runner anyway, and a fork of the one launcher is the smallest thing that works. Default
    `--jobs` is the core count minus one.
-5. **The report is one static HTML file**, `.balance/report.html`, with no dependency and no script.
-   It has tables for the numbers and one inline SVG for the income curve: `towersAffordablePerWave` by
-   night, one line per policy, with the target band behind them (~1.5 through Act I falling to ~0.5 by
-   night 18, `CONTENT.md` preamble). It's read in a browser and never committed.
+   *As built:* each child writes one line per **job** (`{"job":i,"rows":[...]}`), not per row, so the
+   merge (`shard.ts`, `mergeShards`) can prove every job index arrived exactly once. The children's Vite
+   runs with `server.ws: false` too, or N of them race for the HMR WebSocket's one port.
+5. **The report is one static HTML file**, `report.html` beside the CSV, with no dependency and no
+   script. It has tables for the numbers and inline SVG for the income curve: `towersAffordablePerWave`
+   by night, one line per policy, with the target band behind them (~1.5 through Act I falling to ~0.5
+   by night 18, `CONTENT.md` preamble). It's read in a browser and never committed.
+   *As built, two refinements:* one chart per mode and tier, and when the rows are swept, one per mode,
+   tier and policy with a line per sweep value, because a sweep's question is which value sits in the
+   band. And the axis stops at 4 (twice the band's top), with points above it pinned to the edge as ▲.
+   The first real run had `casual` at 50 towers a wave, which flattened every other line onto the band.
+   Both reports are built from the CSV read back (`fromCsv`), so `--report` and `--report-only` agree.
 6. **The flag list.** The thresholds are named constants, each with its reason:
    - **too hard**: `greedy` loses a night in more than 10% of its runs at a difficulty.
    - **too easy**: `casual` wins with at least 75% of the shelf left in at least 90% of its runs, on
@@ -79,6 +87,11 @@ then edit this file. Don't leave it lying.
      them itself.
    - **stalled or stuck**: any row at all.
 
+   *As built:* too hard and too easy are judged per loadout policy, so a flag names `greedy/blind` and
+   not just `greedy`. Dominant is judged over every policy together, counting only the runs that damaged
+   anything, because an `idle` run has no top source and would dilute the share. A `stuck` row counts as
+   a loss.
+
    Each flag names the night, the policy, the numbers and the seeds of its rows, so it can be replayed.
    The legend says what the flags can't see: the Cardboard Box never shows up in `greedy`'s rows,
    because it has no DPS (22B, decision 9), and `default` in night mode is the five oldest towers
@@ -88,9 +101,10 @@ then edit this file. Don't leave it lying.
 
 ### 1. `dev/harness/sweep.ts` and `--sweep knob=from:to:step`
 
-Decisions 1–3. The range is inclusive. Build it by index, `from + i × step`, rounded to the step's
-decimals, never by adding `step` in a loop, or `0.6:1.6:0.1` ends at `1.5000000000000002` and loses
-its last value.
+Decisions 1–3. The range is inclusive. Build it by index, `from + i × step`, rounded to the most
+decimals `from` or `step` was written with (the step's alone would round `0.65:0.95:0.1` to 0.7, 0.8,
+...), never by adding `step` in a loop, or `0.6:1.6:0.1` ends at `1.5000000000000002` and loses its
+last value. `knob=value` is a one-value sweep.
 
 Gotcha: **the patch writes `world.difficulty`, never `DIFFICULTIES`.** The table has the same shape
 and is one import away. Written to, it compounds across every later job in the process: a sweep's

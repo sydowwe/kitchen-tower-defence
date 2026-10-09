@@ -6,16 +6,22 @@
  * in a page; this is where the disk and the clock are.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { spawn } from 'node:child_process'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { availableParallelism } from 'node:os'
+import { basename, dirname, join, resolve } from 'node:path'
 import { DIFFICULTY_LADDER } from '@/core/campaign.ts'
 import { INSTALLATIONS, NIGHTS, TOWERS } from '@/core/content/index.ts'
-import { toCsv } from '@/dev/harness/csv.ts'
+import { fromCsv, toCsv } from '@/dev/harness/csv.ts'
 import { parseFixed } from '@/dev/harness/loadouts.ts'
+import { buildReport } from '@/dev/harness/report.ts'
 import { runJob } from '@/dev/harness/run.ts'
+import { isJobLine, mergeShards, parseShard, runShard } from '@/dev/harness/shard.ts'
+import { parseSweep, SWEEP_KNOBS } from '@/dev/harness/sweep.ts'
 import { LOADOUT_POLICIES, POLICIES } from '@/dev/harness/types.ts'
 import type { DefId, DifficultyId } from '@/core/types.ts'
-import type { Job, Row } from '@/dev/harness/types.ts'
+import type { Shard } from '@/dev/harness/shard.ts'
+import type { Job, Row, Sweep } from '@/dev/harness/types.ts'
 
 const HELP = `npm run balance -- [options]
 
@@ -29,7 +35,13 @@ const HELP = `npm run balance -- [options]
   --installations a,b    owned from the start
   --campaign             play night 1 through the last of --nights in order, paying Grocery Money and
                          buying installations between nights, retrying losses on the same seed
+  --sweep knob=0.6:1.6:0.1
+                         run everything once per value, from:to:step inclusive, or knob=value.
+                         knobs: ${SWEEP_KNOBS.join(', ')}
+  --jobs N               processes to spread the jobs over (default: cores - 1)
   --out .balance/results.csv
+  --report               also write report.html beside the CSV
+  --report-only a.csv    rebuild report.html beside a.csv from it, running nothing
 
 Night mode (the default) plays each night from a fresh progress, so it stores no "last night": there
 'default' brings the oldest towers unlocked. In campaign mode 'default' brings last night's plus
@@ -48,8 +60,20 @@ interface Options {
 	loadouts: string[]
 	installations: DefId[]
 	campaign: boolean
+	/** One per value, or null for an unswept run. */
+	sweeps: Sweep[] | null
+	jobs: number
+	/** Set on a child of `--jobs`: run this shard and write job lines to stdout. */
+	shard: Shard | null
 	out: string
+	report: boolean
+	reportOnly: string | null
 	help: boolean
+}
+
+/** What `--jobs` forks: the launcher, `scripts/balance.mjs`. */
+export interface Launch {
+	launcher: string
 }
 
 function list(value: string): string[] {
@@ -154,7 +178,12 @@ function parse(argv: readonly string[]): Options {
 		loadouts: ['default'],
 		installations: [],
 		campaign: false,
+		sweeps: null,
+		jobs: Math.max(1, availableParallelism() - 1),
+		shard: null,
 		out: '.balance/results.csv',
+		report: false,
+		reportOnly: null,
 		help: false,
 	}
 
@@ -162,6 +191,10 @@ function parse(argv: readonly string[]): Options {
 		const flag = argv[at]
 		if (flag === '--campaign') {
 			options.campaign = true
+			continue
+		}
+		if (flag === '--report') {
+			options.report = true
 			continue
 		}
 		if (flag === '--help' || flag === '-h') {
@@ -195,8 +228,29 @@ function parse(argv: readonly string[]): Options {
 			case '--installations':
 				options.installations = installationsOf(value)
 				break
+			case '--sweep':
+				try {
+					options.sweeps = parseSweep(value)
+				} catch (error) {
+					throw new UsageError(error instanceof Error ? error.message : String(error))
+				}
+				break
+			case '--jobs':
+				options.jobs = integer(flag, value, 1)
+				break
+			case '--shard': {
+				const shard = parseShard(value)
+				if (shard === null) {
+					throw new UsageError(`--shard wants i/N with 0 <= i < N, not '${value}'`)
+				}
+				options.shard = shard
+				break
+			}
 			case '--out':
 				options.out = value
+				break
+			case '--report-only':
+				options.reportOnly = value
 				break
 			default:
 				throw new UsageError(`unknown option '${flag}'`)
@@ -211,23 +265,25 @@ function parse(argv: readonly string[]): Options {
 
 function jobsFor(options: Options): Job[] {
 	const jobs: Job[] = []
-	for (const difficulty of options.difficulties) {
-		for (const policy of options.policies) {
-			for (const loadoutPolicy of options.loadouts) {
-				for (let run = 0; run < options.runs; run++) {
-					const shared = {
-						difficulty,
-						seed: options.seed + run,
-						policy,
-						loadoutPolicy,
-						installations: [...options.installations],
-						sweep: null,
-					}
-					if (options.campaign) {
-						jobs.push({ kind: 'campaign', nights: [...options.nights], ...shared })
-					} else {
-						for (const night of options.nights) {
-							jobs.push({ kind: 'night', nights: [night], ...shared })
+	for (const sweep of options.sweeps ?? [null]) {
+		for (const difficulty of options.difficulties) {
+			for (const policy of options.policies) {
+				for (const loadoutPolicy of options.loadouts) {
+					for (let run = 0; run < options.runs; run++) {
+						const shared = {
+							difficulty,
+							seed: options.seed + run,
+							policy,
+							loadoutPolicy,
+							installations: [...options.installations],
+							sweep: sweep === null ? null : { ...sweep },
+						}
+						if (options.campaign) {
+							jobs.push({ kind: 'campaign', nights: [...options.nights], ...shared })
+						} else {
+							for (const night of options.nights) {
+								jobs.push({ kind: 'night', nights: [night], ...shared })
+							}
 						}
 					}
 				}
@@ -248,8 +304,104 @@ function outcomes(rows: readonly Row[]): string {
 		.join(', ')
 }
 
+/** A shard that failed: it said why on its own stderr, which the parent shares. */
+class ShardError extends Error {}
+
+/** What a finished child left on stdout, or a `ShardError`. */
+function runChild(
+	launch: Launch,
+	argv: readonly string[],
+	shard: Shard,
+	onJob: () => void,
+	children: Set<ReturnType<typeof spawn>>,
+): Promise<string> {
+	return new Promise((resolveChild, reject) => {
+		const child = spawn(process.execPath, [launch.launcher, ...argv, '--shard', `${shard.index}/${shard.count}`], {
+			stdio: ['ignore', 'pipe', 'inherit'],
+		})
+		children.add(child)
+		let output = ''
+		let pending = ''
+		child.stdout.setEncoding('utf8')
+		child.stdout.on('data', (chunk: string) => {
+			output += chunk
+			pending += chunk
+			const lines = pending.split('\n')
+			pending = lines.pop() ?? ''
+			for (const line of lines) {
+				if (isJobLine(line)) {
+					onJob()
+				} else if (line.trim().length > 0) {
+					process.stderr.write(`[shard ${shard.index}] ${line}\n`)
+				}
+			}
+		})
+		child.on('error', error => {
+			children.delete(child)
+			reject(new ShardError(`shard ${shard.index}/${shard.count} could not start: ${error.message}`))
+		})
+		child.on('close', (code, signal) => {
+			children.delete(child)
+			if (code === 0) {
+				resolveChild(output)
+			} else {
+				reject(new ShardError(`shard ${shard.index}/${shard.count} exited with ${code ?? signal}`))
+			}
+		})
+	})
+}
+
+/**
+ * The jobs over `count` children, each the launcher again with `--shard i/count`. The first child to
+ * fail stops the others, and nothing is written: a CSV from some of the shards would look complete.
+ */
+async function runForked(launch: Launch, argv: readonly string[], jobs: readonly Job[], count: number): Promise<Row[]> {
+	const children = new Set<ReturnType<typeof spawn>>()
+	let done = 0
+	let reported = 0
+	function onJob(): void {
+		done++
+		const tenth = Math.floor((done * 10) / jobs.length)
+		if (tenth > reported) {
+			reported = tenth
+			process.stderr.write(`balance: ${done}/${jobs.length} jobs\n`)
+		}
+	}
+
+	const running = Array.from({ length: count }, (_, index) =>
+		runChild(launch, argv, { index, count }, onJob, children),
+	)
+	try {
+		const outputs = await Promise.all(running)
+		return mergeShards(outputs, jobs.length)
+	} catch (error) {
+		for (const child of children) {
+			child.kill()
+		}
+		await Promise.allSettled(running)
+		throw error
+	}
+}
+
+function writeReport(csvPath: string, csv: string): string {
+	const path = join(dirname(csvPath), 'report.html')
+	writeFileSync(path, buildReport(fromCsv(csv), basename(csvPath)))
+	return path
+}
+
+/** A child of `--jobs`: one line per job on stdout, and a failure names its shard and job on stderr. */
+function runAsShard(jobs: readonly Job[], shard: Shard): number {
+	try {
+		runShard(jobs, shard, line => process.stdout.write(line))
+		return 0
+	} catch (error) {
+		process.stderr.write(`balance: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`)
+		return 1
+	}
+}
+
 /** Returns the process exit code. */
-export function main(argv: readonly string[]): number {
+export async function main(argv: readonly string[], launch: Launch): Promise<number> {
 	let options: Options
 	try {
 		options = parse(argv)
@@ -265,17 +417,44 @@ export function main(argv: readonly string[]): number {
 		return 0
 	}
 
-	const started = performance.now()
+	if (options.reportOnly !== null) {
+		const csvPath = resolve(options.reportOnly)
+		const report = writeReport(csvPath, readFileSync(csvPath, 'utf8'))
+		process.stderr.write(`balance: ${report}\n`)
+		return 0
+	}
+
 	const jobs = jobsFor(options)
-	const rows = jobs.flatMap(runJob)
+	if (options.shard !== null) {
+		return runAsShard(jobs, options.shard)
+	}
+
+	const started = performance.now()
+	const count = Math.min(options.jobs, jobs.length)
+	let rows: Row[]
+	if (count <= 1) {
+		rows = jobs.flatMap(runJob)
+	} else {
+		try {
+			rows = await runForked(launch, argv, jobs, count)
+		} catch (error) {
+			if (error instanceof ShardError) {
+				process.stderr.write(`balance: ${error.message}; no CSV written\n`)
+				return 1
+			}
+			throw error
+		}
+	}
 
 	const out = resolve(options.out)
+	const csv = toCsv(rows)
 	mkdirSync(dirname(out), { recursive: true })
-	writeFileSync(out, toCsv(rows))
+	writeFileSync(out, csv)
+	const report = options.report ? ` and ${writeReport(out, csv)}` : ''
 
 	const seconds = ((performance.now() - started) / 1000).toFixed(1)
 	process.stderr.write(
-		`balance: ${rows.length} rows (${outcomes(rows)}) from ${jobs.length} jobs -> ${options.out} in ${seconds}s\n`,
+		`balance: ${rows.length} rows (${outcomes(rows)}) from ${jobs.length} jobs on ${Math.max(1, count)} processes -> ${options.out}${report} in ${seconds}s\n`,
 	)
 	return 0
 }

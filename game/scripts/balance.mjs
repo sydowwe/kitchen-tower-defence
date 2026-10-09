@@ -10,15 +10,17 @@ import { createServer } from 'vite'
 
 const server = await createServer({
 	root: fileURLToPath(new URL('..', import.meta.url)),
-	// No watcher and no HMR: without them the process idles after the run instead of exiting.
-	server: { middlewareMode: true, hmr: false, watch: null },
+	// No watcher and no HMR: without them the process idles after the run instead of exiting. No
+	// WebSocket either, or `--jobs`' children race for its one port.
+	server: { middlewareMode: true, hmr: false, ws: false, watch: null },
 	appType: 'custom',
 	logLevel: 'error',
 })
 
 try {
 	const cli = await server.ssrLoadModule('/src/dev/harness/cli.ts')
-	process.exitCode = cli.main(process.argv.slice(2))
+	// The launcher's own path, which `--jobs` forks once per shard.
+	process.exitCode = await cli.main(process.argv.slice(2), { launcher: fileURLToPath(import.meta.url) })
 } catch (error) {
 	console.error(error)
 	process.exitCode = 1

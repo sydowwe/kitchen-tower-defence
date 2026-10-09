@@ -54,7 +54,7 @@ export interface LoggedCommand {
 	command: Command
 }
 
-/** One knob of the content set to one value for a job. Step 22C fills it in; nothing here sets one. */
+/** One knob of the content set to one value for a job: `parseSweep`'s, applied by `sweepPatch`. */
 export interface Sweep {
 	knob: string
 	value: number

@@ -22,6 +22,7 @@ import { tick } from '@/core/sim.ts'
 import { createWorld } from '@/core/world.ts'
 import { fixedLoadout, parseFixed } from '@/dev/harness/loadouts.ts'
 import { createTally, rowOf, tallyEvents } from '@/dev/harness/row.ts'
+import { sweepPatch } from '@/dev/harness/sweep.ts'
 import { LOADOUT_POLICIES, POLICIES } from '@/dev/harness/types.ts'
 import type { Progress } from '@/core/campaign.ts'
 import type { DefId, World } from '@/core/types.ts'
@@ -139,7 +140,7 @@ function playNight(
 
 /**
  * One night from `progress`, played by a fresh `policy` until it ends or reaches the cap. `patch` runs
- * on the built world before tick 0; step 22C's sweep is its only caller.
+ * on the built world before tick 0: a sweep's, through `sweepPatch`.
  */
 export function runNight(
 	progress: Progress,
@@ -223,6 +224,7 @@ export function runCampaign(
 	maxTicks = MAX_NIGHT_TICKS,
 ): { rows: Row[]; progress: Progress } {
 	const rows: Row[] = []
+	const patch = sweepPatch(sweep)
 	let progress = start
 	let attempt = 1
 	let lastAttempt: string | null = null
@@ -236,7 +238,7 @@ export function runCampaign(
 			break
 		}
 
-		const run = playNight(prepared, loadoutPolicy, undefined, { mode: 'campaign', sweep, attempt, maxTicks })
+		const run = playNight(prepared, loadoutPolicy, patch, { mode: 'campaign', sweep, attempt, maxTicks })
 		rows.push(run.row)
 		if (run.row.outcome === 'stalled') {
 			break
@@ -292,9 +294,10 @@ export function runJob(job: Job): Row[] {
 		return runCampaign(start, job.seed, policy, loadoutPolicy, last, job.sweep, maxTicks).rows
 	}
 
+	const patch = sweepPatch(job.sweep)
 	return job.nights.map(
 		nightId =>
-			runNight({ ...start, nightId }, job.seed, policy, loadoutPolicy, undefined, {
+			runNight({ ...start, nightId }, job.seed, policy, loadoutPolicy, patch, {
 				mode: 'night',
 				sweep: job.sweep,
 				attempt: 1,
