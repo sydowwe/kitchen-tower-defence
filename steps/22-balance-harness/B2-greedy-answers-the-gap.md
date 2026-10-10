@@ -42,7 +42,23 @@ then edit this file.
    don't count. It's the same idiom as `rate / economyShare` in the same file: one rule, not a second
    mechanism. On a ground-only night every ground tower shares one denominator, so the *ranking*
    between ground towers is unchanged. On night 8 the fly term keeps its full weight until something
-   that hits air stands, and the ground term shrinks with every Shaker. That's the whole fix.
+   that hits air stands, and the ground term shrinks with every Shaker. ~~That's the whole fix.~~
+
+   *Changed in the build: the share alone isn't the fix, so **the gap** was added.* The share is kept
+   for every enemy something standing answers. The enemies **nothing** standing answers are credited
+   as if they were the whole night: their terms × tonight's count × HP ÷ theirs (`sharedValue` in
+   `value.ts`). On an empty board that's every enemy, and the terms are `valueOf`'s. On a ground-only
+   night the first Shaker answers every entry, so night 1's ranking still doesn't move. Why the share
+   alone failed, measured at seed 1234 on Normal:
+   - Night 8's flies are 11% of its count × HP (42 × 14 of 5,187). The Spray Bottle is `optimal`'s air
+     pick at 3.6 DPS for 120, so it passes a Shaker per crumb only once ~17 ground towers stand. At
+     decision 5's weight (4), `greedy` saved for a Cookie Jar on three Shakers, lost night 8 with 0 of 10
+     waves cleared, and never placed anything that hits air. At the old 18 it built 65 Cookie Jars,
+     earned 78,643, and the Spray Bottle came during wave 6, not before.
+   - A steeper share, ÷ (1 + n)^1.5 or ^2, made economy outrank damage sooner, and night 8 starved worse.
+   - With the gap, night 8 at weight 4 goes Shaker, then Spray Bottle at tick 2, then Shakers. It wins
+     9 of 10 waves cleared, and the Shaker does 75% of the damage. Only one air tower comes early,
+     because once one stands the flies are answered and go back to sharing.
 2. **A placement counts itself, and an upgrade doesn't.** A new tower is the (n + 1)th to share an
    enemy it can target, as a new economy tower already is. An upgrade adds no tower, so its gain is
    computed at the current n.
@@ -57,6 +73,14 @@ then edit this file.
    saved-for Crumb Tray, then shakers along the lane". If it no longer looks like that, move
    `ECONOMY_WEIGHT` until it does, and only then. Write the new value and what night 1 builds into
    B decision 4. **Never move it toward a win rate.**
+
+   *Read in the build: **4**.* At 18 the share made night 1 alternate Shaker and Tray, 12 Trays and
+   1,693 earned. Night 1's placements by weight: 6 gives three Shakers, then a Tray; 3 and 3.5 give five;
+   4 and 4.5 give four, then the Tray, then Shakers along the lane. Night 1 at 4 places Shaker,
+   Shaker, Shaker, Shaker, Tray, with the first Shaker upgraded at tick 1, and earns 459 (415 at
+   baseline). An upgrade shares with the others answering, not with itself, so it now ranks above a
+   second tower, as decision 2 says it should. The gap leaves night 1 unchanged, so the read stood after
+   it was added.
 
 ## Build
 
@@ -94,25 +118,47 @@ In `tests/policies.spec.ts`, beside the economy knob:
   literals, so the next change to the valuation has to say what it did to night 1.
 - **The share is per enemy, not per tower.** A unit test on the breakdown with a two-entry
   composition (one ground, one air): a ground-only def's term for the air entry is 0 at any count,
-  and a `targets: 'both'` def's air term halves when one air-hitting tower is standing.
+  and a `targets: 'both'` def's air term halves when one air-hitting tower is standing. *Added with
+  the gap:* with the ground held and nothing on the air, the air term is the card's full DPS against
+  it, as if the night were only flies.
 
 The existing replay, economy-knob and smoke tests must pass unchanged.
 
 ## Acceptance
 
-- [ ] Rerun D's baseline matrix (D, Build §1). Under `greedy`, `default`, `optimal` and `blind` no longer
+- [x] Rerun D's baseline matrix (D, Build §1). Under `greedy`, `default`, `optimal` and `blind` no longer
       give identical rows on nights 8–18, and the dominant flag no longer fires on every night. Put
-      both counts in the commit message.
-- [ ] Night 8 under `greedy` + `optimal` places its Spray Bottle, or the next air tower ranked, before
-      wave 6 (the flyers-only wave).
+      both counts in the commit message. *Identical groups (night × tier × seed): 440 of 440 → 0 of 440.
+      Dominant: 36 → 26. 8,640 rows in 2,735 s on 8 processes.*
+- [x] Night 8 under `greedy` + `optimal` places its Spray Bottle, or the next air tower ranked, before
+      wave 6 (the flyers-only wave). *At tick 2, before wave 1.*
 - [ ] Read as rows, greedy's nights 1 and 8 look like a player reading the shop: some economy early,
       DPS along the lane, something for the flies.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green. *`ledger.spec`'s
+      damage book and `harness.spec`'s byte-identical CSV timed out at HEAD under the full suite on
+      this machine, and pass alone. They got explicit timeouts, as 22B gave its whole-night specs.*
 
 ## Hands to D
 
-D reruns its Build §1 from scratch: its recorded baseline was measured with the old `greedy`. Two
-things D's pre-flight should know:
+D reruns its Build §1 from scratch: its recorded baseline was measured with the old `greedy`. The
+night-mode half of §1 has already been run with this `greedy`, as this part's acceptance:
+`game/.balance/b2/night.csv` and `report.html` beside it (gitignored, so only on the machine that ran
+it). Only the campaigns are left. Flags: **84 too hard, 16 too easy, 26 dominant, 7 lockout, 3 stalled**
+(the old run: 69, 16, 36, 0, 0). `greedy` wins on Normal, out of 20, by `default` / `optimal` / `blind`:
+nights 1–6 win 20/20/20; nights 7, 9, 11, 17 and 18 win 0/0/0; nights 8, 10, 12, 13, 14 and 15 win
+0/20/0; night 16 wins 0/12/0. So the loadouts finally discriminate. Things D's pre-flight should know:
+
+- **Night 7 is now lost under every loadout (0/20, 20/20 before), and that's the policy, not the
+  night.** It's ground-only, so the gap doesn't open. At weight 4, `greedy` places three Shakers, then
+  saves 150 for a Cookie Jar through waves 1–3, and the lane falls. Night 8 did the same before the
+  gap. Moving `ECONOMY_WEIGHT` to win it would tune toward a win rate (decision 5). By D's decision 4,
+  don't move night 7's content for it. Whether `greedy` should stop saving while the lane is leaking
+  is a policy question for its own part.
+- **The 30 stalled rows are Mold out of reach.** 29 are `noEconomy`/`optimal` on nights 12 and 16
+  (Normal) and one is `greedy`/`optimal` on night 16. They hit the 72,000-tick cap with three Mold at
+  full HP standing 2–5 tiles down the `vent` path, where no tower reaches. The wave can't clear and
+  nothing reaches the fridge. They're new only because these boards now survive long enough. A policy
+  that never places anything in the Mold's reach is D's decision 4 case.
 
 - **Nights 1 and 2 can't meet "no single source over 60%"** whatever `greedy` does. Night 1 unlocks
   the Salt Shaker and the Crumb Tray, and night 2 adds Sticky Tape, which does 0 damage. The Shaker is

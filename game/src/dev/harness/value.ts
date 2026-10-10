@@ -50,28 +50,83 @@ export function isEconomy(def: TowerDef): boolean {
 }
 
 /**
+ * Whether this tower damages this enemy at all: card DPS above 0, and the card's `targets` against
+ * `isFlyer`. Sticky Tape and the economy towers answer nothing.
+ */
+export function answers(def: TowerDef, enemy: WeightedEnemy): boolean {
+	const stats = statsFor(def)
+	if (stats.dps === null || stats.dps === 0 || stats.damageType === null) {
+		return false
+	}
+	return stats.targets === 'both' || (stats.targets === 'air') === isFlyer(enemy)
+}
+
+/** Per entry, weight x matrix multiplier (0 where the tower doesn't `answer`), and the weight in all. */
+function weightedOf(
+	def: TowerDef,
+	composition: readonly WeightedEnemy[],
+): { dps: number; weighted: number[]; total: number } {
+	const stats = statsFor(def)
+	let total = 0
+	const weighted = composition.map(enemy => {
+		total += enemy.weight
+		if (stats.dps === null || stats.damageType === null || !answers(def, enemy)) {
+			return 0
+		}
+		return enemy.weight * resolveDamage(1, stats.damageType, { tags: enemy.tags, statuses: [] })
+	})
+	return { dps: stats.dps ?? 0, weighted, total }
+}
+
+/**
+ * What `valueOf` sums, one term per composition entry: card DPS x that enemy's matrix multiplier x its
+ * share of tonight's count x HP, and 0 for an enemy the tower doesn't `answer`.
+ */
+export function damageTermsOf(def: TowerDef, composition: readonly WeightedEnemy[]): number[] {
+	const { dps, weighted, total } = weightedOf(def, composition)
+	return weighted.map(term => (total === 0 ? 0 : dps * (term / total)))
+}
+
+/**
  * The card's DPS times the mean matrix multiplier over tonight's enemies, weighted by count x HP. An
  * enemy the card's `targets` cannot reach multiplies by 0. The card's number and not a second DPS
  * formula: it undervalues the Spray Bottle's poison exactly as a person reading the shop would.
+ *
+ * Summed before it is scaled, not as the sum of `damageTermsOf`: the Salt Shaker and the Mousetrap tie
+ * exactly per crumb, and the last bit of a reordered sum would break that tie for `optimalLoadout`.
  */
 export function valueOf(def: TowerDef, composition: readonly WeightedEnemy[]): number {
-	const stats = statsFor(def)
-	if (stats.dps === null || stats.dps === 0 || stats.damageType === null) {
-		return 0
-	}
-	const damageType = stats.damageType
+	const { dps, weighted, total } = weightedOf(def, composition)
+	return total === 0 ? 0 : dps * (weighted.reduce((sum, term) => sum + term, 0) / total)
+}
 
-	let weighted = 0
+/**
+ * Damage terms credited for the part of tonight the board doesn't already answer. An enemy `others`
+ * standing answer is shared with them, term ÷ (1 + others), the way a new economy tower shares with the
+ * economy standing. The enemies nothing standing answers are the gap, and the gap is credited as if it
+ * were the whole night: their terms scaled by all of tonight's weight over theirs. On an empty board
+ * that is every enemy, and the terms are `valueOf`'s.
+ */
+export function sharedValue(
+	terms: readonly number[],
+	others: readonly number[],
+	composition: readonly WeightedEnemy[],
+): number {
 	let total = 0
-	for (const enemy of composition) {
+	let gap = 0
+	for (const [index, enemy] of composition.entries()) {
 		total += enemy.weight
-		const flyer = isFlyer(enemy)
-		const reaches = stats.targets === 'both' || (stats.targets === 'air') === flyer
-		if (reaches) {
-			weighted += enemy.weight * resolveDamage(1, damageType, { tags: enemy.tags, statuses: [] })
+		if ((others[index] ?? 0) === 0) {
+			gap += enemy.weight
 		}
 	}
-	return total === 0 ? 0 : stats.dps * (weighted / total)
+
+	let value = 0
+	for (const [index, term] of terms.entries()) {
+		const answering = others[index] ?? 0
+		value += answering === 0 ? term * (total / gap) : term / (1 + answering)
+	}
+	return value
 }
 
 /**

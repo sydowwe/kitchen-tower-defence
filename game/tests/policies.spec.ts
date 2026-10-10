@@ -5,11 +5,21 @@ import { toCsv } from '@/dev/harness/csv.ts'
 import { blindLoadout, defaultLoadout, fixedLoadout, optimalLoadout, parseFixed } from '@/dev/harness/loadouts.ts'
 import { loadoutPolicyNamed, replayNight, runNight } from '@/dev/harness/run.ts'
 import { LOADOUT_POLICIES, POLICIES } from '@/dev/harness/types.ts'
-import { compositionOf, hasFlyer, hitsAir, isEconomy } from '@/dev/harness/value.ts'
+import {
+	compositionOf,
+	damageTermsOf,
+	hasFlyer,
+	hitsAir,
+	isEconomy,
+	sharedValue,
+	valueOf,
+} from '@/dev/harness/value.ts'
+import { statsFor } from '@/ui/viewModel.ts'
 import type { Progress } from '@/core/campaign.ts'
 import type { DefId } from '@/core/types.ts'
 import type { LoadoutPolicy, PolicyFactory } from '@/dev/harness/types.ts'
 import type { NightRun } from '@/dev/harness/run.ts'
+import type { WeightedEnemy } from '@/dev/harness/value.ts'
 
 /**
  * The scripted players are measuring instruments, so what is asserted is that they measure: legal
@@ -169,6 +179,81 @@ describe('the economy knob', () => {
 	it('greedy places at least one economy tower on night 1', () => {
 		const run = runNight(progressFor('night01'), 1234, policy('greedy'), optimalLoadout)
 		expect(placedDefs(run).filter(id => isEconomy(getTowerDef(id))).length).toBeGreaterThanOrEqual(1)
+	})
+})
+
+describe('greedy answers the gap', () => {
+	function placedDefs(run: NightRun): DefId[] {
+		return run.log.flatMap(entry => (entry.command.kind === 'PlaceTower' ? [entry.command.defId] : []))
+	}
+
+	function damaging(id: DefId): boolean {
+		return (statsFor(getTowerDef(id)).dps ?? 0) > 0
+	}
+
+	it(
+		'night 8 places a tower that hits air, and more than one damaging def',
+		() => {
+			const placed = placedDefs(runNight(progressFor('night08'), 1234, policy('greedy'), optimalLoadout))
+			expect(
+				placed.some(id => hitsAir(getTowerDef(id))),
+				`[${placed.join(', ')}]`,
+			).toBe(true)
+			expect(new Set(placed.filter(damaging)).size).toBeGreaterThanOrEqual(2)
+		},
+		SLOW,
+	)
+
+	// Ground-only, so the first Shaker answers everything and the share leaves the ranking alone. Four
+	// Shakers, then the saved-for Tray: what ECONOMY_WEIGHT was read against (B2, decision 5). A change
+	// to the valuation that moves this says what it did to night 1.
+	it('night 1 opens on four Salt Shakers, then a Crumb Tray', () => {
+		const placed = placedDefs(runNight(progressFor('night01'), 1234, policy('greedy'), optimalLoadout))
+		expect(placed.find(damaging)).toBe('saltShaker')
+		expect(placed.slice(0, 5)).toEqual(['saltShaker', 'saltShaker', 'saltShaker', 'saltShaker', 'toasterCrumbTray'])
+	})
+
+	describe('the share is per enemy, not per tower', () => {
+		// 90% of the night on the ground, 10% in the air; chemical and physical are 1.0 against both.
+		const composition: WeightedEnemy[] = [
+			{ tags: ['ground', 'bug'], weight: 900 },
+			{ tags: ['air', 'bug'], weight: 100 },
+		]
+		const shaker = damageTermsOf(getTowerDef('saltShaker'), composition)
+		const spray = damageTermsOf(getTowerDef('sprayBottle'), composition)
+
+		it('splits valueOf by enemy', () => {
+			expect(shaker).toEqual([4.5, 0])
+			expect(spray[0]).toBeCloseTo(3.24, 10)
+			expect(spray[1]).toBeCloseTo(0.36, 10)
+			expect(spray[0]! + spray[1]!).toBeCloseTo(valueOf(getTowerDef('sprayBottle'), composition), 10)
+		})
+
+		it("a ground-only tower's air term is 0 whatever is standing", () => {
+			for (const others of [
+				[0, 0],
+				[1, 0],
+				[0, 1],
+				[5, 3],
+			]) {
+				expect(sharedValue([0, shaker[1]!], others, composition)).toBe(0)
+			}
+		})
+
+		it('a tower that hits both has its air term halved by one air tower standing', () => {
+			const air = [0, spray[1]!]
+			expect(sharedValue(air, [3, 1], composition)).toBeCloseTo(0.18, 10)
+			expect(sharedValue(air, [3, 2], composition)).toBeCloseTo(0.12, 10)
+		})
+
+		it('what nothing standing answers is credited as the whole night', () => {
+			// Empty board: valueOf.
+			expect(sharedValue(spray, [0, 0], composition)).toBeCloseTo(3.6, 10)
+			// The ground held by one Shaker, the air by nothing: half the ground, and the flies as if the
+			// night were only flies, 3.6 x 1.0.
+			expect(sharedValue(spray, [1, 0], composition)).toBeCloseTo(1.62 + 3.6, 10)
+			expect(sharedValue(spray, [1, 1], composition)).toBeCloseTo(1.62 + 0.18, 10)
+		})
 	})
 })
 

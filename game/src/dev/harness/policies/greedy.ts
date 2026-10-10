@@ -2,13 +2,16 @@ import { effectiveDef, getTowerDef, MAX_TIER } from '@/core/content/index.ts'
 import { upgradeCostFor } from '@/core/systems/commands.ts'
 import { isDropped } from '@/core/systems/fridge.ts'
 import {
+	answers,
 	candidateTiles,
 	compositionOf,
 	createCoverageCache,
 	crumbsPerSecondOf,
+	damageTermsOf,
 	isEconomy,
 	placeableButForPrice,
 	reachOf,
+	sharedValue,
 	valueOf,
 } from '@/dev/harness/value.ts'
 import type { Command } from '@/core/commands.ts'
@@ -21,9 +24,10 @@ import type { Policy, PolicyFactory } from '@/dev/harness/types.ts'
  * What an economy tower's income per crumb spent is worth, as a multiple of the best tower purchase on
  * tonight's empty board, before it is shared with the economy already standing. Set by reading what
  * greedy builds on nights 1 and 8, never by its win rate: a constant tuned to make a target pass
- * measures itself. Why it is relative and shared: steps/22-balance-harness/B-policies.md, decision 4.
+ * measures itself. Why it is relative and shared: steps/22-balance-harness/B-policies.md, decision 4;
+ * why 4 and no longer 18: B2-greedy-answers-the-gap.md, decision 5.
  */
-export const ECONOMY_WEIGHT = 18
+export const ECONOMY_WEIGHT = 4
 
 /** A purchase and what it is worth per crumb. */
 interface Purchase {
@@ -37,10 +41,21 @@ interface Profile {
 	economy: boolean
 	/**
 	 * For an economy tower, its income in the board's terms before it is shared: crumbs a second x
-	 * `economyWeight` x `Plan.reference`. For the rest, card DPS x tonight's matrix.
+	 * `economyWeight` x `Plan.reference`. For the rest, card DPS x tonight's matrix on an empty board.
 	 */
 	rate: number
+	/** Per composition entry, the damage `rate` sums, before each is shared with the towers answering it. */
+	terms: number[]
+	/** Per composition entry, whether this tower is one of the towers answering it. */
+	answers: boolean[]
 	reach: number
+}
+
+/** What is standing, counted once per `decide` and passed down: `worth` runs once per candidate. */
+interface Standing {
+	economy: number
+	/** Per composition entry, the towers standing that answer it. */
+	answering: number[]
 }
 
 /** What greedy keeps for the night. Built in `begin`; `decide` only reads it. */
@@ -89,6 +104,8 @@ function greedyPolicy(name: string, economyWeight: number): PolicyFactory {
 				rate: economy
 					? crumbsPerSecondOf(def) * economyWeight * plan.reference
 					: valueOf(def, plan.composition),
+				terms: damageTermsOf(def, plan.composition),
+				answers: plan.composition.map(enemy => answers(def, enemy)),
 				reach: reachOf(def),
 			}
 			plan.profiles.set(key, profile)
@@ -96,16 +113,38 @@ function greedyPolicy(name: string, economyWeight: number): PolicyFactory {
 		}
 
 		/**
-		 * A tower of this def at this tier, on this tile: its damage over the track it reaches, or its
-		 * income shared `economyShare` ways with the economy standing beside it.
+		 * A tower of this def at this tier, on this tile: its damage over the track it reaches, each enemy
+		 * shared with the `others` standing that answer it, or its income shared `economyShare` ways with
+		 * the economy standing beside it.
 		 */
-		function worth(defId: DefId, tier: number, tile: Vec2, economyShare: number): number {
+		function worth(
+			defId: DefId,
+			tier: number,
+			tile: Vec2,
+			economyShare: number,
+			others: readonly number[],
+		): number {
 			const profile = profileOf(defId, tier)
-			return profile.economy ? profile.rate / economyShare : profile.rate * plan.coverage.at(tile, profile.reach)
+			return profile.economy
+				? profile.rate / economyShare
+				: sharedValue(profile.terms, others, plan.composition) * plan.coverage.at(tile, profile.reach)
 		}
 
-		function economyStanding(world: World): number {
-			return world.towers.filter(tower => profileOf(tower.defId, tower.tier).economy).length
+		function standingOf(world: World): Standing {
+			const answering = plan.composition.map(() => 0)
+			let economy = 0
+			for (const tower of world.towers) {
+				const profile = profileOf(tower.defId, tower.tier)
+				if (profile.economy) {
+					economy++
+				}
+				for (const [index, answered] of profile.answers.entries()) {
+					if (answered) {
+						answering[index] = (answering[index] ?? 0) + 1
+					}
+				}
+			}
+			return { economy, answering }
 		}
 
 		/** The free tile with the most coverage. Legality is asked now, every time. */
@@ -144,7 +183,7 @@ function greedyPolicy(name: string, economyWeight: number): PolicyFactory {
 			return best
 		}
 
-		function placements(world: World, occupied: Set<number>, economy: number): Purchase[] {
+		function placements(world: World, occupied: Set<number>, standing: Standing): Purchase[] {
 			const found: Purchase[] = []
 			for (const def of plan.defs) {
 				// Worth nothing tonight wherever it stands: never bought, and no tile is searched for it.
@@ -156,8 +195,9 @@ function greedyPolicy(name: string, economyWeight: number): PolicyFactory {
 				if (tile === null) {
 					continue
 				}
-				// A new economy tower shares with every one standing, itself included.
-				const perCrumb = worth(def.id, 0, tile, economy + 1) / def.cost
+				// A new tower shares with every one standing, itself included: an economy tower with the
+				// economy, a damaging one each enemy with the towers answering it.
+				const perCrumb = worth(def.id, 0, tile, standing.economy + 1, standing.answering) / def.cost
 				if (perCrumb > 0) {
 					found.push({
 						command: { kind: 'PlaceTower', defId: def.id, tile: { x: tile.x, y: tile.y } },
@@ -169,18 +209,21 @@ function greedyPolicy(name: string, economyWeight: number): PolicyFactory {
 			return found
 		}
 
-		function upgrades(world: World, economy: number): Purchase[] {
+		function upgrades(world: World, standing: Standing): Purchase[] {
 			const found: Purchase[] = []
 			for (const tower of world.towers) {
 				if (tower.tier >= MAX_TIER) {
 					continue
 				}
 				const cost = upgradeCostFor(world, tower)
-				// An economy tower being upgraded is already one of the `economy` standing.
-				const share = Math.max(1, economy)
+				// An upgrade adds no tower: an economy tower is already one of the economy standing, and a
+				// damaging one already among those answering what it answers, so it shares with the rest.
+				const share = Math.max(1, standing.economy)
+				const own = profileOf(tower.defId, tower.tier).answers
+				const others = standing.answering.map((count, index) => (own[index] === true ? count - 1 : count))
 				const gained =
-					worth(tower.defId, tower.tier + 1, tower.tile, share) -
-					worth(tower.defId, tower.tier, tower.tile, share)
+					worth(tower.defId, tower.tier + 1, tower.tile, share, others) -
+					worth(tower.defId, tower.tier, tower.tile, share, others)
 				if (cost > 0 && gained > 0) {
 					found.push({ command: { kind: 'UpgradeTower', towerId: tower.id }, cost, perCrumb: gained / cost })
 				}
@@ -191,9 +234,9 @@ function greedyPolicy(name: string, economyWeight: number): PolicyFactory {
 		/** The best purchase there is, affordable or not. The first one found keeps a tie. */
 		function bestPurchase(world: World): Purchase | null {
 			const occupied = new Set(world.towers.map(tower => tileKey(world, tower.tile)))
-			const economy = economyStanding(world)
+			const standing = standingOf(world)
 			let best: Purchase | null = null
-			for (const purchase of [...placements(world, occupied, economy), ...upgrades(world, economy)]) {
+			for (const purchase of [...placements(world, occupied, standing), ...upgrades(world, standing)]) {
 				if (best === null || purchase.perCrumb > best.perCrumb) {
 					best = purchase
 				}

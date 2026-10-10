@@ -69,6 +69,10 @@ then edit this file. Don't leave it lying.
      itself included)`, placed where its collect radius covers the most track, since piles drop where
      enemies die. `reference` is the best value per crumb any loadout tower has on tonight's empty board.
 
+   *Re-read in B2 at **4**, when damage worth began sharing per enemy:* night 1 now places four Salt
+   Shakers (the first upgraded at tick 1), then a saved-for Crumb Tray, then Shakers along the lane, and
+   earns 459. The paragraph below is the original reading, at 18, before the share.
+
    `ECONOMY_WEIGHT` is 18. That puts greedy's night 1 at four Salt Shakers, then a saved-for Crumb Tray,
    then shakers along the lane. It was settled by looking at what greedy builds on nights 1 and 8,
    **never by its win rate**: a constant tuned to make the targets pass measures itself.

@@ -194,7 +194,8 @@ describe('the damage book', () => {
 		expect(book.byTower[candleId] ?? 0).toBeGreaterThan(0)
 		// Tier 3's reflect, booked to the box being chewed.
 		expect(book.byTower[boxId] ?? 0).toBeGreaterThan(0)
-	})
+		// A whole night. Passes alone, past vitest's 5s default with the suite running beside it.
+	}, 30_000)
 
 	it('books a Mousetrap killing a 10-HP Ant as 10, not 60', () => {
 		const world = createTestWorld()

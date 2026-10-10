@@ -54,7 +54,8 @@ describe('the CSV', () => {
 		expect(reversed).toBe(first)
 		// A header and one row a night job, one for the campaign that stuck on night 1.
 		expect(first.trimEnd().split('\n')).toHaveLength(1 + 18 + 1)
-	})
+		// Nineteen jobs, twice. Passes alone, past vitest's 5s default with the suite running beside it.
+	}, 30_000)
 
 	it('sorts by difficulty and then night, whatever order the jobs ran in', () => {
 		const csv = toCsv(
