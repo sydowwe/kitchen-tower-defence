@@ -5,14 +5,14 @@
 **Read first:** `../../CLAUDE.md`, `../../analytic-docs/CONTENT.md` (all of it: you're about to change
 most of its numbers), `../../analytic-docs/DECISIONS.md` §4, §7 and §10,
 `../../analytic-docs/OPEN-QUESTIONS.md` §3.
-**Prereq:** steps 22A, 22B, 22C and **22B2** ([B2-greedy-answers-the-gap.md](B2-greedy-answers-the-gap.md)), **and step 21, all seven parts.**
+**Prereq:** steps 22A, 22B, 22C and **22B2** ([B2-greedy-answers-the-gap.md](B2-greedy-answers-the-gap.md)) and **22B3** ([B3-greedy-watches-the-lane.md](B3-greedy-watches-the-lane.md)), **and step 21, all seven parts.**
 
 ## Blocked: `greedy` can't judge difficulty (pre-flight, 2026-10-09, at `a61c1a0`)
 
 The first run of this step stopped after Build §1. The baseline ran, but no number moved. **The
 instrument this step judges difficulty with doesn't discriminate.** Fixing it isn't the policy bug fix
-decision 4 allows. It redesigns 22B's decision 2, and *Do not* rules that out here. The fix is [B2](B2-greedy-answers-the-gap.md). Run it before this part runs
-again, then rerun §1, because the baseline below was measured with the old `greedy`.
+decision 4 allows. It redesigns 22B's decision 2, and *Do not* rules that out here. The fix is [B2](B2-greedy-answers-the-gap.md), then [B3](B3-greedy-watches-the-lane.md). Run both before this part runs
+again, then rerun §1, because the baseline below was measured with the old `greedy`. B3's *Hands to D* has the newest matrix.
 
 **`greedy` only ever builds Salt Shakers.** On every night, under `default`, `optimal` and `blind` alike,
 on Normal and on Nightmare, the Salt Shaker did over 60% of the damage in 20 of 20 runs. In the rows

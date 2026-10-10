@@ -140,6 +140,9 @@ The existing replay, economy-knob and smoke tests must pass unchanged.
 
 ## Hands to D
 
+**[B3](B3-greedy-watches-the-lane.md) runs before D** and takes the two policy results below: night 7 and
+the Mold stalls. D reruns its Build §1 from B3's matrix. What follows is B2's, kept as B3's "from".
+
 D reruns its Build §1 from scratch: its recorded baseline was measured with the old `greedy`. The
 night-mode half of §1 has already been run with this `greedy`, as this part's acceptance:
 `game/.balance/b2/night.csv` and `report.html` beside it (gitignored, so only on the machine that ran
