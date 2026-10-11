@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { newProgress, setLoadout } from '@/core/campaign.ts'
+import { ant, mold } from '@/core/content/enemies.ts'
 import { getTowerDef, INSTALLATIONS, NIGHTS } from '@/core/content/index.ts'
+import { samplePath } from '@/core/path.ts'
+import { spawnEnemyAt } from '@/core/systems/spawn.ts'
 import { toCsv } from '@/dev/harness/csv.ts'
 import { blindLoadout, defaultLoadout, fixedLoadout, optimalLoadout, parseFixed } from '@/dev/harness/loadouts.ts'
+import { createLaneWatch, farthestReached, STRANDED_TICKS, watchLane } from '@/dev/harness/policies/greedy.ts'
 import { loadoutPolicyNamed, replayNight, runNight } from '@/dev/harness/run.ts'
 import { LOADOUT_POLICIES, POLICIES } from '@/dev/harness/types.ts'
 import {
@@ -11,15 +15,18 @@ import {
 	hasFlyer,
 	hitsAir,
 	isEconomy,
+	reachOf,
 	sharedValue,
 	valueOf,
 } from '@/dev/harness/value.ts'
 import { statsFor } from '@/ui/viewModel.ts'
 import type { Progress } from '@/core/campaign.ts'
-import type { DefId } from '@/core/types.ts'
+import type { DefId, Vec2, World } from '@/core/types.ts'
+import type { Answerer } from '@/dev/harness/policies/greedy.ts'
 import type { LoadoutPolicy, PolicyFactory } from '@/dev/harness/types.ts'
 import type { NightRun } from '@/dev/harness/run.ts'
 import type { WeightedEnemy } from '@/dev/harness/value.ts'
+import { createTestWorld } from './fixtures/world.ts'
 
 /**
  * The scripted players are measuring instruments, so what is asserted is that they measure: legal
@@ -216,8 +223,8 @@ describe('greedy answers the gap', () => {
 	describe('the share is per enemy, not per tower', () => {
 		// 90% of the night on the ground, 10% in the air; chemical and physical are 1.0 against both.
 		const composition: WeightedEnemy[] = [
-			{ tags: ['ground', 'bug'], weight: 900 },
-			{ tags: ['air', 'bug'], weight: 100 },
+			{ id: 'ant', tags: ['ground', 'bug'], weight: 900 },
+			{ id: 'fly', tags: ['air', 'bug'], weight: 100 },
 		]
 		const shaker = damageTermsOf(getTowerDef('saltShaker'), composition)
 		const spray = damageTermsOf(getTowerDef('sprayBottle'), composition)
@@ -253,6 +260,140 @@ describe('greedy answers the gap', () => {
 			// night were only flies, 3.6 x 1.0.
 			expect(sharedValue(spray, [1, 0], composition)).toBeCloseTo(1.62 + 3.6, 10)
 			expect(sharedValue(spray, [1, 1], composition)).toBeCloseTo(1.62 + 0.18, 10)
+		})
+	})
+})
+
+describe('greedy watches the lane', () => {
+	function placements(run: NightRun): { defId: DefId; tile: Vec2 }[] {
+		return run.log.flatMap(entry => (entry.command.kind === 'PlaceTower' ? [entry.command] : []))
+	}
+
+	function damaging(id: DefId): boolean {
+		return (statsFor(getTowerDef(id)).dps ?? 0) > 0
+	}
+
+	// At b185ca7 it placed three Salt Shakers, then saved for the Cookie Jar from tick 3 to 3,165 while
+	// the lane fell, and lost.
+	it(
+		'night 7 places four damaging towers before its first economy tower',
+		() => {
+			const placed = placements(runNight(progressFor('night07'), 1234, policy('greedy'), defaultLoadout))
+			const firstEconomy = placed.findIndex(entry => isEconomy(getTowerDef(entry.defId)))
+			expect(firstEconomy).toBeGreaterThan(0)
+			expect(placed.slice(0, firstEconomy).filter(entry => damaging(entry.defId)).length).toBeGreaterThanOrEqual(
+				4,
+			)
+		},
+		SLOW,
+	)
+
+	// At b185ca7 it stalled at 72,000 ticks with three Mold at full HP 2 to 5 tiles down the vent.
+	it(
+		'night 12 puts a tower in reach of the Mold down the vent, and does not stall',
+		() => {
+			const run = runNight(progressFor('night12'), 1234, policy('noEconomy'), optimalLoadout)
+			expect(run.row.outcome).not.toBe('stalled')
+
+			const vent = run.world.map.paths.find(path => path.id === 'vent')
+			expect(vent).toBeDefined()
+			const ventTiles = [0, 1, 2, 3, 4].map(distance => samplePath(vent!, distance))
+			const reaching = placements(run).filter(({ defId, tile }) => {
+				const reach = reachOf(getTowerDef(defId))
+				return ventTiles.some(at => Math.hypot(at.x - tile.x, at.y - tile.y) <= reach)
+			})
+			expect(reaching.length).toBeGreaterThanOrEqual(1)
+		},
+		SLOW,
+	)
+
+	describe('unanswered is about the board, not the card', () => {
+		// The fixture's lane `a` runs (0,0) to (39,0) along +x, so an enemy's distance is its x.
+		const composition: WeightedEnemy[] = [
+			{ id: 'ant', tags: ant.tags, weight: 1 },
+			{ id: 'mold', tags: mold.tags, weight: 1 },
+		]
+
+		function answerer(world: World, x: number, answers = [true, true]): Answerer {
+			const tile = { x, y: 0 }
+			return { tile, reach: 2, answers, farthest: farthestReached(world.map, tile, 2) }
+		}
+
+		function readAt(world: World, tick: number, watch: ReturnType<typeof createLaneWatch>, towers: Answerer[]) {
+			world.tick = tick
+			return watchLane(world, watch, composition, towers)
+		}
+
+		it('reads the farthest point of the lane a tower reaches', () => {
+			const world = createTestWorld()
+			expect(answerer(world, 10).farthest.get('a')).toBeCloseTo(12, 10)
+			expect(answerer(world, 38).farthest.get('a')).toBeCloseTo(39, 10)
+		})
+
+		it('a walker is slipping only once it has been in range and walked out past the defence', () => {
+			const world = createTestWorld()
+			const watch = createLaneWatch()
+			const towers = [answerer(world, 10)]
+			const walker = spawnEnemyAt(world, ant, 'a', 0, 0)
+
+			// Never in range yet: not slipping, and walking, so not stranded.
+			expect(readAt(world, 0, watch, towers)).toEqual({ slipping: [false, false], stranded: [[], []] })
+			walker.distance = 9
+			expect(readAt(world, 1, watch, towers).slipping).toEqual([false, false])
+			walker.distance = 14
+			expect(readAt(world, 2, watch, towers).slipping).toEqual([true, false])
+
+			// Into the gap before a second tower is not through the defence.
+			expect(readAt(world, 3, watch, [...towers, answerer(world, 20)]).slipping).toEqual([false, false])
+		})
+
+		it('a walker that has never been in range is neither slipping nor stranded', () => {
+			const world = createTestWorld()
+			const watch = createLaneWatch()
+			const towers = [answerer(world, 10)]
+			const walker = spawnEnemyAt(world, ant, 'a', 15, 0)
+			for (let tick = 0; tick <= 2 * STRANDED_TICKS; tick++) {
+				walker.distance = 15 + tick * 0.05
+				expect(readAt(world, tick, watch, towers)).toEqual({ slipping: [false, false], stranded: [[], []] })
+			}
+		})
+
+		it('an enemy at one distance for 120 ticks with no answering tower in reach is stranded', () => {
+			const world = createTestWorld()
+			const watch = createLaneWatch()
+			spawnEnemyAt(world, mold, 'a', 30, 0)
+			const towers = [answerer(world, 10), answerer(world, 30, [true, false])]
+
+			expect(readAt(world, 0, watch, towers).stranded).toEqual([[], []])
+			expect(readAt(world, STRANDED_TICKS - 1, watch, towers).stranded).toEqual([[], []])
+			expect(readAt(world, STRANDED_TICKS, watch, towers).stranded).toEqual([[], [{ x: 30, y: 0 }]])
+			// A tower in reach that can't hit it doesn't count; one that can does.
+			expect(readAt(world, STRANDED_TICKS + 1, watch, [...towers, answerer(world, 29)]).stranded).toEqual([
+				[],
+				[],
+			])
+		})
+
+		it('a feeding enemy is never stranded', () => {
+			const world = createTestWorld()
+			const watch = createLaneWatch()
+			const fed = spawnEnemyAt(world, ant, 'a', 30, 0)
+			fed.feeding = { towerId: 99, distance: 30, releaseTick: 10_000 }
+			for (const tick of [0, STRANDED_TICKS, 4 * STRANDED_TICKS]) {
+				expect(readAt(world, tick, watch, [answerer(world, 10)]).stranded).toEqual([[], []])
+			}
+		})
+
+		it('forgets the enemies that are gone', () => {
+			const world = createTestWorld()
+			const watch = createLaneWatch()
+			spawnEnemyAt(world, ant, 'a', 10, 0)
+			readAt(world, 0, watch, [answerer(world, 10)])
+			expect(watch.reached.size).toBe(1)
+			world.enemies = []
+			readAt(world, 1, watch, [answerer(world, 10)])
+			expect(watch.reached.size).toBe(0)
+			expect(watch.still.size).toBe(0)
 		})
 	})
 })

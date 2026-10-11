@@ -18,6 +18,8 @@ import type { DefId, DifficultyId, EnemyTag, MapDef, Vec2, World } from '@/core/
 
 /** One enemy of tonight's preview, weighted by how much of the night's HP it is. */
 export interface WeightedEnemy {
+	/** The enemy def, so an entry can be matched to the enemies on the board. */
+	id: DefId
 	tags: readonly EnemyTag[]
 	/** `count x hp`: what a tower has to chew through of this one. */
 	weight: number
@@ -27,7 +29,7 @@ export interface WeightedEnemy {
 export function compositionOf(nightId: DefId, difficulty: DifficultyId): WeightedEnemy[] {
 	return buildPreview(getNightDef(nightId), difficulty).enemies.map(entry => {
 		const def = getEnemyDef(entry.id)
-		return { tags: def.tags, weight: entry.count * def.hp }
+		return { id: entry.id, tags: def.tags, weight: entry.count * def.hp }
 	})
 }
 
