@@ -27,9 +27,10 @@ import type { Policy, PolicyFactory } from '@/dev/harness/types.ts'
  * tonight's empty board, before it is shared with the economy already standing. Set by reading what
  * greedy builds on nights 1 and 8, never by its win rate: a constant tuned to make a target pass
  * measures itself. Why it is relative and shared: steps/22-balance-harness/B-policies.md, decision 4;
- * why 4 and no longer 18: B2-greedy-answers-the-gap.md, decision 5.
+ * why 4 and no longer 18: B2-greedy-answers-the-gap.md, decision 5; why 8 since D halved the Crumb
+ * Tray's income: D-tuning-the-curve.md, decision 10.
  */
-export const ECONOMY_WEIGHT = 4
+export const ECONOMY_WEIGHT = 8
 
 /** A purchase and what it is worth per crumb. */
 interface Purchase {

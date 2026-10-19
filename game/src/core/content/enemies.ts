@@ -37,7 +37,7 @@ export interface EnemyDefOf<Id extends string> extends EnemyDef {
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 1: 10 HP, 1.0 tiles/sec, 3 crumbs, steals 1,
+ * analytic-docs/CONTENT.md section 2, night 1: 10 HP, 1.0 tiles/sec, 2 crumbs, steals 1,
  * `ground swarm bug`.
  *
  * `swarm` is the tag with a matrix row (x1.5 fire, x1.5 chemical); `ground` and `bug` are
@@ -52,13 +52,13 @@ export const ant: EnemyDefOf<'ant'> = {
 	hp: 10,
 	speedTilesPerTick: tilesPerSecond(1.0),
 	meleeDamagePerTick: damagePerSecond(1.0),
-	reward: 3,
+	reward: 2,
 	steals: 1,
 	tags: ['ground', 'swarm', 'bug'],
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 3: 18 HP, 1.8 tiles/sec, 5 crumbs, steals 1,
+ * analytic-docs/CONTENT.md section 2, night 3: 18 HP, 1.8 tiles/sec, 3 crumbs, steals 1,
  * `ground fast bug`.
  *
  * None of its three tags has a matrix row, so it takes every damage type at 1.0 -- what makes it
@@ -72,13 +72,13 @@ export const roach: EnemyDefOf<'roach'> = {
 	hp: 18,
 	speedTilesPerTick: tilesPerSecond(1.8),
 	meleeDamagePerTick: damagePerSecond(1.8),
-	reward: 5,
+	reward: 3,
 	steals: 1,
 	tags: ['ground', 'fast', 'bug'],
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, last row: 8 HP, 2.0 tiles/sec, 2 crumbs, steals 1,
+ * analytic-docs/CONTENT.md section 2, last row: 8 HP, 2.0 tiles/sec, 1 crumb, steals 1,
  * `air swarm self-spawning`.
  *
  * **No scheduled night in v1.** Nothing in `nights.ts` names it: it is a consequence of crumb rot
@@ -98,13 +98,13 @@ export const fruitFly: EnemyDefOf<'fruitFly'> = {
 	speedTilesPerTick: tilesPerSecond(2.0),
 	/** Never read -- it flies, and a barricade holds nothing that is off the floor. Authored anyway. */
 	meleeDamagePerTick: damagePerSecond(0.8),
-	reward: 2,
+	reward: 1,
 	steals: 1,
 	tags: ['air', 'swarm', 'self-spawning'],
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 5: 55 HP, 0.7 tiles/sec, 10 crumbs, steals 2,
+ * analytic-docs/CONTENT.md section 2, night 5: 55 HP, 0.7 tiles/sec, 6 crumbs, steals 2,
  * `ground bug`.
  *
  * Neither tag has a matrix row, so it takes every damage type at 1.0. What makes it a bruiser is
@@ -120,13 +120,13 @@ export const beetle: EnemyDefOf<'beetle'> = {
 	hp: 55,
 	speedTilesPerTick: tilesPerSecond(0.7),
 	meleeDamagePerTick: damagePerSecond(5.5),
-	reward: 10,
+	reward: 6,
 	steals: 2,
 	tags: ['ground', 'bug'],
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 8: 14 HP, 2.2 tiles/sec, 6 crumbs, steals 1, `air bug`.
+ * analytic-docs/CONTENT.md section 2, night 8: 14 HP, 2.2 tiles/sec, 2 crumbs, steals 1, `air bug`.
  *
  * **`air` and not `swarm`.** The Fruit Fly above has both and the Fly has only the first, and that
  * is the whole difference in how the two take a Toaster shot: section 3's matrix gives `air` x1.2 to
@@ -148,13 +148,13 @@ export const fly: EnemyDefOf<'fly'> = {
 	speedTilesPerTick: tilesPerSecond(2.2),
 	/** Never read -- it flies, and a barricade holds nothing that is off the floor. Authored anyway. */
 	meleeDamagePerTick: damagePerSecond(1.4),
-	reward: 6,
+	reward: 2,
 	steals: 1,
 	tags: ['air', 'bug'],
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 10: 25 HP, 1.6 tiles/sec, 8 crumbs, steals 1,
+ * analytic-docs/CONTENT.md section 2, night 10: 25 HP, 1.6 tiles/sec, 3 crumbs, steals 1,
  * `air light-drawn`.
  *
  * **`light-drawn` is the only tag in the roster that a system reads by name.**
@@ -176,13 +176,13 @@ export const moth: EnemyDefOf<'moth'> = {
 	speedTilesPerTick: tilesPerSecond(1.6),
 	/** Never read -- it flies, and a barricade holds nothing that is off the floor. Authored anyway. */
 	meleeDamagePerTick: damagePerSecond(2.5),
-	reward: 8,
+	reward: 3,
 	steals: 1,
 	tags: ['air', 'light-drawn'],
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 11: 40 HP, 12 crumbs, steals nothing,
+ * analytic-docs/CONTENT.md section 2, night 11: 40 HP, 6 crumbs, steals nothing,
  * `ground spreads fungal`.
  *
  * **Speed 0, not the table's 0.15.** The paragraph under that table says mold does not walk, and the
@@ -212,7 +212,7 @@ export const mold: EnemyDefOf<'mold'> = {
 	hp: 40,
 	speedTilesPerTick: 0,
 	meleeDamagePerTick: damagePerSecond(4),
-	reward: 12,
+	reward: 6,
 	steals: 0,
 	tags: ['ground', 'spreads', 'fungal', 'push-immune'],
 	/** `magnitude` is mold's growth stage, and 1 is where every patch starts. */
@@ -220,7 +220,7 @@ export const mold: EnemyDefOf<'mold'> = {
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 15: 45 HP, 0.4 tiles/sec, 11 crumbs, steals 2,
+ * analytic-docs/CONTENT.md section 2, night 15: 45 HP, 0.4 tiles/sec, 4 crumbs, steals 2,
  * `ground slime soft`.
  *
  * Slow on its own, and it paves a road: every tile it crosses carries slime for 8 seconds, and
@@ -240,7 +240,7 @@ export const slug: EnemyDefOf<'slug'> = {
 	hp: 45,
 	speedTilesPerTick: tilesPerSecond(0.4),
 	meleeDamagePerTick: damagePerSecond(4.5),
-	reward: 11,
+	reward: 4,
 	steals: 2,
 	tags: ['ground', 'slime', 'soft'],
 	/**
@@ -252,7 +252,7 @@ export const slug: EnemyDefOf<'slug'> = {
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 13: 30 HP, 1.0 tiles/sec, 9 crumbs, steals 1,
+ * analytic-docs/CONTENT.md section 2, night 13: 30 HP, 1.0 tiles/sec, 3 crumbs, steals 1,
  * `ground burrows bug`.
  *
  * It goes under the floor for a stretch of its lane rolled at spawn, and while under it cannot be
@@ -275,14 +275,14 @@ export const weevil: EnemyDefOf<'weevil'> = {
 	hp: 30,
 	speedTilesPerTick: tilesPerSecond(1.0),
 	meleeDamagePerTick: damagePerSecond(3),
-	reward: 9,
+	reward: 3,
 	steals: 1,
 	tags: ['ground', 'burrows', 'bug'],
 	burrow: { startMaxFraction: 0.25, lengthMinFraction: 0.3, lengthMaxFraction: 0.4 },
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 17: 110 HP, 0.6 tiles/sec, 18 crumbs, steals 2,
+ * analytic-docs/CONTENT.md section 2, night 17: 110 HP, 0.6 tiles/sec, 6 crumbs, steals 2,
  * `ground armored bug`.
  *
  * **No field and no system line.** `armored` is x0.4 physical, x1.2 cold, and the Lemon's Armor Strip
@@ -296,13 +296,13 @@ export const silverfish: EnemyDefOf<'silverfish'> = {
 	hp: 110,
 	speedTilesPerTick: tilesPerSecond(0.6),
 	meleeDamagePerTick: damagePerSecond(11),
-	reward: 18,
+	reward: 6,
 	steals: 2,
 	tags: ['ground', 'armored', 'bug'],
 }
 
 /**
- * analytic-docs/CONTENT.md section 2, night 14: 200 HP, 1.5 tiles/sec, 40 crumbs, steals 5 and flees,
+ * analytic-docs/CONTENT.md section 2, night 14: 200 HP, 1.5 tiles/sec, 20 crumbs, steals 5 and flees,
  * `ground thief mammal`. The mini-boss, but not `boss` and not `push-immune`.
  *
  * **`thief` does it, not the tag**, and the enemy schema keeps the two together. It walks to the
@@ -325,7 +325,7 @@ export const mouse: EnemyDefOf<'mouse'> = {
 	hp: 200,
 	speedTilesPerTick: tilesPerSecond(1.5),
 	meleeDamagePerTick: damagePerSecond(20),
-	reward: 40,
+	reward: 20,
 	steals: 5,
 	tags: ['ground', 'thief', 'mammal'],
 	thief: { grabTicks: 90, fleeSpeedMult: 1.3 },

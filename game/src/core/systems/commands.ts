@@ -24,9 +24,11 @@ import type { EntityId, TargetingMode, Tower, World } from '@/core/types.ts'
 
 /**
  * Crumbs per whole second of countdown skipped. `DECISIONS.md` section 5 says "proportional to the
- * seconds you skipped" and names no rate; step 22 is what re-prices this.
+ * seconds you skipped" and names no rate. Re-priced by step 22D from 2 to 4: the one income that is
+ * flat per wave rather than per enemy, so it lifts Act I's curve without inflating Act II's
+ * (steps/22-balance-harness/D-tuning-the-curve.md, decision 9).
  */
-const CRUMBS_PER_SECOND_SKIPPED = 2
+const CRUMBS_PER_SECOND_SKIPPED = 4
 const TICKS_PER_SECOND = 60
 
 /**

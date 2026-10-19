@@ -58,11 +58,11 @@ describe('the early-call bonus preview', () => {
 	it('promises exactly what calling the wave pays, for a countdown that is not whole seconds', () => {
 		const world = createWorld(OPTIONS)
 		world.night.phase = 'countdown'
-		// 1.51 seconds. The preview and the payer both floor it to one second, or the button says +4.
+		// 1.51 seconds. The preview and the payer both floor it to one second, or the button says +8.
 		world.night.countdownTicks = 91
 
 		const preview = buildHudSnapshot(world, VIEW).earlyCallBonus
-		expect(preview).toBe(2)
+		expect(preview).toBe(4)
 
 		const before = world.crumbs
 		const queue = createCommandQueue()
@@ -155,8 +155,8 @@ describe('the inspector', () => {
 		const tower = placeTower(world, getTowerDef('toasterCrumbTray'), LEGAL_TILE)
 		const stats = buildTowerInspector(world, tower?.id ?? -1)?.stats
 
-		// 4 crumbs every 60 ticks is 4/sec; a null damage is "no attack" and 0 would be "zero damage".
-		expect(stats?.crumbsPerSecond).toBe(4)
+		// 2 crumbs every 60 ticks is 2/sec; a null damage is "no attack" and 0 would be "zero damage".
+		expect(stats?.crumbsPerSecond).toBe(2)
 		expect(stats?.collectRadiusTiles).toBe(2.5)
 		expect(stats?.damage).toBeNull()
 		expect(stats?.dps).toBeNull()

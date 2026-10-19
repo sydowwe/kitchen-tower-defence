@@ -274,16 +274,28 @@ describe('greedy watches the lane', () => {
 	}
 
 	// At b185ca7 it placed three Salt Shakers, then saved for the Cookie Jar from tick 3 to 3,165 while
-	// the lane fell, and lost.
+	// the lane fell, and lost. An upgrade counts: at D's prices it is three Shakers and an upgrade on the
+	// first, then the Crumb Tray at tick 1,752, and the night is won.
 	it(
-		'night 7 places four damaging towers before its first economy tower',
+		'night 7 buys four damaging purchases before its first economy tower, and wins',
 		() => {
-			const placed = placements(runNight(progressFor('night07'), 1234, policy('greedy'), defaultLoadout))
-			const firstEconomy = placed.findIndex(entry => isEconomy(getTowerDef(entry.defId)))
+			const run = runNight(progressFor('night07'), 1234, policy('greedy'), defaultLoadout)
+			const purchases = run.log.flatMap(entry => {
+				const command = entry.command
+				if (command.kind === 'UpgradeTower') {
+					return [{ damaging: true, economy: false }]
+				}
+				if (command.kind === 'PlaceTower') {
+					return [{ damaging: damaging(command.defId), economy: isEconomy(getTowerDef(command.defId)) }]
+				}
+				return []
+			})
+			const firstEconomy = purchases.findIndex(purchase => purchase.economy)
 			expect(firstEconomy).toBeGreaterThan(0)
-			expect(placed.slice(0, firstEconomy).filter(entry => damaging(entry.defId)).length).toBeGreaterThanOrEqual(
-				4,
-			)
+			expect(
+				purchases.slice(0, firstEconomy).filter(purchase => purchase.damaging).length,
+			).toBeGreaterThanOrEqual(4)
+			expect(run.row.outcome).toBe('won')
 		},
 		SLOW,
 	)

@@ -30,9 +30,9 @@ import type { Crumb, DefId, EntityId, GameEvent, Vec2, World } from '@/core/type
  */
 
 /** The Ant's reward, from analytic-docs/CONTENT.md section 2 and asserted in `content.spec.ts`. */
-const ANT_REWARD = 3
+const ANT_REWARD = 2
 /** The Toaster Crumb Tray's, likewise. */
-const TRAY_PAYOUT = 4
+const TRAY_PAYOUT = 2
 const PAYOUT_INTERVAL = 60
 
 function runningWorld(): World {
@@ -296,9 +296,9 @@ describe('tower income', () => {
 	})
 
 	it('scales each payout by the difficulty multiplier, once', () => {
-		// round(4 x 1.25) = 5 and round(4 x 0.85) = 3. Applied twice either would be 6 and 3 x 0.85.
-		expect(payoutsOver('cozy', 600)).toBe(10 * 5)
-		expect(payoutsOver('nightmare', 600)).toBe(10 * 3)
+		// round(2 x 1.25) = 3 and round(2 x 0.85) = 2. Applied twice either would be 4 and 2 x 0.85.
+		expect(payoutsOver('cozy', 600)).toBe(10 * 3)
+		expect(payoutsOver('nightmare', 600)).toBe(10 * 2)
 	})
 
 	it('does not count a payout as litter on the floor', () => {

@@ -32,8 +32,8 @@ const REARM_TICKS = 396
  * from. `getNightDef` reads `NIGHTS`, so it has to be in it -- the same trick `status.spec.ts` uses
  * for synthetic towers.
  *
- * An Ant is worth 3 and a Roach 5, so one pass over the two entries costs 8 and the Cookie Jar's
- * 200 buys exactly 25 of each with nothing left over.
+ * An Ant is worth 2 and a Roach 3, so one pass over the two entries costs 5 and the Cookie Jar's
+ * 100 buys exactly 20 of each with nothing left over.
  */
 const penaltyNight: NightDef = {
 	id: 'chargeSpecNight',
@@ -274,7 +274,7 @@ describe('damaging and destroying a tower', () => {
 })
 
 describe('the Cookie Jar destroy penalty', () => {
-	it('buys 200 crumbs of the running wave s own enemies and appends them to it', () => {
+	it('buys 100 crumbs of the running wave s own enemies and appends them to it', () => {
 		const world = makeWorld()
 		world.night.nightId = penaltyNight.id
 		world.night.waveIndex = 0
@@ -289,11 +289,11 @@ describe('the Cookie Jar destroy penalty', () => {
 
 		const appended = wave?.spawns.slice(1) ?? []
 		expect(appended).toEqual([
-			{ enemyDefId: 'ant', remaining: 25, nextSpawnTick: world.tick, spacingTicks: 30, pathId: PATH_ID },
-			{ enemyDefId: 'roach', remaining: 25, nextSpawnTick: world.tick, spacingTicks: 40, pathId: PATH_ID },
+			{ enemyDefId: 'ant', remaining: 20, nextSpawnTick: world.tick, spacingTicks: 30, pathId: PATH_ID },
+			{ enemyDefId: 'roach', remaining: 20, nextSpawnTick: world.tick, spacingTicks: 40, pathId: PATH_ID },
 		])
-		// 25 ants at 3 and 25 roaches at 5 is 200 exactly -- the whole budget and not a crumb more.
-		expect(25 * 3 + 25 * 5).toBe(200)
+		// 20 ants at 2 and 20 roaches at 3 is 100 exactly -- the whole budget and not a crumb more.
+		expect(20 * 2 + 20 * 3).toBe(100)
 		expect(wave !== null && hasFinishedSpawning(wave)).toBe(false)
 	})
 

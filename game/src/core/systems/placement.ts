@@ -285,7 +285,7 @@ export function destroyTower(world: World, towerId: EntityId, options: { payPena
 		return false
 	}
 
-	// The *effective* def, not the base one: the Cookie Jar's tier 3 is what takes the 200 to 0.
+	// The *effective* def, not the base one: the Cookie Jar's tier 3 is what takes the 100 to 0.
 	const def = effectiveDefOf(tower)
 	const tile = { x: tower.tile.x, y: tower.tile.y }
 

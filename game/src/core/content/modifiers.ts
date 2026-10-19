@@ -32,9 +32,9 @@ function modifier<Id extends string>(id: Id, glyph: string, effects: NightModifi
 }
 
 /**
- * Dishes left out's piles are 5: a Roach's reward, and the smallest value drawn as the 🍞 band. So each
- * one reads as a kill's worth left on the lane -- a crumb worth the click, not a speck -- and the fifteen
- * together are 75, over a third of a normal night's starting 200.
+ * Dishes left out's piles are 5: a Roach's reward when 21B set it (3 since step 22D), and the smallest
+ * value drawn as the 🍞 band. So each one reads as a kill's worth left on the lane -- a crumb worth the
+ * click, not a speck -- and the fifteen together are 75, over a third of a normal night's starting 200.
  */
 const SCATTERED_PILE_VALUE = 5
 

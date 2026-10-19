@@ -238,16 +238,16 @@ describe('the economy towers', () => {
 
 	it('pay the doc rate as a whole number of crumbs every 60 ticks', () => {
 		const tray = incomeOf(toasterCrumbTray.behaviours)
-		expect(tray.crumbsPerPayout).toBe(4)
+		expect(tray.crumbsPerPayout).toBe(2)
 		expect(tray.payoutIntervalTicks).toBe(60)
 
 		const jar = incomeOf(cookieJar.behaviours)
-		expect(jar.crumbsPerPayout).toBe(9)
+		expect(jar.crumbsPerPayout).toBe(4)
 		expect(jar.payoutIntervalTicks).toBe(60)
 	})
 
-	it('owes the doc s 200 crumbs to the enemy side when the jar is destroyed, and nothing for the tray', () => {
-		expect(incomeOf(cookieJar.behaviours).enemyCrumbsOnDestroy).toBe(200)
+	it('owes the doc s 100 crumbs to the enemy side when the jar is destroyed, and nothing for the tray', () => {
+		expect(incomeOf(cookieJar.behaviours).enemyCrumbsOnDestroy).toBe(100)
 		expect(incomeOf(toasterCrumbTray.behaviours).enemyCrumbsOnDestroy).toBe(0)
 	})
 
@@ -445,7 +445,7 @@ describe('the Spray Bottle', () => {
 describe('the Beetle', () => {
 	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
 		expect(beetle.hp).toBe(55)
-		expect(beetle.reward).toBe(10)
+		expect(beetle.reward).toBe(6)
 		expect(beetle.steals).toBe(2)
 		expect(beetle.glyph).toBe('🪲')
 		expect(beetle.tags).toEqual(['ground', 'bug'])
@@ -687,7 +687,7 @@ describe('the Toaster', () => {
 describe('the Fly', () => {
 	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
 		expect(fly.hp).toBe(14)
-		expect(fly.reward).toBe(6)
+		expect(fly.reward).toBe(2)
 		expect(fly.steals).toBe(1)
 		expect(fly.glyph).toBe('🪰')
 		/** `air bug`, and deliberately **not** `swarm` -- that is the Fruit Fly's, and it multiplies. */
@@ -934,9 +934,9 @@ describe('the Honey Pot', () => {
 		expect(honeyPot.behaviours.some(isFiring)).toBe(false)
 	})
 
-	it('pays 7 crumbs a second, the Economy rates row, and owes the enemy side nothing', () => {
+	it('pays 3 crumbs a second, the Economy rates row, and owes the enemy side nothing', () => {
 		const pay = incomeOf(honeyPot.behaviours)
-		expect(pay.crumbsPerPayout).toBe(7)
+		expect(pay.crumbsPerPayout).toBe(3)
 		expect(pay.payoutIntervalTicks).toBe(60)
 		expect(pay.enemyCrumbsOnDestroy).toBe(0)
 	})
@@ -1029,7 +1029,7 @@ describe('the Mold', () => {
 describe('the Moth', () => {
 	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
 		expect(moth.hp).toBe(25)
-		expect(moth.reward).toBe(8)
+		expect(moth.reward).toBe(3)
 		expect(moth.steals).toBe(1)
 		expect(moth.glyph).toBe('🦋')
 		/** The only tag in the roster a system reads by name: `core/systems/light.ts` pulls on it. */
@@ -1097,7 +1097,7 @@ describe('night 17', () => {
 describe('the Ant', () => {
 	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
 		expect(ant.hp).toBe(10)
-		expect(ant.reward).toBe(3)
+		expect(ant.reward).toBe(2)
 		expect(ant.steals).toBe(1)
 		expect(ant.glyph).toBe('🐜')
 		expect(ant.tags).toEqual(['ground', 'swarm', 'bug'])
@@ -1123,7 +1123,7 @@ describe('the Ant', () => {
 describe('the Mouse', () => {
 	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
 		expect(mouse.hp).toBe(200)
-		expect(mouse.reward).toBe(40)
+		expect(mouse.reward).toBe(20)
 		expect(mouse.steals).toBe(5)
 		expect(mouse.glyph).toBe('🐭')
 		expect(mouse.tags).toEqual(['ground', 'thief', 'mammal'])
@@ -1181,7 +1181,7 @@ describe('the Mouse', () => {
 describe('the Fruit Fly', () => {
 	it('matches analytic-docs/CONTENT.md section 2 to the number', () => {
 		expect(fruitFly.hp).toBe(8)
-		expect(fruitFly.reward).toBe(2)
+		expect(fruitFly.reward).toBe(1)
 		expect(fruitFly.steals).toBe(1)
 		expect(fruitFly.glyph).toBe('🦟')
 		expect(fruitFly.tags).toEqual(['air', 'swarm', 'self-spawning'])

@@ -257,14 +257,14 @@ describe('after a dinner party', () => {
 		expect(spawnCounts(plain)).toBe(6)
 	})
 
-	it('drops 6 for an Ant, and leaves a Crumb Tray’s payout alone', () => {
+	it('drops 4 for an Ant, and leaves a Crumb Tray’s payout alone', () => {
 		const world = build('dinnerParty')
 		const enemy = spawnEnemyAt(world, ant, COUNTER_LANE, 3, 0)
 		enemy.hp = 0
 		resolveSystem(world)
 
-		expect(ant.reward).toBe(3)
-		expect(world.crumbPiles.map(pile => pile.value)).toEqual([6])
+		expect(ant.reward).toBe(2)
+		expect(world.crumbPiles.map(pile => pile.value)).toEqual([4])
 
 		const tray: Tower = {
 			id: world.nextEntityId++,
@@ -286,7 +286,7 @@ describe('after a dinner party', () => {
 
 		economySystem(world)
 
-		expect(world.crumbs - wallet).toBe(4)
+		expect(world.crumbs - wallet).toBe(2)
 	})
 })
 

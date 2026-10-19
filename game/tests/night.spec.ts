@@ -113,13 +113,13 @@ describe('CallWaveEarly', () => {
 		tick(world, queue)
 	}
 
-	it('pays two crumbs per whole second skipped and banks the ticks', () => {
+	it('pays four crumbs per whole second skipped and banks the ticks', () => {
 		const world = inCountdown(7 * 60)
 		const before = world.crumbs
 
 		call(world)
 
-		expect(world.crumbs - before).toBe(14)
+		expect(world.crumbs - before).toBe(28)
 		expect(world.night.ticksSkippedTotal).toBe(420)
 		expect(world.night.waveIndex).toBe(1)
 		expect(world.night.phase).toBe('wave')

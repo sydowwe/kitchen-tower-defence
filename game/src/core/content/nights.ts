@@ -571,8 +571,9 @@ export const night07: NightDef = {
  * overlap by design -- analytic-docs/DECISIONS.md section 5). A board of ground-only towers watches all
  * of it go past, which is the question the night is asking. It is deliberately not the wave with the
  * most ground pressure on it: `spawnDestroyPenalty` buys extra enemies from the *running wave's own
- * composition*, so a Cookie Jar lost during a flies-only wave buys flies at 6 crumbs each -- 33 of them
- * for the jar's 200. Wave 7 is mixed rather than a second pure one.
+ * composition*, so a Cookie Jar lost during a flies-only wave buys flies at 2 crumbs each -- 50 of them
+ * for the jar's 100 (step 22D's prices; 33 at 21C's 6 and 200). Wave 7 is mixed rather than a second
+ * pure one.
  *
  * **Its two answers:** a Toaster on the top shelf's run for the air over a Salt Shaker bay; or Spray
  * Bottles, whose `targets: 'both'` cone takes the flies and the ground column alike.
@@ -1563,10 +1564,10 @@ export const night13: NightDef = {
  * running home with the food or dying on the way, all of it on screen.
  *
  * **A Cookie Jar lost in either Mouse wave buys two more Mice**, and that is accepted. Every entry ahead
- * of the Mouse is bought first each round, so a wave whose other entries cost 27 crumbs or more gets
- * two out of the jar's 200, and no composition gets fewer. That is ten more items at risk against the
- * shelf's 22 -- a lost jar on this night is the costliest one in the game, which it should be. Never a
- * Mouse-only wave: that is five.
+ * of the Mouse is bought first each round, so at step 22D's prices (the Mouse 20, the jar's 100) a wave
+ * whose other entries cost 14 to 30 crumbs a round gets two; these two cost 14 and 19. That is ten
+ * more items at risk against the shelf's 22 -- a lost jar on this night is the costliest one in the
+ * game, which it should be. Never a Mouse-only wave: that is five.
  *
  * **Its two answers:** Mousetraps on the last run, where the Mouse passes twice -- in with the food and
  * back out with it -- over a Salt Shaker line (mammal takes physical at 1.5); or Sticky Tape rooting the
@@ -2203,8 +2204,9 @@ export const night16: NightDef = {
  * the oven**: one entry, one lane, and the short drop onto the shared stretch that a mouse living under
  * the oven would take. It is here as a check on the answer this night teaches: `mammal` takes chemical
  * at x0.6, so the line the Silverfish pushed you into is the line the Mouse walks through. Wave 10
- * because it also carries a mold, whose 12 crumbs push the rest of the wave past what a lost Cookie Jar
- * can buy two Mice with -- it buys one.
+ * because it also carries a mold, whose 6 crumbs push the rest of the wave to 31 a round, past the 30 a
+ * lost Cookie Jar can buy two Mice with -- it buys one (step 22D's prices; 21C's were 12 and the jar's
+ * 200).
  *
  * **Its two answers** (analytic-docs/DECISION-LOG.md, step 16): non-physical -- Spray Bottles, a
  * Vinegar Spray and Baking Soda on the shared stretch; or a Lemon plus physical -- a Lemon at the head of

@@ -82,6 +82,12 @@ then edit this file.
    second tower, as decision 2 says it should. The gap leaves night 1 unchanged, so the read stood after
    it was added.
 
+   *Re-read by 22D: **8**.* D halved the Crumb Tray's income (4 to 2 a second). At 4, night 1 never
+   placed the Tray: seven Shakers and an upgrade, 282 earned. At 8, the Tray's crumbs a second × weight
+   is what B2 read, and night 1 places Shaker ×4 (ticks 0, 2, 3, 1,058, the first upgraded at tick 1),
+   then the Tray at 1,749, then Shakers along the lane, and earns 386. The night-1 literal in
+   `tests/policies.spec.ts` didn't move (D-tuning-the-curve.md, decision 10).
+
 ## Build
 
 ### 1. `dev/harness/value.ts`

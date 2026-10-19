@@ -100,11 +100,11 @@ describe('a sweep patch', () => {
 	})
 
 	it('income=2 doubles an Ant pile and a Crumb Tray payout', () => {
-		expect(antPile(null)).toBe(3)
-		expect(antPile({ knob: 'income', value: 2 })).toBe(6)
-		// Ten payouts of 4, then of 8.
-		expect(trayIncome(null)).toBe(40)
-		expect(trayIncome({ knob: 'income', value: 2 })).toBe(80)
+		expect(antPile(null)).toBe(2)
+		expect(antPile({ knob: 'income', value: 2 })).toBe(4)
+		// Ten payouts of 2, then of 4.
+		expect(trayIncome(null)).toBe(20)
+		expect(trayIncome({ knob: 'income', value: 2 })).toBe(40)
 	})
 
 	it('noiseDecay sets the base per second and keeps what Oil the Hinges adds', () => {
@@ -120,7 +120,8 @@ describe('a sweep patch', () => {
 		const world = sweptWorld({ knob: 'towerCost', value: 2 })
 		expect(world.crumbs).toBe(100)
 		expect(world.difficulty.crumbIncomeMult).toBe(0.5)
-		expect(antPile({ knob: 'towerCost', value: 1.5 })).toBe(2)
+		// An Ant's 2 over 1.5 rounds to 1: the small-reward rounding the report's legend warns about.
+		expect(antPile({ knob: 'towerCost', value: 1.5 })).toBe(1)
 	})
 
 	it('startingCrumbs, enemyHp and enemyCount multiply what the tier gave', () => {

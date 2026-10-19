@@ -4,7 +4,9 @@ All of this is **starting values calibrated to one baseline**: Salt Shaker = 50 
 
 Ranges are in tiles. Speeds are tiles/sec. Grid is **24 × 14 tiles at 48px** (1152 × 672 logical).
 
-Tune these. The one number that must be right before anything else is **crumbs earned per wave versus tower cost** — target ~1.5 new towers affordable per night in Act I, dropping to ~0.5 by the end of Act II. See step 22.
+Tune these. The one number that must be right before anything else is **crumbs earned per wave versus tower cost** — target ~1.5 new towers affordable per wave in Act I, dropping to ~0.5 by the end of Act II. See step 22.
+
+**What the headline measures** (`towersAffordablePerWave` in `npm run balance`'s CSV, defined in step 22A): the crumbs a night *earned* — piles collected, economy payouts and early-call bonuses, never the starting crumbs or a sell refund — divided by the waves started, divided by the mean price of every tower unlocked by that night. It is read under `greedy` with the `optimal` loadout on Normal, on nights that policy wins: a lost night's waves are short, so its number is an upper bound. Step 22D's numbers below put Act I at 1.0–1.7 on nights 1–5 and 2.6–3.1 on nights 6–7, and the nights of Act II it wins at 2.0–3.6 (night 15's dinner party, double crumbs by design, at 33). The falling half of the target is not met, and why is `OPEN-QUESTIONS.md` §3, *The income curve*.
 
 ---
 
@@ -52,7 +54,7 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 - **Nightlight** — deals nothing. Reveals hidden enemies and pulls light-drawn ones (Moth) into its radius. T3 upgrade adds damage.
 - **Bay Leaf** — suppresses burrowing inside its radius: Weevils surface and become targetable.
 - **Lemon** — every hit applies Armor Strip (§4).
-- **Honey Pot** — 7 crumbs/sec income *and* an aggro radius that pulls nearby ground enemies toward it, holding them in a kill zone. Bait is the point; the income is the bribe for taking the risk. Each ground enemy passing within 3 tiles stops and feeds for **3 seconds**, leaning in toward the pot and chewing on it at its own melee rate; each pot feeds an enemy once. If the pot is destroyed, every feeder lets go.
+- **Honey Pot** — 3 crumbs/sec income *and* an aggro radius that pulls nearby ground enemies toward it, holding them in a kill zone. Bait is the point; the income is the bribe for taking the risk. Each ground enemy passing within 3 tiles stops and feeds for **3 seconds**, leaning in toward the pot and chewing on it at its own melee rate; each pot feeds an enemy once. If the pot is destroyed, every feeder lets go.
 - **Fan** — pushback, air-only: each hit of the cone shoves the flyer 1.2 tiles back down the track. A pushed enemy resists the next push (down to 35% of it after four in a row, recovering over ~4s), so two Fans cannot hold a lane shut. Nothing that cannot walk is moved. Shares the pushback behaviour with Mint Pot (post-v1, ground).
 - **Gas Stove Burner** — writes a persistent damaging tile onto the track. First real area denial. Its noise is 2 per second **of burning something** — once a second while an enemy on the floor stands on its ring — never constantly: 2/s beats the meter's 1.5/s decay, and an idle Burner would wake the house on its own.
 - **Candle** — a light: Moths drift toward it, from the same 5 tiles they see a Nightlight from.
@@ -61,9 +63,11 @@ Roles: `BASIC_DPS · BURST_DPS · AOE · DOT · SLOW · CONTROL · WALL · ECONO
 
 | Tower | Income |
 |---|---|
-| Toaster Crumb Tray | 4/sec |
-| Cookie Jar | 9/sec — **drops 200 crumbs to the enemy side if destroyed** |
-| Honey Pot | 7/sec |
+| Toaster Crumb Tray | 2/sec (tiers 3, 4) |
+| Cookie Jar | 4/sec (tiers 6, 8) — **drops 100 crumbs to the enemy side if destroyed** |
+| Honey Pot | 3/sec (tiers 4, 5) |
+
+Step 22D cut these from 4, 9 (and 200) and 7. At those rates a Tray paid itself back in 19 seconds and a Jar in 17, so economy compounded inside one night: `greedy` earned 246,371 crumbs on night 15 of a campaign, and `casual` 44,914 on night 5. At these, a Tray pays back in 37 seconds. The jar's penalty moved with its income and with the rewards it is spent at, so a lost jar still costs about 25 seconds of its own income. The early-call bonus is 4 crumbs per whole second skipped (it was 2). It is the one income that is flat per wave rather than per enemy, so it lifts Act I's curve without inflating Act II's.
 
 ### Upgrades
 
@@ -97,17 +101,19 @@ Three tiers per tower, priced at **60% / 120% / 250%** of base cost. Tiers 1 and
 
 | Night | Enemy | Glyph | HP | Speed | Reward | Steals | Tags |
 |---|---|---|---|---|---|---|---|
-| 1 | Ant | 🐜 | 10 | 1.0 | 3 | 1 | ground, swarm, bug |
-| 3 | Roach | 🪳 | 18 | 1.8 | 5 | 1 | ground, fast, bug |
-| 5 | Beetle | 🪲 | 55 | 0.7 | 10 | 2 | ground, bug |
-| 8 | Fly | 🪰 | 14 | 2.2 | 6 | 1 | air, bug |
-| 10 | Moth | 🦋 | 25 | 1.6 | 8 | 1 | air, light-drawn |
-| 11 | Mold | 🟢 | 40 | 0.15 | 12 | — | ground, spreads, fungal, push-immune |
-| 13 | Weevil | 🐛 | 30 | 1.0 | 9 | 1 | ground, burrows, bug |
-| 14 | **Mouse** (mini-boss) | 🐭 | 200 | 1.5 | 40 | 5, flees | ground, thief, mammal |
-| 15 | Slug | 🐌 | 45 | 0.4 | 11 | 2 | ground, slime, soft |
-| 17 | Silverfish | 🐟 | 110 | 0.6 | 18 | 2 | ground, armored, bug |
-| — | Fruit Fly | 🦟 | 8 | 2.0 | 2 | 1 | air, swarm, self-spawning |
+| 1 | Ant | 🐜 | 10 | 1.0 | 2 | 1 | ground, swarm, bug |
+| 3 | Roach | 🪳 | 18 | 1.8 | 3 | 1 | ground, fast, bug |
+| 5 | Beetle | 🪲 | 55 | 0.7 | 6 | 2 | ground, bug |
+| 8 | Fly | 🪰 | 14 | 2.2 | 2 | 1 | air, bug |
+| 10 | Moth | 🦋 | 25 | 1.6 | 3 | 1 | air, light-drawn |
+| 11 | Mold | 🟢 | 40 | 0.15 | 6 | — | ground, spreads, fungal, push-immune |
+| 13 | Weevil | 🐛 | 30 | 1.0 | 3 | 1 | ground, burrows, bug |
+| 14 | **Mouse** (mini-boss) | 🐭 | 200 | 1.5 | 20 | 5, flees | ground, thief, mammal |
+| 15 | Slug | 🐌 | 45 | 0.4 | 4 | 2 | ground, slime, soft |
+| 17 | Silverfish | 🐟 | 110 | 0.6 | 6 | 2 | ground, armored, bug |
+| — | Fruit Fly | 🦟 | 8 | 2.0 | 1 | 1 | air, swarm, self-spawning |
+
+**Rewards were cut by step 22D** (from 3, 5, 10, 6, 8, 12, 9, 40, 11, 18 and 2). Every enemy paid ~0.3 crumbs per HP, and Act II's waves carry up to eight times night 1's HP, so kill income alone ran 2.5–3.1 towers a wave on nights 11–14 against a target of ~1.2–0.9. The Act I three were cut as far as Act I tolerated, and the enemies introduced from night 8 by about two thirds, to ~0.1 per HP. Rewards alone cannot take the curve to 0.5. Night 18's Ants, Roaches and Beetles drop 192 crumbs a wave at the old prices against its target of 57, so the rest would have to come from Act II's counts (`OPEN-QUESTIONS.md` §3).
 
 **Fruit Fly has no scheduled night in v1.** It hatches from crumbs left on the board longer than 35s, from night 1 onward. It becomes a scheduled wave enemy at night 20 (post-v1).
 

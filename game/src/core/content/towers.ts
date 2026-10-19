@@ -221,9 +221,13 @@ export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
 	placement: 'off_path',
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
-	/** The doc's 4/sec, as a payout every 60 ticks -- see the note on `IncomeBehaviour`. */
+	/**
+	 * The doc's 2/sec, as a payout every 60 ticks -- see the note on `IncomeBehaviour`. Step 22D moved
+	 * it from 4: at 4 a tray paid itself back in 19 s and economy compounded past the curve
+	 * (steps/22-balance-harness/D-tuning-the-curve.md, decision 9).
+	 */
 	behaviours: [
-		income({ crumbsPerPayout: 4, payoutIntervalTicks: TICKS_PER_SECOND }),
+		income({ crumbsPerPayout: 2, payoutIntervalTicks: TICKS_PER_SECOND }),
 		collect({ radiusTiles: 2.5, travelTicks: COLLECT_TRAVEL_TICKS }),
 	],
 	/**
@@ -234,19 +238,23 @@ export const toasterCrumbTray: TowerDefOf<'toasterCrumbTray'> = {
 	 */
 	upgrades: upgradesFor(
 		'toasterCrumbTray',
-		// 4 -> 6 -> 8 a second. A payout is a whole crumb -- the schema has `crumbsPerPayout` as an
-		// integer -- so +2 is the smallest round step, and an income tower that compounds is the
-		// reason to buy the tier at all.
-		raise('income', 'crumbsPerPayout', 2),
-		raise('income', 'crumbsPerPayout', 2),
+		// 2 -> 3 -> 4 a second. A payout is a whole crumb -- the schema has `crumbsPerPayout` as an
+		// integer -- so +1 is the smallest step, and an income tower that compounds is the reason to
+		// buy the tier at all.
+		raise('income', 'crumbsPerPayout', 1),
+		raise('income', 'crumbsPerPayout', 1),
 		{ multiply: [{ kind: 'collect', fields: { travelTicks: 0 } }] },
 	),
 }
 
 /**
- * The jar's 200 is `enemyCrumbsOnDestroy` on its own `income`, spent on extra spawns by
+ * The jar's 100 is `enemyCrumbsOnDestroy` on its own `income`, spent on extra spawns by
  * `core/systems/spawn.ts` when the jar is destroyed. It is a field rather than a behaviour kind
- * because analytic-docs/CONTENT.md section 1's *Economy rates* table puts the 200 beside the 9/sec.
+ * because analytic-docs/CONTENT.md section 1's *Economy rates* table puts the 100 beside the 4/sec.
+ *
+ * Step 22D moved both, from 200 and 9/sec: the income with the tray's (decision 9), and the penalty
+ * with it and the rewards it is spent at, so a lost jar still costs ~25 s of its own income and buys
+ * about the Act I column it bought before (50 Ants at 2, where 200 bought 67 at 3).
  */
 export const cookieJar: TowerDefOf<'cookieJar'> = {
 	id: 'cookieJar',
@@ -260,15 +268,15 @@ export const cookieJar: TowerDefOf<'cookieJar'> = {
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
 	behaviours: [
-		income({ crumbsPerPayout: 9, payoutIntervalTicks: TICKS_PER_SECOND, enemyCrumbsOnDestroy: 200 }),
+		income({ crumbsPerPayout: 4, payoutIntervalTicks: TICKS_PER_SECOND, enemyCrumbsOnDestroy: 100 }),
 		collect({ radiusTiles: 3, travelTicks: COLLECT_TRAVEL_TICKS }),
 	],
-	/** T3, authored here and added to the doc for the same reason: the jar stops owing the 200. */
+	/** T3, authored here and added to the doc for the same reason: the jar stops owing the 100. */
 	upgrades: upgradesFor(
 		'cookieJar',
-		/** 9 -> 13 -> 17 a second. */
-		raise('income', 'crumbsPerPayout', 4),
-		raise('income', 'crumbsPerPayout', 4),
+		/** 4 -> 6 -> 8 a second. */
+		raise('income', 'crumbsPerPayout', 2),
+		raise('income', 'crumbsPerPayout', 2),
 		{ multiply: [{ kind: 'income', fields: { enemyCrumbsOnDestroy: 0 } }] },
 	),
 }
@@ -1027,15 +1035,20 @@ const HONEY_POT_RADIUS_TILES = 3
 
 /**
  * analytic-docs/CONTENT.md section 1, Act II: 175 crumbs, ECONOMY, no damage, "3 bait", ground, no
- * noise, off the path, and 7/sec in *Economy rates*. What an enemy does at the pot is
+ * noise, off the path, and 3/sec in *Economy rates*. What an enemy does at the pot is
  * `core/systems/bait.ts`'s.
  *
  * **`maxHp: 150`**, kept by step 17D. The doc gives the pot no HP, and the pot's HP *is* its risk:
- * feeders chew it at their own `meleeDamagePerTick`. On night 16, headless, two seeds: inside a Salt
- * Shaker line it lived 80-120 seconds and paid 570-830 crumbs before going; out of every tower's reach
- * it lived 11-19 and paid 75-131 back on its 175. At 200 an unguarded pot placed at dusk broke even,
- * and at 250 it paid, which is where the gamble ends. No `enemyCrumbsOnDestroy`: losing the pot is the
- * cost, not a penalty wave.
+ * feeders chew it at their own `meleeDamagePerTick`. On night 16, headless, two seeds, **at 7/sec**:
+ * inside a Salt Shaker line it lived 80-120 seconds and paid 570-830 crumbs before going; out of every
+ * tower's reach it lived 11-19 and paid 75-131 back on its 175. At 200 an unguarded pot placed at dusk
+ * broke even, and at 250 it paid, which is where the gamble ends. No `enemyCrumbsOnDestroy`: losing the
+ * pot is the cost, not a penalty wave.
+ *
+ * Step 22D took the income from 7 to 3/sec with the other two economy towers (D, decision 9) and did
+ * not re-measure the pot. Its lifetimes don't depend on the rate, so at 3/sec 17D's numbers read as
+ * ~240-360 paid defended and ~33-57 undefended: the middle is still placement, and the HP above which
+ * an unguarded pot pays has moved up, not down, so 150 still holds the gamble open.
  */
 export const honeyPot: TowerDefOf<'honeyPot'> = {
 	id: 'honeyPot',
@@ -1049,16 +1062,16 @@ export const honeyPot: TowerDefOf<'honeyPot'> = {
 	noise: 0,
 	defaultTargetingMode: 'CLOSEST',
 	behaviours: [
-		income({ crumbsPerPayout: 7, payoutIntervalTicks: TICKS_PER_SECOND }),
+		income({ crumbsPerPayout: 3, payoutIntervalTicks: TICKS_PER_SECOND }),
 		bait({ radiusTiles: HONEY_POT_RADIUS_TILES, targets: 'ground', durationTicks: 3 * TICKS_PER_SECOND }),
 	],
 	/**
-	 * 7 -> 9 -> 11 a second: the income is the bribe, so the income is what the tiers raise.
+	 * 3 -> 4 -> 5 a second: the income is the bribe, so the income is what the tiers raise.
 	 *
 	 * T3, "the honey gets everywhere": a 0-damage aura at the bait radius that slows ground enemies --
 	 * the Bay Leaf's tier-3 shape, so no system changes.
 	 */
-	upgrades: upgradesFor('honeyPot', raise('income', 'crumbsPerPayout', 2), raise('income', 'crumbsPerPayout', 2), {
+	upgrades: upgradesFor('honeyPot', raise('income', 'crumbsPerPayout', 1), raise('income', 'crumbsPerPayout', 1), {
 		addBehaviours: [
 			aura({
 				radiusTiles: HONEY_POT_RADIUS_TILES,

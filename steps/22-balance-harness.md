@@ -25,7 +25,7 @@ one number that must be right is crumbs earned per wave against tower cost**
 | [C](22-balance-harness/C-sweep-and-report.md) | Sweep, parallel jobs, the report | `--sweep` as world patches, `--jobs` across processes, the static HTML report and its flag list |
 | [B2](22-balance-harness/B2-greedy-answers-the-gap.md) | `greedy` answers the gap | Added after D's first pre-flight found `greedy` builds only Salt Shakers: damage worth shared per enemy between the towers standing that can target it, so the loadouts start to differ |
 | [B3](22-balance-harness/B3-greedy-watches-the-lane.md) | `greedy` watches the lane | Added after B2's matrix: an entry counts as answered only while the board holds it (nothing slipping past, nothing stranded out of reach), so night 7 stops starving for a Cookie Jar and the Mold stalls end |
-| [D](22-balance-harness/D-tuning-the-curve.md) | Tuning the income curve | numbers in `core/content/`, `CONTENT.md` rewritten from what was measured, each night's two named answers proven |
+| [D](22-balance-harness/D-tuning-the-curve.md) | Tuning the income curve | numbers in `core/content/`, `CONTENT.md` rewritten from what was measured, each night's two named answers proven. *The curve lever is built. The openers, Nightmare and §8 are measured and want `/step-split` (D, Status)* |
 | [E](22-balance-harness/E-the-noise-answer.md) | The noise answer | one noise number or none, and `OPEN-QUESTIONS.md` §3 answered with a measurement |
 | [F](22-balance-harness/F-the-endless-curve.md) | The endless curve, measured | an endless job kind, run lengths per map and tier, a constant moved only where it's broken |
 

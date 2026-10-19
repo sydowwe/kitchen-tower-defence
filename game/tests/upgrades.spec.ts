@@ -553,7 +553,7 @@ describe('the tier-3s that are pure deltas', () => {
 
 	it('stops a Cookie Jar owing the enemy side at tier 3', () => {
 		expect(effectiveDef('cookieJar', 0).behaviours).toContainEqual(
-			expect.objectContaining({ kind: 'income', enemyCrumbsOnDestroy: 200 }),
+			expect.objectContaining({ kind: 'income', enemyCrumbsOnDestroy: 100 }),
 		)
 		expect(effectiveDef('cookieJar', MAX_TIER).behaviours).toContainEqual(
 			expect.objectContaining({ kind: 'income', enemyCrumbsOnDestroy: 0 }),
