@@ -29,7 +29,8 @@ Trust symbols over line numbers.
 | `ui/viewModel.ts` `hotkeyLabel` (not exported) | `'1'`..`'9'`, then `'0'`: the shop's badge, `ShopEntry.hotkey` |
 | `ui/locales/en.ts` | `hud.sellKey` ("Sell this tower  (x)"), `hud.upgradeKey`, `hud.callWaveKey`, and `debug.hint`, which spells out every key. `settings: { title, volume, showFps }` is left over from step 1, and nothing reads it |
 | `ui/components/kitchen/ResetProgress.vue` | 20D's reset, with its save states, in the Kitchen's footer |
-| A, B, C | `setPaletteVariant` plus `data-palette`; `setScreenShake`, `setDamageNumbers`; `setVolume(bus, v)` and `AUDIO_DEFAULTS`. Each has a default, and none is persisted |
+| A, B, C | `setPaletteVariant` plus `data-palette`; `setScreenShake`, `setDamageNumbers`; `setVolume(bus, v)` and `AUDIO_DEFAULTS` from `audio/index.ts` (C's engine holds a volume set before its context exists, and applies it on creation). Each has a default, and none is persisted |
+| `ui/icons.ts` | `faGear` is already registered (step 1). Nothing to add |
 | **Specs that will break** | `tests/persistence.spec.ts` asserts that `settingsCodec.version` is `1` and saves `{ speed: 2 }`. `tests/progressStore.spec.ts` asserts the store `toEqual({ speed: 3 })` |
 
 ## Decisions already made
@@ -84,14 +85,24 @@ Gotchas:
   new player and a migrated player start with different volumes, and nothing ever notices. The
   store can't import `data/`, so put the settings types, the action list and `defaultSettings()` in
   `data/`, and re-export them through `useSettings.ts` the way `PlaySpeed` already is.
+  *As built:* `data/settings.ts` holds the model, **including `defaultBindings()` and `rebind`**,
+  which §2 originally put in `ui/keys.ts`. `defaultSettings()` needs the default bindings, and
+  `fromSettingsDto` reconciles stored bindings by folding each one through `rebind` over the
+  defaults, so an unknown action drops, a missing one keeps its default, and two actions stored on
+  one key are swapped apart. `ui/keys.ts` re-exports both. `volumes` reads the same forgiving way.
+  The volume defaults are a copy of `AUDIO_DEFAULTS`, and `tests/persistence.spec.ts` pins the two
+  equal.
 - `data/` imports neither `render/` nor `audio/`, so the bus and palette unions are restated there.
   The applier (decision 7) is where they meet: assert there, with `satisfies`, that the two agree.
   Then a new bus is a type error, not a slider that silently never saves.
 
 ### 2. The keys: `ui/keys.ts` (new), `ui/interaction.ts`, `ui/viewModel.ts`, `en.ts`
 
-Decisions 3 and 4. `ui/keys.ts` holds `defaultBindings`, `rebind` and `keyLabel(code)`, which turns
-`KeyN` into `N`, `Digit1` into `1`, and `Comma` into `,`.
+Decisions 3 and 4. `ui/keys.ts` holds `keyLabel(code)`, which turns `KeyN` into `N`, `Digit1` into
+`1`, and `Comma` into `,`, and re-exports `defaultBindings` and `rebind` from `data/` (see §1's
+*as built*). The labels reach `ui/viewModel.ts` as `view.keys`, passed into `buildHudSnapshot`:
+importing `ui/keys.ts` at runtime would pull the settings composable, and `vue`, into a file that
+mustn't have either.
 
 Gotcha: while the panel is capturing a key to bind, the game's handler must not act on it as well.
 Symptom: binding a key to "sell" sells the selected tower. `interaction.ts` listens on `window`, so
@@ -118,7 +129,7 @@ In `tests/persistence.spec.ts` and `tests/progressStore.spec.ts`, plus a new `te
   and all.
 - A v2 record with an unknown action in `bindings` loads with that entry dropped, and with the
   default for every known action present.
-- `rebind(defaultBindings, 'callWave', 'KeyX')` gives `callWave: 'KeyX'`, and gives `sell` the key
+- `rebind(defaultBindings(), 'callWave', 'KeyX')` gives `callWave: 'KeyX'`, and gives `sell` the key
   call-wave had. Nothing else moves.
 - `keyLabel('Digit0')` is `'0'`, and the shop's badges follow the bindings, not a fixed `'1'`..`'0'`.
 - Update the two specs that break to the v2 shape. Don't delete their assertions.
@@ -130,11 +141,11 @@ In `tests/persistence.spec.ts` and `tests/progressStore.spec.ts`, plus a new `te
       crumbs' `+N` is still there.
 - [ ] Colour-blind palette on: the placement ring's yes and no survive a deuteranopia emulation, on
       the board and in the HUD.
-- [ ] Rebind "call wave" to W: W calls it, N doesn't, and the tooltip says W. Rebind it to X: sell
+- [x] Rebind "call wave" to W: W calls it, N doesn't, and the tooltip says W. Rebind it to X: sell
       moves to N.
-- [ ] Opening Settings in a night pauses it, and closing it restores whichever pause state it found.
-- [ ] Reload: everything is as you left it.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] Opening Settings in a night pauses it, and closing it restores whichever pause state it found.
+- [x] Reload: everything is as you left it.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 

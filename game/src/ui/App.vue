@@ -1,9 +1,34 @@
 <template>
 	<RouterView />
+	<SettingsPanel
+		v-if="panelOpen"
+		@close="hidePanel"
+	/>
 </template>
 
 <script setup lang="ts">
+	import { onMounted, watch } from 'vue'
 	import { RouterView } from 'vue-router'
+	import { applySettings } from '@/ui/applySettings.ts'
+	import SettingsPanel from '@/ui/components/SettingsPanel.vue'
+	import { useSettingsPanel } from '@/ui/settingsPanel.ts'
+	import { useSettingsStore } from '@/ui/stores/settings.ts'
+
+	/**
+	 * The page. Two things live here because they are the page's rather than any one screen's: the
+	 * settings panel, opened over whichever route is showing, and the one watch that applies the
+	 * settings (step 23D, decision 7). Every store write replaces the record, so a shallow watch sees it.
+	 */
+
+	const { open: panelOpen, hide: hidePanel } = useSettingsPanel()
+	const settings = useSettingsStore()
+
+	watch(() => settings.settings, applySettings, { immediate: true })
+
+	onMounted(() => {
+		// A reload straight onto the Kitchen or the counter still gets the stored palette.
+		void settings.ensureLoaded()
+	})
 </script>
 
 <style>
@@ -64,7 +89,7 @@
 	/* The colour-blind variant: the CSS half of render/palette.ts's `setPaletteVariant`. Only the
 	   roles that lean on red against green are overridden -- the HUD's "losing something" is the
 	   board's `RANGE_INVALID` family, so it follows it to vermillion, against `--kd-threat`'s blue.
-	   Whoever owns the setting sets `document.documentElement.dataset.palette`. */
+	   `ui/applySettings.ts` sets `document.documentElement.dataset.palette`. */
 	:root[data-palette='colourblind'] {
 		--kd-danger: #e6762a;
 		--kd-day-danger: #b8560f;

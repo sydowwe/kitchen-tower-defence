@@ -20,6 +20,8 @@
 	<TowerInspector
 		v-if="snapshot.inspector !== null"
 		:inspector="snapshot.inspector"
+		:sellKey="snapshot.keys.sell"
+		:upgradeKey="snapshot.keys.upgrade"
 		@sell="emit('sell', $event)"
 		@upgrade="emit('upgrade', $event)"
 		@setTargetingMode="(towerId, mode) => emit('setTargetingMode', towerId, mode)"
@@ -36,9 +38,11 @@
 		:earlyCallBonus="snapshot.earlyCallBonus"
 		:speed="snapshot.speed"
 		:paused="snapshot.paused"
+		:callWaveKey="snapshot.keys.callWave"
 		@callWave="emit('callWave')"
 		@setSpeed="emit('setSpeed', $event)"
 		@togglePause="emit('togglePause')"
+		@openSettings="emit('openSettings')"
 	/>
 
 	<WakeCard
@@ -157,6 +161,7 @@
 		callWave: []
 		setSpeed: [speed: Speed]
 		togglePause: []
+		openSettings: []
 		retry: []
 		continueNight: []
 		retrySave: []

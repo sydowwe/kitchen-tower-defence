@@ -4,7 +4,7 @@
 			type="button"
 			class="call"
 			:disabled="phase !== 'countdown'"
-			:title="t('hud.callWaveKey')"
+			:title="t('hud.callWaveKey', { key: callWaveKey })"
 			@click="emit('callWave')"
 		>
 			<span class="call-label">{{ t('hud.callWave') }}</span>
@@ -45,6 +45,17 @@
 			>
 				{{ t('hud.speedShort', { n: option }) }}
 			</button>
+			<!-- Last, and narrower: it is the one control here that is not about time, though opening it
+				 stops the clock. -->
+			<button
+				type="button"
+				class="chip gear"
+				:title="t('hud.settings')"
+				:aria-label="t('hud.settings')"
+				@click="emit('openSettings')"
+			>
+				<FontAwesomeIcon icon="gear" />
+			</button>
 		</div>
 	</div>
 </template>
@@ -62,18 +73,21 @@
 	 * again each time.
 	 */
 
-	const { phase, countdownTicks, earlyCallBonus, speed, paused } = defineProps<{
+	const { phase, countdownTicks, earlyCallBonus, speed, paused, callWaveKey } = defineProps<{
 		phase: NightPhase
 		countdownTicks: number
 		earlyCallBonus: number
 		speed: Speed
 		paused: boolean
+		/** What the call-wave key prints as, for the tooltip. */
+		callWaveKey: string
 	}>()
 
 	const emit = defineEmits<{
 		callWave: []
 		setSpeed: [speed: Speed]
 		togglePause: []
+		openSettings: []
 	}>()
 
 	const { t } = useI18n()
@@ -160,6 +174,10 @@
 	.chip:focus-visible {
 		border-color: var(--kd-owned-dim);
 		color: var(--kd-text);
+	}
+
+	.chip.gear {
+		flex: 0 0 2rem;
 	}
 
 	.chip.on {

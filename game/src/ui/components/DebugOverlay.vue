@@ -15,12 +15,18 @@
 			<dt>{{ t('debug.speed') }}</dt>
 			<dd :class="{ paused }">{{ paused ? t('debug.paused') : `${speed}×` }}</dd>
 		</dl>
-		<p class="hint">{{ t('debug.hint') }}</p>
+		<p
+			v-if="keys !== null"
+			class="hint"
+		>
+			{{ t('debug.hint', { ...keys, towers: keys.towers.join(' ') }) }}
+		</p>
 	</div>
 </template>
 
 <script setup lang="ts">
 	import { useI18n } from 'vue-i18n'
+	import type { KeyLabels } from '@/ui/keys.ts'
 
 	const {
 		fps = 0,
@@ -30,9 +36,12 @@
 		speed = 1,
 		paused = false,
 		visible = false,
+		keys = null,
 	} = defineProps<{
 		/** The `` ` `` toggle, which owns the canvas debug overlay too -- one key for both (step 8C). */
 		visible?: boolean
+		/** The player's keys, for the hint line. Null before the first snapshot, and the line waits. */
+		keys?: KeyLabels | null
 		fps?: number
 		tickCount?: number
 		simSeconds?: number

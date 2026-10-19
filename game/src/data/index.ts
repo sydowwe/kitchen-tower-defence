@@ -25,6 +25,16 @@ import type {
 
 export type * from '@/data/ports/index.ts'
 export type { KeyValueStorage } from '@/data/adapters/localStorage/record.ts'
+export {
+	ACTIONS,
+	BUSES,
+	defaultBindings,
+	defaultSettings,
+	isBindable,
+	PALETTES,
+	rebind,
+	TOWER_SLOTS,
+} from '@/data/settings.ts'
 export { RemoteUnavailableError } from '@/data/adapters/mockRemote/remote.ts'
 
 export type DataMode = 'local' | 'mock' | 'http'

@@ -40,6 +40,7 @@ import {
 	type OverlayView,
 } from '@/render/index.ts'
 import { isTypingTarget } from '@/ui/keyboard.ts'
+import { actionFor, TOWER_SLOTS, type Bindings } from '@/ui/keys.ts'
 import type { CommandQueue } from '@/core/commands.ts'
 import type { TowerDef } from '@/core/content/index.ts'
 import type { EntityId, Tower, Vec2, World } from '@/core/types.ts'
@@ -104,6 +105,8 @@ export interface InteractionHost {
 	speed(): Speed
 	/** Called whenever the toast list changes. Never on a frame where it did not. */
 	onToasts(toasts: Toast[]): void
+	/** The player's keys, read on every press so a rebind takes without rebuilding this controller. */
+	bindings(): Bindings
 }
 
 export interface Interaction {
@@ -524,28 +527,35 @@ export function createInteraction(
 			return
 		}
 
-		if (event.code === 'Space') {
-			event.preventDefault()
-			host.togglePause()
-			return
-		}
-		if (event.key === ',' || event.key === '.') {
-			host.setSpeed(clampSpeed(host.speed() + (event.key === '.' ? 1 : -1)))
-			return
-		}
-		if (event.key === 'n') {
-			// A command, never a call into the wave system: player input enters the simulation at a
-			// tick boundary and nowhere else (ARCHITECTURE.md section 3).
-			queue.enqueue({ kind: 'CallWaveEarly' })
-			return
-		}
+		// The one key that is not a binding: it closes whatever is open, and here that is the selection.
 		if (event.key === 'Escape') {
 			selection.selectedDefId.value = null
 			selection.selectedTowerId.value = null
 			refreshHover()
 			return
 		}
-		if (event.key === 'x') {
+
+		// By `code`, the physical key, through the player's bindings -- see `ui/keys.ts`.
+		const action = actionFor(host.bindings(), event.code)
+		if (action === null) {
+			return
+		}
+		if (action === 'pause') {
+			event.preventDefault()
+			host.togglePause()
+			return
+		}
+		if (action === 'speedDown' || action === 'speedUp') {
+			host.setSpeed(clampSpeed(host.speed() + (action === 'speedUp' ? 1 : -1)))
+			return
+		}
+		if (action === 'callWave') {
+			// A command, never a call into the wave system: player input enters the simulation at a
+			// tick boundary and nowhere else (ARCHITECTURE.md section 3).
+			queue.enqueue({ kind: 'CallWaveEarly' })
+			return
+		}
+		if (action === 'sell') {
 			const towerId = selection.selectedTowerId.value
 			if (towerId !== null) {
 				queue.enqueue({ kind: 'SellTower', towerId })
@@ -553,11 +563,11 @@ export function createInteraction(
 			}
 			return
 		}
-		// Beside `x`, and **keeps the selection** where selling drops it: the tower is still standing
+		// Beside sell, and **keeps the selection** where selling drops it: the tower is still standing
 		// and there may be two more tiers to buy. `upgradeTower` refuses silently at the top tier and
 		// on an empty wallet, which is why this enqueues without asking first -- the same contract
 		// every other command naming an entity has.
-		if (event.key === 'u') {
+		if (action === 'upgrade') {
 			const towerId = selection.selectedTowerId.value
 			if (towerId !== null) {
 				queue.enqueue({ kind: 'UpgradeTower', towerId })
@@ -565,18 +575,16 @@ export function createInteraction(
 			return
 		}
 
-		// 1-9 into the first nine **unlocked** towers and **0 into the tenth**, in `hotkeyTowers` order --
-		// the list `buildShop` prints each button's badge off. The same key again disarms, so there is a
-		// way out that is not Escape.
-		//
-		// `0` is the tenth rather than nothing because the badge on that button has to name a key that
-		// works (step 11C, decision 10). Past ten unlocked, a tower has no key and no badge.
+		// The ten slots into the first ten **unlocked** towers, in `hotkeyTowers` order -- the list
+		// `buildShop` prints each button's badge off. The same key again disarms, so there is a way out
+		// that is not Escape. By default they are 1-9 and then 0, because the badge on the tenth button
+		// has to name a key that works (step 11C, decision 10). Past ten unlocked, a tower has no key and
+		// no badge.
 		const world = getWorld()
-		const typed = event.key.length === 1 ? Number(event.key) : NaN
-		if (world === null || !Number.isInteger(typed)) {
+		if (world === null) {
 			return
 		}
-		const def = hotkeyTowers(world.night.loadout)[typed === 0 ? 9 : typed - 1]
+		const def = hotkeyTowers(world.night.loadout)[TOWER_SLOTS.indexOf(action)]
 		if (def === undefined) {
 			return
 		}

@@ -8,9 +8,10 @@
  */
 
 import type { Progress } from '@/core/campaign.ts'
-import type { Speed } from '@/loop.ts'
+import type { Settings } from '@/data/settings.ts'
 
 export type { Progress } from '@/core/campaign.ts'
+export type { Action, Bindings, Bus, Palette, PlaySpeed, Settings, TowerSlot } from '@/data/settings.ts'
 
 export interface User {
 	id: string
@@ -19,13 +20,6 @@ export interface User {
 
 export interface Profile {
 	displayName: string | null
-}
-
-/** A speed the player chose. Never 0: pause is its own control, and a restored 0 opens frozen. */
-export type PlaySpeed = Exclude<Speed, 0>
-
-export interface Settings {
-	speed: PlaySpeed
 }
 
 /** One endless-mode run, submitted for ranking. Post-v1: nothing submits one yet. */

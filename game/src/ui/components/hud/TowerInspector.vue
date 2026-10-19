@@ -27,6 +27,7 @@
 				v-for="slot in inspector.upgrades"
 				:key="slot.tier"
 				:entry="slot"
+				:upgradeKey="upgradeKey"
 				@upgrade="emit('upgrade', inspector.towerId)"
 			/>
 		</ul>
@@ -48,7 +49,7 @@
 		<button
 			type="button"
 			class="action sell"
-			:title="t('hud.sellKey')"
+			:title="t('hud.sellKey', { key: sellKey })"
 			@click="emit('sell', inspector.towerId)"
 		>
 			<FontAwesomeIcon icon="trash" />
@@ -88,7 +89,12 @@
 	 * no number on it, and the penalty line says *why* rather than leaving the player to notice.
 	 */
 
-	const { inspector } = defineProps<{ inspector: TowerInspectorView }>()
+	const { inspector, sellKey, upgradeKey } = defineProps<{
+		inspector: TowerInspectorView
+		/** What the sell and upgrade keys print as, for the tooltips. */
+		sellKey: string
+		upgradeKey: string
+	}>()
 
 	const emit = defineEmits<{
 		sell: [towerId: EntityId]

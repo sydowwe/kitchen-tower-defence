@@ -69,6 +69,9 @@ import type {
 	World,
 } from '@/core/types.ts'
 import type { Speed } from '@/loop.ts'
+import type { KeyLabels } from '@/ui/keys.ts'
+
+export type { KeyLabels } from '@/ui/keys.ts'
 
 /**
  * The vocabulary the HUD's emit contract is written in, re-exported so a component never names
@@ -271,9 +274,10 @@ export interface ShopEntry {
 	 */
 	affordable: boolean
 	/**
-	 * The key that arms it -- `'1'`..`'9'`, then `'0'` -- or null. Off `hotkeyTowers`, the same list the
-	 * keydown handler indexes, so the badge cannot name a key that arms a different tower. A loadout is
-	 * at most eight, so null only on a night with no loadout at all.
+	 * What the key that arms it prints as -- by default `'1'`..`'9'`, then `'0'` -- or null. Off
+	 * `hotkeyTowers` and the player's bindings, the same list and keys the keydown handler reads, so the
+	 * badge cannot name a key that arms a different tower. A loadout is at most eight, so null only on a
+	 * night with no loadout at all.
 	 */
 	hotkey: string | null
 	stats: TowerStatsView
@@ -641,6 +645,8 @@ export interface HudSnapshot {
 	earlyCallBonus: number
 	speed: Speed
 	paused: boolean
+	/** What each bound key prints as, for the tooltips that name one. Passed in; see `buildHudSnapshot`. */
+	keys: KeyLabels
 	shop: ShopEntry[]
 	inspector: TowerInspectorView | null
 	/** The enemy under the pointer. Passed in like `inspector`; see `buildEnemyTooltip`. */
@@ -838,7 +844,10 @@ export function inLoadout(loadout: readonly DefId[] | null, id: DefId): boolean 
 	return loadout === null || loadout.includes(id)
 }
 
-/** Keys `1`..`9` and then `0`: ten, and the tenth badge reads `0` because that is the key. */
+/**
+ * Ten: one per `TOWER_SLOTS` in `data/settings.ts`. Restated rather than imported, which would pull the
+ * settings composable, and `vue` with it, into this file.
+ */
 const HOTKEY_COUNT = 10
 
 /** The towers the number keys arm, in key order: the first ten of `shopOrder` that tonight brought. */
@@ -848,17 +857,13 @@ export function hotkeyTowers(loadout: readonly DefId[] | null): TowerDef[] {
 		.slice(0, HOTKEY_COUNT)
 }
 
-/** The key for position `index` of `hotkeyTowers`: `'1'`..`'9'`, then `'0'` for the tenth. */
-function hotkeyLabel(index: number): string {
-	return String((index + 1) % HOTKEY_COUNT)
-}
-
 /**
  * What was set out on the counter, and nothing else: a tower left upstairs is not greyed out, it is
  * not there. **In `shopOrder`, not the loadout's selection order**, so the badges and the keydown read
- * the one list (step 20aB, decision 7).
+ * the one list (step 20aB, decision 7). Each badge is `towerKeys[i]`, the label of the key bound to
+ * slot `i`.
  */
-function buildShop(world: World): ShopEntry[] {
+function buildShop(world: World, towerKeys: readonly string[]): ShopEntry[] {
 	const loadout = world.night.loadout
 	const keyed = hotkeyTowers(loadout)
 
@@ -873,7 +878,7 @@ function buildShop(world: World): ShopEntry[] {
 				descriptionKey: def.descriptionKey,
 				cost: def.cost,
 				affordable: world.crumbs >= def.cost,
-				hotkey: keyIndex === -1 ? null : hotkeyLabel(keyIndex),
+				hotkey: keyIndex === -1 ? null : (towerKeys[keyIndex] ?? null),
 				stats: statsFor(def),
 			}
 		})
@@ -1176,11 +1181,12 @@ export function buildNightSummary(world: World): NightSummaryView {
  * `inspector` is passed **in** rather than derived: it is built on selection change (see
  * `buildTowerInspector`) and the caller holds the one it built, so republishing at 15Hz does not
  * silently downgrade the exception ARCHITECTURE.md section 5 grants it. `enemyTooltip` is passed in
- * for a plainer reason: the hovered id is UI state this file cannot see.
+ * for a plainer reason: the hovered id is UI state this file cannot see. `keys` is the player's, built
+ * off the bindings by `keyLabels` in `ui/keys.ts`; this file stays clear of the settings store.
  */
 export function buildHudSnapshot(
 	world: World,
-	view: { speed: Speed; paused: boolean; loudShots?: number; lastLost?: LossView | null },
+	view: { speed: Speed; paused: boolean; keys: KeyLabels; loudShots?: number; lastLost?: LossView | null },
 	inspector: TowerInspectorView | null = null,
 	enemyTooltip: EnemyTooltipView | null = null,
 ): HudSnapshot {
@@ -1214,7 +1220,8 @@ export function buildHudSnapshot(
 		earlyCallBonus: earlyCallBonus(world),
 		speed: view.speed,
 		paused: view.paused,
-		shop: buildShop(world),
+		keys: view.keys,
+		shop: buildShop(world, view.keys.towers),
 		inspector,
 		enemyTooltip,
 		summary: over ? buildNightSummary(world) : null,

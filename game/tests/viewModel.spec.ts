@@ -24,6 +24,7 @@ import {
 	buildTowerInspector,
 	hotkeyTowers,
 } from '@/ui/viewModel.ts'
+import { defaultBindings, keyLabels, rebind } from '@/ui/keys.ts'
 import { createTestWorld } from './fixtures/world.ts'
 import type { NightDef } from '@/core/content/index.ts'
 import type { CreateWorldOptions } from '@/core/world.ts'
@@ -37,7 +38,7 @@ import type { DamageType, FoodItem, NightPhase, Tower, Vec2, World } from '@/cor
  * Nothing here asserts that the snapshot has a `crumbs` field -- that is what `type-check` is for.
  */
 
-const VIEW = { speed: 1, paused: false } as const
+const VIEW = { speed: 1, paused: false, keys: keyLabels(defaultBindings()) } as const
 
 const OPTIONS: CreateWorldOptions = { seed: 1234, mapId: 'counter', nightId: 'night01', difficulty: 'normal' }
 
@@ -1166,6 +1167,27 @@ describe('the shop order', () => {
 		for (const [index, id] of night9.entries()) {
 			expect(shop.find(entry => entry.id === id)?.hotkey).toBe(String((index + 1) % 10))
 		}
+	})
+
+	it('prints the badges off the bindings, not a fixed 1..0', () => {
+		function badges(bindings: ReturnType<typeof defaultBindings>): (string | null)[] {
+			const world = buildableWorld()
+			world.night.loadout = ['mousetrap', 'saltShaker']
+			return buildHudSnapshot(world, { ...VIEW, keys: keyLabels(bindings) }).shop.map(entry => entry.hotkey)
+		}
+
+		expect(badges(rebind(defaultBindings(), 'tower1', 'KeyQ'))).toEqual(['Q', '2'])
+		// Slot 2 onto 1 swaps slot 1 onto 2, and the badges swap with them.
+		expect(badges(rebind(defaultBindings(), 'tower2', 'Digit1'))).toEqual(['2', '1'])
+	})
+
+	it('names the bound keys for the tooltips', () => {
+		const keys = buildHudSnapshot(buildableWorld(), {
+			...VIEW,
+			keys: keyLabels(rebind(defaultBindings(), 'callWave', 'KeyW')),
+		}).keys
+
+		expect(keys).toMatchObject({ callWave: 'W', sell: 'X', upgrade: 'U', pause: 'Space', speedDown: ',' })
 	})
 })
 

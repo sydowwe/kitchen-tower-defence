@@ -25,6 +25,7 @@
 				@callWave="onCallWave"
 				@setSpeed="applySpeed"
 				@togglePause="togglePause"
+				@openSettings="settingsPanel.show"
 				@retry="retryNight"
 				@continueNight="toKitchen"
 				@retrySave="progressStore.retry"
@@ -46,6 +47,7 @@
 				:entityCount="snapshot.entityCount"
 				:speed="snapshot.speed"
 				:paused="snapshot.paused"
+				:keys="keys"
 			/>
 			<component
 				:is="NoisePanel"
@@ -101,7 +103,9 @@
 	import { useProgressStore } from '@/ui/stores/progress.ts'
 	import { useSettingsStore } from '@/ui/stores/settings.ts'
 	import { createInteraction, type Interaction, type Toast } from '@/ui/interaction.ts'
+	import { keyLabels } from '@/ui/keys.ts'
 	import { createSelection } from '@/ui/selection.ts'
+	import { useSettingsPanel } from '@/ui/settingsPanel.ts'
 	import {
 		buildEnemyTooltip,
 		buildHudSnapshot,
@@ -164,6 +168,10 @@
 	const router = useRouter()
 	const progressStore = useProgressStore()
 	const settingsStore = useSettingsStore()
+	const settingsPanel = useSettingsPanel()
+
+	/** What each bound key prints as: the shop's badges, the tooltips and the debug hint all read this. */
+	const keys = computed(() => keyLabels(settingsStore.settings.bindings))
 
 	/** The night on the board, for the dev picker. Null until the first world. */
 	const nightId = ref<DefId | null>(null)
@@ -511,6 +519,26 @@
 		loop?.togglePause()
 	}
 
+	/**
+	 * The settings panel holds the clock while it is up, and **puts back the pause state it found**
+	 * rather than resuming blind (step 23D, decision 6). That is what lets the automatic pausers compose:
+	 * close the panel over a night something else is holding, and the hold is still on. The panel owns
+	 * the keyboard while it is open, so nothing toggles the pause underneath it.
+	 */
+	let pausedBeforePanel = false
+
+	watch(settingsPanel.open, open => {
+		if (loop === null) {
+			return
+		}
+		if (open) {
+			pausedBeforePanel = loop.paused
+			loop.pause()
+		} else if (!pausedBeforePanel) {
+			loop.resume()
+		}
+	})
+
 	/** The shop's toggle: the same tower again disarms, and arming one closes the inspector. */
 	function onSelect(defId: DefId): void {
 		selection.selectedDefId.value = selection.selectedDefId.value === defId ? null : defId
@@ -618,6 +646,7 @@
 			onToasts(next) {
 				toasts.value = next
 			},
+			bindings: () => settingsStore.settings.bindings,
 		})
 		interaction = activeInteraction
 
@@ -708,7 +737,13 @@
 					refreshInspector()
 					hud.value = buildHudSnapshot(
 						world,
-						{ speed: activeLoop.speed, paused: activeLoop.paused, loudShots, lastLost: lastLoss },
+						{
+							speed: activeLoop.speed,
+							paused: activeLoop.paused,
+							keys: keys.value,
+							loudShots,
+							lastLost: lastLoss,
+						},
 						inspector,
 						buildTooltip(),
 					)

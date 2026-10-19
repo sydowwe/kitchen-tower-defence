@@ -27,6 +27,8 @@
 			@retry="store.retry"
 		/>
 
+		<SettingsButton class="settings" />
+
 		<component
 			:is="DataPanel"
 			v-if="DataPanel !== null"
@@ -40,6 +42,7 @@
 	import { useI18n } from 'vue-i18n'
 	import { useRouter } from 'vue-router'
 	import LoadState from '@/ui/components/LoadState.vue'
+	import SettingsButton from '@/ui/components/SettingsButton.vue'
 	import TierPicker from '@/ui/components/title/TierPicker.vue'
 	import { buildTierPicker } from '@/ui/kitchenView.ts'
 	import { useProgressStore } from '@/ui/stores/progress.ts'
@@ -139,6 +142,12 @@
 		font: inherit;
 		font-size: 1rem;
 		cursor: pointer;
+	}
+
+	.settings {
+		position: fixed;
+		top: 0.75rem;
+		right: 0.75rem;
 	}
 
 	.dev {

@@ -1,17 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuth } from '@/ui/composables/useAuth.ts'
-import { useSettings } from '@/ui/composables/useSettings.ts'
-import type { Settings } from '@/ui/composables/useSettings.ts'
-
-function defaultSettings(): Settings {
-	return { speed: 1 }
-}
+import { defaultSettings, rebind as rebindKey, useSettings } from '@/ui/composables/useSettings.ts'
+import type { Action, Bus, Settings } from '@/ui/composables/useSettings.ts'
 
 /**
  * The player's settings. The one **optimistic** store: `update` assigns at once and `useSettings`
  * saves behind a debounce, because a speed button that waits on the network feels broken and a lost
  * preference is harmless.
+ *
+ * Every write replaces `settings` wholesale, so `ui/App.vue`'s one watch sees each of them.
  */
 export const useSettingsStore = defineStore('settings', () => {
 	const auth = useAuth()
@@ -52,5 +50,24 @@ export const useSettingsStore = defineStore('settings', () => {
 		}
 	}
 
-	return { settings, ensureLoaded, update }
+	function setVolume(bus: Bus, value: number): void {
+		update({ volumes: { ...settings.value.volumes, [bus]: value } })
+	}
+
+	/** Swaps on a conflict -- see `rebind` in `data/settings.ts`. */
+	function rebind(action: Action, code: string): void {
+		update({ bindings: rebindKey(settings.value.bindings, action, code) })
+	}
+
+	function markHintSeen(id: string): void {
+		if (!settings.value.seenHints.includes(id)) {
+			update({ seenHints: [...settings.value.seenHints, id] })
+		}
+	}
+
+	function resetHints(): void {
+		update({ seenHints: [] })
+	}
+
+	return { settings, ensureLoaded, update, setVolume, rebind, markHintSeen, resetHints }
 })

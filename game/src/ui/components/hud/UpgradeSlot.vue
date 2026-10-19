@@ -30,7 +30,7 @@
 			type="button"
 			class="buy"
 			:class="{ poor: !entry.affordable }"
-			:title="t('hud.upgradeKey')"
+			:title="t('hud.upgradeKey', { key: upgradeKey })"
 			@click="emit('upgrade')"
 		>
 			<FontAwesomeIcon icon="arrow-up" />
@@ -70,7 +70,7 @@
 
 	// `entry` and not `slot`: `slot` is a reserved attribute name in a Vue template, and a prop that
 	// shadows one is a debugging session nobody enjoys. `TowerShop.vue` names its rows the same way.
-	const { entry } = defineProps<{ entry: UpgradeSlotView }>()
+	const { entry, upgradeKey } = defineProps<{ entry: UpgradeSlotView; upgradeKey: string }>()
 
 	const emit = defineEmits<{ upgrade: [] }>()
 

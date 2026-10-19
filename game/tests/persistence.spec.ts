@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AUDIO_DEFAULTS } from '@/audio/index.ts'
 import { createAnonymousAuthProvider } from '@/data/adapters/localStorage/auth.ts'
 import { createLocalProgressStore } from '@/data/adapters/localStorage/progress.ts'
 import { createRecordStore } from '@/data/adapters/localStorage/record.ts'
+import { createLocalSettingsStore } from '@/data/adapters/localStorage/settings.ts'
 import { MAX_LATENCY_MS, MIN_LATENCY_MS } from '@/data/adapters/mockRemote/remote.ts'
 import { progressCodec, progressSchemaV1 } from '@/data/dto/progress.ts'
 import { settingsCodec } from '@/data/dto/settings.ts'
-import { createDataLayer, RemoteUnavailableError } from '@/data/index.ts'
+import { createDataLayer, defaultBindings, defaultSettings, RemoteUnavailableError } from '@/data/index.ts'
+import type { Settings } from '@/data/index.ts'
 import { createMemoryStorage } from './fixtures/memoryStorage.ts'
 import type { Progress } from '@/core/campaign.ts'
 import type { Codec, ProgressDtoV1, ProgressDtoV2, ProgressDtoV3 } from '@/data/dto/index.ts'
@@ -110,7 +113,8 @@ describe('a progress record', () => {
 	it('ships at v3 with exactly the 1→2 and 2→3 migrations', () => {
 		expect(progressCodec.version).toBe(3)
 		expect(Object.keys(progressCodec.migrations)).toEqual(['1', '2'])
-		expect(settingsCodec.version).toBe(1)
+		expect(settingsCodec.version).toBe(2)
+		expect(Object.keys(settingsCodec.migrations)).toEqual(['1'])
 	})
 
 	it('round-trips a clear, the endless bests and an endless loadout deep-equal', async () => {
@@ -251,6 +255,107 @@ describe('the migration chain', () => {
 
 		expect(await createLocalProgressStore(storage).load(USER)).toBeNull()
 		expect(corruptKeys(storage)).toHaveLength(1)
+	})
+})
+
+describe('a settings record', () => {
+	const SETTINGS_KEY = `kd:${USER}:settings`
+
+	/** Every field off its default, `seenHints` with an id no build has written yet. */
+	function tunedSettings(): Settings {
+		return {
+			speed: 3,
+			volumes: { master: 0.35, effects: 0.6, ambience: 0 },
+			screenShake: false,
+			damageNumbers: false,
+			palette: 'colourblind',
+			bindings: { ...defaultBindings(), callWave: 'KeyX', sell: 'KeyN', tower10: 'KeyQ' },
+			seenHints: ['night1.placeTower', 'a-hint-nobody-wrote'],
+		}
+	}
+
+	it('loads a stored v1 { speed: 3 } as v2, with speed 3 and every other field defaultSettings()’s', async () => {
+		const storage = createMemoryStorage({ [SETTINGS_KEY]: envelope(1, { speed: 3 }) })
+
+		expect(await createLocalSettingsStore(storage).load(USER)).toEqual({ ...defaultSettings(), speed: 3 })
+		expect(corruptKeys(storage)).toEqual([])
+	})
+
+	it('writes a migrated v1 record back as v2, one revision on', async () => {
+		const storage = createMemoryStorage({ [SETTINGS_KEY]: envelope(1, { speed: 2 }) })
+		const store = createLocalSettingsStore(storage)
+
+		const loaded = await store.load(USER)
+		if (loaded === null) {
+			throw new Error('the v1 record did not load')
+		}
+		await store.save(USER, loaded)
+
+		expect(storedRecord(storage, SETTINGS_KEY)).toMatchObject({
+			version: 2,
+			revision: 4,
+			data: { speed: 2, seenHints: [], bindings: defaultBindings() },
+		})
+	})
+
+	it('round-trips a v2 record through toDto and fromDto unchanged, unknown hint ids and all', async () => {
+		expect(settingsCodec.fromDto(settingsCodec.toDto(tunedSettings()))).toEqual(tunedSettings())
+
+		const storage = createMemoryStorage()
+		const store = createLocalSettingsStore(storage)
+		await store.save(USER, tunedSettings())
+		expect(await store.load(USER)).toEqual(tunedSettings())
+	})
+
+	it('drops an action it doesn’t know, and keeps the default for every known one not stored', async () => {
+		const bindings: Record<string, string> = { ...defaultBindings(), sell: 'KeyW', jump: 'KeyJ' }
+		delete bindings.callWave
+		const data = { ...settingsCodec.toDto(defaultSettings()), bindings }
+		const storage = createMemoryStorage({ [SETTINGS_KEY]: envelope(2, data) })
+
+		expect((await createLocalSettingsStore(storage).load(USER))?.bindings).toEqual({
+			...defaultBindings(),
+			sell: 'KeyW',
+		})
+		expect(corruptKeys(storage)).toEqual([])
+	})
+
+	it('swaps two actions stored on one key apart, rather than letting the key do both', async () => {
+		const data = {
+			...settingsCodec.toDto(defaultSettings()),
+			bindings: { ...defaultBindings(), sell: 'KeyN' },
+		}
+		const storage = createMemoryStorage({ [SETTINGS_KEY]: envelope(2, data) })
+		const bindings = (await createLocalSettingsStore(storage).load(USER))?.bindings
+
+		expect(bindings?.sell).toBe('KeyN')
+		expect(bindings?.callWave).toBe('KeyX')
+	})
+
+	it('drops a bus it doesn’t know, and keeps the default for a known one not stored', async () => {
+		const data = { ...settingsCodec.toDto(defaultSettings()), volumes: { master: 0.5, radio: 1 } }
+		const storage = createMemoryStorage({ [SETTINGS_KEY]: envelope(2, data) })
+
+		expect((await createLocalSettingsStore(storage).load(USER))?.volumes).toEqual({
+			...defaultSettings().volumes,
+			master: 0.5,
+		})
+	})
+
+	it.each([
+		['a volume over 1', { volumes: { master: 1.5 } }],
+		['an unknown palette', { palette: 'sepia' }],
+		['an extra field from another build', { showFps: true }],
+	])('sends %s to :corrupt:', async (_, patch) => {
+		const data = { ...settingsCodec.toDto(defaultSettings()), ...patch }
+		const storage = createMemoryStorage({ [SETTINGS_KEY]: envelope(2, data) })
+
+		expect(await createLocalSettingsStore(storage).load(USER)).toBeNull()
+		expect(corruptKeys(storage)).toHaveLength(1)
+	})
+
+	it('starts a new player on the volumes the audio engine starts on', () => {
+		expect(defaultSettings().volumes).toEqual(AUDIO_DEFAULTS)
 	})
 })
 
@@ -398,7 +503,7 @@ describe('the mock remote', () => {
 			['progress.load', () => layer.progress.load(USER)],
 			['progress.save', () => layer.progress.save(USER, sampleProgress())],
 			['settings.load', () => layer.settings.load(USER)],
-			['settings.save', () => layer.settings.save(USER, { speed: 2 })],
+			['settings.save', () => layer.settings.save(USER, { ...defaultSettings(), speed: 2 })],
 		]
 
 		const outcomes = calls.map(([name, call]) =>

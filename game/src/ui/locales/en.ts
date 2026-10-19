@@ -20,6 +20,8 @@ import type {
 	TagMessages,
 	TowerMessages,
 } from '@/ui/locales/contentKeys.ts'
+import type { Bus } from '@/ui/composables/useSettings.ts'
+import type { CommandAction } from '@/ui/keys.ts'
 
 export const en = {
 	general: {
@@ -109,12 +111,13 @@ export const en = {
 		targetingOrder: 'First · Last · Strongest · Weakest · Closest · Random',
 		sellFor: 'Sell for {n}',
 		sellPenalty: 'Half price while a wave is running',
-		// Tooltips, and the only place the two hotkeys that have no on-screen badge are written down.
-		// `dev/nightHud.ts` carried a hint line for all of them until step 8C deleted it; the shop
-		// prints its own numbers, and these two are what was left over.
-		sellKey: 'Sell this tower  (x)',
-		upgradeKey: 'Buy the next tier  (u)',
-		callWaveKey: 'Call the next wave in early  (n)',
+		// Tooltips, and the only place the hotkeys that have no on-screen badge are written down. `{key}`
+		// is whatever the player bound it to (step 23D), so a rebound key is never shown by its old name.
+		sellKey: 'Sell this tower  ({key})',
+		upgradeKey: 'Buy the next tier  ({key})',
+		callWaveKey: 'Call the next wave in early  ({key})',
+		// The night's way into settings, beside the transport.
+		settings: 'Settings',
 
 		// --- step 12C, the upgrade panel -------------------------------------------------------
 		// A tier's own name is two or three words of kitchen and never "Damage +40%": the diff row
@@ -273,15 +276,44 @@ export const en = {
 		entities: 'Entities',
 		speed: 'Speed',
 		paused: 'Paused',
-		// Every key the game route answers to. `dev/nightHud.ts` carried the other half of this list
-		// until step 8C deleted it, so this line is now the whole of it -- edit it in the same breath
-		// as the bindings in `ui/interaction.ts`, or the on-screen help lies.
-		hint: '1-9 0 tower · shift-click keeps building · u upgrade · x sell · n next wave · space pause · , . speed',
+		// Every key the game route answers to, each one off the player's bindings (step 23D). An action
+		// added to `ACTIONS` in `data/settings.ts` is added here too, or the on-screen help leaves it out.
+		hint: '{towers} tower · shift-click keeps building · {upgrade} upgrade · {sell} sell · {callWave} next wave · {pause} pause · {speedDown} {speedUp} speed',
 	},
+	// One panel, opened from the title, the Kitchen and the night (step 23D). The labels say what a knob
+	// does in the kitchen, plainly, in analytic-docs/DECISIONS.md section 1's voice: no exclamation marks,
+	// and nothing that sounds like an options menu if it can be helped.
 	settings: {
 		title: 'Settings',
-		volume: 'Volume',
-		showFps: 'Show FPS',
+		close: 'Close',
+		sound: 'Sound',
+		volume: {
+			master: 'Everything',
+			effects: 'Towers, bugs and the house stirring',
+			ambience: 'The fridge and the clock',
+		} satisfies Record<Bus, string>,
+		screen: 'The screen',
+		screenShake: 'Shake the room when something lands hard',
+		damageNumbers: 'Show the damage each hit does',
+		palette: 'Colour-blind colours',
+		paletteNote: 'Yes and no in blue and orange, rather than green and red.',
+		keys: 'Keys',
+		keysNote: 'Pick one, then press the key you want for it. Escape stays Escape.',
+		pressKey: 'Press a key…',
+		// Said under the list after a rebind took a key another action had, so the swap reads as a swap.
+		swapped: '{action} moved to {key}.',
+		action: {
+			pause: 'Pause',
+			speedDown: 'Slower',
+			speedUp: 'Faster',
+			callWave: 'Call the next wave',
+			sell: 'Sell',
+			upgrade: 'Upgrade',
+		} satisfies Record<CommandAction, string>,
+		// The ten shop slots, counted from the left of the counter.
+		towerSlot: 'Tower {n}',
+		hints: 'Show the first-night hints again',
+		hintsReset: 'They will be there next time.',
 	},
 
 	// One entry per def in core/content/, keyed by its id. The `satisfies` is the enforcement: a

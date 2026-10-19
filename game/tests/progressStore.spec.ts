@@ -5,7 +5,7 @@ import { getInstallationDef } from '@/core/content/index.ts'
 import { createLocalProgressStore } from '@/data/adapters/localStorage/progress.ts'
 import { createDataLayer, setDataLayer, setMockFailureRate } from '@/data/index.ts'
 import { useAuth } from '@/ui/composables/useAuth.ts'
-import { SETTINGS_SAVE_DEBOUNCE_MS } from '@/ui/composables/useSettings.ts'
+import { defaultSettings, SETTINGS_SAVE_DEBOUNCE_MS } from '@/ui/composables/useSettings.ts'
 import { useProgressStore } from '@/ui/stores/progress.ts'
 import { useSettingsStore } from '@/ui/stores/settings.ts'
 import { createMemoryStorage } from './fixtures/memoryStorage.ts'
@@ -321,12 +321,27 @@ describe('the settings store', () => {
 
 		store.update({ speed: 2 })
 		store.update({ speed: 3 })
-		expect(store.settings).toEqual({ speed: 3 })
+		expect(store.settings).toEqual({ ...defaultSettings(), speed: 3 })
 
 		await vi.advanceTimersByTimeAsync(SETTINGS_SAVE_DEBOUNCE_MS - 1)
 		expect(settingsRecord()).toBeNull()
 
 		await settle(Promise.resolve())
 		expect(settingsRecord()).toMatchObject({ revision: 1, data: { speed: 3 } })
+	})
+
+	it('marks a hint seen once however often it is told, and forgets them all on reset', async () => {
+		const store = useSettingsStore()
+		await settle(store.ensureLoaded())
+
+		store.markHintSeen('night1.placeTower')
+		store.markHintSeen('night1.placeTower')
+		store.markHintSeen('night1.collect')
+		expect(store.settings.seenHints).toEqual(['night1.placeTower', 'night1.collect'])
+
+		store.resetHints()
+		expect(store.settings.seenHints).toEqual([])
+		await settle(Promise.resolve())
+		expect(settingsRecord()).toMatchObject({ data: { seenHints: [] } })
 	})
 })

@@ -3,7 +3,18 @@ import { createTracker } from '@/ui/composables/tracked.ts'
 import type { Ref } from 'vue'
 import type { Settings } from '@/data/index.ts'
 
-export type { PlaySpeed, Settings } from '@/data/index.ts'
+export type { Action, Bindings, Bus, Palette, PlaySpeed, Settings, TowerSlot } from '@/data/index.ts'
+/** The settings model lives in `data/`, where the migration can reach it. See `data/settings.ts`. */
+export {
+	ACTIONS,
+	BUSES,
+	defaultBindings,
+	defaultSettings,
+	isBindable,
+	PALETTES,
+	rebind,
+	TOWER_SLOTS,
+} from '@/data/index.ts'
 
 /** Settings writes are debounced (analytic-docs/PERSISTENCE.md section 6). */
 export const SETTINGS_SAVE_DEBOUNCE_MS = 500

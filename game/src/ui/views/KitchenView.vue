@@ -19,6 +19,7 @@
 					<span class="money-label">{{ t('kitchen.groceryMoney') }}</span>
 					<b>💵 {{ view.groceryMoney }}</b>
 				</p>
+				<SettingsButton tone="day" />
 			</header>
 
 			<div class="top">
@@ -100,6 +101,7 @@
 	import ResetProgress from '@/ui/components/kitchen/ResetProgress.vue'
 	import SyncIndicator from '@/ui/components/kitchen/SyncIndicator.vue'
 	import LoadState from '@/ui/components/LoadState.vue'
+	import SettingsButton from '@/ui/components/SettingsButton.vue'
 	import { buildKitchenView } from '@/ui/kitchenView.ts'
 	import { useProgressStore } from '@/ui/stores/progress.ts'
 	import type { DefId, InstallationId } from '@/ui/kitchenView.ts'
@@ -205,7 +207,9 @@
 
 	.head {
 		display: flex;
+		align-items: center;
 		justify-content: flex-end;
+		gap: 0.6rem;
 	}
 
 	.money {
