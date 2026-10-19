@@ -35,7 +35,7 @@ it suggests option 1 below won't hold.
 | Where | What's there |
 | --- | --- |
 | `npm run balance` | `peakNoise` (`noise.peakLevel`, written before a wake zeroes the level) and `wakeCount` per row. `--sweep noiseDecay=a:b:step` sets the base decay per second (22C) |
-| `core/world.ts:24` | `NOISE_DECAY_PER_TICK = 1.5 / 60`, the only place the decay is set |
+| `core/world.ts:30` | `NOISE_DECAY_PER_TICK = 1.5 / 60`, the only place the decay is set |
 | `tests/noise.spec.ts:587` and `:594` | Pin the base: `2 / 60` with Oil the Hinges owned, `1.5 / 60` without |
 | `tests/fixtures/world.ts:39` | Its own `decayPerTick: 1.5 / 60`. The specs on that fixture test the meter's arithmetic, not the tuned value. **Leave it** |
 | `core/content/towers.ts` | `mousetrap.noise` 2 and `toaster.noise` 3. `tests/content.spec.ts:264` and `:567` pin both |
@@ -68,6 +68,13 @@ and then edit this file. Don't leave it lying.
    no person has watched yet. A balance question answered only in a commit message gets asked again in
    six months.
 
+**How it went (the build session).** Decision 1's premise was wrong: `greedy` under `optimal` builds
+no noise (peak 0.0 on nights 3, 6 and 8 at every difficulty, even at decay 0), and `casual` peaks at
+4.2 at most. With no decay at all, no board the harness builds emits more than 27 over a whole night.
+None of options 1 to 3 had a branch the measurement could take, so the user chose option 1's "nothing":
+nothing moved and `OPEN-QUESTIONS.md` §3 records the question as unanswered pending a person building
+a deliberately loud board. The tuning tables above are therefore untouched.
+
 ## Build
 
 1. **Measure** (decision 1). Keep the table: it goes into the answer.
@@ -92,12 +99,12 @@ stays. If a per-shot value moves, `tests/content.spec.ts:264` or `:567` moves wi
 
 ## Acceptance
 
-- [ ] `../../analytic-docs/OPEN-QUESTIONS.md` §3's "Noise cap 100 with 1.5/s decay" is struck through and
+- [x] `../../analytic-docs/OPEN-QUESTIONS.md` §3's "Noise cap 100 with 1.5/s decay" is struck through and
       answered with a measurement, not an opinion.
-- [ ] Nothing in the table above still quotes the old number.
+- [x] Nothing in the table above still quotes the old number. (No number moved.)
 - [ ] Play night 8 twice, once with a Toaster-heavy air defence and once without. The two boards sound
       different on the meter, and the loud one is a decision rather than a trap.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 
