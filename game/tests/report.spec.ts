@@ -53,6 +53,7 @@ function row(overrides: Partial<Row> = {}): Row {
 		damageTotal: 4000,
 		topDamageSource: 'saltShaker',
 		topDamageShare: 0.4,
+		score: null,
 		...overrides,
 	}
 }
@@ -185,6 +186,61 @@ describe('the flags', () => {
 		]
 		const flags = ofKind(rows, 'tooHard')
 		expect(flags.map(flag => flag.sweepValue)).toEqual([0.6])
+	})
+})
+
+describe('the endless tables', () => {
+	/** A lost endless run on `map` that survived `score` waves. */
+	function endless(map: string, score: number, overrides: Partial<Row> = {}): Row {
+		return row({
+			mode: 'endless',
+			night: `endless${map}`,
+			nightIndex: 19,
+			map,
+			outcome: 'lost',
+			score,
+			wavesStarted: score + 1,
+			...overrides,
+		})
+	}
+
+	it('give a table per tier and kitchen, a map to a row, with the median and the spread in each cell', () => {
+		const rows = [
+			...[2, 3, 4, 5].map((score, at) => endless('counter', score, { seed: 1234 + at })),
+			endless('sink', 9),
+			endless('sink', 7, { installations: 'a|b|c', seed: 1235 }),
+			endless('sink', 6, { difficulty: 'nightmare' }),
+		]
+		const html = buildReport(rows, 'results.csv')
+
+		expect(html).toContain('id="endless"')
+		expect(html).toContain('<h3>normal · no installations</h3>')
+		expect(html).toContain('<h3>normal · 3 installations</h3>')
+		expect(html).toContain('<h3>nightmare · no installations</h3>')
+		// Four scores 2, 3, 4, 5: the median is 3.5, the middle half 2.8-4.3 (interpolated), the extremes 2-5.
+		expect(html).toContain(
+			'<b>3.5</b><span class="sub">2.8–4.3 middle half · 2–5</span><span class="sub">4 runs</span>',
+		)
+		expect(html).toContain('<b>9</b>')
+	})
+
+	it('count a run that cleared every wave apart, and a run that stalled', () => {
+		const html = buildReport(
+			[
+				endless('counter', 200, { outcome: 'won' }),
+				endless('counter', 4, { seed: 1235 }),
+				endless('counter', 0, { outcome: 'stalled', score: null, seed: 1236 }),
+			],
+			'results.csv',
+		)
+
+		expect(html).toContain('3 runs · 1 cleared every wave · 1 stalled')
+	})
+
+	it("are never read as the campaign's too-hard flag: a run with no end is lost", () => {
+		const rows = Array.from({ length: 10 }, (_, at) => endless('counter', 3, { seed: 1234 + at }))
+
+		expect(ofKind(rows, 'tooHard')).toHaveLength(0)
 	})
 })
 

@@ -1,15 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { getInstallationDef, getNightDef } from '@/core/content/index.ts'
-import { newProgress, worldOptionsFor } from '@/core/campaign.ts'
+import { ENDLESS_WAVE_COUNT, endlessNightId, getInstallationDef, getNightDef } from '@/core/content/index.ts'
+import { endlessMapIds, newProgress, worldOptionsFor, worldOptionsForEndless } from '@/core/campaign.ts'
 import { createCommandQueue } from '@/core/commands.ts'
 import { tick } from '@/core/sim.ts'
 import { waveEntryCount } from '@/core/systems/spawn.ts'
 import { createWorld } from '@/core/world.ts'
-import { toCsv } from '@/dev/harness/csv.ts'
+import { fromCsv, toCsv } from '@/dev/harness/csv.ts'
 import { defaultLoadout } from '@/dev/harness/loadouts.ts'
+import { greedy } from '@/dev/harness/policies/greedy.ts'
 import { idle } from '@/dev/harness/policies/idle.ts'
-import { replayNight, runCampaign, runJob, runNight } from '@/dev/harness/run.ts'
+import {
+	ENDLESS_MAX_TICKS,
+	MAX_NIGHT_TICKS,
+	replayNight,
+	runCampaign,
+	runEndless,
+	runJob,
+	runNight,
+} from '@/dev/harness/run.ts'
+import { runShard } from '@/dev/harness/shard.ts'
 import { scripted } from './fixtures/scriptedPolicy.ts'
+import type { Progress } from '@/core/campaign.ts'
 import type { NightDef } from '@/core/content/index.ts'
 import type { DefId, World } from '@/core/types.ts'
 import type { Job, LoadoutPolicy } from '@/dev/harness/types.ts'
@@ -211,6 +222,84 @@ function loadoutsInTurn(...picks: DefId[][]): LoadoutPolicy {
 		},
 	}
 }
+
+function endlessJob(overrides: Partial<Job> = {}): Job {
+	return {
+		kind: 'endless',
+		nights: ['counter', 'sink'],
+		difficulty: 'normal',
+		seed: 1234,
+		policy: 'greedy',
+		loadoutPolicy: 'optimal',
+		installations: [],
+		sweep: null,
+		...overrides,
+	}
+}
+
+describe('an endless job', () => {
+	it('gives a row a map, scored by the game and not recomputed, and the same CSV twice and reversed', () => {
+		const jobs = [endlessJob(), endlessJob({ difficulty: 'nightmare', nights: ['stove'] })]
+
+		const rows = jobs.flatMap(runJob)
+		expect(rows.map(row => [row.mode, row.night, row.map, row.difficulty, row.outcome])).toEqual([
+			['endless', 'endlessCounter', 'counter', 'normal', 'lost'],
+			['endless', 'endlessSink', 'sink', 'normal', 'lost'],
+			['endless', 'endlessStove', 'stove', 'nightmare', 'lost'],
+		])
+		for (const row of rows) {
+			// `endlessResultOf`'s: the wave that lost the run does not count, and that wave is the last started.
+			expect(row.score).toBe(row.wavesStarted - 1)
+			expect(row.foodRemaining).toBe(0)
+			expect(row.ticks).toBeLessThan(ENDLESS_MAX_TICKS)
+			expect(row.waveCount).toBe(ENDLESS_WAVE_COUNT)
+		}
+
+		const csv = toCsv(rows)
+		expect(toCsv(jobs.flatMap(runJob))).toBe(csv)
+		expect(toCsv([...jobs].reverse().flatMap(runJob))).toBe(csv)
+		expect(fromCsv(csv).map(row => row.score)).toEqual(rows.map(row => row.score))
+	})
+
+	it("stops, stalled and unscored, once the job's wave cap has started", () => {
+		const [row] = runJob(endlessJob({ nights: ['counter'], maxWaves: 2 }))
+
+		expect(row).toMatchObject({ outcome: 'stalled', wavesStarted: 2, score: null, groceryMoney: null })
+		expect(row?.foodRemaining).toBeGreaterThan(0)
+	})
+
+	it('has a tick cap that clears the last generated wave on every map and tier', () => {
+		for (const difficulty of ['cozy', 'normal', 'nightmare'] as const) {
+			for (const mapId of endlessMapIds()) {
+				const progress: Progress = { ...newProgress(), nightId: null, cleared: [difficulty], difficulty }
+				const world = createWorld(worldOptionsForEndless(progress, mapId, 1234))
+				const starts = scheduleOf(world, getNightDef(endlessNightId(mapId)))
+
+				// Starts the last wave with a campaign night's cap to spare for clearing it.
+				expect(starts).toHaveLength(ENDLESS_WAVE_COUNT)
+				expect(starts[ENDLESS_WAVE_COUNT - 1], `${mapId} on ${difficulty}`).toBeLessThan(
+					ENDLESS_MAX_TICKS - MAX_NIGHT_TICKS,
+				)
+			}
+		}
+	})
+
+	it('fails naming the job when its campaign has not been cleared, and never plays a campaign night instead', () => {
+		expect(() => runEndless(newProgress(), 'counter', 1234, greedy, defaultLoadout)).toThrow(
+			/endless run 'endlessCounter' \(greedy\/default, seed 1234\).*not cleared on 'normal'.*locked/,
+		)
+		// Through the shard that runs it, the error names the job's index and what it was.
+		expect(() =>
+			runShard(
+				[endlessJob({ nights: ['nowhere'], loadoutPolicy: 'default' })],
+				{ index: 0, count: 1 },
+				() => undefined,
+			),
+		).toThrow(
+			/job 0 \(endless nowhere normal greedy\/default seed 1234\) threw: there is no endless run on map 'nowhere'/,
+		)
+	})
+})
 
 describe('a campaign', () => {
 	it('advances on a win and pays it', () => {

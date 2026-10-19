@@ -5,8 +5,8 @@
  * folded from tower ids to defs, and the headline that divides three of the others.
  */
 
-import { unlockedTowerIds } from '@/core/campaign.ts'
-import { getNightDef, getTowerDef } from '@/core/content/index.ts'
+import { endlessResultOf, unlockedTowerIds } from '@/core/campaign.ts'
+import { getNightDef, getTowerDef, isEndlessNightId } from '@/core/content/index.ts'
 import { isGone } from '@/core/systems/fridge.ts'
 import type { Progress } from '@/core/campaign.ts'
 import type { DamageBook, DefId, EntityId, GameEvent, World } from '@/core/types.ts'
@@ -127,6 +127,14 @@ function meanCost(towerIds: readonly DefId[]): number {
 	return towerIds.reduce((sum, id) => sum + getTowerDef(id).cost, 0) / towerIds.length
 }
 
+/** `endlessResultOf`'s, read and never recomputed; a stalled run has no result to read. */
+function scoreOf(world: World, outcome: Outcome): number | null {
+	if (!isEndlessNightId(world.night.nightId) || (outcome !== 'won' && outcome !== 'lost')) {
+		return null
+	}
+	return endlessResultOf(world).waves
+}
+
 export function rowOf(world: World, tally: NightTally, context: RowContext, outcome: Outcome): Row {
 	const night = world.night
 	const pay = night.pay
@@ -188,5 +196,6 @@ export function rowOf(world: World, tally: NightTally, context: RowContext, outc
 		damageTotal,
 		topDamageSource: top?.name ?? null,
 		topDamageShare: top === null || damageTotal === 0 ? null : top.amount / damageTotal,
+		score: scoreOf(world, outcome),
 	}
 }

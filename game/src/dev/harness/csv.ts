@@ -51,6 +51,7 @@ const COLUMNS: readonly (readonly [keyof Row, Format])[] = [
 	['damageTotal', 'float'],
 	['topDamageSource', 'text'],
 	['topDamageShare', 'float'],
+	['score', 'int'],
 ]
 
 function compareNullable(a: number | null, b: number | null): number {
@@ -124,6 +125,7 @@ const NULLABLE: ReadonlySet<keyof Row> = new Set<keyof Row>([
 	'towersAffordablePerWave',
 	'topDamageSource',
 	'topDamageShare',
+	'score',
 ])
 
 /** One line's fields, unquoting the way `quoted` quotes. Rows never hold a newline, so a line is a row. */

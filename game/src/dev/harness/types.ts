@@ -45,7 +45,8 @@ export type PolicyFactory = (options: { seed: number }) => Policy
  */
 export interface LoadoutPolicy {
 	readonly name: string
-	choose(progress: Progress, wants: { economy: boolean }): DefId[] | null
+	/** `nightId` is the night it is for when that is not `progress.nightId`: an endless run's, where the campaign is over. */
+	choose(progress: Progress, wants: { economy: boolean; nightId?: DefId }): DefId[] | null
 }
 
 /** A command and the tick it was enqueued before. What `replayNight` replays. */
@@ -66,9 +67,11 @@ export interface Sweep {
  *
  * - `'night'`: each of `nights` played on its own, from a progress built for it.
  * - `'campaign'`: played from night 1 through the last of `nights`, paying and buying in between.
+ * - `'endless'`: `nights` holds **map ids**, not night ids. Each one's endless run, on a campaign cleared
+ *   at `difficulty`, until the food is gone or every generated wave is.
  */
 export interface Job {
-	kind: 'night' | 'campaign'
+	kind: 'night' | 'campaign' | 'endless'
 	nights: DefId[]
 	difficulty: DifficultyId
 	seed: number
@@ -77,8 +80,13 @@ export interface Job {
 	/** Owned before the first night. A campaign buys more as it goes. */
 	installations: DefId[]
 	sweep: Sweep | null
-	/** The stall cap. Absent is `MAX_NIGHT_TICKS`. */
+	/** The stall cap. Absent is `MAX_NIGHT_TICKS`, and for an endless job `ENDLESS_MAX_TICKS`. */
 	maxTicks?: number
+	/**
+	 * An endless job's wave cap: stalled once this many waves have started. Absent is no cap, so the
+	 * run ends on the food or on the last generated wave, and the tick cap only backs that up.
+	 */
+	maxWaves?: number
 }
 
 /**
@@ -135,6 +143,11 @@ export interface Row {
 	/** A tower def id, a tile effect kind, or `unattributed`. Null when nothing was damaged. */
 	topDamageSource: string | null
 	topDamageShare: number | null
+	/**
+	 * An endless run's waves survived, as `endlessResultOf` scores it: the best the game would record.
+	 * Null for a campaign night, and for a run that stalled, which has no result.
+	 */
+	score: number | null
 }
 
 export const POLICIES: Readonly<Record<string, PolicyFactory>> = {

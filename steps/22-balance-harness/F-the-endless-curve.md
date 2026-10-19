@@ -33,14 +33,21 @@ then edit this file. Don't leave it lying.
 1. **An endless job is a third job kind**, built through `worldOptionsForEndless` like the game's. Its
    progress is a campaign cleared on the job's tier, built with 21E's own functions or fields, never by
    bypassing the lock inside `core/`. Its loadout goes through 21E's endless setter the way a campaign
-   night's goes through `setLoadout`. The roster is every tower, since the campaign is over.
+   night's goes through `setLoadout`. The roster is every tower, since the campaign is over. *(As built:)*
+   `Job.nights` holds **map ids** for this kind, and the progress is `nightId: null, cleared: [tier]`.
+   `LoadoutPolicy.choose` gains an optional `wants.nightId`, because `optimal` read `progress.nightId`,
+   which is null once the campaign is over.
 2. **The score is read from 21E's endless result**, whatever that records as waves survived, and never
    recomputed in the row. A second definition of the score would be a best the game and the harness
    disagree on.
 3. **Endless jobs have their own cap, in waves.** A run stops when it's lost or when it clears
    `ENDLESS_WAVE_COUNT`, which counts as a win and is a finding. A tick cap backs that up, generous
    enough for the last wave. At 72,000 ticks, every run that got past wave ~30 would read `stalled`
-   and look like a bug in the curve.
+   and look like a bug in the curve. *(As built:)* the wave cap is `Job.maxWaves`, absent by default, so
+   the run ends on the food or the last generated wave; set, it stops a run `stalled` and unscored once
+   that many waves have started (`--max-waves`). The tick cap is `ENDLESS_MAX_TICKS` in `run.ts`: 3,000
+   ticks a wave plus a campaign night's cap, and a test holds it above the last wave's start on every
+   map and tier.
 4. **What to measure:** `greedy` and `casual` with `optimal`, on all six maps and three tiers, 20+
    seeds each, with no installations and then with all fourteen. Endless keeps installations (21E).
    Record the distribution of waves survived, and the wave each run's food ran out on.
@@ -54,7 +61,9 @@ then edit this file. Don't leave it lying.
 
 Decisions 1–3. `--endless counter,sink` (or `all`) replaces `--nights`. Rows carry the map, the tier
 and the score. The report gains a table per tier: maps down the side, policies across, median and
-spread in each cell.
+spread in each cell. *(As built:)* the row's `score` is a new last CSV column; the table is one per tier,
+kitchen (installations) and sweep value; `tooHard` is not read on endless rows, which are lost by design;
+and `--installations all` buys no time but saves typing fourteen names.
 
 Gotcha: late waves are hundreds of enemies, and a tick on a board that full costs far more than the
 ~100 µs a campaign night does. Time one long run before launching the matrix, and size `--jobs` and
@@ -76,12 +85,14 @@ In `tests/harness.spec.ts`:
 
 ## Acceptance
 
-- [ ] No run clears every generated wave, on any map or tier, with or without installations.
-- [ ] The report's endless table exists, and its numbers are written where the curve's reasoning lives,
-      not only in a commit message.
+- [x] No run clears every generated wave, on any map or tier, with or without installations. (1,800
+      runs, 25 seeds; the furthest reached wave 66.)
+- [x] The report's endless table exists, and its numbers are written where the curve's reasoning lives,
+      not only in a commit message. (`endless.ts`'s header. Cozy `greedy` on the Table and Stove trips the
+      map-spread rule and was left: lowering `BASE_BUDGET_HP` to 500 did not close it.)
 - [ ] Play one run on the map the table calls hardest and one on the map it calls easiest. The gap is
       one you can feel, and neither run feels like a different mode.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 ## Do not
 

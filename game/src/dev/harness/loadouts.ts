@@ -64,10 +64,11 @@ function bestEconomy(progress: Progress, wants: { economy: boolean }): TowerDef 
 export const optimalLoadout: LoadoutPolicy = {
 	name: 'optimal',
 	choose(progress, wants) {
-		if (progress.nightId === null) {
+		const nightId = wants.nightId ?? progress.nightId
+		if (nightId === null) {
 			return null
 		}
-		const composition = compositionOf(progress.nightId, progress.difficulty)
+		const composition = compositionOf(nightId, progress.difficulty)
 		function perCrumb(def: TowerDef): number {
 			return valueOf(def, composition) / def.cost
 		}

@@ -62,6 +62,7 @@ function capped(progress: Progress, seed: number, name: string, loadout: Loadout
 		sweep: null,
 		attempt: 1,
 		maxTicks: CAP,
+		maxWaves: null,
 	})
 }
 

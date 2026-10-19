@@ -10,14 +10,18 @@ import {
 	applyNightResult,
 	buyInstallation,
 	currentNight,
+	endlessLoadout,
+	endlessUnlocked,
 	newProgress,
 	nightResultOf,
+	setEndlessLoadout,
 	setLoadout,
 	tonightsLoadout,
 	worldOptionsFor,
+	worldOptionsForEndless,
 } from '@/core/campaign.ts'
 import { createCommandQueue } from '@/core/commands.ts'
-import { getNightDef, INSTALLATIONS } from '@/core/content/index.ts'
+import { ENDLESS_WAVE_COUNT, endlessNightId, getNightDef, INSTALLATIONS } from '@/core/content/index.ts'
 import { tick } from '@/core/sim.ts'
 import { createWorld } from '@/core/world.ts'
 import { fixedLoadout, parseFixed } from '@/dev/harness/loadouts.ts'
@@ -36,6 +40,15 @@ import type { Job, LoadoutPolicy, LoggedCommand, Policy, PolicyFactory, Row, Swe
  */
 export const MAX_NIGHT_TICKS = 72_000
 
+/**
+ * An endless run's tick cap, a backstop for the wave count and not the way a run ends. A wave starts
+ * about every 1,300 ticks (`endless.ts`'s 14-second window and 8-second countdown), so this is more than
+ * twice that for each generated wave, plus a campaign night's cap for the last one to be cleared in. At
+ * `MAX_NIGHT_TICKS` alone a run past wave ~55 would read `stalled` and look like a bug in the curve.
+ */
+const ENDLESS_TICKS_PER_WAVE = 3000
+export const ENDLESS_MAX_TICKS = ENDLESS_WAVE_COUNT * ENDLESS_TICKS_PER_WAVE + MAX_NIGHT_TICKS
+
 /** What `runNight` hands back: the row, and everything a replay of it needs. */
 export interface NightRun {
 	row: Row
@@ -52,9 +65,11 @@ export interface NightLabels {
 	sweep: Sweep | null
 	attempt: number
 	maxTicks: number
+	/** Stop, stalled, once this many waves have started. Null is no cap. */
+	maxWaves: number | null
 }
 
-const NIGHT_MODE: NightLabels = { mode: 'night', sweep: null, attempt: 1, maxTicks: MAX_NIGHT_TICKS }
+const NIGHT_MODE: NightLabels = { mode: 'night', sweep: null, attempt: 1, maxTicks: MAX_NIGHT_TICKS, maxWaves: null }
 
 /** A night ready to play: its player, its stored loadout and the options the world is built from. */
 interface PreparedNight {
@@ -89,6 +104,37 @@ function prepareNight(
 	return { player, progress: stored.progress, options: worldOptionsFor(stored.progress, seed) }
 }
 
+/**
+ * The endless Start button, and the same shape as `prepareNight`: a list goes through
+ * `setEndlessLoadout`, and a null is what the screen would have preselected, `endlessLoadout`. The loadout
+ * policy is told the endless night, because the campaign it reads `progress` from has no night left.
+ */
+function prepareEndless(
+	progress: Progress,
+	mapId: DefId,
+	seed: number,
+	policy: PolicyFactory,
+	loadoutPolicy: LoadoutPolicy,
+): PreparedNight {
+	const player = policy({ seed })
+	const nightId = endlessNightId(mapId)
+	// Ahead of `setEndlessLoadout`, whose own throw names no job: a locked run is a job built wrong.
+	if (!endlessUnlocked(progress)) {
+		throw new Error(
+			`endless run '${nightId}' (${player.name}/${loadoutPolicy.name}, seed ${seed}) was built on a campaign not cleared on '${progress.difficulty}', so endless is locked`,
+		)
+	}
+	const chosen =
+		loadoutPolicy.choose(progress, { economy: player.economy, nightId }) ?? endlessLoadout(progress, mapId)
+	const stored = setEndlessLoadout(progress, mapId, chosen)
+	if (!stored.ok) {
+		throw new Error(
+			`loadout policy '${loadoutPolicy.name}' chose [${chosen.join(', ')}] for '${nightId}': ${stored.reason}`,
+		)
+	}
+	return { player, progress: stored.progress, options: worldOptionsForEndless(stored.progress, mapId, seed) }
+}
+
 function playNight(
 	prepared: PreparedNight,
 	loadoutPolicy: LoadoutPolicy,
@@ -107,7 +153,11 @@ function playNight(
 	const log: LoggedCommand[] = []
 	const tally = createTally()
 
-	while (!isOver(world) && world.tick < labels.maxTicks) {
+	while (
+		!isOver(world) &&
+		world.tick < labels.maxTicks &&
+		(labels.maxWaves === null || tally.wavesStarted < labels.maxWaves)
+	) {
 		for (const command of player.decide(world)) {
 			queue.enqueue(command)
 			// A copy: the log is a record, and a policy reusing its command objects must not rewrite it.
@@ -151,6 +201,22 @@ export function runNight(
 	labels: NightLabels = NIGHT_MODE,
 ): NightRun {
 	return playNight(prepareNight(progress, seed, policy, loadoutPolicy), loadoutPolicy, patch, labels)
+}
+
+/**
+ * The endless run on `mapId` from `progress`, which must have cleared the campaign: `worldOptionsForEndless`
+ * throws on one that hasn't, and nothing here builds a campaign night instead.
+ */
+export function runEndless(
+	progress: Progress,
+	mapId: DefId,
+	seed: number,
+	policy: PolicyFactory,
+	loadoutPolicy: LoadoutPolicy,
+	patch?: (world: World) => void,
+	labels: NightLabels = { ...NIGHT_MODE, mode: 'endless', maxTicks: ENDLESS_MAX_TICKS },
+): NightRun {
+	return playNight(prepareEndless(progress, mapId, seed, policy, loadoutPolicy), loadoutPolicy, patch, labels)
 }
 
 /**
@@ -238,7 +304,13 @@ export function runCampaign(
 			break
 		}
 
-		const run = playNight(prepared, loadoutPolicy, patch, { mode: 'campaign', sweep, attempt, maxTicks })
+		const run = playNight(prepared, loadoutPolicy, patch, {
+			mode: 'campaign',
+			sweep,
+			attempt,
+			maxTicks,
+			maxWaves: null,
+		})
 		rows.push(run.row)
 		if (run.row.outcome === 'stalled') {
 			break
@@ -284,17 +356,31 @@ export function loadoutPolicyNamed(name: string): LoadoutPolicy {
 export function runJob(job: Job): Row[] {
 	const policy = policyNamed(job.policy)
 	const loadoutPolicy = loadoutPolicyNamed(job.loadoutPolicy)
-	const maxTicks = job.maxTicks ?? MAX_NIGHT_TICKS
 	// Set directly, never through `startCampaign`: that refuses Nightmare until Normal is cleared, and
 	// the harness plays every tier from night 1.
 	const start: Progress = { ...newProgress(), difficulty: job.difficulty, installations: [...job.installations] }
 
+	const patch = sweepPatch(job.sweep)
+
+	if (job.kind === 'endless') {
+		// The campaign is over on the job's tier: no night left, and the tier cleared, which is what opens endless.
+		const cleared: Progress = { ...start, nightId: null, cleared: [job.difficulty] }
+		const labels: NightLabels = {
+			mode: 'endless',
+			sweep: job.sweep,
+			attempt: 1,
+			maxTicks: job.maxTicks ?? ENDLESS_MAX_TICKS,
+			maxWaves: job.maxWaves ?? null,
+		}
+		return job.nights.map(mapId => runEndless(cleared, mapId, job.seed, policy, loadoutPolicy, patch, labels).row)
+	}
+
+	const maxTicks = job.maxTicks ?? MAX_NIGHT_TICKS
 	if (job.kind === 'campaign') {
 		const last = Math.max(...job.nights.map(id => getNightDef(id).index))
 		return runCampaign(start, job.seed, policy, loadoutPolicy, last, job.sweep, maxTicks).rows
 	}
 
-	const patch = sweepPatch(job.sweep)
 	return job.nights.map(
 		nightId =>
 			runNight({ ...start, nightId }, job.seed, policy, loadoutPolicy, patch, {
@@ -302,6 +388,7 @@ export function runJob(job: Job): Row[] {
 				sweep: job.sweep,
 				attempt: 1,
 				maxTicks,
+				maxWaves: null,
 			}).row,
 	)
 }

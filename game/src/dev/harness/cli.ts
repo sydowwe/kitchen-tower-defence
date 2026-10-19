@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { DIFFICULTY_LADDER } from '@/core/campaign.ts'
-import { INSTALLATIONS, NIGHTS, TOWERS } from '@/core/content/index.ts'
+import { INSTALLATIONS, MAPS, NIGHTS, TOWERS } from '@/core/content/index.ts'
 import { fromCsv, toCsv } from '@/dev/harness/csv.ts'
 import { parseFixed } from '@/dev/harness/loadouts.ts'
 import { buildReport } from '@/dev/harness/report.ts'
@@ -26,13 +26,17 @@ import type { Job, Row, Sweep } from '@/dev/harness/types.ts'
 const HELP = `npm run balance -- [options]
 
   --nights 1-18          night indices or ids, comma-separated, ranges allowed (default 1-18)
+  --endless counter,sink the endless run on these maps, or all, instead of --nights: each plays on a
+                         campaign already cleared on the tier, and scores the waves it survived
+  --max-waves N          with --endless: stop, stalled, once N waves have started (default: no cap, the
+                         run ends on the food or on the last generated wave)
   --difficulty normal    cozy, normal, nightmare, comma-separated, or all (default normal)
   --runs 1               runs per night (campaign mode: per campaign); run i plays seed + i
   --seed 1234            the first seed. 1234 is the game's own, so run 0 is the night a player gets
   --policy idle          who plays: ${Object.keys(POLICIES).join(', ')}
   --loadout default      what they bring: ${Object.keys(LOADOUT_POLICIES).join(', ')}, or
                          fixed=saltShaker|lemon|cookieJar for exactly that list every night
-  --installations a,b    owned from the start
+  --installations a,b    owned from the start, or all
   --campaign             play night 1 through the last of --nights in order, paying Grocery Money and
                          buying installations between nights, retrying losses on the same seed
   --sweep knob=0.6:1.6:0.1
@@ -53,6 +57,11 @@ class UsageError extends Error {}
 
 interface Options {
 	nights: DefId[]
+	/** Whether `--nights` was typed: it and `--endless` are two answers to which nights. */
+	nightsGiven: boolean
+	/** Map ids, or null for the nights. */
+	endless: DefId[] | null
+	maxWaves: number | null
 	difficulties: DifficultyId[]
 	runs: number
 	seed: number
@@ -159,7 +168,23 @@ function loadoutsOf(value: string): string[] {
 	return names
 }
 
+function mapIdsOf(value: string): DefId[] {
+	if (value === 'all') {
+		return MAPS.map(map => map.id)
+	}
+	const ids = list(value).map(token => {
+		if (!MAPS.some(map => map.id === token)) {
+			throw new UsageError(`unknown map '${token}'; known: ${MAPS.map(map => map.id).join(', ')}`)
+		}
+		return token
+	})
+	return [...new Set(ids)]
+}
+
 function installationsOf(value: string): DefId[] {
+	if (value === 'all') {
+		return INSTALLATIONS.map(def => def.id)
+	}
 	return list(value).map(token => {
 		if (!INSTALLATIONS.some(def => def.id === token)) {
 			throw new UsageError(`unknown installation '${token}'`)
@@ -171,6 +196,9 @@ function installationsOf(value: string): DefId[] {
 function parse(argv: readonly string[]): Options {
 	const options: Options = {
 		nights: nightIdsOf('1-18'),
+		nightsGiven: false,
+		endless: null,
+		maxWaves: null,
 		difficulties: ['normal'],
 		runs: 1,
 		seed: 1234,
@@ -209,6 +237,13 @@ function parse(argv: readonly string[]): Options {
 		switch (flag) {
 			case '--nights':
 				options.nights = nightIdsOf(value)
+				options.nightsGiven = true
+				break
+			case '--endless':
+				options.endless = mapIdsOf(value)
+				break
+			case '--max-waves':
+				options.maxWaves = integer(flag, value, 1)
 				break
 			case '--difficulty':
 				options.difficulties = difficultiesOf(value)
@@ -260,6 +295,12 @@ function parse(argv: readonly string[]): Options {
 	if (options.nights.length === 0) {
 		throw new UsageError('--nights names no night')
 	}
+	if (options.endless !== null && (options.nightsGiven || options.campaign)) {
+		throw new UsageError('--endless replaces --nights, and has no campaign: it cannot be combined with either')
+	}
+	if (options.maxWaves !== null && options.endless === null) {
+		throw new UsageError('--max-waves caps an endless run: it wants --endless')
+	}
 	return options
 }
 
@@ -278,7 +319,16 @@ function jobsFor(options: Options): Job[] {
 							installations: [...options.installations],
 							sweep: sweep === null ? null : { ...sweep },
 						}
-						if (options.campaign) {
+						if (options.endless !== null) {
+							for (const mapId of options.endless) {
+								jobs.push({
+									kind: 'endless',
+									nights: [mapId],
+									...shared,
+									...(options.maxWaves === null ? {} : { maxWaves: options.maxWaves }),
+								})
+							}
+						} else if (options.campaign) {
 							jobs.push({ kind: 'campaign', nights: [...options.nights], ...shared })
 						} else {
 							for (const night of options.nights) {

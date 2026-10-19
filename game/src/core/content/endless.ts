@@ -56,6 +56,32 @@ const MAX_WAVE_DELAY_TICKS = 7200
 // sees it. Threat is their product, so it outgrows income: wave 30 pays about one and a half times
 // wave 0's crumbs (less than the budget's 2x, because the draw has leaned toward defs with more HP per
 // crumb) and carries about four times its HP. `hpMult` reaches 6.97 at wave 199.
+//
+// **Measured, step 22F, and nothing moved.** `npm run balance -- --endless all --difficulty all --policy
+// greedy,casual --loadout optimal --runs 25` (seeds 1234-1258), with no installations and with all
+// fourteen: 1,800 runs, every one lost. None cleared the 200 generated waves; the furthest got to wave 66.
+// `casual` never outlasted `greedy` on any map, tier or kitchen. Median waves survived, `greedy` (`casual`):
+//
+//                     counter    sink  pantry   stove   table   floor
+//   cozy,   bare      4 (2)     4 (2)   4 (3)  39 (2)  47 (4)   3 (2)
+//   cozy,   all 14    8 (4)     8 (4)   5 (4)  42 (3)  60 (4)   5 (3)
+//   normal, bare      3 (2)     3 (1)   4 (3)   3 (1)   4 (1)   2 (2)
+//   normal, all 14    4 (3)     5 (2)   4 (4)   4 (2)   5 (4)   4 (2)
+//   nightmare, bare   2 (1)     1 (1)   1 (1)   1 (0)   2 (1)   1 (1)
+//   nightmare, all 14 2 (1)     3 (2)   3 (2)   2 (1)   3 (2)   2 (1)
+//
+// The one cell that trips the map-spread rule is cozy `greedy`, on the Table and the Stove. It is bimodal
+// by seed (the Stove bare: 4-7 on some, 39-40 on others; the Counter installed: 6-58) -- a board that
+// gets an economy going before the opening waves finish it builds ~190 towers, earns ~94,000 crumbs and
+// takes the noise meter to 130 (why those runs end where they do was not traced) -- and not a smooth
+// difference between maps. Lowering
+// `BASE_BUDGET_HP` to 500 was tried on cozy `greedy`, bare, and did not close it: the Counter and the Sink
+// joined the snowballers (50 and 48) while the Pantry and the Floor stayed at 6 and 5. So the spread is
+// which kitchens let an economy compound, which `endless.ts` does not decide, and no constant moved. The
+// single-digit gaps on Normal and Nightmare (a 2 against a 4) are integer steps, not a spread.
+//
+// What it does not say: a policy that dies by wave 4 on Normal says nothing about how long a person
+// lasts. That is the step's play-it-yourself criterion.
 
 const BASE_BUDGET_HP = 700
 const BUDGET_GROWTH_PER_WAVE = 0.035

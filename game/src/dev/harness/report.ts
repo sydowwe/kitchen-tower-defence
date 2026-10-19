@@ -7,6 +7,7 @@
  */
 
 import { DIFFICULTY_LADDER } from '@/core/campaign.ts'
+import { MAPS } from '@/core/content/index.ts'
 import { FIXED_PREFIX } from '@/dev/harness/loadouts.ts'
 import { LOADOUT_POLICIES, POLICIES } from '@/dev/harness/types.ts'
 import type { Row } from '@/dev/harness/types.ts'
@@ -123,7 +124,8 @@ function flagOf(
 
 function tooHard(rows: readonly Row[]): Flag[] {
 	const flags: Flag[] = []
-	const greedy = rows.filter(row => row.policy === LOCKOUT_POLICY)
+	// Not endless: a run with no end is lost by every player, so a loss there says nothing.
+	const greedy = rows.filter(row => row.policy === LOCKOUT_POLICY && row.mode !== 'endless')
 	for (const group of groupBy(greedy, row => nightKey(row) + row.loadoutPolicy)) {
 		const [sample] = group
 		const losses = group.filter(isLoss)
@@ -342,7 +344,7 @@ const FLAG_TITLES: Record<FlagKind, string> = {
 }
 
 const FLAG_RULES: Record<FlagKind, string> = {
-	tooHard: `${LOCKOUT_POLICY} loses in more than ${percent(TOO_HARD_LOSS_RATE)} of its runs.`,
+	tooHard: `${LOCKOUT_POLICY} loses in more than ${percent(TOO_HARD_LOSS_RATE)} of its runs. Never read on endless, which is lost by design.`,
 	tooEasy: `casual wins with at least ${percent(TOO_EASY_FOOD_KEPT)} of the shelf left in at least ${percent(TOO_EASY_WIN_RATE)} of its runs, on ${TOO_EASY_DIFFICULTIES.join(' or ')}.`,
 	dominant: `one source does over ${percent(DOMINANT_SHARE)} of the damage in at least ${percent(DOMINANT_RUN_RATE)} of the night's runs that damaged anything, every policy together.`,
 	lockout: `under ${LOCKOUT_POLICY}, exactly one of ${LOCKOUT_LOADOUTS.join(', ')} ever wins. Judged only where all three were run.`,
@@ -364,7 +366,7 @@ function flagsSection(flags: readonly Flag[]): string {
 		parts.push('<ul class="flags">')
 		for (const flag of ofKind) {
 			const where = [
-				flag.mode === 'campaign' ? 'campaign' : '',
+				flag.mode === 'night' ? '' : flag.mode,
 				flag.difficulty,
 				sweepLabel(flag),
 				flag.policy === null ? 'every policy' : `${flag.policy}/${loadoutLabel(flag.loadoutPolicy ?? '')}`,
@@ -743,6 +745,101 @@ function sweepSection(rows: readonly Row[]): string {
 	return parts.join('\n')
 }
 
+// --- the endless tables --------------------------------------------------------------------------------
+
+/** The `fraction` quantile of an ascending list, interpolating between the two nearest. */
+function quantile(sorted: readonly number[], fraction: number): number {
+	const at = (sorted.length - 1) * fraction
+	const below = Math.floor(at)
+	const low = sorted[below] ?? 0
+	const high = sorted[Math.ceil(at)] ?? low
+	return low + (high - low) * (at - below)
+}
+
+function waves(value: number): string {
+	return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+/**
+ * The waves survived, as the game scores them: the median, then the middle half and the extremes. A run
+ * that cleared every generated wave is counted apart, because that is the finding, and one that stalled
+ * has no score.
+ */
+function scoreCell(rows: readonly Row[]): string {
+	if (rows.length === 0) {
+		return '<td></td>'
+	}
+	const scores = rows
+		.map(row => row.score)
+		.filter((score): score is number => score !== null)
+		.sort((a, b) => a - b)
+	const cleared = rows.filter(row => row.outcome === 'won').length
+	const stalledRuns = rows.filter(row => row.outcome === 'stalled').length
+	const notes = [`${rows.length} runs`]
+	if (cleared > 0) {
+		notes.push(`${cleared} cleared every wave`)
+	}
+	if (stalledRuns > 0) {
+		notes.push(`${stalledRuns} stalled`)
+	}
+	if (scores.length === 0) {
+		return `<td><span class="sub">${notes.join(' · ')}</span></td>`
+	}
+	const spread = `${waves(quantile(scores, 0.25))}–${waves(quantile(scores, 0.75))} middle half · ${scores[0]}–${scores[scores.length - 1]}`
+	return `<td><b>${waves(quantile(scores, 0.5))}</b><span class="sub">${spread}</span><span class="sub">${notes.join(' · ')}</span></td>`
+}
+
+function installationsLabel(installations: string): string {
+	return installations === '' ? 'no installations' : `${installations.split('|').length} installations`
+}
+
+/**
+ * A table per tier, owned kitchen and sweep value: maps down the side in `MAPS` order, who played across,
+ * the waves survived in each cell. A score is the waves a run got through, so a run that scores N lost
+ * its food during wave N + 1.
+ */
+function endlessSection(rows: readonly Row[]): string {
+	const ofMode = rows.filter(row => row.mode === 'endless')
+	if (ofMode.length === 0) {
+		return ''
+	}
+	const parts = [
+		'<h2 id="endless">Endless</h2>',
+		'<p class="rule">Waves survived per run, by map and who played. Each cell: the median, then the middle half and the extremes, then the run count. A run that scores N lost its food during wave N + 1.</p>',
+	]
+	for (const value of sortedSweepValues(ofMode)) {
+		const ofValue = ofMode.filter(row => row.sweepValue === value)
+		for (const difficulty of sortedDifficulties(ofValue)) {
+			const ofTier = ofValue.filter(row => row.difficulty === difficulty)
+			for (const installations of distinct(ofTier.map(row => row.installations)).sort()) {
+				const ofKitchen = ofTier.filter(row => row.installations === installations)
+				const [sample] = ofKitchen
+				const title = [
+					difficulty,
+					installationsLabel(installations),
+					sample === undefined ? '' : sweepLabel(sample),
+				]
+					.filter(part => part.length > 0)
+					.join(' · ')
+				const columns = players(ofKitchen)
+				const body = MAPS.filter(map => ofKitchen.some(row => row.map === map.id))
+					.map(
+						map =>
+							`<tr><th>${esc(map.id)}</th>${columns
+								.map(player => scoreCell(ofPlayer(ofKitchen, player).filter(row => row.map === map.id)))
+								.join('')}</tr>`,
+					)
+					.join('')
+				parts.push(
+					`<h3>${esc(title)}</h3>`,
+					`<table class="wins"><thead><tr><th>map</th>${columns.map(playerHeader).join('')}</tr></thead><tbody>${body}</tbody></table>`,
+				)
+			}
+		}
+	}
+	return parts.join('\n')
+}
+
 const LEGEND = [
 	"<b>What the flags can't see.</b> The Cardboard Box never appears in greedy's rows: it has no DPS, and greedy buys by damage per crumb (step 22B, decision 9). In night mode <code>default</code> is the oldest towers unlocked, not a player's last loadout (step 22A), so night mode's default and the campaign's are different players.",
 	"<b>Lockout needs the named answers too.</b> A night's two intended loadouts live in comments in <code>nights.ts</code> (step 21C); run them as <code>fixed=</code> lists and read the fixed tables. The report can't flag them itself.",
@@ -833,6 +930,7 @@ export function buildReport(rows: readonly Row[], source: string): string {
 		'<a href="#curve">Income curve</a>',
 		knob === null ? '' : '<a href="#sweep">Sweep</a>',
 		'<a href="#wins">Win rates</a>',
+		rows.some(row => row.mode === 'endless') ? '<a href="#endless">Endless</a>' : '',
 		'<a href="#legend">Legend</a>',
 	].join('')
 
@@ -853,6 +951,7 @@ ${flagsSection(flags)}
 ${curveSection(rows)}
 ${sweepSection(rows)}
 ${winSection(rows)}
+${endlessSection(rows)}
 <h2 id="legend">Legend</h2>
 <ul class="legend-notes">${LEGEND.map(note => `<li>${note}</li>`).join('')}</ul>
 </main>
