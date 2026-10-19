@@ -4,8 +4,9 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 /**
  * The persistence fence, through ESLint itself: a component can't reach `data/` or browser storage,
- * and a composable can. Building an `ESLint` with the Vue and TypeScript configs takes seconds, so
- * this spec's timeouts are long on purpose.
+ * and a composable can. And the audio lane's: `audio/` reads `core/` and nothing an app library or
+ * the UI owns. Building an `ESLint` with the Vue and TypeScript configs takes seconds, so this spec's
+ * timeouts are long on purpose.
  */
 
 const GAME_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -14,6 +15,7 @@ const SLOW = 60_000
 const COMPONENT = 'src/ui/components/Leak.ts'
 const COMPOSABLE = 'src/ui/composables/useLeak.ts'
 const STORE = 'src/ui/stores/leak.ts'
+const AUDIO = 'src/audio/leak.ts'
 
 let eslint: ESLint
 
@@ -24,7 +26,7 @@ beforeAll(() => {
 		// disk. Only the parse is widened; every rule is the real config's.
 		overrideConfig: {
 			languageOptions: {
-				parserOptions: { projectService: { allowDefaultProject: [COMPONENT, COMPOSABLE, STORE] } },
+				parserOptions: { projectService: { allowDefaultProject: [COMPONENT, COMPOSABLE, STORE, AUDIO] } },
 			},
 		},
 	})
@@ -78,6 +80,37 @@ describe('ui/ and persistence', () => {
 			const code = "export const saved = window.sessionStorage.getItem('kd:progress')\n"
 			expect(await errorsIn(COMPOSABLE, code)).toEqual(['no-restricted-properties'])
 			expect(await errorsIn(STORE, code)).toEqual(['no-restricted-properties'])
+		},
+		SLOW,
+	)
+})
+
+describe('audio/ and its lane', () => {
+	it(
+		'errors on importing vue',
+		async () => {
+			const code = "import { ref } from 'vue'\n\nexport const volume = ref(1)\n"
+			expect(await errorsIn(AUDIO, code)).toEqual(['no-restricted-imports'])
+		},
+		SLOW,
+	)
+
+	it(
+		'errors on importing @/ui/viewModel.ts',
+		async () => {
+			const code =
+				"import { buildWaveBanner } from '@/ui/viewModel.ts'\n\nexport const banner = buildWaveBanner\n"
+			expect(await errorsIn(AUDIO, code)).toEqual(['no-restricted-imports'])
+		},
+		SLOW,
+	)
+
+	it(
+		'allows importing @/core/types.ts',
+		async () => {
+			const code =
+				"import type { World } from '@/core/types.ts'\n\nexport function level(world: World): number {\n\treturn world.noise.level\n}\n"
+			expect(await errorsIn(AUDIO, code)).toEqual([])
 		},
 		SLOW,
 	)

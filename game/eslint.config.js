@@ -16,7 +16,7 @@ import vuePrettierConfig from '@vue/eslint-config-prettier'
 
 const DETERMINISM = 'core/ is deterministic: time is world.tick and durations are tick counts.'
 const PURITY = 'core/ is pure TypeScript. No DOM, no browser globals.'
-const LAYERING = 'Dependency direction is one-way: core/ imports nothing from render/, ui/ or data/.'
+const LAYERING = 'Dependency direction is one-way: core/ imports nothing from render/, audio/, ui/ or data/.'
 const STORAGE = 'Saves go through a composable and a port, never browser storage directly (PERSISTENCE.md section 4).'
 
 /** Enforces the "@/ alias, never a relative path across directories" rule from CLAUDE.md. */
@@ -25,7 +25,7 @@ const noParentRelative = {
 	message: 'Import across directories by the @/ alias, never a relative path.',
 }
 
-/** Everything core/ and render/ are cut off from. They are plain TypeScript and canvas 2d. */
+/** Everything core/, render/ and audio/ are cut off from. They are plain TypeScript, canvas 2d and WebAudio. */
 const appLibraries = [
 	'vue',
 	'vue/*',
@@ -44,6 +44,8 @@ const appLibraries = [
 const layersBelowCore = [
 	'**/render',
 	'**/render/**',
+	'**/audio',
+	'**/audio/**',
 	'**/ui',
 	'**/ui/**',
 	'**/data',
@@ -169,6 +171,30 @@ export default defineConfigWithVueTs(
 			'no-restricted-imports': restrict([
 				{ group: appLibraries, message: 'render/ is plain canvas 2d. It imports core/ and nothing else.' },
 				{ group: ['**/ui', '**/ui/**', '**/data', '**/data/**'], message: LAYERING },
+			]),
+		},
+	},
+
+	// --- audio/ reads core, beside render/ and knowing nothing of it ----------------------------
+	{
+		files: ['src/audio/**/*.ts'],
+		rules: {
+			'no-restricted-imports': restrict([
+				{ group: appLibraries, message: 'audio/ is raw WebAudio. It imports core/ and nothing else.' },
+				{
+					group: [
+						'**/ui',
+						'**/ui/**',
+						'**/data',
+						'**/data/**',
+						'**/render',
+						'**/render/**',
+						'**/dev',
+						'**/dev/**',
+					],
+					message:
+						'audio/ reads core/ and is fed by GameView. It imports nothing from ui/, data/, render/ or dev/.',
+				},
 			]),
 		},
 	},

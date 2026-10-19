@@ -51,14 +51,16 @@ Commands (from `game/`): `npm run dev`, `npm run test`, `npm run lint`, `npm run
 ```
 src/core/     pure TypeScript simulation. Imports nothing but itself and zod.
 src/render/   canvas 2d. Reads core state, never writes it.
+src/audio/    raw WebAudio. Reads core events and the noise meter, never writes them.
 src/ui/       Vue 3. Reads a snapshot, emits commands.
 src/data/     persistence. Ports + adapters, async from the first line.
 src/dev/      map editor and balance harness. Not shipped in production builds.
 ```
 
-**Dependency direction is one-way: `ui → core`, `render → core`, `core → nothing`.** `core/` may
-not import `vue`, may not touch the DOM, and may not import from `render/`, `ui/`, `data/` or
-`dev/`. ESLint enforces this in `game/eslint.config.js`; if a rule there needs an
+**Dependency direction is one-way: `ui → core`, `render → core`, `audio → core`, `core → nothing`.**
+`core/` may not import `vue`, may not touch the DOM, and may not import from `render/`, `audio/`,
+`ui/`, `data/` or `dev/`. `audio/` is a lane beside `render/`: it imports neither it nor `ui/`,
+`data/`, `dev/` or any app library, and `GameView` feeds it. ESLint enforces this in `game/eslint.config.js`; if a rule there needs an
 `eslint-disable`, the design drifted — fix the design.
 
 Two corollaries that are easy to get wrong:

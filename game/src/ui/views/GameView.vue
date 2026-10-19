@@ -68,6 +68,7 @@
 	import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type Component } from 'vue'
 	import { useRouter } from 'vue-router'
 	import { createLoop, type Loop, type Speed } from '@/loop.ts'
+	import { pushAudioEvents, resetAudio, startAudio, stopAudio, updateAudio } from '@/audio/index.ts'
 	import {
 		endlessBest,
 		endlessMapIds,
@@ -435,6 +436,7 @@
 		worldCount++
 		modifierBanner.value = buildModifierBanner(next, worldCount)
 		resetEffects()
+		resetAudio()
 		// Both selections point at a world that no longer exists.
 		selection.clear()
 		inspector = null
@@ -668,11 +670,13 @@
 			},
 			draw() {
 				// Before `drawFrame`, which is what runs the effects layer: pushing after it puts
-				// every theft one frame late.
+				// every theft one frame late. The sound reads the same drain, for the same reason.
 				if (world !== null) {
 					pushEvents(frameEvents, world)
+					pushAudioEvents(frameEvents, world)
 					frameEvents.length = 0
 				}
+				updateAudio(world)
 
 				activeRenderer.drawFrame(world, activeInteraction.overlay())
 				debug?.update()
@@ -714,6 +718,7 @@
 		loop = activeLoop
 
 		window.addEventListener('resize', onResize)
+		startAudio()
 		activeLoop.start()
 
 		// The loop runs on an empty board until there is a night to put on it.
@@ -745,6 +750,7 @@
 		waveBanner.value = null
 		modifierBanner.value = null
 		resetEffects()
+		stopAudio()
 		interaction?.destroy()
 		interaction = null
 		debug?.destroy()

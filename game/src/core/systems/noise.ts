@@ -30,6 +30,13 @@ const TICKS_PER_SECOND = 60
 /** What a wake takes off every tower still standing, as a fraction of its `maxHp`. */
 const WAKE_DAMAGE_FRACTION = 0.2
 
+/**
+ * Where the meter stops being a reading and starts being the thing you are looking at, as a fraction
+ * of the cap. Past it the HUD's bar warms and pulses (step 13B, decision 4) and the house's sound turns
+ * (step 23C, decision 6). Here rather than in either because both read it, and two copies drift apart.
+ */
+export const NOISE_TENSE_FRACTION = 0.7
+
 /** 0..1, for a bar. 0 rather than `Infinity` at a cap of 0, which a dev panel can produce. */
 export function noiseFraction(world: World): number {
 	return world.noise.cap === 0 ? 0 : world.noise.level / world.noise.cap

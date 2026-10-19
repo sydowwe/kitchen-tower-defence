@@ -139,6 +139,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import { NOISE_TENSE_FRACTION } from '@/core/systems/noise.ts'
 	import { joinNames } from '@/ui/joinNames.ts'
 	import type { HudSnapshot } from '@/ui/viewModel.ts'
 
@@ -186,10 +187,11 @@
 	})
 
 	/**
-	 * Where the meter stops being a reading and starts being the thing you are looking at, as a
-	 * percentage. Past it the bar warms, pulses, and says so in a word (step 13B, decision 4).
+	 * `NOISE_TENSE_FRACTION` as a percentage, which is what this bar measures in. Past it the bar warms,
+	 * pulses, and says so in a word -- at the same point the house's sound turns. Rounded because
+	 * `0.7 * 100` is a hair over 70, and a meter at exactly 70 would pulse in the ear and not on screen.
 	 */
-	const PULSE_AT = 70
+	const PULSE_AT = Math.round(NOISE_TENSE_FRACTION * 100)
 
 	/** `2:5am` is a typo on screen; the clock is the one place a raw number needs padding. */
 	const minute = computed(() => String(clock?.minute ?? 0).padStart(2, '0'))

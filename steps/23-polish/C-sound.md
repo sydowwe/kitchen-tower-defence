@@ -25,7 +25,7 @@ Trust symbols over line numbers.
 | B's events | `towerPlaced`, `towerUpgraded`, `towerSold` (with `tile` and `defId`), `towerFired { noise }`, `enemyKilled`, `enemyLeaked`, `humanWoke`, `thiefGrabbed`, `thiefEscaped`, `waveStarted`, `nightEnded`, `crumbCollected` |
 | `world.noise` | `level`, `cap`, `decayPerTick`, `wakeCount`, `peakLevel` |
 | `ui/components/hud/TopBar.vue` | `const PULSE_AT = 70`, a percentage: past it the meter warms, pulses and says "Creak". It lives inside the component |
-| `ui/viewModel.ts` | `thiefInWave` and `buildThiefBanner`: whether a wave brings the Mouse |
+| `ui/viewModel.ts` | `thiefInWave` and `buildThiefBanner`: whether a wave brings the Mouse. **`thiefInWave` is private and lives in `ui/`, which audio can't import**, so `audio/events.ts` asks the same question of `core/content` (`findNightDef`, `getEnemyDef(...).thief`) |
 | `loop.ts` | `paused` and `speed`. Speed runs more ticks per frame |
 | `eslint.config.js` | Lanes for `core/`, `render/`, `ui/`, `data/` and `dev/`. **None for `audio/`** |
 | `tests/lint.spec.ts` | The persistence fence, asserted through ESLint itself. The pattern for a new fence |
@@ -82,8 +82,9 @@ Gotchas:
 - **At 3× with forty towers there are hundreds of `towerFired` a second.** Without a per-cue minimum
   interval and a voice cap, night 15 is crackle and a pegged audio thread. Throttle per cue, not
   globally, or the Mousetrap's snap is lost under the Salt Shakers.
-- Suspend the context on `visibilitychange` to hidden. G pauses the loop on blur, and a hidden tab
-  that keeps humming is a bug report.
+- Suspend the context on `visibilitychange` to hidden, and resume it on visible. A hidden tab that
+  keeps humming is a bug report. (G's pause-on-blur wasn't in the repo when this was built. The
+  suspend doesn't depend on it.)
 - If a file overrides a cue, pick a format every engine's `decodeAudioData` accepts. MP3 decodes
   everywhere. Check Safari before choosing Ogg.
 
@@ -122,7 +123,7 @@ imports `@/core/types.ts` doesn't.
 - [ ] A reload straight onto `#/night` plays sound after the first click.
 - [ ] Ten Retries in a row, and there's still sound.
 - [ ] Tab away and it goes silent. Come back and the kitchen is there.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green, and the
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green, and the
       bundle has grown by the engine and nothing else.
 
 Leave every judgement criterion unticked unless you actually sat and listened.
