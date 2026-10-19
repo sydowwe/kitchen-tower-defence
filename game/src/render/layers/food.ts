@@ -17,13 +17,17 @@
 import { getFoodDef } from '@/core/content/index.ts'
 import type { FoodItem, Vec2, World } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
-import { DROPPED_FOOD_GLOW, DROPPED_FOOD_RING } from '@/render/palette.ts'
+import { DROPPED_FOOD_GLOW, DROPPED_FOOD_RING, GROUND_SHADOW } from '@/render/palette.ts'
+import { traceShadow } from '@/render/shadows.ts'
 
 /**
  * Bigger than the shelf's 0.5 and than the fattest crumb pile's 0.56: the two share the track, and the
  * food is the one that matters.
  */
 const FLOOR_ITEM_SCALE = 0.62
+/** Where a dropped item meets the floor and how wide its shadow is, as fractions of its drawn size. */
+const FOOD_SHADOW_FOOT = 0.34
+const FOOD_SHADOW_RADIUS = 0.46
 /** Tiles from the drop point each item of a fan sits. Enough that five do not overlap, few enough to read as one spill. */
 const FAN_RADIUS_TILES = 0.34
 
@@ -88,6 +92,29 @@ export function drawDroppedFood(ctx: CanvasRenderingContext2D, world: World | nu
 	ageFrames++
 	const food = world.night.food
 	const size = droppedFoodGlyphSize(tilePx)
+
+	// The shadows first, as one fill, so the glow and the ring of a neighbour never sit under another
+	// item's shadow.
+	ctx.fillStyle = GROUND_SHADOW
+	ctx.beginPath()
+	let any = false
+	for (const item of food) {
+		const at = droppedFoodPosition(food, item)
+		if (at === null) {
+			continue
+		}
+		any = true
+		traceShadow(
+			ctx,
+			tilePx,
+			(at.x + 0.5) * tilePx,
+			(at.y + 0.5) * tilePx + size * FOOD_SHADOW_FOOT,
+			size * FOOD_SHADOW_RADIUS,
+		)
+	}
+	if (any) {
+		ctx.fill()
+	}
 
 	for (const item of food) {
 		const at = droppedFoodPosition(food, item)

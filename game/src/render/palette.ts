@@ -6,22 +6,32 @@
  *
  * `render/` cannot read CSS variables, so `BACKGROUND` is duplicated in `ui/App.vue` as
  * `--kd-night`. Change one and change the other.
+ *
+ * **Six of these are `export let`**, the hue-critical ones the colour-blind variant swaps in place
+ * (`setPaletteVariant`, at the bottom). ES live bindings mean no import site changes -- and it means
+ * nothing may copy one of them into a cache. A bitmap or gradient built from a switchable colour keeps
+ * the old colour after the switch, and the symptom is half the board in the old palette until a reload.
  */
 
 /** The board behind everything. Matches `--kd-night` in ui/App.vue. */
-export const BACKGROUND = '#10131f'
+export const BACKGROUND = '#0d111d'
+
+/**
+ * The floors are authored a step lighter than they are meant to be seen: `DARKNESS` is drawn over the
+ * bake, and what reaches the screen on an unlit board is roughly two thirds of these.
+ */
 
 /** Floor a tower may stand on: the base, one step lighter. */
-export const TILE_BUILDABLE = '#1a1f33'
+export const TILE_BUILDABLE = '#242c44'
 
 /** Floor that is scenery only -- readable as floor, but not as somewhere to build. */
-export const TILE_DECOR = '#151a2b'
+export const TILE_DECOR = '#1d2438'
 
 /** Counter edge, appliance, wall. Darker than the background so it reads as mass, not as a hole. */
-export const TILE_BLOCKED = '#0a0d16'
+export const TILE_BLOCKED = '#090c15'
 
 /** The lit edge around the outside of a run of blocked tiles, so the mass has a rim. */
-export const TILE_BLOCKED_EDGE = '#232a45'
+export const TILE_BLOCKED_EDGE = '#2d3756'
 
 /**
  * The mottle wash: soft blobs a couple of tiles across, breaking up the flat fills so the floor
@@ -31,19 +41,52 @@ export const TILE_BLOCKED_EDGE = '#232a45'
  * jitter, which is the same idea and turns out to be precisely the failure it was meant to prevent
  * -- varying brightness per tile draws the tile boundaries in, and the board reads as a
  * spreadsheet. Anything textural here has to be at a scale the grid does not share.
+ *
+ * A pale cold blue and not white: the wash is moonlight on the floor, not a highlight.
+ * `TILE_MOTTLE_CLEAR` is the same colour at 0 alpha, because a gradient interpolated to another hue
+ * greys its falloff.
  */
-export const TILE_MOTTLE = '#ffffff'
-export const TILE_MOTTLE_ALPHA = 0.035
+export const TILE_MOTTLE = '#a9b8e0'
+export const TILE_MOTTLE_CLEAR = 'rgba(169, 184, 224, 0)'
+export const TILE_MOTTLE_ALPHA = 0.04
 
 /** The darker pass under the track, drawn wider so it shows as an outline. */
-export const TRACK_OUTLINE = '#221a17'
+export const TRACK_OUTLINE = '#261d19'
 
 /** The track itself: warmer and lighter than the floor, the way a well-walked line goes shiny. */
-export const TRACK_FILL = '#4c3f35'
+export const TRACK_FILL = '#5a493c'
 
-/** The centre and the far edge of a pool of lamp light. Low contrast on purpose. */
+/**
+ * The night itself: laid over the terrain bake each frame, with the lights cut out of it
+ * (`render/layers/light.ts`). Translucent, so the floor is still the floor in the dark -- the empty
+ * board of night 1's first wave has to show the track and where a tower can go before any lamp is lit.
+ */
+export const DARKNESS = 'rgba(5, 8, 20, 0.5)'
+
+/**
+ * The warm pool a fixed light throws on top of its hole in the dark: the fridge's, and nothing else.
+ * Low contrast on purpose. A lamp *tower* has its own two stops below, in the same hue.
+ */
 export const LAMP_CORE = 'rgba(245, 198, 107, 0.2)'
 export const LAMP_EDGE = 'rgba(245, 198, 107, 0)'
+
+/**
+ * Floor surfaces, one per `Surface` (`render/surfaces.ts`). Flat marks at a scale the tile grid does
+ * not share -- see `TILE_MOTTLE`. The speck is the grain, the seam is a joint, and neither is white.
+ */
+export const SURFACE_SPECK_LIGHT = 'rgba(150, 168, 214, 0.1)'
+export const SURFACE_SPECK_DARK = 'rgba(4, 6, 14, 0.2)'
+export const SURFACE_GRAIN = 'rgba(150, 168, 214, 0.05)'
+export const SURFACE_SEAM = 'rgba(4, 6, 14, 0.34)'
+export const SURFACE_SEAM_LIGHT = 'rgba(150, 168, 214, 0.06)'
+
+/**
+ * What everything standing on the floor casts on it. `FLYER_SHADOW`'s colour family at a lower alpha:
+ * a flyer's shadow is the one darkened to say *height*, and a walker's is only contact. Offset down and
+ * to the right by `SHADOW_OFFSET_*` in `render/shadows.ts`, away from the lamp at the upper left that
+ * the sprites' rim light comes from.
+ */
+export const GROUND_SHADOW = 'rgba(4, 6, 12, 0.3)'
 
 /**
  * What an enemy that is off the floor casts on it.
@@ -55,12 +98,12 @@ export const LAMP_EDGE = 'rgba(245, 198, 107, 0)'
 export const FLYER_SHADOW = 'rgba(4, 6, 12, 0.38)'
 
 /**
- * The pool a lamp *tower* throws, in the same two stops the terrain bake's lamps use.
+ * The warm tint a lamp *tower* throws on top of its hole in the dark (`render/layers/light.ts`), in
+ * the same two stops the fridge's pool uses.
  *
  * Deliberately the same hue as `LAMP_CORE`: this is the same kitchen light, and a Nightlight that
  * glowed a colour the board does not already have would read as a status effect on the floor rather
- * than as a lamp being on. A touch dimmer than the baked pools, which are half a board across and
- * this is four tiles.
+ * than as a lamp being on. A touch dimmer than the fridge's, which is the bigger and steadier light.
  */
 export const TOWER_LIGHT_CORE = 'rgba(245, 198, 107, 0.16)'
 export const TOWER_LIGHT_EDGE = 'rgba(245, 198, 107, 0)'
@@ -90,15 +133,17 @@ export const AURA_STATUS_EDGE = 'rgba(176, 164, 255, 0.4)'
  * round the pad once it is nearly gone.
  *
  * The warning is `RANGE_INVALID`'s red on purpose. It is the one colour the board already spends on
- * "no", and a pot about to be lost is the moment a player has to look.
+ * "no", and a pot about to be lost is the moment a player has to look. It is a switchable colour
+ * (`setPaletteVariant`), and moves with `RANGE_INVALID` for the same reason.
  */
 export const HONEY_EMPTY = 'rgba(10, 12, 22, 0.6)'
 export const HONEY_PUDDLE = 'rgba(232, 164, 48, 0.55)'
-export const HONEY_WARNING = 'rgba(232, 106, 96, 0.9)'
 
-/** What is left of an enemy's health, and the socket it sits in. Only drawn on a damaged enemy. */
+/**
+ * What is left of an enemy's health, and the socket it sits in. Only drawn on a damaged enemy. The
+ * fill is a switchable colour: see `setPaletteVariant`.
+ */
 export const HP_BAR_BACK = 'rgba(8, 10, 18, 0.8)'
-export const HP_BAR_FILL = '#7ad67a'
 
 /**
  * The pad a tower stands on. A glyph alone floats over the floor and reads as dropped rather than
@@ -145,18 +190,15 @@ export const TOWER_DEBRIS = 'rgba(214, 178, 128, 0.9)'
 /** What a queue chews off a cardboard box. The same family as the debris, and much smaller. */
 export const CHEW_DEBRIS = 'rgba(214, 178, 128, 0.8)'
 
-/** A shot in flight. Salt, so: brighter than anything it crosses, and small. */
-export const PROJECTILE_SHOT = '#f2f4ff'
+/** A shot in flight. Salt, so: brighter than anything it crosses, and small -- but a warm grey, not white. */
+export const PROJECTILE_SHOT = '#e4e0d0'
 
 /**
- * The range ring while a build is being aimed. Green and red carry the answer `canPlaceTower` gave
- * for the tile under the cursor; the neutral one is a placed tower showing its own reach and is
- * deliberately not either of them -- a selected tower is not a judgement.
+ * The range ring while a build is being aimed. Green and red (`RANGE_VALID` / `RANGE_INVALID`, switchable
+ * -- see `setPaletteVariant`) carry the answer `canPlaceTower` gave for the tile under the cursor; the
+ * neutral one is a placed tower showing its own reach and is deliberately not either of them -- a
+ * selected tower is not a judgement.
  */
-export const RANGE_VALID = 'rgba(122, 214, 122, 0.85)'
-export const RANGE_VALID_FILL = 'rgba(122, 214, 122, 0.1)'
-export const RANGE_INVALID = 'rgba(232, 106, 96, 0.85)'
-export const RANGE_INVALID_FILL = 'rgba(232, 106, 96, 0.1)'
 export const RANGE_NEUTRAL = 'rgba(226, 232, 255, 0.6)'
 export const RANGE_NEUTRAL_FILL = 'rgba(226, 232, 255, 0.06)'
 
@@ -218,12 +260,12 @@ export const STATUS_SLOW_DISC = 'rgba(120, 176, 255, 0.42)'
 export const STATUS_SLOW_SPECK = 'rgba(214, 234, 255, 0.85)'
 export const STATUS_BURN_FLAME = 'rgba(255, 146, 52, 0.9)'
 export const STATUS_POISON_BUBBLE = 'rgba(138, 226, 106, 0.85)'
-export const STATUS_ROOTED_SHIMMER = 'rgba(236, 242, 255, 0.8)'
+export const STATUS_ROOTED_SHIMMER = 'rgba(206, 218, 246, 0.8)'
 /**
  * The thread from a Fly Paper to each flyer it holds. The root's own shimmer, fainter: the ring says
  * *stuck* and the strand says *to what*.
  */
-export const STATUS_ROOTED_STRAND = 'rgba(236, 242, 255, 0.45)'
+export const STATUS_ROOTED_STRAND = 'rgba(206, 218, 246, 0.45)'
 
 /**
  * Somebody flipped the kitchen light on.
@@ -267,7 +309,7 @@ export const TILE_SCORCH_STAIN = 'rgba(14, 10, 8, 0.36)'
 export const TILE_SLIME_SHEEN = 'rgba(86, 214, 190, 0.3)'
 export const TILE_SLIME_GLOSS = 'rgba(214, 255, 246, 0.5)'
 /** The pin-point of reflected light on the gloss. What turns "a teal puddle" into "wet". */
-export const TILE_SLIME_GLINT = 'rgba(255, 255, 255, 0.85)'
+export const TILE_SLIME_GLINT = 'rgba(218, 248, 238, 0.8)'
 export const TILE_HEAT_PULSE = 'rgba(255, 96, 40, 0.85)'
 export const TILE_HEAT_CORE = 'rgba(255, 152, 72, 0.45)'
 export const TILE_RESIDUE_MIST = 'rgba(138, 226, 106, 0.17)'
@@ -366,7 +408,7 @@ export const GHOST_NOISE = '#f5c66b'
 
 /** The panel the fridge's remaining items sit on, so a row of glyphs reads as a shelf and not as litter. */
 export const SHELF_BACKDROP = 'rgba(12, 16, 28, 0.55)'
-export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'
+export const SHELF_EDGE = 'rgba(170, 186, 228, 0.14)'
 
 /**
  * The thin light edge around every sprite. A sprite's own outline is dark navy and all but vanishes
@@ -376,3 +418,65 @@ export const SHELF_EDGE = 'rgba(255, 255, 255, 0.12)'
  * Duplicated in `ui/App.vue` as `--kd-sprite-halo`, for the HUD's sprites. Change one and change the other.
  */
 export const SPRITE_HALO = 'rgba(246, 228, 196, 0.8)'
+
+/**
+ * The colour-blind variant: the handful of hue-critical colours, switched in place.
+ *
+ * Green against red is the pair deuteranopia loses, and it is the pair the range ring, the health bar
+ * and the Honey Pot's warning all spend. The variant is blue against vermillion, which survive it and
+ * which differ in lightness as well as hue (Okabe-Ito's two). Everything else on the board is told
+ * apart by shape as well as colour already, so these are the only ones that need it.
+ *
+ * Declared at the bottom because the six `export let`s below are the only reassigned bindings in this
+ * file. Importers keep reading them by name; ES live bindings see the new value on the next frame.
+ */
+export type PaletteVariant = 'standard' | 'colourblind'
+
+interface HueCritical {
+	rangeValid: string
+	rangeValidFill: string
+	rangeInvalid: string
+	rangeInvalidFill: string
+	hpBarFill: string
+	honeyWarning: string
+}
+
+const VARIANTS: Record<PaletteVariant, HueCritical> = {
+	standard: {
+		rangeValid: 'rgba(122, 214, 122, 0.85)',
+		rangeValidFill: 'rgba(122, 214, 122, 0.1)',
+		rangeInvalid: 'rgba(232, 106, 96, 0.85)',
+		rangeInvalidFill: 'rgba(232, 106, 96, 0.1)',
+		hpBarFill: '#7ad67a',
+		honeyWarning: 'rgba(232, 106, 96, 0.9)',
+	},
+	colourblind: {
+		rangeValid: 'rgba(86, 180, 233, 0.9)',
+		rangeValidFill: 'rgba(86, 180, 233, 0.12)',
+		rangeInvalid: 'rgba(230, 110, 30, 0.9)',
+		rangeInvalidFill: 'rgba(230, 110, 30, 0.12)',
+		hpBarFill: '#56b4e9',
+		honeyWarning: 'rgba(230, 110, 30, 0.95)',
+	},
+}
+
+export let RANGE_VALID: string = VARIANTS.standard.rangeValid
+export let RANGE_VALID_FILL: string = VARIANTS.standard.rangeValidFill
+export let RANGE_INVALID: string = VARIANTS.standard.rangeInvalid
+export let RANGE_INVALID_FILL: string = VARIANTS.standard.rangeInvalidFill
+export let HP_BAR_FILL: string = VARIANTS.standard.hpBarFill
+export let HONEY_WARNING: string = VARIANTS.standard.honeyWarning
+
+/**
+ * Swaps the six switchable colours. `ui/App.vue`'s `:root[data-palette='colourblind']` is the CSS half
+ * and is set separately by whoever owns the setting.
+ */
+export function setPaletteVariant(variant: PaletteVariant): void {
+	const next = VARIANTS[variant]
+	RANGE_VALID = next.rangeValid
+	RANGE_VALID_FILL = next.rangeValidFill
+	RANGE_INVALID = next.rangeInvalid
+	RANGE_INVALID_FILL = next.rangeInvalidFill
+	HP_BAR_FILL = next.hpBarFill
+	HONEY_WARNING = next.honeyWarning
+}

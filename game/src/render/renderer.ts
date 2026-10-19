@@ -1,5 +1,6 @@
 import { blitGlyph } from '@/render/glyphCache.ts'
 import {
+	createLightLayer,
 	drawCrumbs,
 	drawDroppedFood,
 	drawEffects,
@@ -64,6 +65,8 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 	let dpr = 0
 	let map: MapDef | null = null
 	let tilePx = 0
+
+	const light = createLightLayer()
 
 	let bake: HTMLCanvasElement | null = null
 	/** What `bake` currently holds. The pair, not just the map -- see `ensureBake`. */
@@ -152,8 +155,13 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// `entities` is in the bake; everything after it is a later step's, and is named here so
 		// none of them can quietly insert itself in the wrong place.
 		//
-		//   terrain -> track -> tile effects -> crumbs -> towers -> fridge -> enemies
+		//   terrain -> track -> light -> tile effects -> crumbs -> towers -> fridge -> enemies
 		//   -> projectiles -> particles -> overlay -> wake
+		//
+		// The light is the night laid over the bake with a hole cut for every lamp, flame and the
+		// fridge (step 23A, decision 1). It darkens the floor and the track and nothing else:
+		// everything from the tile effects on is standing on the floor or written onto it, and draws
+		// over the dark at full strength, which is what keeps the threats legible in it.
 		//
 		// The wake wash is last, after the overlay: it is the room the board is standing in, and a
 		// placement ghost drawn on top of it would be a ghost the light does not reach (step 13B).
@@ -164,9 +172,10 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		ensureBake()
 		clear()
 
-		// terrain + track
-		if (bake !== null) {
+		// terrain + track, then the dark over them
+		if (bake !== null && map !== null) {
 			ctx.drawImage(bake, 0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT)
+			light.draw(ctx, map, world, tilePx, dpr, LOGICAL_WIDTH, LOGICAL_HEIGHT)
 		}
 
 		// Tile state is the floor itself, so it goes straight over the bake and under everything

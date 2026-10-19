@@ -13,13 +13,17 @@
 
 import type { MapDef, Path } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
-import { TRACK_FILL, TRACK_OUTLINE } from '@/render/palette.ts'
+import { GROUND_SHADOW, TRACK_FILL, TRACK_OUTLINE } from '@/render/palette.ts'
+import { traceShadow } from '@/render/shadows.ts'
 import { fridgeGlyph } from '@/render/sprites.ts'
 
 /** How far the darker pass sticks out past the fill on each side, in logical pixels. */
 const OUTLINE_PX = 3
 
 const FRIDGE_SCALE = 0.9
+/** Where the fridge meets the floor and how wide its shadow is, as fractions of its drawn size. */
+const FRIDGE_FOOT = 0.42
+const FRIDGE_SHADOW_RADIUS = 0.5
 
 /** The gap in the skirting board a path starts from. */
 const CRACK_GLYPH = '🕳️'
@@ -68,12 +72,16 @@ export function drawTrack(ctx: CanvasRenderingContext2D, map: MapDef, tilePx: nu
 		blitGlyph(ctx, dpr, CRACK_GLYPH, tilePx * CRACK_SCALE, (entry.x + 0.5) * tilePx, (entry.y + 0.5) * tilePx)
 	}
 
-	blitGlyph(
-		ctx,
-		dpr,
-		fridgeGlyph(map.fridge.glyph),
-		tilePx * FRIDGE_SCALE,
-		(map.fridge.tile.x + 0.5) * tilePx,
-		(map.fridge.tile.y + 0.5) * tilePx,
-	)
+	const fridgeX = (map.fridge.tile.x + 0.5) * tilePx
+	const fridgeY = (map.fridge.tile.y + 0.5) * tilePx
+	const fridgeSize = tilePx * FRIDGE_SCALE
+
+	// The fridge stays in the bake, so its shadow does too -- under the glyph, which is drawn next. The
+	// light layer clears the fridge's tile completely, so neither is dimmed (render/layers/light.ts).
+	ctx.fillStyle = GROUND_SHADOW
+	ctx.beginPath()
+	traceShadow(ctx, tilePx, fridgeX, fridgeY + fridgeSize * FRIDGE_FOOT, fridgeSize * FRIDGE_SHADOW_RADIUS)
+	ctx.fill()
+
+	blitGlyph(ctx, dpr, fridgeGlyph(map.fridge.glyph), fridgeSize, fridgeX, fridgeY)
 }

@@ -7,22 +7,23 @@
 </script>
 
 <style>
-	/* The 2am kitchen palette from DECISIONS.md section 2: deep blues, warm pools of lamp light.
-	   Functional colour only until the art pass in step 23. */
+	/* The 2am kitchen palette from DECISIONS.md section 2: deep blues, warm pools of lamp light, cold
+	   blue for anything coming for the food. The chrome (--kd-panel*, --kd-text*) is deliberately
+	   quieter than the board: lower contrast, so the board is the brightest thing on screen. */
 	:root {
-		--kd-night: #10131f;
-		--kd-night-soft: #1a1f33;
+		--kd-night: #0d111d;
+		--kd-night-soft: #181d30;
 		--kd-lamp: #f5c66b;
-		--kd-text: #e8e6f0;
-		--kd-text-dim: #8b90a8;
+		--kd-text: #cfcedc;
+		--kd-text-dim: #7b809a;
 
 		/* The HUD's own roles, added in step 8B. Named by what they are *for*, exactly as
 		   render/palette.ts is, because step 23 retunes both sides at once and a variable called
 		   `--kd-amber` would have to be renamed to be retuned. No hard whites anywhere: the board is
 		   the brightest thing on screen (DECISIONS.md section 1). */
-		--kd-panel: rgba(20, 24, 39, 0.82);
-		--kd-panel-edge: rgba(245, 198, 107, 0.16);
-		--kd-panel-raise: rgba(38, 44, 70, 0.9);
+		--kd-panel: rgba(16, 20, 33, 0.82);
+		--kd-panel-edge: rgba(245, 198, 107, 0.11);
+		--kd-panel-raise: rgba(32, 38, 62, 0.9);
 		/* Anything the player owns or earns: towers, crumbs, money. */
 		--kd-owned: #f5c66b;
 		--kd-owned-dim: rgba(245, 198, 107, 0.35);
@@ -58,6 +59,15 @@
 		--kd-day-owned: #a8741c;
 		--kd-day-owned-soft: #f5e2bd;
 		--kd-day-danger: #b0513a;
+	}
+
+	/* The colour-blind variant: the CSS half of render/palette.ts's `setPaletteVariant`. Only the
+	   roles that lean on red against green are overridden -- the HUD's "losing something" is the
+	   board's `RANGE_INVALID` family, so it follows it to vermillion, against `--kd-threat`'s blue.
+	   Whoever owns the setting sets `document.documentElement.dataset.palette`. */
+	:root[data-palette='colourblind'] {
+		--kd-danger: #e6762a;
+		--kd-day-danger: #b8560f;
 	}
 
 	* {

@@ -34,6 +34,7 @@ import {
 	CHEW_DEBRIS,
 	ENEMY_STATIONARY_PULSE,
 	FLYER_SHADOW,
+	GROUND_SHADOW,
 	SHOVE_AFTERIMAGE_ALPHA,
 	STATUS_BURN_FLAME,
 	STATUS_POISON_BUBBLE,
@@ -46,12 +47,17 @@ import {
 	THIEF_GRAB_TRACK,
 	THIEF_TRAIL_ALPHA,
 } from '@/render/palette.ts'
+import { traceShadow } from '@/render/shadows.ts'
 
 /** An enemy is drawn a little under its tile, so a queue of them on the track stays countable. */
 const ENEMY_SCALE = 0.7
 
 /** The bar is a touch wider than the glyph, so a full one is visibly full rather than ambiguous. */
 const HP_BAR_WIDTH_SCALE = 0.8
+
+/** Where a walker meets the floor and how wide its shadow is, as fractions of its drawn size. */
+const WALKER_SHADOW_FOOT = 0.32
+const WALKER_SHADOW_RADIUS = 0.42
 
 /**
  * The chew, and the queue it happens in.
@@ -695,6 +701,34 @@ function drawFlyerShadows(ctx: CanvasRenderingContext2D, count: number, tilePx: 
 }
 
 /**
+ * The contact shadow under everything that walks. Not under a flyer, whose own shadow moves with the
+ * bob; not under a burrowed Weevil, because the mound is the enemy; not under the Mold, whose pulse is
+ * its footprint. One path and one fill for the board.
+ *
+ * Sized from the object (`tilePx * ENEMY_SCALE`) and not from the rasterised bitmap, which a sprite's
+ * frame makes 18% larger. It stays on the floor when a fleeing thief hops: the hop is the glyph's.
+ */
+function drawWalkerShadows(ctx: CanvasRenderingContext2D, count: number, tilePx: number): void {
+	const size = tilePx * ENEMY_SCALE
+	let any = false
+
+	ctx.fillStyle = GROUND_SHADOW
+	ctx.beginPath()
+	for (let i = 0; i < count; i++) {
+		const entry = frames[i]
+		if (entry === undefined || entry.flying || entry.burrowed || entry.stationary) {
+			continue
+		}
+		any = true
+		traceShadow(ctx, tilePx, entry.x, entry.y + size * WALKER_SHADOW_FOOT, size * WALKER_SHADOW_RADIUS)
+	}
+
+	if (any) {
+		ctx.fill()
+	}
+}
+
+/**
  * Cardboard coming off the box: two specks per chewing enemy, thrown forward and falling.
  *
  * Batched the way the four status passes are -- one `beginPath`, many `arc`s, one `fill` -- because
@@ -1198,6 +1232,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 
 	drawStationary(ctx, liveCount, tilePx)
 	drawSlow(ctx, liveCount, tilePx)
+	drawWalkerShadows(ctx, liveCount, tilePx)
 	drawFlyerShadows(ctx, liveCount, tilePx)
 	// Trail under the mound, both before the glyph loop. The plating goes under the glyph too, so the
 	// Silverfish sits inside its shell and the health bar draws over the crown.

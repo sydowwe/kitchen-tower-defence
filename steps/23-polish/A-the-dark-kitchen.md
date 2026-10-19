@@ -127,6 +127,11 @@ Decision 5. Soft, offset a little down and to the right, away from the lamp at t
 sprites' rim light, SPRITES.md). Keep them in `FLYER_SHADOW`'s colour family, so a flyer's shadow and
 a walker's read as cast by one light.
 
+**The fridge's shadow is baked, in `track.ts` beside its glyph, not drawn from `fridge.ts`.** The glyph
+stays in the bake (its light pool clears its tile completely, see item 2), and a shadow drawn per frame
+would land *over* a glyph that is already in the bake. `fridge.ts` has no shadow. The shared ellipse
+is `render/shadows.ts`'s `traceShadow`; every layer adds to its own path and fills once.
+
 Gotcha: `SPRITE_FILL` in `glyphCache.ts` sizes the frame so that the *object* comes out at `sizePx`.
 Size a shadow from the object (`tilePx * ENEMY_SCALE`), not from the rasterised bitmap's width, or
 every shadow is 18% too wide.

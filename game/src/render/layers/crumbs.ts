@@ -25,7 +25,8 @@ import type { Crumb, EntityId, Vec2, World } from '@/core/types.ts'
 import { CRUMB_BANDS, SPECK } from '@/render/crumbBands.ts'
 import type { CrumbBand } from '@/render/crumbBands.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
-import { CRUMB_ROT_CORE, CRUMB_ROT_HALO } from '@/render/palette.ts'
+import { CRUMB_ROT_CORE, CRUMB_ROT_HALO, GROUND_SHADOW } from '@/render/palette.ts'
+import { traceShadow } from '@/render/shadows.ts'
 
 function bandFor(value: number): CrumbBand {
 	return CRUMB_BANDS.find(band => value >= band.minValue) ?? SPECK
@@ -44,6 +45,10 @@ export function radiusTilesFor(value: number): number {
 /** The green mould, as a fraction of the drawn radius. Wider than the glyph, so it reads as spread. */
 const ROT_HALO_SCALE = 1.8
 const ROT_CORE_SCALE = 1.05
+
+/** Where a pile meets the floor and how wide its shadow is, as fractions of its drawn size. */
+const CRUMB_SHADOW_FOOT = 0.32
+const CRUMB_SHADOW_RADIUS = 0.46
 
 /**
  * Where a pile is drawn this frame: on the floor, or somewhere along its flight to the tower that
@@ -166,6 +171,25 @@ export function drawCrumbs(ctx: CanvasRenderingContext2D, world: World | null, t
 	}
 
 	frameCounter++
+
+	// Every pile's shadow first, as one fill: under the rot cast and under every glyph, whichever pile
+	// the loop below meets first. Sized off the band's drawn scale and not off the bitmap.
+	if (world.crumbPiles.length > 0) {
+		ctx.fillStyle = GROUND_SHADOW
+		ctx.beginPath()
+		for (const crumb of world.crumbPiles) {
+			const size = tilePx * bandFor(crumb.value).scale
+			const at = crumbPosition(world, crumb)
+			traceShadow(
+				ctx,
+				tilePx,
+				(at.x + 0.5) * tilePx,
+				(at.y + 0.5) * tilePx + size * CRUMB_SHADOW_FOOT,
+				size * CRUMB_SHADOW_RADIUS,
+			)
+		}
+		ctx.fill()
+	}
 
 	for (const crumb of world.crumbPiles) {
 		const band = bandFor(crumb.value)

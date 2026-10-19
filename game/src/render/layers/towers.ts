@@ -13,7 +13,7 @@
 
 import { TOWERS } from '@/core/content/towers.ts'
 import { effectiveDefOf } from '@/core/content/index.ts'
-import { isAura, isBait, isReveal } from '@/core/content/behaviours.ts'
+import { isAura, isBait } from '@/core/content/behaviours.ts'
 import { chargeBehaviourOf, chargePhase, chargeStateOf } from '@/core/systems/charges.ts'
 import { isBarricade } from '@/core/systems/barricades.ts'
 import { hasEffect } from '@/core/tiles.ts'
@@ -30,6 +30,7 @@ import {
 	AURA_STATUS_CLEAR,
 	AURA_STATUS_EDGE,
 	AURA_STATUS_RIM,
+	GROUND_SHADOW,
 	HONEY_EMPTY,
 	HONEY_PUDDLE,
 	HONEY_WARNING,
@@ -43,8 +44,6 @@ import {
 	TILE_HEAT_CORE,
 	TILE_HEAT_PULSE,
 	TOWER_CRACK,
-	TOWER_LIGHT_CORE,
-	TOWER_LIGHT_EDGE,
 	TOWER_PAD,
 	TOWER_PAD_EDGE,
 	TOWER_REARM_SWEEP,
@@ -53,12 +52,17 @@ import {
 	TOWER_TIER_GLOW,
 	TOWER_TIER_RING,
 } from '@/render/palette.ts'
+import { traceShadow } from '@/render/shadows.ts'
 
 /**
  * A tower is drawn larger than an enemy's 0.7 on purpose: at the same size a board of towers and
  * ants reads as one crowd. Furniture is big and still, traffic is small and moving.
  */
 const TOWER_SCALE = 0.85
+
+/** Where a tower meets the floor and how wide its shadow is, as fractions of its drawn size. */
+const TOWER_SHADOW_FOOT = 0.3
+const TOWER_SHADOW_RADIUS = 0.48
 
 /** The plate under the glyph, as a fraction of the tile, and its corner radius in the same units. */
 const PAD_SCALE = 0.84
@@ -524,55 +528,24 @@ function drawTongues(
 }
 
 /**
- * The pools of light, built once and kept.
- *
- * A `createRadialGradient` per lamp per frame is step 3B's acceptance broken at 60Hz, so each pool is
- * built at the **origin** and the context is translated onto the lamp before the fill -- a gradient
- * carries its own centre, so one anchored at a tower's pixels could not be reused by a second lamp
- * anyway.
- *
- * Keyed by `tilePx` **and** the behaviour's radius, not by `tilePx` alone: the radius is the other
- * half of the geometry, and step 17's Candle (aura radius 2) sharing a Nightlight's 4-tile pool is
- * one cache lookup away. Two entries on a board with both, and one on every board today.
+ * The shadow under every tower, one path and one fill for the board, drawn before the first pad so it
+ * is under the pad and under the glyph. The pools of lamp light that used to be drawn here are the
+ * light layer's now (`render/layers/light.ts`): a lamp lights the floor by cutting the dark, and drawing
+ * a second pool on top would light it twice.
  */
-const lightPools = new Map<string, CanvasGradient>()
-
-function lightPool(ctx: CanvasRenderingContext2D, tilePx: number, radiusTiles: number): CanvasGradient {
-	const key = `${tilePx}|${radiusTiles}`
-	const cached = lightPools.get(key)
-	if (cached !== undefined) {
-		return cached
+function drawTowerShadows(ctx: CanvasRenderingContext2D, world: World, tilePx: number): void {
+	if (world.towers.length === 0) {
+		return
 	}
 
-	const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusTiles * tilePx)
-	gradient.addColorStop(0, TOWER_LIGHT_CORE)
-	gradient.addColorStop(1, TOWER_LIGHT_EDGE)
-	lightPools.set(key, gradient)
-	return gradient
-}
-
-/**
- * Every lamp's pool, drawn before the first pad.
- *
- * A pass of its own rather than a line inside the tower loop: at the top of the pass the light falls
- * on the floor and the crumbs and under every tower, and inside the loop it would fall over whichever
- * towers happened to be earlier in `world.towers` and under the rest.
- */
-function drawLightPools(ctx: CanvasRenderingContext2D, world: World, tilePx: number): void {
+	const size = tilePx * TOWER_SCALE
+	ctx.fillStyle = GROUND_SHADOW
+	ctx.beginPath()
 	for (const tower of world.towers) {
-		for (const behaviour of effectiveDefOf(tower).behaviours) {
-			if (!isReveal(behaviour)) {
-				continue
-			}
-			const center = tileCenter(tower.tile, tilePx)
-			const radius = behaviour.radiusTiles * tilePx
-			ctx.save()
-			ctx.translate(center.x, center.y)
-			ctx.fillStyle = lightPool(ctx, tilePx, behaviour.radiusTiles)
-			ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
-			ctx.restore()
-		}
+		const center = tileCenter(tower.tile, tilePx)
+		traceShadow(ctx, tilePx, center.x, center.y + size * TOWER_SHADOW_FOOT, size * TOWER_SHADOW_RADIUS)
 	}
+	ctx.fill()
 }
 
 /**
@@ -586,8 +559,9 @@ function auraRoleOf(behaviour: AuraBehaviour): AuraRole {
 }
 
 /**
- * The aura rims, built once and kept, by `lightPool`'s rule: at the origin, keyed by `tilePx`, radius
- * **and** role. A radius in the key and not the role would hand the Bay Leaf the Candle's ember.
+ * The aura rims, built once and kept: at the origin, keyed by `tilePx`, radius **and** role. A radius
+ * in the key and not the role would hand the Bay Leaf the Candle's ember. None of the colours in them
+ * is a switchable one (`palette.ts`), which is what makes caching them safe.
  *
  * Clear to 55% of the radius, then rising to the rim colour at the edge. The clear stop is the role's
  * own colour at 0 alpha and not `transparent`: interpolating from transparent *black* greys the band.
@@ -611,8 +585,8 @@ function auraRim(ctx: CanvasRenderingContext2D, tilePx: number, radiusTiles: num
 }
 
 /**
- * Every aura's reach, after the lamp pools and before the first pad -- the pools' reason: it falls on
- * the floor and under every tower, not over whichever were earlier in `world.towers`.
+ * Every aura's reach, before the first pad: it falls on the floor and under every tower, not over
+ * whichever were earlier in `world.towers`.
  *
  * A rim, not a disc: see `AURA_DAMAGE_RIM`. Filled with an `arc` and never a `fillRect` -- a radial
  * gradient paints its last stop past its outer radius, so a rect would be a square of rim colour.
@@ -646,8 +620,8 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 	}
 
 	ageFrames++
-	drawLightPools(ctx, world, tilePx)
 	drawAuraRims(ctx, world, tilePx)
+	drawTowerShadows(ctx, world, tilePx)
 
 	for (const tower of world.towers) {
 		const def = effectiveDefOf(tower)

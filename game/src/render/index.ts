@@ -16,6 +16,8 @@ export {
 	type GlyphRequest,
 } from '@/render/glyphCache.ts'
 export { spriteUrl } from '@/render/sprites.ts'
+export { setPaletteVariant, type PaletteVariant } from '@/render/palette.ts'
+export { surfaceOf, type Surface } from '@/render/surfaces.ts'
 export {
 	drawTerrain,
 	drawTrack,
