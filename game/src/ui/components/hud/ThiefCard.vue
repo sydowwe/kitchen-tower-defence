@@ -17,8 +17,8 @@
 	import type { ThiefBannerView } from '@/ui/viewModel.ts'
 
 	/**
-	 * The Mouse's announcement, when the wave carrying it starts (step 19C, decision 9). Only the thief's:
-	 * the general wave-start banner is step 23's.
+	 * The Mouse's announcement, when the wave carrying it starts (step 19C, decision 9). On that wave it
+	 * is the wave's banner: `WaveBanner.vue` stands down for it rather than going up beside it (23B).
 	 *
 	 * No buttons and no pointer events, like the wake card. The wave is running and the player's eyes
 	 * belong on the track; this says what is coming down it and gets out of the way.

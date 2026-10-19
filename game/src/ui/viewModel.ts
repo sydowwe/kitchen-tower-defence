@@ -517,8 +517,8 @@ function upcomingThief(world: World): { nameKey: string } | null {
 /**
  * The Mouse's announcement, when the wave carrying it starts. A one-shot card in `WakeCard.vue`'s idiom,
  * built by `GameView.vue` off `waveStarted` and handed to the HUD as a prop -- the snapshot is rebuilt
- * at 15Hz and would have to remember that it had already said it. Step 23 owns the general wave-start
- * banner; this is the thief's alone.
+ * at 15Hz and would have to remember that it had already said it. On its wave it stands in for the
+ * general `WaveBannerView` below.
  */
 export interface ThiefBannerView {
 	/** The wave it announces. The card keys on it, so a retry of the same wave says it again. */
@@ -529,6 +529,36 @@ export interface ThiefBannerView {
 export function buildThiefBanner(world: World, waveIndex: number): ThiefBannerView | null {
 	const thief = thiefInWave(world.night.nightId, waveIndex)
 	return thief === null ? null : { waveIndex, nameKey: thief.nameKey }
+}
+
+/**
+ * Every other wave's line as it starts (step 23B, decision 6), in the thief card's slot and built the same
+ * way, off the same `waveStarted`. A wave that brings a thief gets the thief's card instead of this.
+ *
+ * `moment` is the whole of what the copy varies on: the first wave is the night beginning and gets a
+ * line; the last is the hour before it gets light and gets its own line and a flourish. A one-wave night's
+ * only wave is its last. A run has no last wave and no clock.
+ */
+export interface WaveBannerView {
+	/** The card keys on it, so two waves in a row are two cards and a retry says wave 1 again. */
+	waveIndex: number
+	moment: 'first' | 'middle' | 'last'
+	/** Null in a run, which counts waves against nothing. */
+	waveCount: number | null
+	/** `nightClock` at this wave, or null in a run. Formatted by the card, like the top bar's. */
+	clock: { hour: number; minute: number } | null
+}
+
+export function buildWaveBanner(world: World, waveIndex: number): WaveBannerView {
+	const night = world.night
+	const run = isEndlessNightId(night.nightId)
+	const last = !run && waveIndex === night.waveCount - 1
+	return {
+		waveIndex,
+		moment: last ? 'last' : waveIndex === 0 ? 'first' : 'middle',
+		waveCount: run ? null : night.waveCount,
+		clock: run ? null : nightClock(waveIndex, night.waveCount),
+	}
 }
 
 /** A night modifier as every screen names it: the previews, the night-start card and the HUD's chip. */

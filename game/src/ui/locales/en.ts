@@ -869,6 +869,19 @@ export const en = {
 		bannerTitle: 'A {thief} is in the kitchen.',
 		bannerLine: 'Whatever it reaches, it tries to take home.',
 	},
+	// Every other wave as it starts (23B), in the thief card's slot. Most waves get the count and the hour
+	// and nothing more -- a line every forty seconds stops being read by the third. The first is the night
+	// beginning; the last is the hour before it gets light, said as what the kitchen looks like rather
+	// than as FINAL WAVE. `hud.clock` is the hour, so the banner and the top bar never disagree on it.
+	waveBanner: {
+		title: 'Wave {n} of {total}',
+		// A long night's: no total, as `hud.runWave`.
+		titleRun: 'Wave {n}',
+		firstLine: 'The first of them are coming out from under the skirting.',
+		lastLead: 'The last of them',
+		lastTitle: 'The sky’s going grey over the sink.',
+		lastLine: 'One more, and it’s morning.',
+	},
 	// The night-end summary. `foodLost` is the line analytic-docs/DECISIONS.md section 6 calls the
 	// emotional payload -- the specificity is the whole joke, so it lists items by name and never
 	// collapses them into a count. The UI joins them with `listSeparator` and `general.and` for the

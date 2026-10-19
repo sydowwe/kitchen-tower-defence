@@ -205,6 +205,13 @@ function upgradeTower(world: World, towerId: EntityId): void {
 	tower.totalInvested += cost
 
 	reconcileToTier(tower)
+	world.events.push({
+		kind: 'towerUpgraded',
+		towerId,
+		defId: tower.defId,
+		tier: tower.tier,
+		tile: { x: tower.tile.x, y: tower.tile.y },
+	})
 }
 
 export function commandsSystem(world: World, commands: readonly Command[]): void {

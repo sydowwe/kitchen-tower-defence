@@ -23,6 +23,7 @@ import type { Tower, Vec2, World } from '@/core/types.ts'
 import { blitGlyph, preload } from '@/render/glyphCache.ts'
 import { stateGlyph } from '@/render/sprites.ts'
 import { drawHpBar } from '@/render/hpBar.ts'
+import { PLACE_LIFE_FRAMES, UPGRADE_LIFE_FRAMES, placedAgo, upgradedAgo } from '@/render/layers/effects.ts'
 import {
 	AURA_DAMAGE_CLEAR,
 	AURA_DAMAGE_EDGE,
@@ -34,6 +35,7 @@ import {
 	HONEY_EMPTY,
 	HONEY_PUDDLE,
 	HONEY_WARNING,
+	PLACE_DUST,
 	PROJECTILE_SHOT,
 	RANGE_INVALID,
 	RANGE_INVALID_FILL,
@@ -179,6 +181,41 @@ const HEAT_TONGUE_RADIUS_TILES = 0.075
 const HEAT_TONGUE_HEIGHT = 2.1
 /** Radians per frame of the flicker. The burn status's rate, so fire on an enemy and fire on a cell agree. */
 const HEAT_FLICKER_PER_FRAME = 0.42
+
+/**
+ * A tower being set down: the glyph drops onto its pad, squashes on landing and springs back, and dust
+ * kicks out round the pad as it lands. Off `placedAgo`, so the frames are `effects.ts`'s and the look is
+ * this file's (decision 7).
+ *
+ * The squash is about the glyph's foot and not its centre, so it lands on the pad rather than shrinking
+ * in mid-air. The drop is short and accelerating: set down, not dropped from a height.
+ */
+const THUNK_DROP_FRAMES = 5
+const THUNK_DROP_TILES = 0.3
+const THUNK_SQUASH_FRAMES = 9
+const THUNK_SQUASH_X = 0.18
+const THUNK_SQUASH_Y = 0.22
+/** Where the glyph's foot is, as a fraction of its drawn size below the centre. */
+const THUNK_FOOT = 0.4
+const DUST_START_RADIUS_TILES = 0.36
+const DUST_END_RADIUS_TILES = 0.7
+const DUST_SQUASH = 0.45
+const DUST_LINE_WIDTH_PX = 2.5
+
+/**
+ * An upgrade: a ring off the pad and sparks rising round it, in the tier marks' gold -- it is the moment
+ * a tier mark arrives, so it wears the mark's colour. Off `upgradedAgo`, after the glyph, so the sparks
+ * rise over the tower they belong to.
+ */
+const SPARKLE_RING_START_TILES = 0.32
+const SPARKLE_RING_END_TILES = 0.62
+const SPARKLE_RING_WIDTH_PX = 2
+const SPARKLES = 6
+const SPARKLE_ORBIT_START_TILES = 0.26
+const SPARKLE_ORBIT_END_TILES = 0.46
+const SPARKLE_RISE_TILES = 0.4
+const SPARKLE_ARM_PX = 3.5
+const SPARKLE_WIDTH_PX = 1.5
 
 /** Ages with the display, never with the simulation, like `entities.ts` and `tileEffects.ts`. */
 let ageFrames = 0
@@ -614,6 +651,90 @@ function drawAuraRims(ctx: CanvasRenderingContext2D, world: World, tilePx: numbe
 	}
 }
 
+/** True while a placed tower's glyph is still dropping or squashed. The dust outlives it. */
+function isThunking(sincePlaced: number | null): sincePlaced is number {
+	return sincePlaced !== null && sincePlaced < THUNK_DROP_FRAMES + THUNK_SQUASH_FRAMES
+}
+
+/**
+ * Sets up the drop or the squash for this frame of the thunk. The caller has saved and will restore:
+ * the transform wraps whichever of the four glyph paths this tower takes, the box's own squash included.
+ */
+function applyThunk(ctx: CanvasRenderingContext2D, center: Vec2, tilePx: number, sincePlaced: number): void {
+	const foot = center.y + tilePx * TOWER_SCALE * THUNK_FOOT
+	if (sincePlaced < THUNK_DROP_FRAMES) {
+		// Accelerating, so it lands with weight: falling, not floating down.
+		const t = (sincePlaced + 1) / THUNK_DROP_FRAMES
+		ctx.translate(0, -THUNK_DROP_TILES * tilePx * (1 - t * t))
+		return
+	}
+
+	const u = (sincePlaced - THUNK_DROP_FRAMES) / THUNK_SQUASH_FRAMES
+	const squash = (1 - u) * (1 - u)
+	ctx.translate(center.x, foot)
+	ctx.scale(1 + THUNK_SQUASH_X * squash, 1 - THUNK_SQUASH_Y * squash)
+	ctx.translate(-center.x, -foot)
+}
+
+/** The dust kicked out round the pad as the glyph lands: a flat ring on the floor, under the pad. */
+function drawPlaceDust(ctx: CanvasRenderingContext2D, center: Vec2, tilePx: number, sincePlaced: number): void {
+	const landed = sincePlaced - THUNK_DROP_FRAMES
+	if (landed < 0) {
+		return
+	}
+
+	const t = landed / (PLACE_LIFE_FRAMES - THUNK_DROP_FRAMES)
+	const eased = 1 - (1 - t) * (1 - t)
+	const rx = (DUST_START_RADIUS_TILES + (DUST_END_RADIUS_TILES - DUST_START_RADIUS_TILES) * eased) * tilePx
+	const y = center.y + tilePx * TOWER_SCALE * TOWER_SHADOW_FOOT
+
+	ctx.globalAlpha = 1 - t
+	ctx.strokeStyle = PLACE_DUST
+	ctx.lineWidth = DUST_LINE_WIDTH_PX * (1 - t * 0.5)
+	ctx.beginPath()
+	ctx.ellipse(center.x, y, rx, rx * DUST_SQUASH, 0, 0, Math.PI * 2)
+	ctx.stroke()
+	ctx.globalAlpha = 1
+}
+
+/** A ring off the pad and sparks rising round the glyph. Alpha set and put back in the same breath. */
+function drawUpgradeSparkle(ctx: CanvasRenderingContext2D, center: Vec2, tilePx: number, sinceUpgraded: number): void {
+	const t = sinceUpgraded / UPGRADE_LIFE_FRAMES
+	const eased = 1 - (1 - t) * (1 - t)
+
+	ctx.globalAlpha = 1 - t
+	ctx.strokeStyle = TOWER_TIER_BADGE
+	ctx.lineWidth = SPARKLE_RING_WIDTH_PX
+	ctx.beginPath()
+	ctx.arc(
+		center.x,
+		center.y,
+		(SPARKLE_RING_START_TILES + (SPARKLE_RING_END_TILES - SPARKLE_RING_START_TILES) * eased) * tilePx,
+		0,
+		Math.PI * 2,
+	)
+	ctx.stroke()
+
+	// Fixed angles, turning a little as they rise: `render/` has no rng, and a sparkle that stands still
+	// reads as a decoration rather than as the moment.
+	const orbit = (SPARKLE_ORBIT_START_TILES + (SPARKLE_ORBIT_END_TILES - SPARKLE_ORBIT_START_TILES) * eased) * tilePx
+	const rise = SPARKLE_RISE_TILES * tilePx * eased
+	const arm = SPARKLE_ARM_PX * (1 - t * 0.6)
+	ctx.lineWidth = SPARKLE_WIDTH_PX
+	ctx.beginPath()
+	for (let spark = 0; spark < SPARKLES; spark++) {
+		const angle = (spark / SPARKLES) * Math.PI * 2 + t * 0.8
+		const x = center.x + Math.cos(angle) * orbit
+		const y = center.y + Math.sin(angle) * orbit * 0.7 - rise
+		ctx.moveTo(x - arm, y)
+		ctx.lineTo(x + arm, y)
+		ctx.moveTo(x, y - arm)
+		ctx.lineTo(x, y + arm)
+	}
+	ctx.stroke()
+	ctx.globalAlpha = 1
+}
+
 export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, tilePx: number, dpr: number): void {
 	if (world === null) {
 		return
@@ -626,8 +747,19 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 	for (const tower of world.towers) {
 		const def = effectiveDefOf(tower)
 		const center = tileCenter(tower.tile, tilePx)
+		const sincePlaced = placedAgo(tower.id)
+		if (sincePlaced !== null) {
+			drawPlaceDust(ctx, center, tilePx, sincePlaced)
+		}
 		drawPad(ctx, center, tilePx)
 		drawTierMarks(ctx, tower.tier, center, tilePx)
+
+		// The pad and the marks stay put: the glyph is what is being set down onto them.
+		const thunking = isThunking(sincePlaced)
+		if (thunking) {
+			ctx.save()
+			applyThunk(ctx, center, tilePx, sincePlaced)
+		}
 
 		// `'spent'` never lasts a frame -- `retireSpentTowers` takes that tower off the board -- and
 		// `'none'` is every tower without a magazine, so both take the plain path.
@@ -647,7 +779,15 @@ export function drawTowers(ctx: CanvasRenderingContext2D, world: World | null, t
 			blitGlyph(ctx, dpr, def.glyph, tilePx * TOWER_SCALE, center.x, center.y)
 		}
 
+		if (thunking) {
+			ctx.restore()
+		}
+
 		drawTierBadge(ctx, tower.tier, center, tilePx)
+		const sinceUpgraded = upgradedAgo(tower.id)
+		if (sinceUpgraded !== null) {
+			drawUpgradeSparkle(ctx, center, tilePx, sinceUpgraded)
+		}
 
 		// Above the pad, not above the glyph: the pad is the tower's footprint and the bar wants to
 		// sit on a fixed edge, not on whatever the collapsing box is doing to its own height.

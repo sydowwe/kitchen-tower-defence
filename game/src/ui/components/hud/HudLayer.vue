@@ -46,11 +46,19 @@
 		:wake="wake"
 	/>
 
+	<!--
+		One banner slot (step 23B, decision 6). `GameView.vue` keeps at most one of the thief's and the wave's
+		set, so a wave's card replaces the one before it; either replaces the modifier's, which has said its
+		piece at the night's start and lives on in the top bar's chip.
+	-->
 	<ThiefCard
 		v-if="thiefBanner !== null"
 		:banner="thiefBanner"
 	/>
-	<!-- One card in the slot: the thief's replaces the modifier's rather than landing on top of it. -->
+	<WaveBanner
+		v-else-if="waveBanner !== null"
+		:banner="waveBanner"
+	/>
 	<ModifierCard
 		v-else-if="modifierBanner !== null"
 		:banner="modifierBanner"
@@ -80,6 +88,7 @@
 	import TowerInspector from '@/ui/components/hud/TowerInspector.vue'
 	import TowerShop from '@/ui/components/hud/TowerShop.vue'
 	import WakeCard from '@/ui/components/hud/WakeCard.vue'
+	import WaveBanner from '@/ui/components/hud/WaveBanner.vue'
 	import WaveControl from '@/ui/components/hud/WaveControl.vue'
 	import type { Selection } from '@/ui/selection.ts'
 	import type {
@@ -91,6 +100,7 @@
 		TargetingMode,
 		ThiefBannerView,
 		WakeView,
+		WaveBannerView,
 	} from '@/ui/viewModel.ts'
 
 	/**
@@ -110,6 +120,7 @@
 		toasts = [],
 		wake = null,
 		thiefBanner = null,
+		waveBanner = null,
 		modifierBanner = null,
 		previousBest = null,
 		saveState = 'saved',
@@ -125,6 +136,8 @@
 		wake?: WakeView | null
 		/** The Mouse's announcement, or null. A prop for `wake`'s reason: it is said once, off an event. */
 		thiefBanner?: ThiefBannerView | null
+		/** Every other wave's line as it starts, or null. A prop for `thiefBanner`'s reason. */
+		waveBanner?: WaveBannerView | null
 		/** Tonight's modifier, said as the night opens, or null on a plain night. Built once per world. */
 		modifierBanner?: ModifierBannerView | null
 		/**

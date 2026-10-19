@@ -13,13 +13,15 @@
  * **before** the frame is drawn, or every theft shows up one frame late.
  */
 
-import { getFoodDef } from '@/core/content/index.ts'
+import { isCharge } from '@/core/content/behaviours.ts'
+import { getFoodDef, getTowerDef } from '@/core/content/index.ts'
 import { effectivenessOf } from '@/core/content/matrix.ts'
 import { samplePath } from '@/core/path.ts'
+import { isBarricade } from '@/core/systems/barricades.ts'
 import { towerById } from '@/core/systems/placement.ts'
 import { enemyById, enemyPosition } from '@/core/systems/spatial.ts'
 import type { Effectiveness } from '@/core/content/matrix.ts'
-import type { EntityId, GameEvent, Vec2, World } from '@/core/types.ts'
+import type { DefId, EntityId, GameEvent, Vec2, World } from '@/core/types.ts'
 import { blitGlyph } from '@/render/glyphCache.ts'
 import { forgetCrumbPositions, lastCrumbPosition } from '@/render/layers/crumbs.ts'
 import { foodGlyphSize, shelfSlot } from '@/render/layers/fridge.ts'
@@ -31,6 +33,7 @@ import {
 	DAMAGE_NUMBER,
 	DAMAGE_NUMBER_STRONG,
 	DAMAGE_NUMBER_WEAK,
+	DEATH_POOF,
 	GUST_STREAK,
 	HIT_FLASH,
 	THIEF_ESCAPE_POOF,
@@ -366,6 +369,161 @@ interface Escape {
 const escapes: Escape[] = []
 const thiefLanes = new Map<EntityId, string>()
 
+/**
+ * A kill: a small ring of dust and a few wisps lifting off it, where the bug stopped.
+ *
+ * Short and faint, because the thing it lands on matters more than it does: a kill that drops a pile
+ * drops it on this point in this frame, and the pile's pop is drawn after this so the money is never
+ * under the dust. Twenty-four is the cap because a column of ants dies in one frame at 3x, and twenty-four
+ * poofs already read as a column going.
+ */
+const POOF_LIFE_FRAMES = 16
+const POOF_START_RADIUS_TILES = 0.08
+const POOF_END_RADIUS_TILES = 0.3
+const POOF_LINE_WIDTH_PX = 1.5
+const POOF_WISPS = 4
+const POOF_WISP_RADIUS_PX = 1.8
+const POOF_WISP_REACH_TILES = 0.26
+const MAX_POOFS = 24
+
+interface Poof {
+	/** Tile space, from `enemyKilled.at`. */
+	x: number
+	y: number
+	ageFrames: number
+}
+
+const poofs: Poof[] = []
+
+/**
+ * A tower set down, and a tower upgraded, keyed by id: how many frames ago. `towers.ts` asks through
+ * `placedAgo` and `upgradedAgo` and draws the thunk and the sparkle off the answer; this file never
+ * learns what they look like, and that file never learns why (decision 7).
+ *
+ * Aged here whether or not the tower is still standing, `shoves`' rule: a tower sold mid-thunk never
+ * asks again.
+ */
+export const PLACE_LIFE_FRAMES = 22
+export const UPGRADE_LIFE_FRAMES = 26
+
+const placed = new Map<EntityId, number>()
+const upgraded = new Map<EntityId, number>()
+
+/**
+ * The room jumping: an offset the whole board is drawn at, decaying fast. Read once a frame at the top
+ * of `drawFrame` through `shakeOffset`.
+ *
+ * **Two triggers and no more** (decision 3): a snap, and a box giving way. Both are read off the def's
+ * behaviour and never its id, so a second trap that rearms shakes without anyone adding it to a list.
+ * Sized in logical pixels, a box louder than a snap: it is rarer and it is a loss.
+ */
+const SHAKE_LIFE_FRAMES = 14
+const SHAKE_SNAP_PX = 3
+const SHAKE_BOX_PX = 6
+/** Radians per frame on each axis. Unequal, so the offset wanders rather than sliding along a diagonal. */
+const SHAKE_X_PER_FRAME = 2.1
+const SHAKE_Y_PER_FRAME = 2.9
+
+let shakePx = 0
+let shakeAgeFrames = 0
+const shake: Vec2 = { x: 0, y: 0 }
+
+/** Decision 5's two switches, flipped by D's settings. Module state, like the rest of this file. */
+let screenShakeEnabled = true
+let damageNumbersEnabled = true
+
+/** `undefined` until first asked; null where there is no `matchMedia` to ask. */
+let reducedMotion: MediaQueryList | null | undefined
+
+/** Off under `prefers-reduced-motion: reduce`, whatever the setting says. Read live, so a change takes. */
+function prefersReducedMotion(): boolean {
+	if (reducedMotion === undefined) {
+		reducedMotion =
+			typeof window === 'undefined' || typeof window.matchMedia !== 'function'
+				? null
+				: window.matchMedia('(prefers-reduced-motion: reduce)')
+	}
+	return reducedMotion?.matches ?? false
+}
+
+export function setScreenShake(enabled: boolean): void {
+	screenShakeEnabled = enabled
+	if (!enabled) {
+		shakePx = 0
+	}
+}
+
+/** Off means never pushed, not pushed and hidden. The hit ring stays either way. */
+export function setDamageNumbers(enabled: boolean): void {
+	damageNumbersEnabled = enabled
+	if (!enabled) {
+		numbers.length = 0
+	}
+}
+
+/** Frames since this tower was set down, or null once the thunk is over. */
+export function placedAgo(towerId: EntityId): number | null {
+	return placed.get(towerId) ?? null
+}
+
+/** Frames since this tower's last upgrade, or null once the sparkle is over. */
+export function upgradedAgo(towerId: EntityId): number | null {
+	return upgraded.get(towerId) ?? null
+}
+
+/**
+ * A trap that rearms: one whose **base** def has a `charge` with `rearmTicks > 0`. The Mousetrap, today.
+ * The base def and not the folded one, because a tier-3 Fly Paper's fresh sheet is a rearm too, and a
+ * strip of glue catching a fly is not a snap.
+ */
+function snaps(defId: DefId): boolean {
+	return getTowerDef(defId).behaviours.some(behaviour => isCharge(behaviour) && behaviour.rearmTicks > 0)
+}
+
+/** The louder of what is left and what just arrived, so a snap during a box's collapse does not cut it short. */
+function addShake(px: number): void {
+	if (!screenShakeEnabled || prefersReducedMotion()) {
+		return
+	}
+	const remaining = shakePx * shakeEnvelope(shakeAgeFrames)
+	if (px >= remaining) {
+		shakePx = px
+		shakeAgeFrames = 0
+	}
+}
+
+/** 1 at the trigger, 0 at the end, falling fast: a jolt, not a wobble. */
+function shakeEnvelope(ageFrames: number): number {
+	if (ageFrames >= SHAKE_LIFE_FRAMES) {
+		return 0
+	}
+	const left = 1 - ageFrames / SHAKE_LIFE_FRAMES
+	return left * left
+}
+
+/**
+ * This frame's offset, in logical pixels snapped to whole device pixels, and **one frame of age per
+ * call** -- call it once a frame, from `drawFrame`. Snapped because `blitGlyph` snaps every glyph, and a
+ * board drawn at a fractional offset would undo it for every glyph on it.
+ */
+export function shakeOffset(dpr: number): Readonly<Vec2> {
+	shake.x = 0
+	shake.y = 0
+	if (shakePx === 0) {
+		return shake
+	}
+
+	const amplitude = shakePx * shakeEnvelope(shakeAgeFrames)
+	shake.x = Math.round(amplitude * Math.sin(shakeAgeFrames * SHAKE_X_PER_FRAME + 0.6) * dpr) / dpr
+	shake.y = Math.round(amplitude * Math.cos(shakeAgeFrames * SHAKE_Y_PER_FRAME) * dpr) / dpr
+	shakeAgeFrames++
+	if (shakeAgeFrames >= SHAKE_LIFE_FRAMES) {
+		shakePx = 0
+		shakeAgeFrames = 0
+	}
+	return shake
+}
+
 /** True while a returned item is still in the air. `drawFridge` skips it until it lands. */
 export function isFlyingHome(foodId: EntityId): boolean {
 	for (const flight of returns) {
@@ -516,6 +674,10 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 				flashes.shift()
 			}
 
+			if (!damageNumbersEnabled) {
+				continue
+			}
+
 			// Rounded here, not at draw time. It is both what the player should read and what keeps
 			// the glyph cache's key space finite: an unrounded 5.000000001 is a fresh entry per hit,
 			// and the symptom is memory climbing all night with nothing else wrong (decision 8).
@@ -568,6 +730,27 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 			if (puffs.length > MAX_PUFFS) {
 				puffs.shift()
 			}
+			// The base def, as for the snap. A box giving way is the one loss that shakes the room.
+			if (isBarricade(getTowerDef(event.defId))) {
+				addShake(SHAKE_BOX_PX)
+			}
+			continue
+		}
+
+		if (event.kind === 'towerFired') {
+			if (snaps(event.defId)) {
+				addShake(SHAKE_SNAP_PX)
+			}
+			continue
+		}
+
+		if (event.kind === 'towerPlaced') {
+			placed.set(event.towerId, 0)
+			continue
+		}
+
+		if (event.kind === 'towerUpgraded') {
+			upgraded.set(event.towerId, 0)
 			continue
 		}
 
@@ -613,6 +796,8 @@ export function pushEvents(events: readonly GameEvent[], world: World): void {
 
 		if (event.kind === 'enemyKilled') {
 			thiefLanes.delete(event.enemyId)
+			poofs.push({ x: event.at.x, y: event.at.y, ageFrames: 0 })
+			capped(poofs, MAX_POOFS)
 			continue
 		}
 
@@ -1026,6 +1211,57 @@ function drawEscapes(ctx: CanvasRenderingContext2D, tilePx: number): void {
 	escapes.length = live
 }
 
+/**
+ * The dust off every kill: a squashed ring on the floor and wisps lifting off it. `drawPuffs`' shape, one
+ * pair of paths per poof because its alpha is its age -- forty-eight calls at the cap, which is what the
+ * cap is for.
+ */
+function drawPoofs(ctx: CanvasRenderingContext2D, tilePx: number): void {
+	let live = 0
+	ctx.strokeStyle = DEATH_POOF
+	ctx.fillStyle = DEATH_POOF
+	ctx.lineWidth = POOF_LINE_WIDTH_PX
+
+	for (const poof of poofs) {
+		poof.ageFrames++
+		if (poof.ageFrames >= POOF_LIFE_FRAMES) {
+			continue
+		}
+
+		const t = poof.ageFrames / POOF_LIFE_FRAMES
+		const eased = 1 - (1 - t) * (1 - t)
+		const x = (poof.x + 0.5) * tilePx
+		const y = (poof.y + 0.5) * tilePx
+
+		// Squashed, so it reads as dust on the floor and not as a second hit ring.
+		const rx = (POOF_START_RADIUS_TILES + (POOF_END_RADIUS_TILES - POOF_START_RADIUS_TILES) * eased) * tilePx
+		ctx.globalAlpha = 1 - t
+		ctx.beginPath()
+		ctx.ellipse(x, y, rx, rx * 0.6, 0, 0, Math.PI * 2)
+		ctx.stroke()
+
+		// Fixed angles off the position, the way `drawPuffs` scatters, since `render/` has no rng; rising,
+		// the way the escape's wisps rise, because this is dust and not pieces.
+		const reach = POOF_WISP_REACH_TILES * tilePx * eased
+		const size = POOF_WISP_RADIUS_PX * (1 - t * 0.5)
+		ctx.beginPath()
+		for (let wisp = 0; wisp < POOF_WISPS; wisp++) {
+			const angle = poof.x * 1.3 + poof.y + (wisp / POOF_WISPS) * Math.PI * 2
+			const wispX = x + Math.cos(angle) * reach
+			const wispY = y + Math.sin(angle) * reach * 0.5 - POOF_WISP_REACH_TILES * tilePx * t * 0.6
+			ctx.moveTo(wispX + size, wispY)
+			ctx.arc(wispX, wispY, size, 0, Math.PI * 2)
+		}
+		ctx.fill()
+
+		poofs[live] = poof
+		live++
+	}
+
+	ctx.globalAlpha = 1
+	poofs.length = live
+}
+
 /** Ages every shove, and drops the spent ones whether or not their enemy is still on the board. */
 function ageShoves(): void {
 	for (const [id, shove] of shoves) {
@@ -1036,9 +1272,22 @@ function ageShoves(): void {
 	}
 }
 
+/** `ageShoves` for the per-tower records. */
+function ageTowerRecords(records: Map<EntityId, number>, lifeFrames: number): void {
+	for (const [id, ageFrames] of records) {
+		if (ageFrames + 1 >= lifeFrames) {
+			records.delete(id)
+		} else {
+			records.set(id, ageFrames + 1)
+		}
+	}
+}
+
 /** Called from `drawFrame` at the particles slot of the draw order. Ages one frame per call. */
 export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: number): void {
 	ageShoves()
+	ageTowerRecords(placed, PLACE_LIFE_FRAMES)
+	ageTowerRecords(upgraded, UPGRADE_LIFE_FRAMES)
 	drawGusts(ctx, tilePx)
 
 	const size = foodGlyphSize(tilePx)
@@ -1069,6 +1318,8 @@ export function drawEffects(ctx: CanvasRenderingContext2D, tilePx: number, dpr: 
 	drawFoodFlights(ctx, takes, TAKE_LIFE_FRAMES, TAKE_LOFT_TILES, tilePx, dpr)
 	drawFoodFlights(ctx, returns, RETURN_LIFE_FRAMES, RETURN_LOFT_TILES, tilePx, dpr)
 	drawEscapes(ctx, tilePx)
+	// Under the hits and the pops: a kill's own last hit and the pile it drops both land on this point.
+	drawPoofs(ctx, tilePx)
 	drawPuffs(ctx, tilePx)
 	drawDigs(ctx, tilePx)
 	drawHits(ctx, tilePx, dpr)
@@ -1143,6 +1394,13 @@ export function resetEffects(): void {
 	returns.length = 0
 	escapes.length = 0
 	thiefLanes.clear()
+	poofs.length = 0
+	// Tower ids restart with the world too: a stale thunk would land on the next night's tower 3.
+	placed.clear()
+	upgraded.clear()
+	// Without this a Retry opens mid-shake.
+	shakePx = 0
+	shakeAgeFrames = 0
 	// Without this a retry opens with last night's light still on.
 	wakeAgeFrames = null
 	forgetCrumbPositions()

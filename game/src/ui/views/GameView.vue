@@ -14,6 +14,7 @@
 				:toasts="toasts"
 				:wake="wake"
 				:thiefBanner="thiefBanner"
+				:waveBanner="waveBanner"
 				:modifierBanner="modifierBanner"
 				:previousBest="previousBest"
 				:saveState="saveState"
@@ -108,6 +109,7 @@
 		buildThiefBanner,
 		buildTowerInspector,
 		buildWakeView,
+		buildWaveBanner,
 	} from '@/ui/viewModel.ts'
 	import type {
 		EnemyTooltipView,
@@ -117,6 +119,7 @@
 		ThiefBannerView,
 		TowerInspectorView,
 		WakeView,
+		WaveBannerView,
 	} from '@/ui/viewModel.ts'
 	import type { DefId, EntityId, GameEvent, MapDef, TargetingMode, World, WorldModifiers } from '@/core/types.ts'
 	import type { DebugController } from '@/dev/debug/state.ts'
@@ -225,11 +228,14 @@
 	/**
 	 * The last thing that left the fridge for good, and how many losses tonight. Read off events in
 	 * `tick()` for the reason `loudShots` is: the shelf can no longer say which loss was the latest once a
-	 * Mouse is taking from the front (see `LossView`). And the Mouse's announcement, off `waveStarted`.
+	 * Mouse is taking from the front (see `LossView`). And the wave's announcement, off `waveStarted`: the
+	 * Mouse's card on a wave that brings one, the wave's own line on every other. **At most one of the two
+	 * is ever set**, which is what makes the HUD's banner slot show the latest (step 23B, decision 6).
 	 */
 	let lossCount = 0
 	let lastLoss: LossView | null = null
 	const thiefBanner = shallowRef<ThiefBannerView | null>(null)
+	const waveBanner = shallowRef<WaveBannerView | null>(null)
 
 	/**
 	 * Tonight's modifier, said as the night opens. Built in `restart()`, never `onMounted`: a Retry is
@@ -425,6 +431,7 @@
 		lossCount = 0
 		lastLoss = null
 		thiefBanner.value = null
+		waveBanner.value = null
 		worldCount++
 		modifierBanner.value = buildModifierBanner(next, worldCount)
 		resetEffects()
@@ -641,10 +648,9 @@
 						continue
 					}
 					if (event.kind === 'waveStarted') {
-						const banner = buildThiefBanner(world, event.waveIndex)
-						if (banner !== null) {
-							thiefBanner.value = banner
-						}
+						const thief = buildThiefBanner(world, event.waveIndex)
+						thiefBanner.value = thief
+						waveBanner.value = thief === null ? buildWaveBanner(world, event.waveIndex) : null
 						continue
 					}
 					// Recorded here, once per world, and never on a button: Retry or closing the tab
@@ -736,6 +742,7 @@
 		lossCount = 0
 		lastLoss = null
 		thiefBanner.value = null
+		waveBanner.value = null
 		modifierBanner.value = null
 		resetEffects()
 		interaction?.destroy()

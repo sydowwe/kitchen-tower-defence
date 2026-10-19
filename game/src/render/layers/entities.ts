@@ -258,6 +258,22 @@ const CARRY_LABELS = Array.from({ length: 20 }, (_, n) => `+${n}`)
 const SCURRY_TILES = 0.07
 /** Radians per frame: ~5 hops a second. */
 const SCURRY_PER_FRAME = 0.55
+
+/**
+ * Everything on the floor that is walking: a small surge forward and back along its heading, so a column
+ * of ants is legs and not stickers sliding down the track (step 23B, decision 4). Along the heading and
+ * never up and down -- the floor stays flat, which is what lets a fleeing thief's hop read as faster, and
+ * that thief keeps the hop instead of this.
+ *
+ * The lunge's rule: the glyph moves and the frame does not, so the shadow, the bar and the treatments
+ * stay where the enemy is. Aged in frames and offset by position, like the bob.
+ *
+ * About two device pixels either side at a dpr of 1. Much under that, `blitGlyph`'s snap turns the
+ * surge into a one-pixel flicker rather than a step.
+ */
+const SCUTTLE_TILES = 0.045
+/** Radians per frame: ~3 steps a second. Busier than a hover, well short of the thief's hop. */
+const SCUTTLE_PER_FRAME = 0.32
 const THIEF_TRAIL_STEPS = 4
 const THIEF_TRAIL_GAP_TILES = 0.3
 
@@ -278,6 +294,8 @@ interface EnemyFrame {
 	maxHp: number
 	/** Freeze reuses the slow treatment at full strength: both read as "cold and stopped". */
 	slow: boolean
+	/** Frozen in particular, which a slow is not: a frozen enemy has stopped walking and does not scuttle. */
+	frozen: boolean
 	/** Stack counts, not booleans -- three burns are a bigger flame than one. */
 	burn: number
 	poison: number
@@ -412,6 +430,7 @@ function frameAt(index: number): EnemyFrame {
 		hp: 0,
 		maxHp: 0,
 		slow: false,
+		frozen: false,
 		burn: 0,
 		poison: 0,
 		rooted: false,
@@ -461,6 +480,7 @@ function anyBarricade(world: World): boolean {
 /** Reads `enemy.statuses` onto the frame. Every field is written, so a reused entry cannot be stale. */
 function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 	entry.slow = false
+	entry.frozen = false
 	entry.burn = 0
 	entry.poison = 0
 	entry.rooted = false
@@ -470,6 +490,7 @@ function readStatuses(entry: EnemyFrame, enemy: Enemy): void {
 	for (const status of enemy.statuses) {
 		if (status.kind === 'slow' || status.kind === 'freeze') {
 			entry.slow = true
+			entry.frozen ||= status.kind === 'freeze'
 		} else if (status.kind === 'burn') {
 			entry.burn = status.stacks
 		} else if (status.kind === 'poison') {
@@ -655,6 +676,23 @@ function drawCarry(
 /** How far into its bite this enemy is, 0 to 1. Frames, so it does not treble its rate at 3x speed. */
 function lungePhase(entry: EnemyFrame): number {
 	return 0.5 + 0.5 * Math.sin(ageFrames * CHEW_LUNGE_PER_FRAME + entry.x + entry.y)
+}
+
+/**
+ * On the floor and going somewhere under its own legs. Everything decision 4 stops it for, plus a thief
+ * at the fridge with its hands full and one on its own flight, which hops instead.
+ */
+function isWalking(entry: EnemyFrame): boolean {
+	return !(
+		entry.flying ||
+		entry.stationary ||
+		entry.frozen ||
+		entry.rooted ||
+		entry.chewing ||
+		entry.feeding ||
+		entry.grabbing ||
+		entry.thiefFleeing
+	)
 }
 
 /**
@@ -1247,6 +1285,7 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 	const lunge = CHEW_LUNGE_TILES * tilePx
 	const bob = FLYER_BOB_TILES * tilePx
 	const scurry = SCURRY_TILES * tilePx
+	const scuttle = SCUTTLE_TILES * tilePx
 	for (let i = 0; i < liveCount; i++) {
 		const entry = frames[i]
 		if (entry === undefined) {
@@ -1268,8 +1307,10 @@ export function drawEntities(ctx: CanvasRenderingContext2D, world: World | null,
 			entry.thiefFleeing && !entry.chewing
 				? Math.abs(Math.sin(ageFrames * SCURRY_PER_FRAME + entry.x + entry.y)) * scurry
 				: 0
-		const glyphX = entry.x + entry.dirX * bite
-		const glyphY = entry.y + entry.dirY * bite - lift - hop
+		// Burrowed is already gone above; the rest of decision 4's list is `isWalking`'s.
+		const surge = isWalking(entry) ? Math.sin(ageFrames * SCUTTLE_PER_FRAME + entry.x + entry.y) * scuttle : 0
+		const glyphX = entry.x + entry.dirX * (bite + surge)
+		const glyphY = entry.y + entry.dirY * (bite + surge) - lift - hop
 		if (entry.stagger === 0) {
 			blitGlyph(ctx, dpr, entry.glyph, size, glyphX, glyphY, entry.mirrored)
 		} else {

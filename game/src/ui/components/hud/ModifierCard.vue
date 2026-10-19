@@ -21,9 +21,9 @@
 	import type { ModifierBannerView } from '@/ui/viewModel.ts'
 
 	/**
-	 * Tonight's modifier, said once as the night opens (step 21F, decision 4). In `ThiefCard.vue`'s spot:
-	 * `HudLayer.vue` hides this one when the thief's card goes up, so the two never sit on each other.
-	 * Step 23B folds both into one banner slot. The `TopBar` chip says it for the rest of the night.
+	 * Tonight's modifier, said once as the night opens (step 21F, decision 4). In the one banner slot it
+	 * shares with `ThiefCard.vue` and `WaveBanner.vue` (23B): the first wave's card replaces it rather
+	 * than landing on top of it. The `TopBar` chip says it for the rest of the night.
 	 */
 
 	const { banner } = defineProps<{ banner: ModifierBannerView }>()

@@ -29,6 +29,7 @@ Trust symbols over line numbers.
 | `render/renderer.ts` | The live context's transform is set **once**, in `resize()`. `drawWake` comes after the overlay. A's light layer sits under the tile effects |
 | `ui/views/GameView.vue` | `tick()` reads each tick's `world.events` (loud shots, the wake, losses, `buildThiefBanner` on `waveStarted`). `draw()` hands `frameEvents` to `pushEvents`, then clears it |
 | `ui/components/hud/ThiefCard.vue` | The Mouse's card, keyed on `waveIndex`, at `top: 7.4rem`, fading over 4.5s. Its comment: "the general wave-start banner is step 23's" |
+| `ui/components/hud/ModifierCard.vue` | Step 21F's night-start card, **already in the same slot**: `HudLayer.vue` shows it `v-else-if` after the thief's. Built in `GameView.vue`'s `restart()`, keyed on `worldCount` |
 | `ui/components/hud/WaveControl.vue` | The countdown, call-wave, speed |
 
 ## Decisions already made
@@ -47,6 +48,9 @@ then edit this file. Don't leave it lying.
    `isBarricade`. Today that's the Mousetrap and the Cardboard Box and nothing else. Role is the wrong
    test, because the Toaster is `BURST_DPS` too. Sticky Tape and Fly Paper have charges, but they
    don't rearm. Shake is off under `prefers-reduced-motion: reduce`, whatever the setting says.
+   *Built against the **base** def (`getTowerDef(event.defId)`), not the folded one. Fly Paper's tier 3
+   raises `rearmTicks` to ten seconds, so a test on the effective def would shake the room for a
+   tier-3 paper catching a fly.*
 4. **Walkers scuttle along their heading. Nothing new moves up and down.** 11C gave flyers the bob,
    and 19C decision 4 kept the floor still so that a fleeing thief's hop reads as faster. A scuttle
    is a small surge forward and back along `dirX`/`dirY`, phase-offset per enemy like `bobPhase` and
@@ -59,8 +63,11 @@ then edit this file. Don't leave it lying.
 6. **One banner slot.** The wave banner lives where `ThiefCard` does and fires on the same
    `waveStarted`. On a wave that brings a thief, the thief card *is* the banner, and no second card
    goes up. The last wave (`waveIndex === waveCount - 1`) gets its own line and a flourish. Wave 1
-   gets a line too, because it's when the night begins. Step 21's modifier banner at night start
-   should use this slot, and the index says so.
+   gets a line too, because it's when the night begins. *Step 21 shipped before this did, and its
+   modifier card is already in the slot. Built as: `GameView.vue` keeps at most one of `thiefBanner`
+   and `waveBanner` set, and `HudLayer.vue` chains thief → wave → modifier, so the latest card
+   wins. Wave 1's card replaces the modifier's if it's still up, and the top bar's chip keeps the
+   modifier on screen. A run has no last wave and no clock.*
 7. **The placement thunk and the sparkle follow `shoveOf`'s pattern.** `effects.ts` holds a short
    per-tower record, and `towers.ts` asks `placedAgo(towerId)` or `upgradedAgo(towerId)`. The layer
    never learns why.
@@ -129,7 +136,7 @@ In `tests/commands.spec.ts` or `tests/upgrades.spec.ts`, beside what's there:
       the floor.
 - [ ] The last wave is legible as the last wave.
 - [ ] Retry during a shake: the new night opens still.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 
@@ -145,4 +152,5 @@ render/layers/effects.ts   setScreenShake(enabled: boolean): void
 ## Do not
 
 No sound, not even a placeholder beep (C). No settings UI (D). No shake triggers beyond decision 3:
-the restraint is the feature. No modifier banner (step 21). Nothing in `core/` beyond decision 1.
+the restraint is the feature. No changes to the modifier card itself (step 21F's; it only joins the
+slot). Nothing in `core/` beyond decision 1.

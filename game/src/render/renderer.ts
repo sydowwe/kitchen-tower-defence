@@ -8,6 +8,7 @@ import {
 	drawFridge,
 	isFlyingHome,
 	drawProjectiles,
+	shakeOffset,
 	drawTerrain,
 	drawTileEffects,
 	drawOverlay,
@@ -172,6 +173,17 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		ensureBake()
 		clear()
 
+		// The shake, read once and aged once per frame. Everything on the board is drawn inside a
+		// save/restore around it: the live context's transform is set once, in `resize()`, so a bare
+		// `translate` would add up frame on frame and walk the board off the canvas. The background
+		// `clear()` just painted is what shows in the strip it uncovers.
+		const shake = shakeOffset(dpr)
+		const shaking = shake.x !== 0 || shake.y !== 0
+		if (shaking) {
+			ctx.save()
+			ctx.translate(shake.x, shake.y)
+		}
+
 		// terrain + track, then the dark over them
 		if (bake !== null && map !== null) {
 			ctx.drawImage(bake, 0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT)
@@ -198,6 +210,10 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		// drawn.
 		drawEffects(ctx, tilePx, dpr)
 		drawOverlay(ctx, overlay, tilePx, dpr)
+		if (shaking) {
+			ctx.restore()
+		}
+		// Unshaken: it fills the whole board, and moved it would leave a strip of the board unwashed.
 		drawWake(ctx, LOGICAL_WIDTH, LOGICAL_HEIGHT)
 	}
 

@@ -27,6 +27,8 @@ export {
 	drawWake,
 	pushEvents,
 	resetEffects,
+	setDamageNumbers,
+	setScreenShake,
 	drawCrumbs,
 	crumbPosition,
 	pickCrumb,

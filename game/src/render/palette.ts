@@ -403,6 +403,17 @@ export const DROPPED_FOOD_RING = 'rgba(255, 226, 150, 0.9)'
 /** A thief getting out at the crack with what it carried. Grey and cold: something left, and that is all. */
 export const THIEF_ESCAPE_POOF = 'rgba(190, 196, 214, 0.85)'
 
+/**
+ * A bug dealt with: a small puff of dust where it stopped. Neither gold (`CRUMB_POP` is money, and a kill
+ * that drops a pile pops on the same point in the same frame) nor cardboard (`TOWER_DEBRIS` is a tower
+ * lost). Faint on purpose: forty of these at 3x have to read as bugs dying and not as a smear over the
+ * piles they leave.
+ */
+export const DEATH_POOF = 'rgba(178, 170, 160, 0.5)'
+
+/** The dust a tower kicks up off the floor as it is set down. The poof's family, warmer, because it is ours. */
+export const PLACE_DUST = 'rgba(206, 192, 170, 0.6)'
+
 /** What a loud tower's ghost says it will add to the meter, under the tile it would stand on. */
 export const GHOST_NOISE = '#f5c66b'
 

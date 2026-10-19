@@ -764,7 +764,17 @@ export type GameEvent =
 			at: Vec2
 	  }
 	| { kind: 'towerPlaced'; towerId: EntityId; defId: DefId; tile: Vec2 }
-	| { kind: 'towerSold'; towerId: EntityId; refund: number }
+	/**
+	 * A tower paid for and taken off the board. It carries its `defId` and `tile` for `towerDestroyed`'s
+	 * reason: it is out of `world.towers` before anyone reads this, and 23C picks and places its sound off both.
+	 */
+	| { kind: 'towerSold'; towerId: EntityId; defId: DefId; refund: number; tile: Vec2 }
+	/**
+	 * An upgrade that went through, pushed only by the success exit of `upgradeTower` -- a refused one is
+	 * silent, so the sparkle and the sound celebrate exactly the upgrades that happened. `tier` is the one
+	 * just bought, 1 for the first.
+	 */
+	| { kind: 'towerUpgraded'; towerId: EntityId; defId: DefId; tier: number; tile: Vec2 }
 	/**
 	 * A tower killed rather than sold or spent. It carries the `tile` because 10C draws the puff
 	 * where the tower stood, and the `defId` because that puff needs the glyph -- by the time anyone

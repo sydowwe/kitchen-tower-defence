@@ -333,7 +333,9 @@ describe('sellTower', () => {
 		// 0.7 x 75 is 52.5: rounding up would turn place-then-sell into a crumb printer.
 		expect(world.crumbs).toBe(177)
 		expect(world.towers).toEqual([])
-		expect(world.events).toEqual([{ kind: 'towerSold', towerId: tower.id, refund: 52 }])
+		expect(world.events).toEqual([
+			{ kind: 'towerSold', towerId: tower.id, defId: 'toasterCrumbTray', refund: 52, tile: { x: 0, y: 0 } },
+		])
 	})
 
 	it('refunds 50% once a wave is in progress, and 70% during the countdown between them', () => {

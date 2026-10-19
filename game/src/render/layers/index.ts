@@ -3,7 +3,16 @@ export { drawTrack } from '@/render/layers/track.ts'
 export { createLightLayer, type LightLayer } from '@/render/layers/light.ts'
 export { drawEntities, preloadEnemyGlyphs } from '@/render/layers/entities.ts'
 export { drawFridge, preloadFoodGlyphs } from '@/render/layers/fridge.ts'
-export { drawEffects, drawWake, isFlyingHome, pushEvents, resetEffects } from '@/render/layers/effects.ts'
+export {
+	drawEffects,
+	drawWake,
+	isFlyingHome,
+	pushEvents,
+	resetEffects,
+	setDamageNumbers,
+	setScreenShake,
+	shakeOffset,
+} from '@/render/layers/effects.ts'
 export { drawDroppedFood, droppedFoodPosition, pickFood } from '@/render/layers/food.ts'
 export { drawTileEffects } from '@/render/layers/tileEffects.ts'
 export { drawCrumbs, crumbPosition, pickCrumb, preloadCrumbGlyphs } from '@/render/layers/crumbs.ts'

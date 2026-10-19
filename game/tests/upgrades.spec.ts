@@ -505,6 +505,81 @@ describe('UpgradeTower', () => {
 	})
 })
 
+/**
+ * The two events step 23B added for the renderer and 23C's sounds. The sparkle comes off the event and
+ * never off the click, so a refused upgrade pushing one would celebrate something that did not happen --
+ * and nothing on screen would say so.
+ */
+describe('towerUpgraded and towerSold', () => {
+	/** Off the origin, so a tile copied from anywhere but the tower cannot pass by being `{ 0, 0 }`. */
+	const TILE: Vec2 = { x: 6, y: 0 }
+
+	function upgradedEvents(world: World): GameEvent[] {
+		return world.events.filter(event => event.kind === 'towerUpgraded')
+	}
+
+	it('pushes exactly one towerUpgraded per upgrade, with the tier it bought and the tower s tile', () => {
+		const world = makeWorld()
+		const tower = addTower(world, 'saltShaker', TILE)
+		world.crumbs = 1000
+
+		upgrade(world, tower)
+		expect(upgradedEvents(world)).toEqual([
+			{ kind: 'towerUpgraded', towerId: tower.id, defId: 'saltShaker', tier: 1, tile: { x: 6, y: 0 } },
+		])
+
+		world.events.length = 0
+		upgrade(world, tower)
+		expect(upgradedEvents(world)).toEqual([
+			{ kind: 'towerUpgraded', towerId: tower.id, defId: 'saltShaker', tier: 2, tile: { x: 6, y: 0 } },
+		])
+	})
+
+	it('pushes none for an upgrade refused one crumb short', () => {
+		const world = makeWorld()
+		const tower = addTower(world, 'saltShaker', TILE)
+		// The first tier is 30.
+		world.crumbs = 29
+
+		upgrade(world, tower)
+
+		expect(upgradedEvents(world)).toEqual([])
+	})
+
+	it('pushes none for an upgrade refused at MAX_TIER', () => {
+		const world = makeWorld()
+		const tower = addTower(world, 'saltShaker', TILE, MAX_TIER)
+		world.crumbs = 1000
+
+		upgrade(world, tower)
+
+		expect(upgradedEvents(world)).toEqual([])
+	})
+
+	it('pushes none for an upgrade after the night is won', () => {
+		const world = makeWorld()
+		const tower = addTower(world, 'saltShaker', TILE)
+		world.crumbs = 1000
+		world.night.phase = 'won'
+
+		upgrade(world, tower)
+
+		expect(upgradedEvents(world)).toEqual([])
+	})
+
+	it('carries the sold tower s defId and tile on towerSold, read before it left the board', () => {
+		const world = makeWorld()
+		const tower = addTower(world, 'mousetrap', TILE)
+
+		expect(sellTower(world, tower.id)).toBe(true)
+
+		const sold = world.events.filter(event => event.kind === 'towerSold')
+		expect(sold).toHaveLength(1)
+		expect(sold[0]).toMatchObject({ towerId: tower.id, defId: 'mousetrap', tile: { x: 6, y: 0 } })
+		expect(world.towers).toEqual([])
+	})
+})
+
 describe('the tier-3s that are pure deltas', () => {
 	it('fires a Mousetrap twice as often at tier 3', () => {
 		function shotTicks(towerTier: number): number[] {

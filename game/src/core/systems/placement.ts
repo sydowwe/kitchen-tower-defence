@@ -316,7 +316,13 @@ export function sellTower(world: World, towerId: EntityId): boolean {
 	// **Banked.** A refund is returned capital rather than income, and one a wake could eat would make
 	// selling before a wake a trap the player cannot see (step 13A, decision 6).
 	earnCrumbs(world, refund, true)
-	world.events.push({ kind: 'towerSold', towerId, refund })
+	world.events.push({
+		kind: 'towerSold',
+		towerId,
+		defId: tower.defId,
+		refund,
+		tile: { x: tower.tile.x, y: tower.tile.y },
+	})
 
 	return true
 }
