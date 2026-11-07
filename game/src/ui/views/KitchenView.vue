@@ -19,6 +19,13 @@
 					<span class="money-label">{{ t('kitchen.groceryMoney') }}</span>
 					<b>💵 {{ view.groceryMoney }}</b>
 				</p>
+				<button
+					type="button"
+					class="notebook"
+					@click="openNotebook"
+				>
+					{{ t('codex.title') }}
+				</button>
 				<SettingsButton tone="day" />
 			</header>
 
@@ -166,6 +173,10 @@
 		void router.push({ name: 'endlessLoadout', params: { mapId } })
 	}
 
+	function openNotebook(): void {
+		void router.push({ name: 'codex' })
+	}
+
 	/** Dev only: the mock failure toggle, dynamically imported so none of it reaches production. */
 	const DataPanel = shallowRef<Component | null>(null)
 
@@ -232,6 +243,24 @@
 	.money b {
 		color: var(--kd-day-owned);
 		font-size: 1.1rem;
+	}
+
+	.notebook {
+		height: 2.2rem;
+		padding: 0 0.8rem;
+		border: 1px solid var(--kd-day-card-edge);
+		border-radius: var(--kd-radius);
+		background: var(--kd-day-card);
+		color: var(--kd-day-ink-dim);
+		font: inherit;
+		font-size: 0.85rem;
+		cursor: pointer;
+	}
+
+	.notebook:hover,
+	.notebook:focus-visible {
+		border-color: var(--kd-day-frame);
+		color: var(--kd-day-ink);
 	}
 
 	.top {

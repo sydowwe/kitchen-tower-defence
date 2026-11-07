@@ -1,5 +1,8 @@
 <template>
-	<div class="card">
+	<div
+		class="card"
+		:class="tone"
+	>
 		<p
 			v-if="descriptionKey !== null"
 			class="desc"
@@ -146,9 +149,11 @@
 	 * yes-or-no about the tower rather than a number it might not have.
 	 */
 
-	const { descriptionKey = null } = defineProps<{
+	const { descriptionKey = null, tone = 'night' } = defineProps<{
 		stats: TowerStatsView
 		descriptionKey?: string | null
+		/** The shop and the hover cards float over a board. The notebook's sits on the day's own paper. */
+		tone?: 'night' | 'day'
 	}>()
 
 	const { t } = useI18n()
@@ -212,5 +217,26 @@
 	/* One status per line rather than a joined list: two of them on one line wraps mid-name. */
 	.applied {
 		display: block;
+	}
+
+	/* No panel of its own: the card it sits in is already one. */
+	.day {
+		padding: 0;
+		border: none;
+		background: none;
+	}
+
+	.day .desc {
+		max-width: none;
+		color: var(--kd-day-ink-dim);
+	}
+
+	.day dt,
+	.day .note {
+		color: var(--kd-day-ink-dim);
+	}
+
+	.day dd {
+		color: var(--kd-day-ink);
 	}
 </style>

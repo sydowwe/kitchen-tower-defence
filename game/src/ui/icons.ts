@@ -25,6 +25,16 @@ import {
 	faVolumeXmark,
 	faXmark,
 } from '@fortawesome/free-solid-svg-icons'
+import type { DamageType } from '@/ui/viewModel.ts'
+
+/** One per damage type, keyed by the literal, so a sixth type fails here rather than rendering blank. */
+export const DAMAGE_ICONS: Record<DamageType, string> = {
+	physical: 'hand-fist',
+	fire: 'fire',
+	cold: 'snowflake',
+	chemical: 'flask',
+	electric: 'bolt',
+}
 
 /**
  * The only file allowed to import from an icon package -- ESLint enforces it.

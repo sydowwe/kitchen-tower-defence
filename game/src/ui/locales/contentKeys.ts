@@ -13,7 +13,7 @@ import type { ENEMIES } from '@/core/content/enemies.ts'
 import type { FOODS } from '@/core/content/food.ts'
 import type { InstallationEffect, INSTALLATIONS } from '@/core/content/installations.ts'
 import type { NIGHT_MODIFIERS } from '@/core/content/modifiers.ts'
-import type { TowerRole } from '@/core/content/schema.ts'
+import type { TowerDef, TowerRole } from '@/core/content/schema.ts'
 import type { TOWERS } from '@/core/content/towers.ts'
 import type { LoadoutProblem } from '@/core/loadout.ts'
 import type { PlacementRejection } from '@/core/systems/placement.ts'
@@ -99,6 +99,9 @@ export type DifficultyMessages = Record<DifficultyId, Entry>
 
 /** `loadout.role`, over `TowerRole`: the roster's filter and each tower's line. A twelfth role fails here. */
 export type RoleMessages = Record<TowerRole, string>
+
+/** `codex.placement`, over where a tower can stand. A third kind of place fails here. */
+export type PlacementMessages = Record<TowerDef['placement'], string>
 
 /** `loadout.problem`, over `LoadoutProblem`: why Start is waiting. */
 export type LoadoutProblemMessages = Record<LoadoutProblem, string>

@@ -17,7 +17,7 @@
 				:title="t(`hud.damage.${row.damageType}`)"
 			>
 				<FontAwesomeIcon
-					:icon="ICONS[row.damageType]"
+					:icon="DAMAGE_ICONS[row.damageType]"
 					:aria-label="t(`hud.damage.${row.damageType}`)"
 				/>
 				<span>{{ t('hud.enemyTooltip.multiplier', { n: row.multiplier }) }}</span>
@@ -50,7 +50,8 @@
 	import { computed } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
-	import type { DamageType, EnemyTooltipView } from '@/ui/viewModel.ts'
+	import { DAMAGE_ICONS } from '@/ui/icons.ts'
+	import type { EnemyTooltipView } from '@/ui/viewModel.ts'
 
 	/**
 	 * The hovered enemy, and what each damage type does to it right now: the matrix, one enemy at a
@@ -68,15 +69,6 @@
 	const { tooltip } = defineProps<{ tooltip: EnemyTooltipView }>()
 
 	const { t } = useI18n()
-
-	/** One per type, keyed by the literal, so a sixth type fails here rather than rendering blank. */
-	const ICONS: Record<DamageType, string> = {
-		physical: 'hand-fist',
-		fire: 'fire',
-		cold: 'snowflake',
-		chemical: 'flask',
-		electric: 'bolt',
-	}
 
 	/** Tiles between the enemy's centre and the near edge of the card: clear of its glyph. */
 	const OFFSET_TILES = 0.6

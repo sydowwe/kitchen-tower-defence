@@ -21,8 +21,8 @@ Trust symbols over line numbers.
 
 | File | What's there now |
 | --- | --- |
-| `router.ts` | `'title'`, `'kitchen'`, `'loadout'` at `/kitchen/loadout`, `'night'`, the dev `'editor'`, a catch-all. No guard |
-| `ui/kitchenView.ts` | `buildPreview(night)` with `enemies` (tags, counts, first wave), and `enemyIdsOf(night)`, which is local |
+| `router.ts` | `'title'`, `'kitchen'`, `'loadout'` at `/kitchen/loadout`, `'night'`, `'endlessLoadout'` and `'endless'`, the dev `'editor'`, a catch-all. No guard |
+| `ui/kitchenView.ts` | `buildPreview(night, difficulty)` with `enemies` (tags, counts, first wave), and `enemyIdsOf(night)`, which is local |
 | `ui/loadoutView.ts` | The pattern to follow: a pure builder, keys and numbers only, and components that import it and never `core/` |
 | `ui/viewModel.ts` | `statsFor(def)` (exported by 20aB) builds a `TowerStatsView`. `buildEnemyTooltip` computes per-type multipliers with `resolveDamage(1, type, enemy)` and `effectivenessOf`. `DAMAGE_TYPES` is local |
 | `core/campaign.ts` | `unlockedTowerIds(progress)`: every night's unlocks up to tonight's, or all of them once the campaign is finished |
@@ -31,7 +31,7 @@ Trust symbols over line numbers.
 | `ui/components/hud/StatCard.vue`, `EnemyTooltip.vue` | Styled on the night roles (`--kd-panel`) |
 | `ui/components/EntityGlyph.vue` | A sprite or the emoji, for towers and enemies only |
 | `ui/stores/session.ts` | `loadoutDraft`, which is why a trip here from the loadout screen loses nothing |
-| `ui/views/KitchenView.vue`, `LoadoutView.vue` | No codex link. 20aB left none on purpose |
+| `ui/views/KitchenView.vue`, `LoadoutView.vue` | No codex link. 20aB left none on purpose. `LoadoutView` is also the endless counter, so its link serves both |
 
 ## Decisions already made
 
@@ -44,14 +44,21 @@ then edit this file. Don't leave it lying.
    An enemy is discovered when it's in the waves of any night up to and including tonight's, since
    tonight's preview already shows them. **The Fruit Fly is discovered from night 1**: it's in no
    wave, and CONTENT.md §2 says it hatches from night 1 onward. Name that exception in the code, and
-   don't derive it from the crumbs system. No new persistence.
+   don't derive it from the crumbs system. No new persistence. **Everything is discovered once a tier
+   is cleared** (`endlessUnlocked`), and not only on a finished campaign: `cleared` survives
+   `startCampaign`, so on night 1 of the next tier the endless counter offers every tower, and a
+   notebook that had gone dark would be calling them unseen. *Added at build time, with the user.*
 3. **An enemy's multipliers are products**, from `resolveDamage(1, type, { tags: def.tags,
    statuses: [] })`. Never an average, and never one row looked up. A Slug takes chemical at
    1.5 × 2.0 = 3.0.
 4. **The grid's rows are the tags the discovered enemies carry that have a row.** `physical-immune`,
    `douses-fire` and `boss` have no v1 enemy, so they don't appear. Descriptive tags (`bug`, `ground`,
    `fast`) have no row. Cells are coloured by `effectivenessOf` in the `--kd-hit-*` colours the
-   board's damage numbers use, because the codex is where those colours get learned.
+   board's damage numbers use, because the codex is where those colours get learned. **Those colours
+   sit on a `--kd-night` panel inside the day screen**, on the grid and on each enemy's strip: on
+   `--kd-day-card`, neutral `#ffe9a8` is about 1.1:1 and all but vanishes. *This reconciles decision 1
+   with this one, at build time.* Each row header also shows the glyphs of the discovered enemies
+   carrying the tag, since the acceptance reads "which damage for which bug".
 5. **Undiscovered is a silhouette with no name.** The glyph under `filter: brightness(0)` at low
    opacity, which works on a sprite `<img>` and on an emoji alike, with "not seen yet" copy in
    DECISIONS.md §1's voice. A tower says which night it arrives. An enemy says nothing.
@@ -65,9 +72,11 @@ then edit this file. Don't leave it lying.
 
 ### 1. `ui/codexView.ts`
 
-Decisions 2–4 and 7. Per tower: `statsFor`, the role, placement, noise, damage type and targets, and
-the three tier names. Per enemy: HP, speed, reward, steals, tags, the five multipliers with their
-bands, and the night it first appears.
+Decisions 2–4 and 7. Per tower: `statsFor`, the role, placement, cost, description, noise, damage
+type and targets, and the three tier names. Per enemy: HP at the campaign's tier (`Math.ceil`, like
+the night's tooltip, which a def's bare number would contradict on Cozy and Nightmare), speed, reward,
+steals, tags, description, the five multipliers with their bands, and the night it first appears. The
+description is what makes the Lemon's case: its card has to say what Armour Strip is for.
 
 ### 2. The screen: `router.ts`, `ui/views/CodexView.vue`, `ui/components/codex/*`
 
@@ -93,7 +102,8 @@ The copy is in DECISIONS.md §1's voice. It's the kitchen's notebook, not a data
   0.4, band `'weak'`.
 - On night 17 the grid's rows are exactly the discovered tags that have a matrix row, in
   `DAMAGE_MATRIX` order, and never include `boss`, `douses-fire` or `physical-immune`.
-- A finished campaign discovers everything.
+- A finished campaign discovers everything, and so does night 1 of another with a tier cleared.
+- The Silverfish's HP is 88, 110 and 149 on the three tiers.
 
 ## Acceptance
 
@@ -101,8 +111,8 @@ The copy is in DECISIONS.md §1's voice. It's the kitchen's notebook, not a data
       codex alone, and come back to the same counter.
 - [ ] The grid reads at a glance: which damage for which bug.
 - [ ] A silhouette makes you want to know what it is, and gives away nothing but its shape.
-- [ ] Reload on `#/kitchen/codex`, then press Back: you're in the Kitchen, not off the site.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] Reload on `#/kitchen/codex`, then press Back: you're in the Kitchen, not off the site.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 

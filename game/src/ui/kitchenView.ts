@@ -182,7 +182,7 @@ function percentOff(mult: number): number {
 	return Math.round((1 - mult) * 100)
 }
 
-function enemyIdsOf(night: NightDef): DefId[] {
+export function enemyIdsOf(night: NightDef): DefId[] {
 	return night.waves.flatMap(wave => wave.entries.map(entry => entry.enemyDefId))
 }
 

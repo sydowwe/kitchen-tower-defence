@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import CodexView from '@/ui/views/CodexView.vue'
 import GameView from '@/ui/views/GameView.vue'
 import KitchenView from '@/ui/views/KitchenView.vue'
 import LoadoutView from '@/ui/views/LoadoutView.vue'
@@ -16,6 +17,7 @@ const routes: RouteRecordRaw[] = [
 	{ path: '/kitchen', name: 'kitchen', component: KitchenView },
 	// Its own route, under the hub: Retry lands on it directly, and a reload keeps you there.
 	{ path: '/kitchen/loadout', name: 'loadout', component: LoadoutView },
+	{ path: '/kitchen/codex', name: 'codex', component: CodexView },
 	{ path: '/night', name: 'night', component: GameView },
 	// A long night on one map. The map is all either route carries: the loadout is progress's, saved by
 	// Start, so a reload and a Retry both rebuild the run from the save. `props` hands `mapId` to the view.

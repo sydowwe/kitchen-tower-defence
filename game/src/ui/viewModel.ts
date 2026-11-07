@@ -96,7 +96,7 @@ export type {
 export type { Speed } from '@/loop.ts'
 
 /** `core/` durations are tick counts; a card shows rates per second. The one conversion factor. */
-const TICKS_PER_SECOND = 60
+export const TICKS_PER_SECOND = 60
 
 /**
  * Two decimals, on every derived number.
@@ -105,7 +105,7 @@ const TICKS_PER_SECOND = 60
  * exactly and 0.15/sec (400 ticks) does not. Without this the card eventually prints
  * `0.15000000000000002` and it reads as a simulation bug.
  */
-function round2(value: number): number {
+export function round2(value: number): number {
 	return Math.round(value * 100) / 100
 }
 
@@ -1082,7 +1082,7 @@ export function buildTowerInspector(world: World, towerId: EntityId): TowerInspe
 }
 
 /** The order `hud.damage` lists them in, which is the order the tooltip's rows read. */
-const DAMAGE_TYPES: readonly DamageType[] = ['physical', 'fire', 'cold', 'chemical', 'electric']
+export const DAMAGE_TYPES: readonly DamageType[] = ['physical', 'fire', 'cold', 'chemical', 'electric']
 
 /**
  * The hovered enemy, rebuilt on **every** publish because its HP and statuses move. Built by the

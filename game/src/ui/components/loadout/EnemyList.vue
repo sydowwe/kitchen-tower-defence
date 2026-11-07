@@ -13,7 +13,12 @@
 			</span>
 			<div class="about">
 				<p class="line">
-					<span class="name">{{ t(enemy.nameKey) }}</span>
+					<RouterLink
+						class="name"
+						:to="{ name: 'codex', query: { enemy: enemy.id } }"
+					>
+						{{ t(enemy.nameKey) }}
+					</RouterLink>
 					<span
 						v-if="enemy.count !== undefined"
 						class="count"
@@ -43,12 +48,14 @@
 
 <script setup lang="ts">
 	import { useI18n } from 'vue-i18n'
+	import { RouterLink } from 'vue-router'
 	import EntityGlyph from '@/ui/components/EntityGlyph.vue'
 	import type { DefId, EnemyEntryView } from '@/ui/kitchenView.ts'
 
 	/**
 	 * What a night sends, once each, where it first turns up, with every tag the tooltip would print. A
 	 * night's composition gives each a count; a long night's gives none, and the line simply has none.
+	 * Each name opens its entry in the notebook, which has always seen whatever a counter is set out for.
 	 */
 
 	const { enemies, newIds = [] } = defineProps<{
@@ -99,8 +106,16 @@
 	}
 
 	.name {
+		color: inherit;
 		font-size: 0.92rem;
 		font-weight: 600;
+		text-decoration: underline dotted var(--kd-day-ink-dim);
+		text-underline-offset: 0.15em;
+	}
+
+	.name:hover,
+	.name:focus-visible {
+		color: var(--kd-day-owned);
 	}
 
 	.count {

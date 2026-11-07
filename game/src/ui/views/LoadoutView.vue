@@ -23,6 +23,13 @@
 					{{ t('loadout.back') }}
 				</button>
 				<h1 class="title">{{ t('loadout.title') }}</h1>
+				<button
+					type="button"
+					class="back notebook"
+					@click="openNotebook"
+				>
+					{{ t('codex.title') }}
+				</button>
 			</header>
 
 			<section class="bench">
@@ -253,6 +260,11 @@
 		void router.push({ name: 'kitchen' })
 	}
 
+	/** The draft is the session store's, so the counter is still as it was on the way back. */
+	function openNotebook(): void {
+		void router.push({ name: 'codex' })
+	}
+
 	/**
 	 * Nothing to set out for goes back to the Kitchen: a finished campaign has no tonight, and a long night
 	 * that is locked or on a map with none has no run. **By mode**: a finished campaign is exactly when a
@@ -336,6 +348,10 @@
 	.back:hover,
 	.back:focus-visible {
 		color: var(--kd-day-ink);
+	}
+
+	.notebook {
+		margin-left: auto;
 	}
 
 	.bench {

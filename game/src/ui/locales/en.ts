@@ -15,6 +15,7 @@ import type {
 	InstallationMessages,
 	LoadoutProblemMessages,
 	NightModifierMessages,
+	PlacementMessages,
 	RejectionMessages,
 	RoleMessages,
 	TagMessages,
@@ -878,6 +879,39 @@ export const en = {
 			SUPPRESSION: 'Burrowers',
 			TILE_EFFECT: 'The floor',
 		} satisfies RoleMessages,
+	},
+	// The kitchen's notebook: what has been through here, and what works on it. Never a codex on screen,
+	// and never a database -- it reads like something kept on top of the fridge.
+	codex: {
+		title: 'The notebook',
+		lede: 'What has been through this kitchen so far, and what works on it.',
+		grid: {
+			title: 'What works on what',
+			// The product, said as what happens. A Slug's ×3 is on its own card, and this is why.
+			note: 'A bug with two of these takes both, one on top of the other. Anything not on here takes every type the same.',
+		},
+		towers: 'What the kitchen has',
+		enemies: 'What comes for the food',
+		count: '{seen} of {total}',
+		tiers: 'Tiers',
+		unseen: 'Not seen yet.',
+		// A tower is expected, and an enemy is not: the silhouette of a bug says nothing about when.
+		arrives: 'Not seen yet. Turns up on night {n}.',
+		placement: {
+			off_path: 'Beside the track',
+			path_only: 'On the track',
+		} satisfies PlacementMessages,
+		enemy: {
+			// The units are in the labels: a Fruit Fly is the one enemy worth 1, and "1 crumbs" is a typo.
+			speed: 'Tiles a second',
+			// Mold. A 0 here would read as a stalled bug rather than a thing that grows.
+			stationary: 'Stays where it lands',
+			worth: 'Crumbs dropped',
+			steals: 'Steals',
+			stealsNothing: 'Nothing',
+			firstSeen: 'First seen',
+			firstSeenValue: 'Night {n}',
+		},
 	},
 	// The card that goes up when the meter fills. Same idiom as `night.foodLost` and deliberately the
 	// same understatement: somebody came in and turned the light on, which is a thing that happened
