@@ -16,6 +16,7 @@
 				:thiefBanner="thiefBanner"
 				:waveBanner="waveBanner"
 				:modifierBanner="modifierBanner"
+				:hint="hint"
 				:previousBest="previousBest"
 				:saveState="saveState"
 				@select="onSelect"
@@ -29,6 +30,7 @@
 				@retry="retryNight"
 				@continueNight="toKitchen"
 				@retrySave="progressStore.retry"
+				@dismissHint="dismissHint"
 			/>
 			<div
 				v-if="progressStore.progress === null"
@@ -102,6 +104,7 @@
 	import LoadState from '@/ui/components/LoadState.vue'
 	import { useProgressStore } from '@/ui/stores/progress.ts'
 	import { useSettingsStore } from '@/ui/stores/settings.ts'
+	import { buildHintFacts, HOLDING_PROMPT, isFirstNight, stepHints, type ShowingHint } from '@/ui/hints.ts'
 	import { createInteraction, type Interaction, type Toast } from '@/ui/interaction.ts'
 	import { keyLabels } from '@/ui/keys.ts'
 	import { createSelection } from '@/ui/selection.ts'
@@ -252,6 +255,22 @@
 	 */
 	let worldCount = 0
 	const modifierBanner = shallowRef<ModifierBannerView | null>(null)
+
+	/**
+	 * Night 1's prompts and the first-time lines (step 23F). `hint` is the card up now, and `ui/hints.ts`
+	 * picks the next one at publish. `crumbClicked` is the one fact the world doesn't keep, read off
+	 * `crumbCollected` in `tick()` and held for the night. All three are reset in `restart()`: a Retry of
+	 * night 1 must not open on the last attempt's card, or holding the clock for it.
+	 *
+	 * **The hold is released on the enqueue, never on `towerPlaced`** (decision 3). A paused loop runs no
+	 * ticks, so the command would never drain and the event never arrive. `draw()` runs paused, and
+	 * watches the queue: any command lets go, and so does the player unpausing.
+	 */
+	const hint = shallowRef<ShowingHint | null>(null)
+	let crumbClicked = false
+	let holding = false
+	/** What the hold found, for D's rule: an automatic pause puts back what it found. */
+	let pausedBeforeHold = false
 
 	/** Dev only: the editor's preview map, stashed until there is a world to hang it on. */
 	let previewMap: MapDef | null = null
@@ -443,6 +462,15 @@
 		waveBanner.value = null
 		worldCount++
 		modifierBanner.value = buildModifierBanner(next, worldCount)
+		hint.value = null
+		crumbClicked = false
+		// Before the first tick: a hold started from a publish lets frames of countdown run first, and one
+		// started from an event can't, because a paused night has none.
+		if (isFirstNight(next.night.nightId) && !settingsStore.settings.seenHints.includes(HOLDING_PROMPT)) {
+			hold()
+		} else {
+			releaseHold()
+		}
 		resetEffects()
 		resetAudio()
 		// Both selections point at a world that no longer exists.
@@ -538,6 +566,56 @@
 			loop.resume()
 		}
 	})
+
+	function hold(): void {
+		if (loop === null || holding) {
+			return
+		}
+		holding = true
+		pausedBeforeHold = loop.paused
+		loop.pause()
+	}
+
+	/**
+	 * Under the settings panel, the panel is what resumes: it is handed what the hold found, so closing it
+	 * puts that back instead of the hold's own pause.
+	 */
+	function releaseHold(): void {
+		if (!holding) {
+			return
+		}
+		holding = false
+		if (settingsPanel.open.value) {
+			pausedBeforePanel = pausedBeforeHold
+		} else if (!pausedBeforeHold) {
+			loop?.resume()
+		}
+	}
+
+	/** The card's own control. Dismissing the first prompt lets go of the clock too: it has been read. */
+	function dismissHint(): void {
+		if (hint.value?.id === HOLDING_PROMPT) {
+			releaseHold()
+		}
+		hint.value = null
+	}
+
+	/**
+	 * One step of the hint queue, at publish. Nothing after the night ends: the summary is the last word.
+	 */
+	function publishHint(current: World): void {
+		if (current.night.phase === 'won' || current.night.phase === 'lost') {
+			hint.value = null
+			return
+		}
+		const step = stepHints(hint.value, buildHintFacts(current, crumbClicked), settingsStore.settings.seenHints)
+		for (const id of step.markSeen) {
+			settingsStore.markHintSeen(id)
+		}
+		if (step.showing !== hint.value) {
+			hint.value = step.showing
+		}
+	}
 
 	/** The shop's toggle: the same tower again disarms, and arming one closes the inspector. */
 	function onSelect(defId: DefId): void {
@@ -678,6 +756,10 @@
 						}
 						continue
 					}
+					if (event.kind === 'crumbCollected' && event.byTowerId === null) {
+						crumbClicked = true
+						continue
+					}
 					if (event.kind === 'waveStarted') {
 						const thief = buildThiefBanner(world, event.waveIndex)
 						thiefBanner.value = thief
@@ -700,6 +782,9 @@
 			draw() {
 				// Before `drawFrame`, which is what runs the effects layer: pushing after it puts
 				// every theft one frame late. The sound reads the same drain, for the same reason.
+				if (holding && (queue.length > 0 || !activeLoop.paused)) {
+					releaseHold()
+				}
 				if (world !== null) {
 					pushEvents(frameEvents, world)
 					pushAudioEvents(frameEvents, world)
@@ -734,6 +819,7 @@
 				}
 
 				if (world !== null) {
+					publishHint(world)
 					refreshInspector()
 					hud.value = buildHudSnapshot(
 						world,
@@ -784,6 +870,9 @@
 		thiefBanner.value = null
 		waveBanner.value = null
 		modifierBanner.value = null
+		hint.value = null
+		crumbClicked = false
+		holding = false
 		resetEffects()
 		stopAudio()
 		interaction?.destroy()

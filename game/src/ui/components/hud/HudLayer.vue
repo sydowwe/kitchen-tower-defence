@@ -68,6 +68,12 @@
 		:banner="modifierBanner"
 	/>
 
+	<HintCard
+		v-if="hint !== null && snapshot.summary === null"
+		:hint="hint"
+		@dismiss="emit('dismissHint')"
+	/>
+
 	<ToastStack :toasts="toasts" />
 
 	<NightSummary
@@ -84,6 +90,7 @@
 <script setup lang="ts">
 	import { computed } from 'vue'
 	import EnemyTooltip from '@/ui/components/hud/EnemyTooltip.vue'
+	import HintCard from '@/ui/components/hud/HintCard.vue'
 	import ModifierCard from '@/ui/components/hud/ModifierCard.vue'
 	import NightSummary from '@/ui/components/hud/NightSummary.vue'
 	import ThiefCard from '@/ui/components/hud/ThiefCard.vue'
@@ -94,6 +101,7 @@
 	import WakeCard from '@/ui/components/hud/WakeCard.vue'
 	import WaveBanner from '@/ui/components/hud/WaveBanner.vue'
 	import WaveControl from '@/ui/components/hud/WaveControl.vue'
+	import type { ShowingHint } from '@/ui/hints.ts'
 	import type { Selection } from '@/ui/selection.ts'
 	import type {
 		DefId,
@@ -126,6 +134,7 @@
 		thiefBanner = null,
 		waveBanner = null,
 		modifierBanner = null,
+		hint = null,
 		previousBest = null,
 		saveState = 'saved',
 	} = defineProps<{
@@ -144,6 +153,8 @@
 		waveBanner?: WaveBannerView | null
 		/** Tonight's modifier, said as the night opens, or null on a plain night. Built once per world. */
 		modifierBanner?: ModifierBannerView | null
+		/** Night 1's prompt or a first-time line, or null. A prop for `wake`'s reason: `ui/hints.ts` picks it. */
+		hint?: ShowingHint | null
 		/**
 		 * In a run, this tier's best on the map from before it started, or null for none. A prop because it
 		 * is the save's, not the world's -- and read before this run's best lands on it.
@@ -165,6 +176,7 @@
 		retry: []
 		continueNight: []
 		retrySave: []
+		dismissHint: []
 	}>()
 
 	/** The only reactive field of `Selection` the HUD reads. The hover fields are plain on purpose. */

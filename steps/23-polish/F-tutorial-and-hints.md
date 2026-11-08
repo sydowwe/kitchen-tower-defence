@@ -119,7 +119,7 @@ anything with an exclamation mark. H reads it again.
 - [ ] Settings → "show the hints again", then night 1: the tutorial runs again.
 - [ ] Retry night 1 halfway through the prompts: it carries on from the first unseen one, and
       doesn't hold.
-- [ ] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
+- [x] `npm run test`, `npm run lint`, `npm run type-check` and `npm run build` are green.
 
 Leave every judgement criterion unticked unless you actually sat and looked.
 

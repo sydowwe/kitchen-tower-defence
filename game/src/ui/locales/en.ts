@@ -1025,6 +1025,48 @@ export const en = {
 		bestStands: 'The best here is still {n}.',
 		retry: 'Another long night here',
 	},
+	// Night 1's four prompts and the first-time lines after them (23F), keyed by `ui/hints.ts`'s ids. Each
+	// is a title and one line, and says what is happening rather than what to feel about it. The first
+	// prompt says "near the track" and stops there: where to build is the player's (decision 8).
+	hints: {
+		dismiss: 'Dismiss',
+		tutorial: {
+			placeTower: {
+				title: 'They come out at two.',
+				line: 'Take the Salt Shaker from the counter below and set it down near the track.',
+			},
+			collectCrumb: {
+				title: 'Every one of them drops a crumb.',
+				line: 'Click a pile to pick it up. Crumbs pay for everything on the counter.',
+			},
+			callWave: {
+				title: 'A lull between waves.',
+				line: 'Call the next one in early, and the time you skip is paid in crumbs.',
+			},
+			leak: {
+				title: 'One got to the fridge.',
+				line: 'Whatever gets there takes something with it. When the shelves are empty, the night is over.',
+			},
+		},
+		hint: {
+			rot: {
+				title: 'The crumbs are going off.',
+				line: 'A pile left lying draws more of them, and in the end something hatches out of it.',
+			},
+			flyer: {
+				title: 'Something is flying.',
+				line: 'Salt only lands on what walks. Reaching the air takes something else.',
+			},
+			noise: {
+				title: 'The kitchen is getting loud.',
+				line: 'If the meter fills, someone comes down and turns the light on.',
+			},
+			mold: {
+				title: 'Mold.',
+				line: 'Nothing can be set down where it grows, and it spreads.',
+			},
+		},
+	},
 }
 
 export type Messages = typeof en
